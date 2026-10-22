@@ -3,6 +3,7 @@
 import { sunPosition, sunTimes } from "../../../lib/derived/sun";
 import { madridTime } from "../../../lib/derived/madrid";
 import type { Play, PlayK } from "./model";
+import { focosOf } from "./partidoModel";
 
 /** Catmull-rom through the points as cubic béziers: the ribbon's soft pressure line. */
 export function smooth(pts: readonly [number, number][]): string {
@@ -126,13 +127,8 @@ export function tardeOf(kick: number, duration: number, now: number, opts: { whi
   const at = Math.max(T0, Math.min(T1, now));
   const end = kick + duration * MIN;
   const sunset = sunTimes(kick).sunset;
-  // the floodlights: the first minute the sun is under 3°
-  let focos: number | null = null;
-  for (let t = T0; t <= T1; t += MIN)
-    if (el(t) < 3) {
-      focos = t;
-      break;
-    }
+  // the floodlights: the first minute a setting sun is under 3°
+  const focos = focosOf(kick);
   const mk = (t: number, lab: string, cls: string) => ({ left: tx(t).toFixed(2), h: madridTime(t), t: lab, cls });
   const marks = [mk(at, opts.whistle ? "Ahora, a punto" : "Ahora", `is-now${tx(at) < 12 ? " is-start" : tx(at) > 88 ? " is-end" : ""}`), mk(kick, "Pitido", `is-key${opts.whistle ? " is-hide" : ""}`), mk(end, "Final", "")];
   const top: Tarde["top"] = [];

@@ -483,7 +483,12 @@ export function numbersAt(n: { kinds: NumKind[]; hits: NumHit[] }, plays: readon
     let us = 0;
     let them = 0;
     if (K.k === "gol") ({ us, them } = scoreAt(plays, m));
-    else for (const h of n.hits) if (h.k === K.k && h.m <= m) (h.side === "us" ? us++ : them++);
+    else
+      for (const h of n.hits) {
+        if (h.k !== K.k || h.m > m) continue;
+        if (h.side === "us") us++;
+        else them++;
+      }
     const mx = Math.max(us, them, 1);
     return { ...K, us, them, usW: Math.round((us / mx) * 100), themW: Math.round((them / mx) * 100) };
   });

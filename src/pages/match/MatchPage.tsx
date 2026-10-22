@@ -6,7 +6,7 @@
 // swipe moves to the next one. The moviola's minute (?min=) drives the score, the sky and the open screen; the
 // sheets (el cartel, compartir el momento, los avisos) open on top (?hoja=) and «atrás» closes them.
 // The logic is pure in partido/model.ts, moviola.ts and words.ts; each screen lives in partido/Screen*.tsx.
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useSeason } from "../../context/SeasonContext";
@@ -32,7 +32,8 @@ import { useGoalCelebration } from "../../components/celeste/useGoalCelebration"
 import { pipBottom } from "../../components/vidrio/live/liveModel";
 import { KitStillContext } from "../../components/jersey3d/kitStill";
 import { usePageKitStills } from "../../components/jersey3d/usePageKitStills";
-import { useLiveDoc, useMatchScorers, useMvpResults } from "../vestuario/live";
+import { useLiveDoc, useMatchScorers, useMeetingNote, useMvpResults } from "../vestuario/live";
+import { meetTimeOf } from "./partido/partidoModel";
 import { useMatchBoard } from "../pizarra/useMatchBoard";
 import { toBePlayed } from "../../lib/derived/kickoff";
 import { lineupOf, edgeOf, faseOf, floodAtMs, isDone, isLive, isPlayed, isPre, numHitsOf, parseMin, playsOf, pulseOf, resultWords, scoreAt, SCREENS, timelineOf, type Play, type Screen } from "./partido/model";
@@ -47,6 +48,7 @@ import { ScreenSiete } from "./partido/ScreenSiete";
 import { ScreenNumeros } from "./partido/ScreenNumeros";
 import { ScreenVestuario } from "./partido/ScreenVestuario";
 import { useVestuario } from "./partido/vestuarioState";
+import { rememberScreen } from "./partido/paths";
 import { isFase, isQuien, maquetaOf, type Quien } from "./partido/maqueta";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
@@ -54,9 +56,25 @@ import "../../styles/vidrio/components.css";
 import "../../styles/vidrio/reading.css";
 import "../../styles/match-vidrio.css";
 
-const LABELS: Record<Screen, string> = { partido: "El partido", siete: "El siete", numeros: "Números", vestuario: "Vestuario" };
-const PATH: Record<Screen, string> = { partido: "", siete: "/siete", numeros: "/numeros", vestuario: "/vestuario" };
-const OLD_TAB: Record<string, Screen> = { cronica: "partido", pulso: "partido", campo: "siete", estadisticas: "numeros", vestuario: "vestuario" };
+const LABELS: Record<Screen, string> = {
+  partido: "El partido",
+  siete: "El siete",
+  numeros: "Números",
+  vestuario: "Vestuario",
+};
+const PATH: Record<Screen, string> = {
+  partido: "",
+  siete: "/siete",
+  numeros: "/numeros",
+  vestuario: "/vestuario",
+};
+const OLD_TAB: Record<string, Screen> = {
+  cronica: "partido",
+  pulso: "partido",
+  campo: "siete",
+  estadisticas: "numeros",
+  vestuario: "vestuario",
+};
 const SHEETS: readonly Sheet[] = ["cartel", "momento", "avisos"];
 
 /** The match id and the screen from the address (/partidos/<id>[/siete…]; the old /matches/<id>?tab= too). */
@@ -68,11 +86,13 @@ function placeOf(pathname: string, search: Record<string, unknown>): { id: strin
   return { id, screen };
 }
 
-const useHydrated = (): boolean => {
-  const [h, setH] = useState(false);
-  useEffect(() => setH(true), []);
-  return h;
-};
+const subscribeNothing = () => () => {};
+const useHydrated = (): boolean =>
+  useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
 
 export function MatchPage() {
   const router = useRouter();
@@ -102,21 +122,43 @@ export function MatchPage() {
 
   // ---- the people of the match's season
   const seasonId = match?.seasonId ?? "";
-  const people = useMemo(() => {
+  const people = (() => {
     const out = new Map<string, Person>();
     for (const raw of players) {
       const p = seasonId ? playerForSeason(raw, seasonId, seasons) : raw;
       const short = nameFor(p, seasonId || undefined);
-      out.set(p.id, { id: p.id, name: niceName(short), short: short.toLocaleUpperCase("es"), num: p.number != null ? String(p.number) : "", first: p.firstName ?? "", last: p.lastName ?? "", pos: p.naturalPosition ?? "MED" });
+      out.set(p.id, {
+        id: p.id,
+        name: niceName(short),
+        short: short.toLocaleUpperCase("es"),
+        num: p.number != null ? String(p.number) : "",
+        first: p.firstName ?? "",
+        last: p.lastName ?? "",
+        pos: p.naturalPosition ?? "MED",
+      });
     }
-    for (const g of match?.guests ?? []) out.set(`guest:${g.id}`, { id: `guest:${g.id}`, name: `${g.name} (invitado)`, short: g.name.toLocaleUpperCase("es"), num: "", first: g.name, last: "", pos: "MED" });
+    for (const g of match?.guests ?? [])
+      out.set(`guest:${g.id}`, {
+        id: `guest:${g.id}`,
+        name: `${g.name} (invitado)`,
+        short: g.name.toLocaleUpperCase("es"),
+        num: "",
+        first: g.name,
+        last: "",
+        pos: "MED",
+      });
     return out;
-  }, [players, seasons, seasonId, match?.guests]);
-  const nameOf = useCallback((id: string) => people.get(id)?.name ?? "Jugador", [people]);
-  const numOf = useCallback((id: string) => people.get(id)?.num ?? "", [people]);
+  })();
+  const nameOf = (id: string) => people.get(id)?.name ?? "Jugador";
+  const numOf = (id: string) => people.get(id)?.num ?? "";
   const kit = match?.kit === "away" ? "away" : "home";
-  const printed = useMemo(() => [...people.values()].filter((p) => p.num && !p.id.startsWith("guest:")).map((p) => ({ name: p.short, num: p.num })), [people]);
-  const stillOf = usePageKitStills({ on: hydrated, theme, kits: kit === "away" ? ["away", "home"] : ["home", "away"], players: printed });
+  const printed = [...people.values()].filter((p) => p.num && !p.id.startsWith("guest:")).map((p) => ({ name: p.short, num: p.num }));
+  const stillOf = usePageKitStills({
+    on: hydrated,
+    theme,
+    kits: kit === "away" ? ["away", "home"] : ["home", "away"],
+    players: printed,
+  });
 
   // ---- the moment
   const mvp = match ? mvpResults.get(match.id) : undefined;
@@ -144,41 +186,36 @@ export function MatchPage() {
   const pushedSheet = useRef(false);
   const [say, setSay] = useState({ text: "", on: false });
   const sayT = useRef<number>(0);
-  const sayLine = useCallback((text: string) => {
+  const sayLine = (text: string) => {
     window.clearTimeout(sayT.current);
     setSay({ text, on: true });
     sayT.current = window.setTimeout(() => setSay((s) => ({ ...s, on: false })), 2600);
-  }, []);
+  };
 
   // ---- addresses: the screen, the minute and the sheet live in the URL
-  const hrefFor = useCallback(
-    (screen: Screen | "mesa", opts: { min?: number | null; hoja?: Sheet | null } = {}) => {
-      const q = new URLSearchParams();
-      const mm = opts.min === undefined ? (dragged ? minute : null) : opts.min;
-      if (mm != null && screen !== "mesa") q.set("min", String(mm));
-      if (opts.hoja) q.set("hoja", opts.hoja);
-      if (dev) for (const k of ["maqueta", "quien", "red"]) if (typeof search[k] === "string") q.set(k, search[k] as string);
-      const s = q.toString();
-      return `${base}${screen === "mesa" ? "/mesa" : PATH[screen]}${s ? `?${s}` : ""}`;
-    },
-    [base, dragged, minute, dev, search],
-  );
+  const hrefFor = (screen: Screen | "mesa", opts: { min?: number | null; hoja?: Sheet | null } = {}) => {
+    const q = new URLSearchParams();
+    const mm = opts.min === undefined ? (dragged ? minute : null) : opts.min;
+    if (mm != null && screen !== "mesa") q.set("min", String(mm));
+    if (opts.hoja) q.set("hoja", opts.hoja);
+    if (dev) for (const k of ["maqueta", "quien", "red"]) if (typeof search[k] === "string") q.set(k, search[k] as string);
+    const s = q.toString();
+    return `${base}${screen === "mesa" ? "/mesa" : PATH[screen]}${s ? `?${s}` : ""}`;
+  };
   // the moviola writes ?min= in place (no history), a moment after it settles
+  const wantMin = dragged ? minute : null;
+  const minHref = !match || playing || wantMin === urlMin ? null : hrefFor(urlScreen, { min: wantMin, hoja: sheet });
   useEffect(() => {
-    if (!match || playing) return;
-    const want = dragged ? minute : null;
-    if (want === urlMin) return;
-    const t = window.setTimeout(() => void router.navigate({ href: hrefFor(urlScreen, { min: want, hoja: sheet }), replace: true, resetScroll: false }), 250);
+    if (!minHref) return;
+    const t = window.setTimeout(() => void router.navigate({ href: minHref, replace: true, resetScroll: false }), 250);
     return () => window.clearTimeout(t);
-  }, [match, playing, dragged, minute, urlMin, router, hrefFor, urlScreen, sheet]);
+  }, [minHref, router]);
   // a ?min= from outside (a shared moment, back/forward) moves the moviola
-  const lastUrlMin = useRef(urlMin);
-  useEffect(() => {
-    if (urlMin !== lastUrlMin.current) {
-      lastUrlMin.current = urlMin;
-      if (urlMin !== (dragged ? minute : null)) setHeld(urlMin);
-    }
-  }, [urlMin, dragged, minute]);
+  const [seenUrlMin, setSeenUrlMin] = useState(urlMin);
+  if (urlMin !== seenUrlMin) {
+    setSeenUrlMin(urlMin);
+    if (urlMin !== (dragged ? minute : null)) setHeld(urlMin);
+  }
 
   // ---- the screen shown: follows the address through a View Transition
   const [shown, setShown] = useState<Screen>(urlScreen);
@@ -197,22 +234,15 @@ export function MatchPage() {
   useEffect(() => {
     pinTabs();
   }, [shown]);
-  const go = useCallback(
-    (s: Screen | "mesa") => {
-      if (s === "mesa") {
-        try {
-          sessionStorage.setItem(`pp-back:${matchId}`, urlScreen);
-        } catch {
-          /* private mode: «Volver al partido» opens El partido */
-        }
-        void router.navigate({ href: hrefFor("mesa", { min: null }) });
-        return;
-      }
-      if (s === urlScreen) return;
-      void router.navigate({ href: hrefFor(s), resetScroll: false });
-    },
-    [router, hrefFor, urlScreen, matchId],
-  );
+  const go = (s: Screen | "mesa") => {
+    if (s === "mesa") {
+      rememberScreen(matchId, urlScreen);
+      void router.navigate({ href: hrefFor("mesa", { min: null }) });
+      return;
+    }
+    if (s === urlScreen) return;
+    void router.navigate({ href: hrefFor(s), resetScroll: false });
+  };
 
   // ---- the compact strip: once the lens has scrolled away
   const [compact, setCompact] = useState(false);
@@ -236,11 +266,11 @@ export function MatchPage() {
 
   // ---- model
   const rival = match?.rival ?? "el rival";
-  const plays: Play[] = useMemo(() => (match ? playsOf(match, nameOf, rival) : []), [match, nameOf, rival]);
-  const lineup = useMemo(() => (match ? lineupOf(match) : null), [match]);
-  const tl = useMemo(() => (match && lineup ? timelineOf(match, lineup, plays, duration, edge, nameOf) : null), [match, lineup, plays, duration, edge, nameOf]);
-  const pulse = useMemo(() => (match ? pulseOf(match, duration) : []), [match, duration]);
-  const nums = useMemo(() => (match ? numHitsOf(match) : { kinds: [], hits: [], narrated: false }), [match]);
+  const plays: Play[] = match ? playsOf(match, nameOf, rival) : [];
+  const lineup = match ? lineupOf(match) : null;
+  const tl = match && lineup ? timelineOf(match, lineup, plays, duration, edge, nameOf) : null;
+  const pulse = match ? pulseOf(match, duration) : [];
+  const nums = match ? numHitsOf(match) : { kinds: [], hits: [], narrated: false };
   const result = resultWords(scoreAt(plays, duration), scoreAt(plays, duration / 2));
   const resultNow = live || fase === "final" ? resultWords(scoreAt(plays, edge), scoreAt(plays, Math.min(edge, duration / 2))) : result;
   const score = scoreAt(plays, minute);
@@ -249,29 +279,23 @@ export function MatchPage() {
   // ---- the moviola's verbs
   const [fx, setFx] = useState<"gold" | "cold" | null>(null);
   const fxT = useRef<number>(0);
-  const flashFor = useCallback(
-    (p: Play) => {
-      window.clearTimeout(fxT.current);
-      const gold = p.k === "gol";
-      setFx(gold ? "gold" : "cold");
-      sayLine(gold ? `¡${p.title}!` : p.title);
-      fxT.current = window.setTimeout(() => setFx(null), reduced ? 600 : gold ? 2600 : 1600);
-    },
-    [reduced, sayLine],
-  );
-  const goalAt = useCallback((m: number) => [...plays].reverse().find((p) => p.m === m && (p.k === "gol" || p.k === "rival")) ?? null, [plays]);
-  const stop = useCallback(() => {
+  const flashFor = (p: Play) => {
+    window.clearTimeout(fxT.current);
+    const gold = p.k === "gol";
+    setFx(gold ? "gold" : "cold");
+    sayLine(gold ? `¡${p.title}!` : p.title);
+    fxT.current = window.setTimeout(() => setFx(null), reduced ? 600 : gold ? 2600 : 1600);
+  };
+  const goalAt = (m: number) => [...plays].reverse().find((p) => p.m === m && (p.k === "gol" || p.k === "rival")) ?? null;
+  const stop = () => {
     window.clearInterval(timer.current);
     timer.current = 0;
     setPlaying(false);
-  }, []);
-  const seek = useCallback(
-    (m: number) => {
-      const t = Math.max(0, Math.min(edge, Math.round(m)));
-      setHeld(t >= edge ? null : t);
-    },
-    [edge],
-  );
+  };
+  const seek = (m: number) => {
+    const t = Math.max(0, Math.min(edge, Math.round(m)));
+    setHeld(t >= edge ? null : t);
+  };
   const jump = (dir: 1 | -1) => {
     stop();
     const list = [0, ...plays.filter((p) => p.m <= edge).map((p) => p.m), edge];
@@ -312,22 +336,26 @@ export function MatchPage() {
   const moment = useGoalMoment(goalShow.goal ? { key: goalShow.goal.id, side: goalShow.goal.ours ? "us" : "them" } : null);
 
   // ---- sheets
-  const open = useCallback(
-    (s: Sheet) => {
-      stop();
-      pushedSheet.current = true;
-      void router.navigate({ href: hrefFor(urlScreen, { hoja: s }), resetScroll: false });
-    },
-    [router, hrefFor, urlScreen, stop],
-  );
-  const closeSheet = useCallback(() => {
+  const open = (s: Sheet) => {
+    stop();
+    pushedSheet.current = true;
+    void router.navigate({
+      href: hrefFor(urlScreen, { hoja: s }),
+      resetScroll: false,
+    });
+  };
+  const closeSheet = () => {
     if (pushedSheet.current) {
       pushedSheet.current = false;
       router.history.back();
       return;
     }
-    void router.navigate({ href: hrefFor(urlScreen, { hoja: null }), replace: true, resetScroll: false });
-  }, [router, hrefFor, urlScreen]);
+    void router.navigate({
+      href: hrefFor(urlScreen, { hoja: null }),
+      replace: true,
+      resetScroll: false,
+    });
+  };
 
   // ---- the viewer
   const playerInSquad = !!v0.playerId && !!match?.seasonId && !!players.find((p) => p.id === v0.playerId && p.seasons?.includes(match.seasonId ?? "") && !p.archived);
@@ -344,7 +372,7 @@ export function MatchPage() {
   const viewer: Viewer = quien ? maquetaViewer(quien, real, people) : real;
 
   // ---- the season around it
-  const seasonMatches = useMemo(() => matches.filter((x) => isVisibleMatch(x) && x.seasonId === match?.seasonId && x.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date)), [matches, match?.seasonId]);
+  const seasonMatches = matches.filter((x) => isVisibleMatch(x) && x.seasonId === match?.seasonId && x.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date));
   const idx = match ? seasonMatches.findIndex((x) => x.id === match.id) : -1;
   const prevMatch = idx > 0 ? seasonMatches[idx - 1] : null;
   const nextMatches = idx >= 0 ? seasonMatches.slice(idx + 1).filter((x) => !isPlayedMatch(x)) : [];
@@ -359,22 +387,35 @@ export function MatchPage() {
   const boardId = useMatchBoard(match?.seasonId, match?.id, !!match && toBePlayed(match, now), v0.member);
   const captainId = useLiveDoc<string | null>(boardId ? `lineups/${boardId}` : null, "captain", (d) => (typeof d?.roles?.captainId === "string" ? (d.roles.captainId as string) : null), null).data;
 
+  // ---- the quedada: the time the meeting note gives, else half an hour before (team-only read)
+  const meetingNote = useMeetingNote(v0.member ? matchId : undefined);
+
   // ---- the vestuario's state (the tab's badge and line)
-  const ves = useVestuario(match ?? null, { fase, viewer, minute, edge, score, plays, people });
+  const ves = useVestuario(match ?? null, {
+    fase,
+    viewer,
+    minute,
+    edge,
+    score,
+    plays,
+    people,
+  });
 
   // ---- the avisos of this match
   const avisos = useAvisos(match?.id ?? null, fase, viewer.member, rival, sayLine);
 
   const [pip, setPip] = useState<ScorePip | null>(null);
-  const closePip = useCallback(() => {
+  const closePip = () => {
     setPip((p) => {
       p?.close();
       return null;
     });
-  }, []);
+  };
+  // (the match stops being played: the window closes, and the page forgets it)
   useEffect(() => {
-    if (!live) closePip();
-  }, [live, closePip]);
+    if (!live) pip?.close();
+  }, [live, pip]);
+  if (!live && pip) setPip(null);
 
   // ---- swipe between screens (phone and tablet)
   const sw = useRef<{ x: number; y: number; t: number } | null>(null);
@@ -461,9 +502,28 @@ export function MatchPage() {
   const word = fase === "aplazado" ? (cancelled ? "Suspendido" : "Aplazado") : "Sin acta";
   const j = jornada ? `J${jornada} · ` : "";
   const title = titleOf(fase, j, rival, match.home !== false, resultNow, cancelled);
-  const status = statusOf({ fase, m: minute, edge, dragged, result: resultNow, kick: kickMs, now, postponedTo: postponedTo && Number.isFinite(postponedTo) ? postponedTo : null, cancelled });
-  const scoreLabel = scoreLabelOf(rival, score, { played, pre, dragged, live, m: minute, kickTime, word });
-  const captain = captainId;
+  const status = statusOf({
+    fase,
+    m: minute,
+    edge,
+    dragged,
+    result: resultNow,
+    kick: kickMs,
+    now,
+    postponedTo: postponedTo && Number.isFinite(postponedTo) ? postponedTo : null,
+    cancelled,
+  });
+  const scoreLabel = scoreLabelOf(rival, score, {
+    played,
+    pre,
+    dragged,
+    live,
+    m: minute,
+    kickTime,
+    word,
+  });
+  // (the match's armband from the official board, else the season's captain)
+  const captain = captainId ?? seasons.find((x) => x.id === match.seasonId)?.captainPlayerId ?? null;
   const venue = match.venue ?? "";
   const c: PageCtx = {
     match,
@@ -514,14 +574,33 @@ export function MatchPage() {
 
   // the header's actions
   const finalish = done || fase === "final" || fase === "pendiente";
-  const admin = viewer.admin && !live ? { href: finalish ? `/admin/partidos/${encodeURIComponent(match.id)}?tab=acta` : `/admin/partidos/${encodeURIComponent(match.id)}`, label: finalish ? "Editar el acta" : "Abrir en la Sala de control" } : null;
-  const mesa = viewer.mesa && !done && fase !== "aplazado" ? { label: fase === "pendiente" ? "Publicar el acta en la mesa" : live ? "Volver a la mesa" : "Abrir la mesa" } : null;
+  const admin =
+    viewer.admin && !live
+      ? {
+          href: finalish ? `/admin/partidos/${encodeURIComponent(match.id)}?tab=acta` : `/admin/partidos/${encodeURIComponent(match.id)}`,
+          label: finalish ? "Editar el acta" : "Abrir en la Sala de control",
+        }
+      : null;
+  const mesa =
+    viewer.mesa && !done && fase !== "aplazado"
+      ? {
+          label: fase === "pendiente" ? "Publicar el acta en la mesa" : live ? "Volver a la mesa" : "Abrir la mesa",
+        }
+      : null;
   const nChanges = plays.filter((p) => p.k === "cambio" && p.m <= minute).length;
   const hints = tabHints(fase, resultNow, kickTime, lineup.system, nChanges, hasTable, posText);
   const vesHint = ves.hint;
   const tabs = SCREENS.map((id) => {
     const h = id === "vestuario" ? vesHint : hints[id];
-    return { id, label: LABELS[id], hint: h[0], short: h[1], on: shown === id, badge: id === "vestuario" ? ves.badge : 0, badgeText: id === "vestuario" ? ves.badgeText : "" };
+    return {
+      id,
+      label: LABELS[id],
+      hint: h[0],
+      short: h[1],
+      on: shown === id,
+      badge: id === "vestuario" ? ves.badge : 0,
+      badgeText: id === "vestuario" ? ves.badgeText : "",
+    };
   });
   const si = SCREENS.indexOf(shown);
   const prevS = si > 0 ? SCREENS[si - 1] : null;
@@ -531,17 +610,40 @@ export function MatchPage() {
     const jj = jornadaOf(matches, x.id);
     const xr = x.rival ?? "el rival";
     const when = Number.isFinite(dateMillis(x.date)) ? madridTime(dateMillis(x.date)) : "";
-    return { href: `/partidos/${encodeURIComponent(x.id)}`, label: `${jj ? `J${jj} · ` : ""}${shortRival(xr)}`, aria: `${prev ? "Anterior" : "Siguiente"}: ${jj ? `J${jj}, ` : ""}${x.home === false ? `en casa de ${xr}` : `en casa contra ${xr}`}${when ? `, a las ${when}` : ""}` };
+    return {
+      href: `/partidos/${encodeURIComponent(x.id)}`,
+      label: `${jj ? `J${jj} · ` : ""}${shortRival(xr)}`,
+      aria: `${prev ? "Anterior" : "Siguiente"}: ${jj ? `J${jj}, ` : ""}${x.home === false ? `en casa de ${xr}` : `en casa contra ${xr}`}${when ? `, a las ${when}` : ""}`,
+    };
   };
   const mini = {
     score: played ? `${score.us}–${score.them}` : pre ? kickTime : fase === "aplazado" ? word : "Sin acta",
-    when: live ? (dragged ? `Viendo el ${minute}′` : fase === "descanso" ? "Descanso" : `${edge}′`) : fase === "final" ? "Final, falta el acta" : done ? (dragged ? `Viendo el ${minute}′` : "Final") : pre ? (fase === "pitido" ? "A punto" : "Hoy") : "",
+    when: live
+      ? dragged
+        ? `Viendo el ${minute}′`
+        : fase === "descanso"
+          ? "Descanso"
+          : `${edge}′`
+      : fase === "final"
+        ? "Final, falta el acta"
+        : done
+          ? dragged
+            ? `Viendo el ${minute}′`
+            : "Final"
+          : pre
+            ? fase === "pitido"
+              ? "A punto"
+              : "Hoy"
+            : "",
     live: live && fase !== "descanso" && !dragged,
     prog: played ? ((minute / duration) * 100).toFixed(2) : "0",
   };
   const stillT = fase === "aplazado" ? (cancelled ? "Suspendido: no se jugará" : postponedTo ? "Aplazado, ya con fecha nueva" : "Aplazado, sin fecha nueva todavía") : "Nadie arrancó el reloj en la mesa";
   const reason = (match as ClubMatch & { postponedReason?: string }).postponedReason;
-  const stillD = fase === "aplazado" ? `${reason ? `${reason.replace(/\.?$/, ".")} ` : ""}${postponedTo ? "La porra y la convocatoria se abren otra vez para la nueva fecha." : "La liga pondrá la fecha; te avisamos en cuanto la haya."}` : "No hubo marcador en directo: el resultado llegará con el acta.";
+  const stillD =
+    fase === "aplazado"
+      ? `${reason ? `${reason.replace(/\.?$/, ".")} ` : ""}${postponedTo ? "La porra y la convocatoria se abren otra vez para la nueva fecha." : "La liga pondrá la fecha; te avisamos en cuanto la haya."}`
+      : "No hubo marcador en directo: el resultado llegará con el acta.";
 
   const ppCls = [`f-${fase}`, `s-${shown}`, dia ? "is-dia" : "", compact ? "is-compact" : "", sheet ? "has-sheet" : ""].filter(Boolean).join(" ");
   return chrome(
@@ -561,13 +663,27 @@ export function MatchPage() {
           admin={admin}
           mesa={mesa}
           avisos={avisos.show ? { label: avisos.label, aria: avisos.aria } : null}
-          pip={live && desktop ? { open: !!pip, toggle: () => (pip ? closePip() : void openScorePip({ width: 420, height: 236, title: "Manchester Piti, marcador" }).then(setPip)) } : null}
+          pip={
+            live && desktop
+              ? {
+                  open: !!pip,
+                  toggle: () =>
+                    pip
+                      ? closePip()
+                      : void openScorePip({
+                          width: 420,
+                          height: 236,
+                          title: "Manchester Piti, marcador",
+                        }).then(setPip),
+                }
+              : null
+          }
           playing={playing}
           fx={fx}
           goalClasses={[fx === "gold" ? "is-goal vd-rim-gold" : "", moment.lens, moment.glint].filter(Boolean).join(" ")}
           stillT={stillT}
           stillD={stillD}
-          meet={Number.isFinite(kickMs) ? kickMs - 30 * 60_000 : null}
+          meet={Number.isFinite(kickMs) ? meetTimeOf(meetingNote.data, kickMs) : null}
           onPlay={play}
           onJump={jump}
           onSeek={onSeek}
@@ -581,7 +697,10 @@ export function MatchPage() {
               href="#pp-main"
               onClick={(e) => {
                 e.preventDefault();
-                window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+                window.scrollTo({
+                  top: 0,
+                  behavior: reduced ? "auto" : "smooth",
+                });
               }}
               aria-label={`Volver arriba: ${scoreLabel}`}
               tabIndex={compact ? 0 : -1}
@@ -678,11 +797,33 @@ export function MatchPage() {
 /** DEV: the board's «Quién mira» on the real page (presentation only: the reads stay the signed-in member's). */
 function maquetaViewer(q: Quien, real: Viewer, people: Map<string, Person>): Viewer {
   const by = (short: string) => [...people.values()].find((p) => p.short === short)?.id ?? null;
-  const none: Viewer = { member: false, admin: false, mesa: false, anotador: false, playerId: null, uid: real.uid, name: "" };
+  const none: Viewer = {
+    member: false,
+    admin: false,
+    mesa: false,
+    anotador: false,
+    playerId: null,
+    uid: real.uid,
+    name: "",
+  };
   if (q === "fan") return none;
   if (q === "socio") return { ...none, member: true, name: "Marta" };
-  if (q === "jugador") return { ...none, member: true, playerId: by("JORDI") ?? real.playerId, name: "Jordi" };
-  if (q === "anotador") return { ...none, member: true, mesa: true, anotador: true, playerId: by("ILLESCAS"), name: "Illescas" };
+  if (q === "jugador")
+    return {
+      ...none,
+      member: true,
+      playerId: by("JORDI") ?? real.playerId,
+      name: "Jordi",
+    };
+  if (q === "anotador")
+    return {
+      ...none,
+      member: true,
+      mesa: true,
+      anotador: true,
+      playerId: by("ILLESCAS"),
+      name: "Illescas",
+    };
   return { ...none, member: true, admin: true, mesa: true, name: "Adrián" };
 }
 

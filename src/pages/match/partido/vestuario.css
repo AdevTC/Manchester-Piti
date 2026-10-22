@@ -1,0 +1,11 @@
+/* «Vestuario» screen: the fixes over the board's CSS (match-vidrio.css, ported verbatim).
+   - The board's tokens --vd-sp-orn (18px) and --vd-sp-head (10px) are not in the app's tokens.css: without them
+     the block in glass lost its padding (an invalid var() makes the whole declaration unset).
+   - «Lo tuyo» / «Del equipo» are h3s: the board's h3 inherits Mona Sans; the app's base gives h3 its display
+     face, so the column keys say their family.
+   - The app's .vx a{color:var(--accent)} (0,1,1) beats .vd-link's ink on the links that leave the page (Go): the
+     board's links are ink and its primary buttons white. */
+.pp-place--vestuario{--vd-sp-orn:18px;--vd-sp-head:10px}
+.pp-place--vestuario .ves-colk{font-family:var(--vd-sans);font-variation-settings:normal}
+.pp-place--vestuario a.vd-link{color:var(--vd-ink-strong)}
+.pp-place--vestuario a.vd-btn--pri{color:#fff}

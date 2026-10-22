@@ -8,13 +8,22 @@
    the size container): phone < 700 · tablet 700–1099 · desktop ≥ 1100 · big ≥ 1700 (designed at 1920). Tokens only. */
 
 /* ---------- the page and its two skies (the golden evening under, the floodlit night over it) */
-.vx.vd-pg.pp{min-height:100vh;overflow:clip;isolation:isolate}
+.vx.vd-pg.pp{min-height:100vh;overflow:clip;isolation:isolate;--vd-sp-orn:18px;--vd-sp-head:10px}
 .pp>.vd-sky{position:absolute;inset:0;z-index:0}
 .pp>.pp-sky-b{transition:opacity .9s var(--vd-ease)}
 .pp>.pp-bokeh{position:absolute;left:0;top:0;width:100%;height:min(100%,1400px);z-index:0;pointer-events:none;filter:blur(1.4px)}
 :root[data-theme="light"] .pp>.pp-bokeh{opacity:.55}
 .pp-sprite{position:absolute;width:0;height:0;overflow:hidden}
 .pp-i{width:20px;height:20px;flex:none;display:block}
+/* (club.css gives every h3 the display face at zero specificity: the broadcast's headings are Mona Sans) */
+.pp h2,.pp h3,.pp h4{font-family:var(--vd-sans)}
+/* (vestuario.css's `.vx a{color:var(--accent)}` stays loaded once /vestuario has been visited: the page's glass
+   buttons and links keep their own ink) */
+.pp a.vd-btn{color:var(--vd-g-ink)}
+.pp a.vd-btn--pri{color:#fff}
+/* (the boards' segmented controls are radios, aria-checked; the design system marks aria-selected) */
+.pp .vd-seg__b[aria-checked="true"]{color:var(--vd-g-ink);font-weight:700}
+.pp a.vd-link{color:var(--vd-ink-strong)}
 .pp .vx-top{z-index:7}
 :root:not([data-theme="light"]) .pp .vx-brand-name{text-shadow:0 1px 2px rgba(4,10,26,.55),0 0 14px rgba(4,10,26,.6)}
 
