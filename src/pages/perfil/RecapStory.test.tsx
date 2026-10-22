@@ -240,10 +240,10 @@ describe("Perfil › Temporada › «Tu temporada en 10 cromos»", () => {
     open.focus();
     fireEvent.click(open);
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(window.location.hash).toBe("#cromos");
+    expect(window.location.pathname).toBe("/perfil/temporada/cromos");
     key("Escape");
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(window.location.hash).toBe("#temporada");
+    expect(window.location.pathname).toBe("/perfil/temporada");
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ver mis cromos" }));
   });
 

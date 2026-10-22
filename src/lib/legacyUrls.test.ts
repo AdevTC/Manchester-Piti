@@ -85,6 +85,7 @@ describe("Números: /stats and its English parameters", () => {
   // (today's page still writes ?view= on its own screens until Números lands: only the screen moves)
   moves("/numeros/jugadores?view=game&family=pase", "/numeros/juego?family=pase");
   moves("/numeros?view=compare&a=x", "/plantilla/cara-a-cara?a=x");
+  moves("/numeros/jugadores?view=minutes", "/numeros/jugadores?ranking=minutos&ver=todo");
   it("the new addresses stay", () => {
     for (const href of ["/numeros", "/numeros/campo/puestos?temporada=temporada-1", "/numeros/juego?partidos=m1&temporada=todas"]) expect(legacyHref(href), href).toBeNull();
   });
@@ -127,7 +128,9 @@ describe("El vestuario: the old anchors", () => {
   moves("/vestuario#vx-board", "/vestuario/tablon");
   moves("/vestuario#puerta", "/vestuario/puerta");
   moves("/vestuario#vx-ficha", "/vestuario/ficha");
-  moves("/vestuario#vx-rsvp", "/vestuario");
+  it("«¿Vas?» (#vx-rsvp) is the vestuario's own first block: its anchor stays", () => {
+    expect(legacyHref("/vestuario#vx-rsvp")).toBeNull();
+  });
   it("a notice's answer stays as it is (?rsvp=…&m=…&n=…)", () => {
     expect(legacyHref("/vestuario?rsvp=yes&m=m8&n=3f2b8c1e-9a4d")).toBeNull();
   });
@@ -152,6 +155,7 @@ describe("Tú: /profile and its tabs", () => {
   // (the server's 301 keeps the hash: /profile#ajustes reaches the browser as /perfil#ajustes)
   moves("/perfil#ajustes", "/perfil/ajustes");
   moves("/perfil/temporada#cuenta", "/perfil/cuenta");
+  moves("/avisos/a-medida#ajustes", "/perfil/ajustes");
   it("the new addresses stay", () => {
     for (const href of ["/perfil", "/perfil/temporada/cromos", "/avisos", "/avisos?ver=sin-leer", "/avisos/a-medida", "/buscar?q=kevin"]) expect(legacyHref(href), href).toBeNull();
   });

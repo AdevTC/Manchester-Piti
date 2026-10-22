@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 // The app's real router: every address of the Vidrio boards resolves to its area's page (today's, until each
@@ -33,7 +34,10 @@ vi.mock("./pages/squad/SquadPage", () => ({ SquadPage: () => <h1>la percha</h1> 
 vi.mock("./pages/jugador/JugadorPage", () => ({ JugadorPage: () => <h1>el jugador</h1> }));
 vi.mock("./pages/club/ClubPage", () => ({ ClubPage: () => <h1>el club</h1> }));
 vi.mock("./pages/vestuario/VestuarioPage", () => ({ VestuarioPage: () => <h1>el vestuario</h1> }));
-vi.mock("./pages/perfil/ProfilePage", () => ({ ProfilePage: () => <h1>tu página</h1> }));
+vi.mock("./pages/perfil/ProfilePage", async () => {
+  const { useEffect } = await import("react");
+  return { ProfilePage: () => (useEffect(() => void (mounts.tu = (mounts.tu ?? 0) + 1), []), <h1>tu página</h1>) };
+});
 vi.mock("./components/celeste/BuscarPage", () => ({ BuscarPage: () => <h1>buscar</h1> }));
 
 const { createAppRouter } = await import("./router");
@@ -116,5 +120,90 @@ describe("every old address redirects, with its parameters, replacing the old en
     await waitFor(() => expect(router.state.location.href).toBe(to));
     // (replace: «atrás» never lands on the old address again)
     expect(history.length).toBe(1);
+  });
+});
+
+describe("an old #hash is an old address only on arrival", () => {
+  const open = async (href: string, page: string) => {
+    const router = createAppRouter(createMemoryHistory({ initialEntries: [href] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: page })).toBeInTheDocument();
+    return router;
+  };
+
+  it("a chapter link on /club (#cl-ground, #cl-contact, #cl-sponsors) stays on the page, on the chapter clicked", async () => {
+    const router = await open("/club", "el club");
+    for (const hash of ["cl-ground", "cl-contact", "cl-sponsors"]) {
+      await act(() => router.navigate({ href: `/club#${hash}` }));
+      expect(router.state.location.href).toBe(`/club#${hash}`);
+    }
+  });
+
+  it("…while arriving at /club#cl-ground from another page, or from outside, still moves to its screen", async () => {
+    const router = await open("/plantilla", "la percha");
+    await act(() => router.navigate({ href: "/club#cl-ground" }));
+    await waitFor(() => expect(router.state.location.href).toBe("/club/equipo"));
+    const fresh = await open("/club#cl-sponsors", "el club");
+    await waitFor(() => expect(fresh.state.location.href).toBe("/club/gente"));
+  });
+
+  it("a page noting its own #hash (the vestuario's «¿Vas?» switch, a chapter) keeps it", async () => {
+    const router = await open("/vestuario#vx-rsvp", "el vestuario");
+    expect(router.state.location.href).toBe("/vestuario#vx-rsvp");
+    await act(() => router.navigate({ href: "/vestuario#vx-train", replace: true }));
+    expect(router.state.location.href).toBe("/vestuario#vx-train");
+  });
+
+  it("/avisos/a-medida#ajustes, arriving, is normalised to /perfil/ajustes", async () => {
+    const router = await open("/avisos/a-medida#ajustes", "tu página");
+    await waitFor(() => expect(router.state.location.href).toBe("/perfil/ajustes"));
+  });
+});
+
+describe("tu página: /perfil and /avisos are one page", () => {
+  it("a tab that moves the address between them keeps the page mounted, with no redirect", async () => {
+    mounts.tu = 0;
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/perfil"] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "tu página" })).toBeInTheDocument();
+    for (const href of ["/perfil/temporada", "/avisos/a-medida", "/perfil/ajustes", "/perfil/temporada/cromos"]) {
+      await act(() => router.navigate({ href, replace: true }));
+      expect(router.state.location.href).toBe(href);
+    }
+    expect(mounts.tu).toBe(1);
+  });
+});
+
+describe("Números' old ?view=minutes keeps its ranking", () => {
+  it("/numeros/jugadores?view=minutes → /numeros/jugadores?ranking=minutos&ver=todo", async () => {
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/numeros/jugadores?view=minutes"] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "números" })).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.href).toBe("/numeros/jugadores?ranking=minutos&ver=todo"));
+  });
+});
+
+describe("the server renders Plantilla's pages, never the pending panel", () => {
+  it.each([
+    ["/plantilla", "la percha"],
+    ["/plantilla/album", "la percha"],
+    ["/plantilla/cara-a-cara", "números"],
+  ])("%s", async (url, page) => {
+    const router = createAppRouter(createMemoryHistory({ initialEntries: [url] }));
+    await router.load();
+    const html = renderToString(<RouterProvider router={router} />);
+    expect(html).toContain(`<h1>${page}</h1>`);
+  });
+});
+
+describe("Plantilla's percha and today's duel switch without suspending a page by hand", () => {
+  it("/plantilla ⇄ /plantilla/cara-a-cara", async () => {
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/plantilla"] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
+    await act(() => router.navigate({ href: "/plantilla/cara-a-cara?a=alcides" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "números" })).toBeInTheDocument();
+    await act(() => router.navigate({ href: "/plantilla/album" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
   });
 });

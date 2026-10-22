@@ -1,5 +1,5 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   lazyRouteComponent,
@@ -9,7 +9,6 @@ import {
 } from "@tanstack/react-router";
 import { z } from "zod";
 import { RootLayout } from "./RootLayout";
-import { PlantillaToday } from "./components/PlantillaToday";
 import {
   RoutePending,
   RouteError,
@@ -174,12 +173,24 @@ export const adminCajaSearchSchema = z.object({
 // Every old address (/matches/*, /stats?view=…, /profile and its tabs, /partidos?view=…, the /, /club and
 // /vestuario hashes) is answered here, before any route loads: a permanent move to its new address with its
 // parameters, replacing the old entry (lib/legacyUrls: the same table the server render answers 308 with).
-const rootRoute = createRootRoute({
+// An old hash is an old address only on arrival: once a page is shown, a change of its #hash alone (a chapter
+// link, a page noting its tab) is the page's own business. The router hears those too (@tanstack/history
+// listens to popstate and to every pushState/replaceState), so each router remembers the page it showed.
+interface RouterContext {
+  shown: { page: string | null };
+}
+const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
   validateSearch: rootSearchSchema,
-  beforeLoad: ({ location }) => {
-    const href = legacyHref(location.pathname + location.searchStr + (location.hash ? `#${location.hash}` : ""));
-    if (href) throw redirect({ href, replace: true });
+  beforeLoad: ({ location, context, preload }) => {
+    const page = location.pathname + location.searchStr;
+    const samePage = context.shown.page === page;
+    if (!preload) context.shown.page = page;
+    const href = legacyHref(page + (location.hash && !samePage ? `#${location.hash}` : ""));
+    if (href) {
+      if (!preload) context.shown.page = null;
+      throw redirect({ href, replace: true });
+    }
   },
   // An unknown address is the 404 («Fuera de juego»), with the site chrome and a way back, never a
   // silent redirect. The catch-all route below answers it; this covers a notFound() thrown anywhere.
@@ -269,12 +280,11 @@ export const plantillaSearchSchema = z.object({
   orden: z.enum(["posicion"]).optional().catch(undefined),
   q: z.string().max(80).optional().catch(undefined),
 });
-// (until Plantilla lands, the duel is today's Números «Comparar»)
 const plantillaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/plantilla",
   validateSearch: plantillaSearchSchema,
-  component: PlantillaToday,
+  component: lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage"),
 });
 const plantillaIndexRoute = createRoute({ getParentRoute: () => plantillaRoute, path: "/" });
 const plantillaAlbumRoute = createRoute({
@@ -282,7 +292,9 @@ const plantillaAlbumRoute = createRoute({
   path: "album",
   validateSearch: z.object({ ver: z.enum(["tengo", "faltan"]).optional().catch(undefined) }),
 });
-const caraACaraRoute = createRoute({ getParentRoute: () => plantillaRoute, path: "cara-a-cara", validateSearch: statsSearchSchema });
+// The duel is today's Números «Comparar» until Plantilla lands, so it is a route of its own for now (the router
+// loads its page before rendering it, on the server too); Plantilla's page moves it under the layout.
+const caraACaraRoute = createRoute({ getParentRoute: () => rootRoute, path: "/plantilla/cara-a-cara", validateSearch: statsSearchSchema, component: statsPage });
 
 const playerProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -328,9 +340,14 @@ const vestuarioTablonRoute = createRoute({ getParentRoute: () => vestuarioRoute,
 const vestuarioPuertaRoute = createRoute({ getParentRoute: () => vestuarioRoute, path: "puerta" });
 const vestuarioFichaRoute = createRoute({ getParentRoute: () => vestuarioRoute, path: "ficha" });
 
-// ── Tú: tu página (members; the layout shows the door to anybody else), los avisos, buscar
-const profilePage = lazyRouteComponent(() => import("./pages/perfil/ProfilePage"), "ProfilePage");
-const profileRoute = createRoute({ getParentRoute: () => rootRoute, path: "/perfil", component: profilePage });
+// ── Tú: tu página (members; the layout shows the door to anybody else) and los avisos, one page mounted across
+// both (a pathless layout: the carta travels between them); buscar
+const tuRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "tu",
+  component: lazyRouteComponent(() => import("./pages/perfil/ProfilePage"), "ProfilePage"),
+});
+const profileRoute = createRoute({ getParentRoute: () => tuRoute, path: "perfil" });
 const perfilIndexRoute = createRoute({ getParentRoute: () => profileRoute, path: "/" });
 const perfilTemporadaRoute = createRoute({ getParentRoute: () => profileRoute, path: "temporada" });
 const perfilCromosRoute = createRoute({ getParentRoute: () => profileRoute, path: "temporada/cromos" });
@@ -342,10 +359,9 @@ const perfilCapitaniaRoute = createRoute({ getParentRoute: () => profileRoute, p
 const perfilCompartirRoute = createRoute({ getParentRoute: () => profileRoute, path: "compartir" });
 // (today: the profile's Avisos tab, members only, until Tú lands; then /avisos opens «A medida» to anybody)
 const avisosRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/avisos",
+  getParentRoute: () => tuRoute,
+  path: "avisos",
   validateSearch: z.object({ ver: z.enum(["sin-leer", "partido", "vestuario", "tuyos"]).optional().catch(undefined) }),
-  component: profilePage,
 });
 const avisosIndexRoute = createRoute({ getParentRoute: () => avisosRoute, path: "/" });
 const avisosAMedidaRoute = createRoute({ getParentRoute: () => avisosRoute, path: "a-medida" });
@@ -493,7 +509,8 @@ const routeTree = rootRoute.addChildren([
     numerosCromosRoute,
     numerosEvolucionRoute,
   ]),
-  plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute, caraACaraRoute]),
+  plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute]),
+  caraACaraRoute,
   playerProfileRoute.addChildren([playerIndexRoute, playerTemporadaRoute, playerJornadasRoute, playerJuegoRoute, playerAnalisisRoute, playerCromoRoute]),
   clubRoute.addChildren([clubIndexRoute, clubVitrinaRoute, clubPiezaRoute, clubHistoriaRoute, clubEquipoRoute, clubCamisetaRoute, clubGenteRoute]),
   vestuarioRoute.addChildren([
@@ -508,18 +525,20 @@ const routeTree = rootRoute.addChildren([
     vestuarioPuertaRoute,
     vestuarioFichaRoute,
   ]),
-  profileRoute.addChildren([
-    perfilIndexRoute,
-    perfilTemporadaRoute,
-    perfilCromosRoute,
-    perfilPosicionesRoute,
-    perfilNombreRoute,
-    perfilAjustesRoute,
-    perfilCuentaRoute,
-    perfilCapitaniaRoute,
-    perfilCompartirRoute,
+  tuRoute.addChildren([
+    profileRoute.addChildren([
+      perfilIndexRoute,
+      perfilTemporadaRoute,
+      perfilCromosRoute,
+      perfilPosicionesRoute,
+      perfilNombreRoute,
+      perfilAjustesRoute,
+      perfilCuentaRoute,
+      perfilCapitaniaRoute,
+      perfilCompartirRoute,
+    ]),
+    avisosRoute.addChildren([avisosIndexRoute, avisosAMedidaRoute]),
   ]),
-  avisosRoute.addChildren([avisosIndexRoute, avisosAMedidaRoute]),
   buscarRoute,
   pizarraRoute,
   adminRoute.addChildren([
@@ -547,6 +566,7 @@ export const createAppRouter = (history?: RouterHistory) =>
     history,
     defaultPreload: "intent",
     scrollRestoration: true,
+    context: { shown: { page: null } },
     // Per-route boundaries (Phase 4). No route has a loader (the pages are realtime and
     // handle their own loading), so defaultPendingComponent only shows when a page's
     // code takes longer than defaultPendingMs (1000ms) to arrive, for at least
