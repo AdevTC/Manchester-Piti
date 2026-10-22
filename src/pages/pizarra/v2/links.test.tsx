@@ -20,7 +20,7 @@ async function inRouter(node: ReactNode) {
   const root = createRootRoute({ component: () => <>{node}</> });
   const leaf = (path: string) => createRoute({ getParentRoute: () => root, path, component: () => null });
   const convocar = createRoute({ getParentRoute: () => root, path: "/admin/convocar", validateSearch: z.object({ j: z.string().optional() }), component: () => null });
-  const router = createRouter({ routeTree: root.addChildren([leaf("/pizarra"), leaf("/matches/$matchId"), leaf("/jugadores/$playerId"), convocar]), history: createMemoryHistory({ initialEntries: ["/pizarra"] }) });
+  const router = createRouter({ routeTree: root.addChildren([leaf("/pizarra"), leaf("/partidos/$matchId"), leaf("/jugadores/$playerId"), convocar]), history: createMemoryHistory({ initialEntries: ["/pizarra"] }) });
   render(<RouterProvider router={router} />);
   await screen.findAllByRole("link");
 }
@@ -35,19 +35,19 @@ describe("pizarraLinks", () => {
       </>,
     );
     expect(screen.getByRole("link", { name: "Ver su página" })).toHaveAttribute("href", "/jugadores/tello");
-    expect(screen.getByRole("link", { name: "Ver el partido" })).toHaveAttribute("href", "/matches/m8");
+    expect(screen.getByRole("link", { name: "Ver el partido" })).toHaveAttribute("href", "/partidos/m8");
     expect(screen.queryByRole("link", { name: "Convocar" })).toBeNull();
   });
 
   it("an admin: Convocar that match in the Sala de control", async () => {
     await inRouter(pizarraLinks(true).match("m8"));
-    expect(screen.getByRole("link", { name: "Ver el partido" })).toHaveAttribute("href", "/matches/m8");
+    expect(screen.getByRole("link", { name: "Ver el partido" })).toHaveAttribute("href", "/partidos/m8");
     expect(screen.getByRole("link", { name: "Convocar" })).toHaveAttribute("href", "/admin/convocar?j=m8");
     expect(screen.getByRole("link", { name: "Convocar" })).toHaveClass("b3");
   });
 });
 
-const stub = { player: (id: string) => <a href={"/jugadores/" + id}>Ver su página</a>, match: (id: string) => <a href={"/matches/" + id}>Ver el partido</a> };
+const stub = { player: (id: string) => <a href={"/jugadores/" + id}>Ver su página</a>, match: (id: string) => <a href={"/partidos/" + id}>Ver el partido</a> };
 
 describe("the ficha · «Ver su página»", () => {
   const SEVEN = ["evans", "illescas", "tello", "brawan", "eguzquiza", "huberoski", "adrian"];
@@ -119,7 +119,7 @@ describe("Tableros · Partido · the linked match's ways out", () => {
   it("under the band of the linked match", () => {
     render(<TablerosPanel {...props()} />);
     const group = screen.getByRole("group", { name: "El J8 · MAD SKY fuera de la pizarra" });
-    expect(within(group).getByRole("link", { name: "Ver el partido" })).toHaveAttribute("href", "/matches/m8");
+    expect(within(group).getByRole("link", { name: "Ver el partido" })).toHaveAttribute("href", "/partidos/m8");
   });
 
   it("no linked match (or no links): nothing", () => {

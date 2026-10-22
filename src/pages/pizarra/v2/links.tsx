@@ -15,7 +15,7 @@ export function pizarraLinks(isAdmin: boolean): BoardLinks {
     ),
     match: (matchId) => (
       <>
-        <Link className="b3" to="/matches/$matchId" params={{ matchId }}>
+        <Link className="b3" to="/partidos/$matchId" params={{ matchId }}>
           Ver el partido
         </Link>
         {isAdmin && (

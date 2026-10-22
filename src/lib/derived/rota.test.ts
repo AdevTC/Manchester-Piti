@@ -230,7 +230,7 @@ describe("rotaNotice", () => {
     expect(n.title).toBe("Te toca lavar la equipación tras el partido del sábado");
     expect(n.body).toBe("Contra Rayo. Si no puedes, marca «No puedo» y pasa al siguiente.");
     expect(n.body).not.toMatch(/capitán/);
-    expect(n).toMatchObject({ topic: "personal", tag: "rota-m1-lavar", log: "rota-m1-lavar-p1", url: "/matches/m1?tab=vestuario" });
+    expect(n).toMatchObject({ topic: "personal", tag: "rota-m1-lavar", log: "rota-m1-lavar-p1", url: "/partidos/m1/vestuario" });
   });
   it("other jobs say «en el partido», a far match its day number", () => {
     expect(rotaNotice("m1", { id: "balones", name: "Balones y petos" }, "p1", { date: sat(1) }, sat(1) - 2 * DAY).title).toBe("Te toca llevar los balones y petos en el partido del sábado");

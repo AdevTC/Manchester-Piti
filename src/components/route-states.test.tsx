@@ -18,7 +18,7 @@ function Boom() {
 
 function open(url: string) {
   const root = createRootRoute({ component: Outlet });
-  const routes = ["/", "/partidos", "/matches/$matchId", "/admin", "/admin/partidos"].map((path) => createRoute({ getParentRoute: () => root, path, component: Boom }));
+  const routes = ["/", "/partidos", "/partidos/$matchId", "/admin", "/admin/partidos"].map((path) => createRoute({ getParentRoute: () => root, path, component: Boom }));
   const router = createRouter({ routeTree: root.addChildren(routes), history: createMemoryHistory({ initialEntries: [url] }), defaultErrorComponent: RouteError });
   render(<RouterProvider router={router} />);
   return router;
@@ -32,7 +32,7 @@ describe("RouteError", () => {
 
   it("a public page: the error in the Celeste chrome, its section lit, «Reintentar» and «Ir al inicio»", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    open("/matches/j1");
+    open("/partidos/j1");
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByRole("heading", { level: 1, name: "Algo se ha torcido" })).toBeInTheDocument();
     expect(within(alert).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();

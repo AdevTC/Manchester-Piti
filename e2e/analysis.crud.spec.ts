@@ -36,7 +36,7 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await expect(editor.getByText("Análisis incorporado al borrador. Revisa y publica el acta para actualizar la web.")).toBeVisible();
   await page.locator(".det .df").getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByText(/Acta .* corregida · web al día/)).toBeVisible();
-  await page.goto("/matches/preview-finished?tab=estadisticas");
+  await page.goto("/partidos/preview-finished/numeros");
   const stats = page.getByRole("region", { name: "Estadísticas detalladas" });
   await stats.getByRole("button", { name: "Ver 1 pases de Marcos a Pablo" }).click();
   const evidence = stats.getByRole("region", { name: "Pases completados · Marcos" });
@@ -44,5 +44,5 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await expect(evidence).toContainText("Marcos → Pablo");
   // Literal narration is kept with private admin sources, never in the public acta or evidence.
   await expect(evidence).not.toContainText("Marcos se la pasa a Pablo");
-  await expect(evidence.getByRole("link", { name: /Ver acta/ })).toHaveAttribute("href", "/matches/preview-finished?tab=estadisticas");
+  await expect(evidence.getByRole("link", { name: /Ver acta/ })).toHaveAttribute("href", "/partidos/preview-finished/numeros");
 });

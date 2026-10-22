@@ -22,7 +22,7 @@ const SECTIONS: [ExploreSection, string, IconName][] = [
 
 function MatchLink({ match }: { match: ClubMatch }) {
   return (
-    <Link to="/matches/$matchId" params={{ matchId: match.id }} className="st-mlink">
+    <Link to="/partidos/$matchId" params={{ matchId: match.id }} className="st-mlink">
       {match.goalsFor}–{match.goalsAgainst} vs {match.rival ?? "Rival"}
       <small>{formatDate(match.date)}</small>
     </Link>
@@ -321,7 +321,7 @@ function Streaks({ rows, names, nameOf }: { rows: PlayerAnalysis[]; names: Map<s
                   {names.get(s.playerId) ?? "Jugador"}
                 </Link>
                 {s.match && (
-                  <Link to="/matches/$matchId" params={{ matchId: s.match.id }} className="st-mono">
+                  <Link to="/partidos/$matchId" params={{ matchId: s.match.id }} className="st-mono">
                     vs {s.match.rival ?? "Rival"} ↗
                   </Link>
                 )}
@@ -504,7 +504,7 @@ function Evolution({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: Clu
             </label>
             <div className="st-evo-detail">
               <span className="st-mono">{formatDate(m.date)}</span>
-              <Link to="/matches/$matchId" params={{ matchId: m.id }}>
+              <Link to="/partidos/$matchId" params={{ matchId: m.id }}>
                 Piti {m.goalsFor}–{m.goalsAgainst} {m.rival ?? "Rival"} ↗
               </Link>
               <ul>

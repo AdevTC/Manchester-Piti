@@ -40,14 +40,17 @@ const preloadCriticalFonts = (): Plugin => ({
 // The page's own code is a lazy chunk the router asks for only after the entry has run. Starting it
 // from the HTML, by URL, removes that wait (one round trip less before the first paint with content).
 const ROUTE_CHUNKS: [RegExp, string][] = [
-  [/^\/$/, 'src/pages/Home.tsx'],
-  [/^\/plantilla\/?$/, 'src/pages/squad/SquadPage.tsx'],
-  [/^\/partidos\/?$/, 'src/pages/partidos/PartidosPage.tsx'],
-  [/^\/stats\/?$/, 'src/pages/stats/StatsPage.tsx'],
-  [/^\/club\/?$/, 'src/pages/club/ClubPage.tsx'],
-  [/^\/vestuario\/?$/, 'src/pages/vestuario/VestuarioPage.tsx'],
-  [/^\/matches\//, 'src/pages/match/MatchPage.tsx'],
+  [/^\/(hoy\/(campo|jugadas|lo-tuyo)|camiseta)?\/?$/, 'src/pages/Home.tsx'],
+  [/^\/plantilla\/cara-a-cara\/?$/, 'src/pages/stats/StatsPage.tsx'],
+  [/^\/plantilla(\/album)?\/?$/, 'src/pages/squad/SquadPage.tsx'],
+  [/^\/partidos(\/(tabla|balance))?\/?$/, 'src/pages/partidos/PartidosPage.tsx'],
+  [/^\/partidos\/[^/]+\/mesa\/?$/, 'src/pages/mesa/Mesa.tsx'],
+  [/^\/partidos\/[^/]+(\/(siete|numeros|vestuario))?\/?$/, 'src/pages/match/MatchPage.tsx'],
+  [/^\/numeros(\/|$)/, 'src/pages/stats/StatsPage.tsx'],
+  [/^\/club(\/|$)/, 'src/pages/club/ClubPage.tsx'],
+  [/^\/vestuario(\/|$)/, 'src/pages/vestuario/VestuarioPage.tsx'],
   [/^\/jugadores\//, 'src/pages/jugador/JugadorPage.tsx'],
+  [/^\/(perfil|avisos)(\/|$)/, 'src/pages/perfil/ProfilePage.tsx'],
 ]
 // Same map, as JSON for the server render's shell (scripts/ssr-shell.mjs): which files each route needs.
 let routeAssets: (readonly [string, string[]])[] = []
@@ -127,29 +130,35 @@ const serverFirebase = (): Plugin => ({
   },
 })
 
-// `vite preview` answers like vercel.json: navigations get the shell; with SSR_PREVIEW=1 the public
-// pages go through api/render.js (production data), to check the server render before deploying.
-const SSR_PAGES = new Set(['/', '/partidos', '/stats', '/club', '/plantilla'])
+// `vite preview` answers like vercel.json: an old address gets its permanent redirect (the router's table,
+// from the server build), navigations get the shell; with SSR_PREVIEW=1 the public pages go through
+// api/render.js (production data), to check the server render before deploying.
 const previewLikeVercel = (): Plugin => ({
   name: 'preview-like-vercel',
   configurePreviewServer(server) {
-    server.middlewares.use((req, res, next) => {
+    server.middlewares.use(async (req, res, next) => {
       const url = new URL(req.url ?? '/', 'http://localhost')
       const navigation = req.method === 'GET' && (req.headers.accept ?? '').includes('text/html') && !/\.\w+$/.test(url.pathname)
       if (!navigation) return next()
-      const ssr = process.env.SSR_PREVIEW === '1' && SSR_PAGES.has(url.pathname)
-      const page = ssr
-        ? import(pathToFileURL(fileURLToPath(new URL('./api/render.js', import.meta.url))).href)
-            .then(({ GET }) => GET(new Request(`http://localhost/api/render?p=${encodeURIComponent(url.pathname)}`)))
-            .then((r: Response) => r.text())
-        : Promise.resolve(readFileSync(fileURLToPath(new URL('./dist/shell.html', import.meta.url)), 'utf8'))
-      page.then(
-        (body) => {
-          res.setHeader('content-type', 'text/html; charset=utf-8')
-          res.end(body)
-        },
-        next,
-      )
+      try {
+        const { legacyHref } = await import(pathToFileURL(fileURLToPath(new URL('./dist-ssr/entry-server.js', import.meta.url))).href)
+        const moved: string | null = legacyHref(url.pathname + url.search)
+        if (moved) {
+          res.statusCode = 308
+          res.setHeader('location', moved)
+          res.end()
+          return
+        }
+        const render = await import(pathToFileURL(fileURLToPath(new URL('./api/render.js', import.meta.url))).href)
+        const ssr = process.env.SSR_PREVIEW === '1' && render.PAGES.some((re: RegExp) => re.test(url.pathname.replace(/(.)\/+$/, '$1')))
+        const body = ssr
+          ? await render.GET(new Request(`http://localhost/api/render?p=${encodeURIComponent(url.pathname)}`)).then((r: Response) => r.text())
+          : readFileSync(fileURLToPath(new URL('./dist/shell.html', import.meta.url)), 'utf8')
+        res.setHeader('content-type', 'text/html; charset=utf-8')
+        res.end(body)
+      } catch (error) {
+        next(error)
+      }
     })
   },
 })

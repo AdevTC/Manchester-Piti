@@ -173,7 +173,7 @@ export function Publicado({ match, onLifecycle }: { match: AdminMatch; onLifecyc
           <button type="button" className="btn line" onClick={() => go({ section: "hoy" })}>
             Volver a Hoy
           </button>
-          <a className="btn line" href={`/matches/${match.id}`} target="_blank" rel="noreferrer">
+          <a className="btn line" href={`/partidos/${match.id}`} target="_blank" rel="noreferrer">
             Ver el partido en la web
             <AdIcon name="ext" size={14} />
           </a>

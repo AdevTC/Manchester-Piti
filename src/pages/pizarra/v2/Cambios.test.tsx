@@ -255,7 +255,7 @@ describe("the live match", () => {
     expect(card).toHaveTextContent("En directo · 25′");
     expect(card).toHaveTextContent("Toca el cambio · 25′");
     expect(card).toHaveTextContent("Sale ADRIAN → entra KEVIN");
-    expect(within(card).getByRole("link", { name: "Anotar en el acta" })).toHaveAttribute("href", "/matches/m8/mesa");
+    expect(within(card).getByRole("link", { name: "Anotar en el acta" })).toHaveAttribute("href", "/partidos/m8/mesa");
     expect(card).toHaveTextContent("Lanzadores ahora:");
     await act(async () => {
       fireEvent.click(within(card).getByRole("button", { name: /^Hacer el cambio/ }));

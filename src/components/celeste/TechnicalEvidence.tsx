@@ -27,7 +27,7 @@ export function TechnicalEvidence({ matches, people, selection, onClose }: {
       <div className="ts-evidence-time">{eventMinute(event) == null ? "Sin minuto" : `${eventMinute(event)}′`}{event.elapsedSeconds != null && <small>{Math.floor(event.elapsedSeconds / 60)}:{String(event.elapsedSeconds % 60).padStart(2, "0")} de juego</small>}</div>
       <div><b>{EVENT_LABELS[event.type]}</b><p>{event.team === "opponent" || event.type.startsWith("opponent_") ? (event.opponentPlayer || "Rival") : event.playerId ? name(event.playerId) : "Autor sin identificar"}{event.receiverId ? ` → ${name(event.receiverId)}` : ""}{event.assistPlayerId ? ` · asistencia de ${name(event.assistPlayerId)}` : ""}{event.outcome ? ` · ${OUTCOME_LABELS[event.outcome]}` : ""}{contribution > 1 ? ` · +${contribution}` : ""}</p>
       {event.note && <p>{event.note}</p>}{event.sourceRef && <p className="st-mono">Origen: {event.sourceRef}</p>}
-      <a href={`/matches/${encodeURIComponent(match.id)}?tab=estadisticas`}>{formatDate(match.date)} · {match.rival ?? "Rival"} · Ver acta</a></div>
+      <a href={`/partidos/${encodeURIComponent(match.id)}/numeros`}>{formatDate(match.date)} · {match.rival ?? "Rival"} · Ver acta</a></div>
     </li>)}</ol>
     {rows.length > limit && <button className="hm-ghostbtn" type="button" onClick={() => setLimit(n => n + 30)}>Ver 30 jugadas más ({rows.length - limit} pendientes)</button>}
   </section>;

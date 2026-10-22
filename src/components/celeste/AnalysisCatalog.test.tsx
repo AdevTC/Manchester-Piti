@@ -6,7 +6,7 @@ import type { MetricResult } from "../../../functions/src/narrated/types";
 import type { AnalysisSearch } from "../../lib/analysisSearch";
 import { AnalysisCatalog } from "./AnalysisCatalog";
 
-vi.mock("@tanstack/react-router", () => ({ Link: ({ children, params, search }: { children: ReactNode; params: { matchId: string }; search?: Record<string, unknown> }) => <a href={`/matches/${params.matchId}`} data-search={JSON.stringify(search)}>{children}</a> }));
+vi.mock("@tanstack/react-router", () => ({ Link: ({ children, to, params, search }: { children: ReactNode; to: string; params: { matchId: string }; search?: Record<string, unknown> }) => <a href={to.replace("$matchId", params.matchId)} data-search={JSON.stringify(search)}>{children}</a> }));
 const baseline: MetricResult[] = NARRATED_METRICS.map(metric => ({ id: metric.id, unit: "count", value: null, status: metric.audio.viability === "excluded" ? "not_applicable" : "unknown", observed: 0, pending: 0, evidenceEventIds: [], ruleId: `metric:${metric.id}`, ruleVersion: 1, parameters: {}, reason: "Falta información de esta familia." }));
 function Harness({ initial = {}, overrides = [] }: { initial?: AnalysisSearch; overrides?: Partial<MetricResult>[] }) {
   const [search, setSearch] = useState(initial);
@@ -19,7 +19,9 @@ describe("the narrated catalogue", () => {
     render(<Harness initial={{ metric: "067", players: ["p1"], team: "us", period: 2 }} overrides={[{ id: "067", value: 1, status: "partial", observed: 1, evidenceEventIds: ["j1:pase1"] }]}/>);
     const evidence = screen.getByRole("region", { name: "Jugadas que sustentan la estadística" });
     const link = within(evidence).getByRole("link");
-    expect(JSON.parse(link.getAttribute("data-search")!)).toEqual({ tab: "estadisticas", analysis: "catalog", metric: "067", players: ["p1"], team: "us", period: 2 });
+    // (the match's Números screen, with the catalogue and its scope)
+    expect(link).toHaveAttribute("href", "/partidos/j1/numeros");
+    expect(JSON.parse(link.getAttribute("data-search")!)).toEqual({ analysis: "catalog", metric: "067", players: ["p1"], team: "us", period: 2 });
   });
   it("shows all 321 audio candidates by default and explicitly includes the 91 exclusions on request", () => {
     render(<Harness/>);
@@ -42,7 +44,7 @@ describe("the narrated catalogue", () => {
     const evidence = within(detail).getByRole("region", { name: "Jugadas que sustentan la estadística" });
     expect(evidence).toHaveTextContent("Pase · Pepe → Luis");
     expect(evidence).toHaveTextContent("4′");
-    expect(within(evidence).getByRole("link")).toHaveAttribute("href", "/matches/j1");
+    expect(within(evidence).getByRole("link")).toHaveAttribute("href", "/partidos/j1/numeros");
     fireEvent.keyDown(detail, { key: "Escape" });
     expect(screen.queryByRole("heading", { name: "Pases intentados" })).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();

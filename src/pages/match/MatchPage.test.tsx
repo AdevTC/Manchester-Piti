@@ -6,7 +6,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { matchSearchSchema } from "../../lib/matchTabs";
 import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../../lib/syncStatus";
 
-// The match page's tab lives in the URL: ?tab= opens it, a click writes it (a history entry, so back
+// The match page's tab lives in the URL (/partidos/<id>/<screen>, pulso as ?tab=pulso): it opens it, a click writes it (a history entry, so back
 // and forward step through the tabs) and an unknown tab falls back to the first. Real router (memory
 // history); data, auth and the tabs' contents are stubbed: no Firebase.
 
@@ -75,12 +75,14 @@ const { MatchPage } = await import("./MatchPage");
 
 function open(url: string) {
   const root = createRootRoute({ validateSearch: z.object({ season: z.string().optional().catch("all") }), component: Outlet });
-  const match = createRoute({ getParentRoute: () => root, path: "/matches/$matchId", validateSearch: matchSearchSchema, component: MatchPage });
+  const match = createRoute({ getParentRoute: () => root, path: "/partidos/$matchId", validateSearch: matchSearchSchema, component: MatchPage });
   const jugador = createRoute({ getParentRoute: () => root, path: "/jugadores/$playerId", component: () => null });
   const pizarra = createRoute({ getParentRoute: () => root, path: "/pizarra", validateSearch: z.object({ tablero: z.string().optional() }), component: () => null });
   const admin = createRoute({ getParentRoute: () => root, path: "/admin/partidos/$matchId", validateSearch: z.object({ tab: z.string().optional() }), component: () => null });
-  const mesa = createRoute({ getParentRoute: () => root, path: "/matches/$matchId/mesa", component: () => null });
-  const router = createRouter({ routeTree: root.addChildren([match, jugador, pizarra, admin, mesa]), history: createMemoryHistory({ initialEntries: [url] }) });
+  const mesa = createRoute({ getParentRoute: () => root, path: "/partidos/$matchId/mesa", component: () => null });
+  // the real router's shape: the screens are child routes with no component (the match route renders MatchPage)
+  const screens = ["/", "siete", "numeros", "vestuario"].map((path) => createRoute({ getParentRoute: () => match, path }));
+  const router = createRouter({ routeTree: root.addChildren([match.addChildren(screens), jugador, pizarra, admin, mesa]), history: createMemoryHistory({ initialEntries: [url] }) });
   render(<RouterProvider router={router} />);
   return router;
 }
@@ -92,60 +94,62 @@ describe("MatchPage · the headline counts goals, not goal kicks", () => {
 
   it("hundreds of actions and goal kicks never create a scorer in a goalless match", async () => {
     club.extraMatches = [{ ...MATCH, id: "no-goals", goalsFor: 0, goalsAgainst: 0, events: actions }];
-    open("/matches/no-goals?tab=campo");
+    open("/partidos/no-goals/siete");
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Empate 0\u2060–\u20600 ante Rival");
   });
 
   it("four different scorers produce the result headline instead of the keeper's false hat-trick", async () => {
     club.extraMatches = [{ ...MATCH, id: "many-actions", goalsFor: 4, goalsAgainst: 2, events: [...actions, ...["mario", "hugo", "sergio", "david"].map((playerId, index) => ({ id: `goal-${index}`, type: "goal" as const, playerId, minute: index * 10 + 1 }))] }];
-    open("/matches/many-actions?tab=campo");
+    open("/partidos/many-actions/siete");
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Victoria 4\u2060–\u20602 ante Rival");
   });
 
   it.each([[2, "Doblete"], [3, "Hat-trick"]] as const)("retains a real %i-goal achievement, including set pieces and excluding unresolved duplicates", async (goals, label) => {
     const scored = (["goal", "goal_penalty", "goal_freekick"] as const).slice(0, goals).map((type, index) => ({ id: `scored-${index}`, type, playerId: "p1", minute: index * 10 + 1 }));
     club.extraMatches = [{ ...MATCH, id: "real-goals", goalsFor: goals, goalsAgainst: 0, events: [...actions, ...scored, { ...scored[0], id: "pending-duplicate", dupOf: scored[0].id }, { id: "opponent-own", type: "opponent_own_goal", playerId: "p1", minute: 49 }] }];
-    open("/matches/real-goals?tab=campo");
+    open("/partidos/real-goals/siete");
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(`${label} de PEPITO y victoria ${goals}–0`);
   });
 });
 
 describe("MatchPage · the tab in the URL", () => {
   it("the meta line prints the venue as a name, never in capitals", async () => {
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await screen.findByText(/CDM Palomeras/)).toBeInTheDocument();
     expect(screen.queryByText(/CDM PALOMERAS/)).toBeNull();
   });
 
   it("no tab: the first one (the crónica of a finished match)", async () => {
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(selected()).toBe("Crónica");
   });
 
-  it("?tab=vestuario opens the Vestuario tab (the MVP push and the vestuario links)", async () => {
-    open("/matches/j1?tab=vestuario");
+  it("/vestuario opens the Vestuario tab (the MVP push and the vestuario links)", async () => {
+    open("/partidos/j1/vestuario");
     expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
     expect(selected()).toBe("Vestuario");
   });
 
   it("an unknown tab falls back to the crónica", async () => {
-    open("/matches/j1?tab=nada");
+    open("/partidos/j1?tab=nada");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(selected()).toBe("Crónica");
   });
 
   it("a click writes the tab, keeps the season, and back / forward step through the tabs", async () => {
-    const router = open("/matches/j1?season=t1&tab=campo");
+    const router = open("/partidos/j1/siete?season=t1");
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Números" }));
     expect(await screen.findByText("pane:estadisticas")).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ season: "t1", tab: "estadisticas" });
+    expect(router.state.location.pathname).toBe("/partidos/j1/numeros");
+    expect(router.state.location.search).toEqual({ season: "t1" });
 
     // the first tab is the clean URL
     fireEvent.click(screen.getByRole("tab", { name: "Crónica" }));
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/partidos/j1");
     expect(router.state.location.search).toEqual({ season: "t1" });
 
     act(() => router.history.back());
@@ -158,7 +162,7 @@ describe("MatchPage · the tab in the URL", () => {
   });
 
   it("clicking the tab already open adds no history entry", async () => {
-    const router = open("/matches/j1?tab=pulso");
+    const router = open("/partidos/j1?tab=pulso");
     expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
     const before = router.history.length;
     fireEvent.click(screen.getByRole("tab", { name: "Pulso" }));
@@ -166,20 +170,20 @@ describe("MatchPage · the tab in the URL", () => {
   });
 
   it("«Números» keeps the catalogue and a scoped global link even for goals-only acts", async () => {
-    open("/matches/j2?tab=estadisticas");
+    open("/partidos/j2/numeros");
     expect(await screen.findByRole("heading", { name: "El análisis empieza con las jugadas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Catálogo de estadísticas" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Abrir esta selección en Números ↗" })).toHaveAttribute("href", expect.stringContaining("matches="));
+    expect(screen.getByRole("link", { name: "Abrir esta selección en Números ↗" })).toHaveAttribute("href", "/numeros/juego?temporada=todas&partidos=j2");
     expect(screen.queryByText("pane:estadisticas")).toBeNull();
     expect(selected()).toBe("Números");
     expect(screen.getByRole("tabpanel")).toHaveClass("wide");
   });
   it("catalogue, family and player scope survive the match URL and back navigation", async () => {
-    const router = open('/matches/j1?tab=estadisticas&analysis=catalog&metric=067&players=%5B%22p1%22%5D');
+    const router = open('/partidos/j1/numeros?analysis=catalog&metric=067&players=%5B%22p1%22%5D');
     expect(await screen.findByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Catálogo de estadísticas" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Resumen del juego" }));
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: "estadisticas", analysis: "summary", players: ["p1"], metric: "067" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ analysis: "summary", players: ["p1"], metric: "067" }));
     act(() => router.history.back());
     expect(await screen.findByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
   });
@@ -190,7 +194,7 @@ describe("MatchPage · the tabs with the keyboard (ARIA tabs pattern)", () => {
   const press = (key: string) => fireEvent.keyDown(screen.getByRole("tablist", { name: "Secciones del partido" }), { key });
 
   it("roving tabindex: only the selected tab is in the Tab order; the panel is focusable and named by its tab", async () => {
-    open("/matches/j1?tab=pulso");
+    open("/partidos/j1?tab=pulso");
     expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
     // (the boards' order: Crónica · Alineación · Números · Pulso · Vestuario)
     expect(tabIndexes()).toEqual(["-1", "-1", "-1", "0", "-1"]);
@@ -198,19 +202,21 @@ describe("MatchPage · the tabs with the keyboard (ARIA tabs pattern)", () => {
     expect(panel).toHaveAttribute("tabindex", "0");
   });
 
-  it("→ and ← select the next / previous tab, wrap around, write ?tab= and take the focus along", async () => {
-    const router = open("/matches/j1?season=t1&tab=pulso");
+  it("→ and ← select the next / previous tab, wrap around, write the screen's URL and take the focus along", async () => {
+    const router = open("/partidos/j1?season=t1&tab=pulso");
     expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
 
     press("ArrowRight");
     expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ season: "t1", tab: "vestuario" });
+    expect(router.state.location.pathname).toBe("/partidos/j1/vestuario");
+    expect(router.state.location.search).toEqual({ season: "t1" });
     expect(screen.getByRole("tab", { name: "Vestuario" })).toHaveFocus();
     expect(tabIndexes()).toEqual(["-1", "-1", "-1", "-1", "0"]);
 
     // the last one wraps to the first (its clean URL)
     press("ArrowRight");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/partidos/j1");
     expect(router.state.location.search).toEqual({ season: "t1" });
     expect(screen.getByRole("tab", { name: "Crónica" })).toHaveFocus();
 
@@ -226,16 +232,18 @@ describe("MatchPage · the tabs with the keyboard (ARIA tabs pattern)", () => {
   });
 
   it("Inicio and Fin go to the ends; other keys do nothing", async () => {
-    const router = open("/matches/j1?tab=campo");
+    const router = open("/partidos/j1/siete");
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
 
     press("End");
     expect(await screen.findByText("pane:vestuario")).toBeInTheDocument();
-    expect(router.state.location.search).toEqual({ tab: "vestuario" });
+    expect(router.state.location.pathname).toBe("/partidos/j1/vestuario");
+    expect(router.state.location.search).toEqual({});
     expect(screen.getByRole("tab", { name: "Vestuario" })).toHaveFocus();
 
     press("Home");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/partidos/j1");
     expect(router.state.location.search).toEqual({});
     expect(screen.getByRole("tab", { name: "Crónica" })).toHaveFocus();
     expect(tabIndexes()).toEqual(["0", "-1", "-1", "-1", "-1"]);
@@ -260,7 +268,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
 
   it("a fan sees neither, and reads nothing (lineupOfficials are team-only)", async () => {
     as({}, { t1__j1: "b1", t1__temporada: "s1" });
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(pizarraLink()).toBeNull();
     expect(adminLink()).toBeNull();
@@ -269,7 +277,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
 
   it("a member: the match's own official board, in its season (one tiny doc read); never the Sala de control", async () => {
     as({ member: true }, { t1__j1: "b1", t1__temporada: "s1" });
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=b1&season=t1");
     expect(adminLink()).toBeNull();
@@ -278,7 +286,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
 
   it("a played match with only the season's official: no pizarra link (its plan wasn't this match's seven)", async () => {
     as({ member: true }, { t1__temporada: "s1" });
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(pizarraLink()).toBeNull();
     expect(who.reads).not.toContain("lineupOfficials/t1__temporada");
@@ -286,21 +294,21 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
 
   it("a match still to be played with only the season's official: that board", async () => {
     as({ member: true }, { t1__temporada: "s1" });
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await screen.findByText("pane:previa")).toBeInTheDocument();
     expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
   });
 
   it("no official at all: no pizarra link", async () => {
     as({ member: true });
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await screen.findByText("pane:previa")).toBeInTheDocument();
     expect(pizarraLink()).toBeNull();
   });
 
   it("an admin edits the acta of a played match", async () => {
     as({ member: true, admin: true });
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByRole("link", { name: /Editar acta/ })).toHaveAttribute("href", "/admin/partidos/j1?tab=acta");
     expect(screen.queryByRole("link", { name: /Abrir en la Sala de control/ })).toBeNull();
     expect(screen.queryByRole("link", { name: /Abrir la mesa/ })).toBeNull();
@@ -308,23 +316,23 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
 
   it("while it is being played, an admin opens la mesa (not the acta, not the workspace)", async () => {
     as({ member: true, admin: true });
-    open("/matches/j4");
+    open("/partidos/j4");
     // (the card's key on a phone and the wide one beside the title on a desktop: CSS shows one)
     const keys = await screen.findAllByRole("link", { name: /Abrir la mesa/ });
-    for (const k of keys) expect(k).toHaveAttribute("href", "/matches/j4/mesa");
+    for (const k of keys) expect(k).toHaveAttribute("href", "/partidos/j4/mesa");
     expect(screen.queryByRole("link", { name: /Editar acta|Abrir en la Sala de control/ })).toBeNull();
   });
 
   it("a member never sees la mesa while it is being played", async () => {
     as({ member: true });
-    open("/matches/j4");
+    open("/partidos/j4");
     expect(await screen.findByRole("tab", { selected: true })).toBeInTheDocument();
     expect(adminLink()).toBeNull();
   });
 
   it("before the match, an admin opens it in the Sala de control (and a member its board)", async () => {
     as({ member: true, admin: true }, { t1__j3: "b3", t1__temporada: "s1" });
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await screen.findByRole("link", { name: /Abrir en la Sala de control/ })).toHaveAttribute("href", "/admin/partidos/j3");
     expect(screen.queryByRole("link", { name: /Editar acta/ })).toBeNull();
     expect(pizarraLink()).toHaveAttribute("href", "/pizarra?tablero=b3&season=t1");
@@ -334,9 +342,9 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
     as({ member: true });
     scoring.on = true;
     try {
-      open("/matches/j3");
+      open("/partidos/j3");
       const key = await screen.findByRole("link", { name: /Abrir la mesa/ });
-      expect(key).toHaveAttribute("href", "/matches/j3/mesa");
+      expect(key).toHaveAttribute("href", "/partidos/j3/mesa");
       expect(key).toHaveClass("pre");
     } finally {
       scoring.on = false;
@@ -345,7 +353,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
 
   it("before the match, a member who doesn't score sees no mesa", async () => {
     as({ member: true });
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await screen.findByText("pane:previa")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Abrir la mesa/ })).toBeNull();
   });
@@ -353,7 +361,7 @@ describe("MatchPage · shortcuts by role (Sala de control, pizarra)", () => {
 
 describe("MatchPage · the scorers lead to their pages", () => {
   it("our scorer is a link in the match's season; a guest and the rival stay text", async () => {
-    open("/matches/j2");
+    open("/partidos/j2");
     const goals = (await screen.findByText("12′")).closest(".fc-goals") as HTMLElement;
     const link = within(goals).getByRole("link", { name: "PEPITO" });
     expect(link).toHaveAttribute("href", "/jugadores/p1?season=t1");
@@ -371,7 +379,7 @@ describe("MatchPage · an error is not «no encontrado»", () => {
 
   it("the data did not arrive: the error panel with «Reintentar», never «Partido no encontrado»", async () => {
     club.error = new Error("permission-denied");
-    open("/matches/j1");
+    open("/partidos/j1");
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByRole("heading", { level: 1, name: "El marcador no carga" })).toBeInTheDocument();
     expect(within(alert).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
@@ -380,7 +388,7 @@ describe("MatchPage · an error is not «no encontrado»", () => {
   });
 
   it("the data arrived and the match is not in it: «Partido no encontrado», with the way to the partidos", async () => {
-    open("/matches/nada");
+    open("/partidos/nada");
     expect(await screen.findByRole("heading", { level: 1, name: "Partido no encontrado" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("link", { name: "Ver los partidos" })).toHaveAttribute("href", "/partidos");
@@ -390,13 +398,13 @@ describe("MatchPage · an error is not «no encontrado»", () => {
   });
 
   it("a match that is there is indexable", async () => {
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? null).not.toBe("noindex");
   });
 
   it("«Volver» on a deep link is «Partidos», to the section", async () => {
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     const back = document.querySelector("a.fc-back");
     expect(back).toHaveTextContent("Partidos");
@@ -418,7 +426,7 @@ describe("MatchPage · the board says when the score may not be live", () => {
 
   it("live and in sync: no chip; offline: «Reconectando…», said once", async () => {
     recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 5_000);
-    open("/matches/j4");
+    open("/partidos/j4");
     expect(await screen.findByText("side:campo")).toBeInTheDocument();
     expect(board().querySelector(".mp-sync")).toBeNull();
     act(() => {
@@ -432,14 +440,14 @@ describe("MatchPage · the board says when the score may not be live", () => {
   it("live, out of sync for over a minute: «Sin conexión · marcador de hace 2 min»", async () => {
     recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
     recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 2 * 60_000 - 5_000);
-    open("/matches/j4");
+    open("/partidos/j4");
     expect(await within(await screen.findByRole("article", { name: /En directo contra/ })).findByText("Sin conexión · marcador de hace 2 min")).toBeInTheDocument();
   });
 
   it("a played match never shows it", async () => {
     recordSnapshotMeta(MATCHES, { fromCache: false, hasPendingWrites: false }, NOW - 20 * 60_000);
     recordSnapshotMeta(MATCHES, { fromCache: true, hasPendingWrites: false }, NOW - 5 * 60_000);
-    open("/matches/j1");
+    open("/partidos/j1");
     expect(await screen.findByText("pane:cronica")).toBeInTheDocument();
     expect(document.querySelector(".mp-sync")).toBeNull();
   });
@@ -456,7 +464,7 @@ describe("MatchPage · the official seven on the Campo", () => {
 
   it("a member on the Campo of a match still to be played: its own official's board (not the season's)", async () => {
     as({ member: true }, { t1__j3: "b3", t1__temporada: "s1" });
-    open("/matches/j3?tab=campo");
+    open("/partidos/j3/siete");
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
     expect(who.reads).toContain("lineups/b3");
     expect(who.reads).not.toContain("lineups/s1");
@@ -464,17 +472,17 @@ describe("MatchPage · the official seven on the Campo", () => {
 
   it("not on another tab, not for a fan, not once played", async () => {
     as({ member: true }, { t1__j3: "b3" });
-    open("/matches/j3?tab=pulso");
+    open("/partidos/j3?tab=pulso");
     expect(await screen.findByText("pane:pulso")).toBeInTheDocument();
     expect(who.reads.some((p) => p.startsWith("lineups/"))).toBe(false);
     cleanup();
     as({}, { t1__j3: "b3" });
-    open("/matches/j3?tab=campo");
+    open("/partidos/j3/siete");
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
     expect(who.reads).toEqual([]);
     cleanup();
     as({ member: true }, { t1__j1: "b1" });
-    open("/matches/j1?tab=campo");
+    open("/partidos/j1/siete");
     expect(await screen.findByText("pane:campo")).toBeInTheDocument();
     expect(who.reads).not.toContain("lineups/b1");
   });
@@ -495,21 +503,21 @@ describe("MatchPage · the rival's notes in the previa", () => {
 
   it("a member: the notes of the match's own official board", async () => {
     as({ member: true }, { t1__j3: "b3" }, { b3: { formation: "2-3-1", slots: [], matchId: "j3", rival } });
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await previa()).toBe("Saca rápido||||||Presionar al 9");
     expect(who.reads).toContain("lineups/b3");
   });
 
   it("a fan: no read of any board, no notes", async () => {
     as({}, { t1__j3: "b3" }, { b3: { formation: "2-3-1", slots: [], matchId: "j3", rival } });
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await previa()).toBe("none");
     expect(who.reads).toEqual([]);
   });
 
   it("a member with only the season's board: no notes (it wasn't drawn for this rival)", async () => {
     as({ member: true }, { t1__temporada: "s1" }, { s1: { formation: "2-3-1", slots: [], matchId: null, rival } });
-    open("/matches/j3");
+    open("/partidos/j3");
     expect(await previa()).toBe("none");
   });
 });

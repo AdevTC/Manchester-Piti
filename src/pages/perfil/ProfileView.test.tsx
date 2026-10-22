@@ -444,7 +444,7 @@ describe("Temporada", () => {
     const numbers = screen.getByRole("heading", { name: "Tus números" }).closest(".bk") as HTMLElement;
     expect(within(numbers).getByRole("link", { name: /Ver tus estadísticas/ })).toHaveAttribute("href", "/jugadores/adri?season=t1");
     const where = screen.getByRole("heading", { name: "Dónde has jugado" }).closest(".bk") as HTMLElement;
-    expect(within(where).getByRole("link", { name: /Ver las posiciones del equipo/ })).toHaveAttribute("href", "/stats?view=positions&season=t1");
+    expect(within(where).getByRole("link", { name: /Ver las posiciones del equipo/ })).toHaveAttribute("href", "/numeros/campo/puestos?temporada=t1");
   });
   it("pendiente: aún sin enlace a sus estadísticas", () => {
     noIntro();
@@ -467,7 +467,7 @@ describe("Temporada › Tus logros", () => {
     const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
     expect(headings.indexOf("Tus logros")).toBe(headings.indexOf("Dónde has jugado") + 1);
     const box = screen.getByRole("heading", { name: "Tus logros" }).closest(".bk") as HTMLElement;
-    expect(within(within(box).getByRole("list", { name: "Tus logros" })).getByRole("link", { name: "11 ene 1970 · vs Rival j1" })).toHaveAttribute("href", "/matches/j1");
+    expect(within(within(box).getByRole("list", { name: "Tus logros" })).getByRole("link", { name: "11 ene 1970 · vs Rival j1" })).toHaveAttribute("href", "/partidos/j1");
     expect(within(box).getByRole("region", { name: "Lo próximo" })).toHaveTextContent("7 / 10");
     expect(within(box).getByRole("region", { name: "Lo próximo" })).toHaveTextContent("Bronce");
     expect(box.querySelector("details.lg-all")).toHaveTextContent("Portería a cero");

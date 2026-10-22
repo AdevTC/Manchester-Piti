@@ -88,5 +88,5 @@ export const view = (data = makeData(), actions = fakeActions()) => render(<Prof
 export const root = (c: HTMLElement) => c.querySelector(".pcv") as HTMLElement;
 export const heroCard = (c: HTMLElement) => c.querySelector("button.cd") as HTMLElement;
 export const noIntro = () => localStorage.setItem("mp_perfil_prefs", JSON.stringify({ intro: "nunca", tilt: true }));
-export const setUrl = (hash: string) => window.history.replaceState(null, "", "/profile" + hash);
+export const setUrl = (hash: string) => window.history.replaceState(null, "", "/perfil" + hash);
 

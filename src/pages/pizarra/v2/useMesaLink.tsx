@@ -169,14 +169,14 @@ export function useMesaLink(o: {
   };
 
   const back = matchId ? (
-    <Link className="b3 mzs-bk" to="/matches/$matchId/mesa" params={{ matchId }} aria-label="Volver a la mesa">
+    <Link className="b3 mzs-bk" to="/partidos/$matchId/mesa" params={{ matchId }} aria-label="Volver a la mesa">
       <Icon n="chevL" w={16} />
       <span className="mzs-w">Volver a la mesa</span>
       <span className="mzs-n">Mesa</span>
     </Link>
   ) : null;
   const backGold = matchId ? (
-    <Link className="b3 gold" to="/matches/$matchId/mesa" params={{ matchId }}>
+    <Link className="b3 gold" to="/partidos/$matchId/mesa" params={{ matchId }}>
       Volver a la mesa
     </Link>
   ) : null;

@@ -81,7 +81,7 @@ function Meeting({ m, current }: { m: ClubMatch; current: boolean }) {
           {body}
         </span>
       ) : (
-        <Link className="fc-riv-m" to="/matches/$matchId" params={{ matchId: m.id }} aria-label={label}>
+        <Link className="fc-riv-m" to="/partidos/$matchId" params={{ matchId: m.id }} aria-label={label}>
           {body}
           <Icon name="right" size={16} />
         </Link>
@@ -222,7 +222,7 @@ export function RivalSection({ match, dossier, plan }: { match: ClubMatch; dossi
                     <span>Este partido</span>
                   </p>
                 ) : (
-                  <Link className="fc-riv-big" to="/matches/$matchId" params={{ matchId: dossier.biggestWin.id }} aria-label={`La mayor victoria: ${score(dossier.biggestWin)}, ${formatDate(dossier.biggestWin.date)}`}>
+                  <Link className="fc-riv-big" to="/partidos/$matchId" params={{ matchId: dossier.biggestWin.id }} aria-label={`La mayor victoria: ${score(dossier.biggestWin)}, ${formatDate(dossier.biggestWin.date)}`}>
                     <b>{score(dossier.biggestWin)}</b>
                     <span>{formatDate(dossier.biggestWin.date)}</span>
                   </Link>

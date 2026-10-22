@@ -158,8 +158,9 @@ export function PartidosPage() {
   const reduced = useReducedMotion();
   const w = useWidth();
   // (DEV: ?demo=larga reads the long demo season instead of the emulators's data)
-  const demoKey = import.meta.env.DEV ? str(search.demo) : null;
-  const momento = str(search.momento);
+  const raw = (location.search ?? {}) as Record<string, unknown>;
+  const demoKey = import.meta.env.DEV ? str(raw.demo) : null;
+  const momento = str(raw.momento);
   const [demo, setDemo] = useState<Demo | null>(null);
   useEffect(() => {
     if (demoKey) void import("./pa/demo").then((m) => setDemo(m.demoSeason(momento)));
@@ -264,7 +265,7 @@ export function PartidosPage() {
 
   // ── the address follows the screen's state (replace), a screen change pushes
   const searchFor = (s: Screen): Record<string, string | undefined> => {
-    const base: Record<string, string | undefined> = { temporada, demo: demoKey ?? undefined, momento: demoKey ? (momento ?? undefined) : undefined };
+    const base: Record<string, string | undefined> = { temporada };
     if (s === "jornadas") return { ...base, jornada: sel !== null ? String(sel) : undefined, lente: lente ?? undefined, ver: filt !== "todos" ? filt : undefined, hoja: cartel ? "cartel" : undefined };
     if (s === "tabla") return { ...base, ver: all ? "entera" : undefined, "y-si": picksParam(picks, ms) };
     return { ...base, jornada: bal !== null ? String(bal) : undefined, faceta: facet !== "goles" ? facet : undefined, ver: facetAll ? "todo" : undefined };
@@ -273,7 +274,7 @@ export function PartidosPage() {
   const wanted = JSON.stringify(clean(searchFor(screen)));
   const lastPushed = useRef("");
   useEffect(() => {
-    if (urlScreen !== screen) return;
+    if (urlScreen !== screen || demoKey) return;
     const have = JSON.stringify(clean(Object.fromEntries(Object.entries(search).map(([k, v]) => [k, str(v) ?? undefined]))));
     if (have === wanted || lastPushed.current === wanted) return;
     lastPushed.current = wanted;

@@ -37,7 +37,7 @@ export function desdeMesaOf(search: Readonly<Record<string, unknown>>): DesdeMes
 }
 
 /** La mesa of a match. */
-export const mesaHref = (matchId: string): string => "/matches/" + encodeURIComponent(matchId) + "/mesa";
+export const mesaHref = (matchId: string): string => "/partidos/" + encodeURIComponent(matchId) + "/mesa";
 
 /** «Siete del campo · J7»: the name of the copy a scorer works on. */
 export const fieldCopyName = (j: number | null | undefined): string => ["Siete del campo", j ? jornadaLabel(j) : ""].filter(Boolean).join(" · ");

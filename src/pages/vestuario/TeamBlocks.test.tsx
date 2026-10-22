@@ -43,12 +43,12 @@ beforeEach(() => {
 
 it("the porra links to the next match's Vestuario tab", () => {
   render(<Porra next={match({ id: "j9", status: "scheduled", date: NOW + 86_400_000 })} uid="u1" rows={[]} now={NOW} />);
-  expect(screen.getByRole("link", { name: "La porra, en la ficha del partido" })).toHaveAttribute("href", "/matches/j9?tab=vestuario");
+  expect(screen.getByRole("link", { name: "La porra, en la ficha del partido" })).toHaveAttribute("href", "/partidos/j9/vestuario");
 });
 
 it("the MVP links to its match's Vestuario tab", () => {
   render(<MvpBlock match={match({ voteClosesAt: NOW + 3_600_000 })} result={undefined} uid="u1" admin={false} member now={NOW} playerName={(id) => id} />);
-  expect(screen.getByRole("link", { name: "El MVP, en la ficha del partido" })).toHaveAttribute("href", "/matches/j8?tab=vestuario");
+  expect(screen.getByRole("link", { name: "El MVP, en la ficha del partido" })).toHaveAttribute("href", "/partidos/j8/vestuario");
 });
 
 it("no match, no link", () => {

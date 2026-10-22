@@ -77,7 +77,7 @@ function MenuLayer({ anchor, onClose, returnRef, captain, dark, onTheme, onLogou
         <b>{captain.nickname}</b>
         <small>{captain.role}</small>
       </div>
-      <Link ref={first} role="menuitem" className="fr" to="/profile" onClick={onClose}>
+      <Link ref={first} role="menuitem" className="fr" to="/perfil" onClick={onClose}>
         <AdIcon name="card" size={18} />
         Mi perfil
       </Link>
