@@ -11,7 +11,7 @@ export function PersonalMatchSummary({ match, matches, playerId, uid }: { match:
   const s = playerId ? personalMatchSummary(match,matches,playerId) : null;
   const points = prediction.data ? scorePrediction(prediction.data,{goalsFor:match.goalsFor ?? 0,goalsAgainst:match.goalsAgainst ?? 0},match.events) : null;
   return <section className="pm-summary" aria-label="Tu resumen del partido">
-    <header><div><span className="hm-kick">Balance del partido · {formatDate(match.date)}</span><h2>Tu partido, en una mirada</h2><p>Piti {match.goalsFor}–{match.goalsAgainst} {match.rival} · {s?.role ?? 'Vincula tu ficha para ver tus minutos y acciones'}</p></div><Link to="/partidos/$matchId" params={{matchId:match.id}} search={{tab:'vestuario'}} className="hm-ghostbtn">Ver partido →</Link></header>
+    <header><div><span className="hm-kick">Balance del partido · {formatDate(match.date)}</span><h2>Tu partido, en una mirada</h2><p>Piti {match.goalsFor}–{match.goalsAgainst} {match.rival} · {s?.role ?? 'Vincula tu ficha para ver tus minutos y acciones'}</p></div><Link to="/partidos/$matchId/vestuario" params={{matchId:match.id}} className="hm-ghostbtn">Ver partido →</Link></header>
     <div className="pm-numbers">{s && <><div><b>{fmtMinutes(s.minutes)}</b><span>Minutos</span></div><div><b>{s.stats.goals}</b><span>Goles</span></div><div><b>{s.stats.assists}</b><span>Asistencias</span></div></>}<div><b>{prediction.loading ? '…' : points?.total ?? '—'}</b><span>Puntos de porra</span></div></div>
     {prediction.error && <p role="status">No se ha podido cargar tu porra.</p>}
     {!prediction.loading && !prediction.error && !points && <p>No participaste en la porra de este partido.</p>}
