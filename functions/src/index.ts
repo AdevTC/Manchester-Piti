@@ -1,4 +1,5 @@
 import { narrationSourcesSchema } from './narrated/schema.js';
+import { PUBLICATION_RESOURCES } from "./publicationResources.js";
 import { onCall } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { z } from "zod";
@@ -39,7 +40,7 @@ export {
 } from "./vestuario.js";
 
 export { sheetSchema };
-export const saveMatchSheet = onCall(async (req) => {
+export const saveMatchSheet = onCall(PUBLICATION_RESOURCES, async (req) => {
   const uid = await admin(req);
   const input = parse(
     z.object({
