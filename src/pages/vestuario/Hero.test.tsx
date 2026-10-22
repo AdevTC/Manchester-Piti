@@ -34,9 +34,9 @@ const hero = (m: ClubMatch | undefined, now: number, availability: Parameters<ty
 
 it("the next match: «Ver la previa» → its page (no tab: it opens on the previa), also once its date has come", () => {
   const { rerender } = render(hero(next, DATE - 2 * 86_400_000));
-  expect(screen.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j8");
+  expect(screen.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/partidos/j8");
   rerender(hero(next, DATE + 5 * MIN));
-  expect(screen.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/matches/j8");
+  expect(screen.getByRole("link", { name: /Ver la previa/ })).toHaveAttribute("href", "/partidos/j8");
 });
 
 it("live: no previa (the live island leads to it); no match: no link", () => {

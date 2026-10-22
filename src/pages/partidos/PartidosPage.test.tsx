@@ -25,12 +25,17 @@ const seasons = vi.hoisted(() => ({ list: [] as { id: string; name: string }[] }
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, to, params }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string> }) => (
-    <a className={className} href={to === "/matches/$matchId" ? `/matches/${params?.matchId}` : (to ?? "#")}>
+    <a className={className} href={to === "/partidos/$matchId" ? `/partidos/${params?.matchId}` : (to ?? "#")}>
       {children}
     </a>
   ),
   useNavigate: () => route.navigate,
   useSearch: () => route.search,
+  // (each vista is its own address, /partidos/tabla…: the stub's old `view` says which one is open)
+  useLocation: (options?: { select?: (l: { pathname: string }) => unknown }) => {
+    const l = { pathname: route.search.view === "tabla" ? "/partidos/tabla" : route.search.view === "numeros" ? "/partidos/balance" : "/partidos" };
+    return options?.select ? options.select(l) : l;
+  },
 }));
 vi.mock("../../lib/useStandings", () => ({ useStandings: () => ({ standings: league.standings, loading: false }) }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: data.players, loading: data.loading, error: data.error }) }));
@@ -108,7 +113,7 @@ it("opens on tonight's live jornada: the ribbon, the lens on Directo, the score,
   const plays = lens().querySelectorAll(".vp-dir__plays .vd-play");
   expect(plays).toHaveLength(4);
   expect(lens()).toHaveTextContent("34 jugadas más desde el minuto 1");
-  expect(screen.getByRole("link", { name: "Abrir el partido" })).toHaveAttribute("href", "/matches/j17");
+  expect(screen.getByRole("link", { name: "Abrir el partido" })).toHaveAttribute("href", "/partidos/j17");
   // the count line and the vistas' hints
   expect(screen.getByText("26 jornadas; 15 jugadas, una en directo y 10 por jugar")).toBeInTheDocument();
   expect(screen.getByRole("tab", { name: /Jornadas/ })).toHaveTextContent("J17 en directo");
@@ -307,7 +312,7 @@ it("the MVP while the vote is open: the turnout only («9 de 14 votos»), never 
   fireEvent.keyDown(seg(17)!, { key: "ArrowLeft" });
   expect(lens()).toHaveTextContent(/Se está votando9 de 14 votos. La votación se cierra el \S+\./);
   expect(lens()).not.toHaveTextContent("de momento");
-  expect(await within(lens()).findByRole("link", { name: /Vota al MVP/ }, LAZY)).toHaveAttribute("href", "/matches/j16");
+  expect(await within(lens()).findByRole("link", { name: /Vota al MVP/ }, LAZY)).toHaveAttribute("href", "/partidos/j16");
   expect(lens()).toHaveTextContent("Tú aún no has votado.");
 });
 
@@ -322,10 +327,10 @@ it("el cartel: a poster of the jornada in a sheet, «Compartir» and «Guardar l
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("vistas: the shelf navigates with ?view", () => {
+it("vistas: the shelf navigates to each one's address", () => {
   render(<PartidosPage />);
   fireEvent.click(screen.getByRole("tab", { name: /Números/ }));
-  expect(route.navigate).toHaveBeenCalled();
+  expect(route.navigate).toHaveBeenCalledWith(expect.objectContaining({ to: "/partidos/balance" }));
 });
 
 it("fans never see answers: no RSVP, no member reads", async () => {

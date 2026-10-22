@@ -260,13 +260,13 @@ export function JugadorPage() {
                 Repetir presentación
               </button>
               {squad.length > 1 && (
-                <Link className="hm-ghostbtn st-sm" to="/stats" search={{ view: "compare", a: p.id, ...(selectedSeasonId !== "all" ? { season: selectedSeasonId } : {}) }}>
+                <Link className="hm-ghostbtn st-sm" to="/plantilla/cara-a-cara" search={{ a: p.id, ...(selectedSeasonId !== "all" ? { season: selectedSeasonId } : {}) }}>
                   Comparar con…
                   <Icon name="arrow" size={16} stroke={2.2} />
                 </Link>
               )}
               {viewer.playerId === p.id && (
-                <Link className="hm-ghostbtn st-sm" to="/profile">
+                <Link className="hm-ghostbtn st-sm" to="/perfil">
                   Editar tu carta
                   <Icon name="arrow" size={16} stroke={2.2} />
                 </Link>
@@ -391,7 +391,7 @@ export function JugadorPage() {
                     const d = g.match.duration || 50;
                     return (
                       <li key={g.match.id} style={{ animationDelay: `${i * 0.05}s` }}>
-                        <Link to="/matches/$matchId" params={{ matchId: g.match.id }} aria-label={`${jornada.has(g.match.id) ? `Jornada ${jornada.get(g.match.id)} contra` : "Contra"} ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes === null ? "?" : wholeMinutes(g.minutes)} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
+                        <Link to="/partidos/$matchId" params={{ matchId: g.match.id }} aria-label={`${jornada.has(g.match.id) ? `Jornada ${jornada.get(g.match.id)} contra` : "Contra"} ${g.match.rival ?? "rival"}: ${g.played ? `${g.minutes === null ? "?" : wholeMinutes(g.minutes)} minutos, ${g.goals} goles, ${g.assists} asistencias${mvp ? ", MVP" : ""}` : "no jugó"}`}>
                           <span className="bar">
                             <i style={{ height: g.played ? `${g.minutes === null ? 50 : Math.max(8, (g.minutes / d) * 100)}%` : "0%" }} />
                           </span>
@@ -529,7 +529,7 @@ export function JugadorPage() {
               <ol className="jg-last">
                 {appearances.map((g) => (
                   <li key={g.match.id}>
-                    <Link to="/matches/$matchId" params={{ matchId: g.match.id }}>
+                    <Link to="/partidos/$matchId" params={{ matchId: g.match.id }}>
                       <span className={`lt ${letter(g.match)}`}>{letter(g.match)}</span>
                       <span className="mid">
                         <b>vs {g.match.rival ?? "Rival"}</b>

@@ -46,7 +46,7 @@ const PRELOAD_RELOAD_MS = 30_000;
 
 // Pages where nothing reloads by itself: the live scoring (la mesa, the admin's «en juego» and its forms)
 // and the pizarra (a board being drawn).
-const HELD_PATHS = [/^\/matches\/[^/]+\/mesa\/?$/, /^\/admin(\/|$)/, /^\/pizarra\/?$/];
+const HELD_PATHS = [/^\/partidos\/[^/]+\/mesa\/?$/, /^\/admin(\/|$)/, /^\/pizarra\/?$/];
 const TYPED = new Set(["", "text", "email", "number", "tel", "url", "search", "password", "date", "time", "datetime-local", "month", "week"]);
 
 /** True when switching now could lose what someone is doing on this page. */

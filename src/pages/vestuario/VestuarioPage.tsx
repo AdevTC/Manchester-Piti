@@ -202,7 +202,7 @@ export function VestuarioPage() {
         actions={
           <>
             <ThemeToggle />
-            <Link className={`vx-avatar${admin ? " cap" : ""}`} to="/profile" aria-label={`Tu perfil: ${nick}`}>
+            <Link className={`vx-avatar${admin ? " cap" : ""}`} to="/perfil" aria-label={`Tu perfil: ${nick}`}>
               {initials(me.displayName)}
             </Link>
           </>

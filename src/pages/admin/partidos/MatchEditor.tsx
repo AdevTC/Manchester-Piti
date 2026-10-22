@@ -250,7 +250,7 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
         </div>
         {/* its public page, once it is in the calendar (a draft has none) */}
         {match.published && (
-          <Link className={`btn ${desktop ? "sm " : ""}line fr`} to="/matches/$matchId" params={{ matchId: match.id }}>
+          <Link className={`btn ${desktop ? "sm " : ""}line fr`} to="/partidos/$matchId" params={{ matchId: match.id }}>
             Ver en la web
             <AdIcon name="ext" size={14} />
           </Link>

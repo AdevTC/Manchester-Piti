@@ -6,7 +6,8 @@
 // place); ≥ 1800 px is a cockpit (Tabla, the lens and Números side by side). Server-rendered for fans: the
 // member's «¿Vas?» loads in its own chunk once hydrated; live data only through the existing hooks.
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useLocation, useNavigate, useSearch } from "@tanstack/react-router";
+import { partidosVistaAt, partidosVistaPath } from "../../lib/interimScreens";
 import { GrowWindow, PipWindow, Shelf, VidrioSky, openScorePip, shelfPanelId, shelfTabId, skyAt, supportsViewTransitions, swap, travel, useDesktop, useLiveDock, useMedia, useReducedMotion, type ScorePip } from "../../components/vidrio";
 import { pipBottom } from "../../components/vidrio/live/liveModel";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -99,15 +100,16 @@ export function PartidosPage() {
   const mvpResults = useMvpResults();
   const reduced = useReducedMotion();
 
-  const url: { view?: unknown; temporada?: unknown } = useSearch({ strict: false });
-  const vista: Vista = url.view === "tabla" ? "tabla" : url.view === "numeros" ? "numeros" : "jornadas";
+  const url: { temporada?: unknown } = useSearch({ strict: false });
+  // (each vista is an address: /partidos, /partidos/tabla, /partidos/balance)
+  const vista: Vista = partidosVistaAt(useLocation({ select: (l) => l.pathname }));
 
   // the season: the one this page's address asks for (?temporada=…, never a choice remembered from another
   // visit), else the one being played
   const current = currentSeasonId(nextFixture(matches, now), matches, seasons);
   const asked = typeof url.temporada === "string" ? url.temporada : null;
   const seasonId = asked && seasons.some((s) => s.id === asked) ? asked : current;
-  const setSeason = (id: string) => void navigate({ to: "/partidos", search: (prev) => ({ ...prev, view: vista === "jornadas" ? undefined : vista, temporada: id === current ? undefined : id }) });
+  const setSeason = (id: string) => void navigate({ to: partidosVistaPath(vista), search: (prev) => ({ ...prev, temporada: id === current ? undefined : id }) });
   const season = seasons.find((s) => s.id === seasonId);
   const seasonName = season?.name ?? "La temporada";
   const closed = !!seasonId && seasonId !== current;
@@ -234,7 +236,8 @@ export function PartidosPage() {
     const to = VISTAS.findIndex((x) => x.id === v);
     swap(travel(from, to), () => {
       setGrow((g) => ({ open: null, from: g.from }));
-      void navigate({ to: "/partidos", search: (prev) => ({ ...prev, view: v === "jornadas" ? undefined : v }), replace: true });
+      // (another screen: its own parameters start afresh, the season stays)
+      void navigate({ to: partidosVistaPath(v), search: () => ({ temporada: typeof url.temporada === "string" ? url.temporada : undefined }) });
     });
   };
   const onSim = (id: string, l: PickLetter) =>

@@ -33,7 +33,7 @@ export function useAdminGo(): (target: AdminTarget) => void {
           else void navigate({ to: "/admin/partidos", search: { nuevo: t.nuevo || undefined } });
           return;
         case "enjuego":
-          if (t.matchId) void navigate({ to: "/matches/$matchId/mesa", params: { matchId: t.matchId } });
+          if (t.matchId) void navigate({ to: "/partidos/$matchId/mesa", params: { matchId: t.matchId } });
           else void navigate({ to: "/admin" });
           return;
         case "convocar":
@@ -52,7 +52,7 @@ export function useAdminGo(): (target: AdminTarget) => void {
           void navigate({ to: "/pizarra", search: { tablero: t.tablero, season: t.seasonId } });
           return;
         case "web":
-          if (t.matchId) void navigate({ to: "/matches/$matchId", params: { matchId: t.matchId } });
+          if (t.matchId) void navigate({ to: "/partidos/$matchId", params: { matchId: t.matchId } });
           else if (t.playerId) void navigate({ to: "/jugadores/$playerId", params: { playerId: t.playerId } });
           else void navigate({ to: "/" });
           return;

@@ -17,7 +17,7 @@ import type { MesaNav, MesaView } from "./types";
 import "./tokens.css";
 import "./enjuego.css";
 
-const route = getRouteApi("/matches/$matchId/mesa");
+const route = getRouteApi("/partidos/$matchId/mesa");
 
 /** The screen for the view (exported for the tests). */
 export function MesaScreenFor({ view, vista }: { view: MesaView; vista?: string }) {
@@ -42,7 +42,7 @@ function Gate({ matchId, title, body }: { matchId: string; title: string; body: 
         <div className="gate-card" role="status">
           <h1>{title}</h1>
           <p>{body}</p>
-          <Link className="gate-back" to="/matches/$matchId" params={{ matchId }}>
+          <Link className="gate-back" to="/partidos/$matchId" params={{ matchId }}>
             Volver al partido
           </Link>
         </div>
@@ -64,10 +64,10 @@ export function Mesa() {
   const me = useMemo(() => (uid && member ? { uid, name: nickname || "Anotador", admin } : null), [uid, member, nickname, admin]);
   const nav = useMemo<MesaNav>(
     () => ({
-      cronica: () => void navigate({ to: "/matches/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: "cronica" as const }) }),
-      mesa: () => void navigate({ to: "/matches/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: undefined }) }),
-      exit: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
-      acta: () => void navigate({ to: "/matches/$matchId", params: { matchId } }),
+      cronica: () => void navigate({ to: "/partidos/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: "cronica" as const }) }),
+      mesa: () => void navigate({ to: "/partidos/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: undefined }) }),
+      exit: () => void navigate({ to: "/partidos/$matchId", params: { matchId } }),
+      acta: () => void navigate({ to: "/partidos/$matchId", params: { matchId } }),
       // (by href: the pizarra reads «desde=mesa&partido» itself; its route declares only «tablero»)
       pizarra: (boardId?: string | null) => void navigate({ href: pizarraHref(matchId, boardId) }),
     }),

@@ -54,7 +54,7 @@ function LivePill({ match, minute }: { match: Pick<ClubMatch, "clock">; minute: 
 /** «Abrir la mesa»: la mesa of this match, for its scorers and the admins. */
 export function MesaKey({ matchId, className = "", wide = false }: { matchId: string; className?: string; wide?: boolean }) {
   return (
-    <Link className={`ml-pb ${className}`.trim()} to="/matches/$matchId/mesa" params={{ matchId }} aria-label="Abrir la mesa, para anotadores">
+    <Link className={`ml-pb ${className}`.trim()} to="/partidos/$matchId/mesa" params={{ matchId }} aria-label="Abrir la mesa, para anotadores">
       Abrir la mesa{wide && <small aria-hidden="true">para anotadores</small>}
       <i aria-hidden="true">
         <Icon name="arrow" size={16} stroke={2.4} />

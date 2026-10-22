@@ -174,7 +174,7 @@ export function ClubPage() {
               </span>
               <p>Tu nombre y tu dorsal en la primera equipación, para descargar o compartir.</p>
             </div>
-            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/" hash="club">
+            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/club/equipo/camiseta">
               Hacerme la mía
             </Link>
           </div>
@@ -355,7 +355,7 @@ export function ClubPage() {
                         <span className="tk">
                           {formatDate(s.match.date)} · Manchester Piti {s.match.goalsFor}–{s.match.goalsAgainst} {s.match.rival ?? "Rival"}
                         </span>
-                        <Link to="/matches/$matchId" params={{ matchId: s.match.id }}>
+                        <Link to="/partidos/$matchId" params={{ matchId: s.match.id }}>
                           Ver partido →
                         </Link>
                       </>
@@ -457,7 +457,7 @@ export function ClubPage() {
             <div className="cl-next">
               <span className="st-mono">Próximo partido</span>
               {next ? (
-                <Link to="/matches/$matchId" params={{ matchId: next.id }}>
+                <Link to="/partidos/$matchId" params={{ matchId: next.id }}>
                   <b>{next.rival ?? "Rival"}</b>
                   <span>
                     {nextWhen} · {next.home === false ? "fuera" : "en casa"}

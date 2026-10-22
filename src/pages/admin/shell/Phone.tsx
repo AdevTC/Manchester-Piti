@@ -151,7 +151,7 @@ function MasBody({ counters, captain, dark, onGo, onSearch, onTheme, onClose, on
   const own = (
     <ul className="msl mine" id={listId} aria-label="Tu cuenta">
       <li>
-        <Link className="fr" to="/profile" onClick={onClose}>
+        <Link className="fr" to="/perfil" onClick={onClose}>
           <AdIcon name="card" size={20} />
           Mi perfil
         </Link>
@@ -208,7 +208,7 @@ function MasBody({ counters, captain, dark, onGo, onSearch, onTheme, onClose, on
           );
         })}
         <li>
-          <Link className="fr" to="/vestuario" hash="puerta" onClick={onClose} aria-label={DOOR_LABEL}>
+          <Link className="fr" to="/vestuario/puerta" onClick={onClose} aria-label={DOOR_LABEL}>
             <NavIcon name="door" />
             La puerta
             <span className="x2">

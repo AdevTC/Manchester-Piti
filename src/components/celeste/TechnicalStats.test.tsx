@@ -241,7 +241,7 @@ describe("TechnicalStatsPanel · source actions", () => {
     expect(within(detail).getAllByRole("listitem")).toHaveLength(3);
     expect(detail).toHaveTextContent("PEPE → JUAN");
     expect(detail).toHaveTextContent("LUIS → JUAN");
-    expect(within(detail).getAllByRole("link")[0]).toHaveAttribute("href", "/matches/m1?tab=estadisticas");
+    expect(within(detail).getAllByRole("link")[0]).toHaveAttribute("href", "/partidos/m1/numeros");
     fireEvent.keyDown(detail, { key: "Escape" });
     expect(screen.queryByRole("region", { name: "Pases recibidos · JUAN" })).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();

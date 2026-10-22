@@ -6,7 +6,7 @@ import type { PlayerDoc } from "../../lib/schemas";
 import { closedRecapSeason, previousSeasonId, recapBannerSeason, recapOffer, seasonLastMatchAt } from "../perfil/recapView";
 
 // The vestuario's «Ya está tu temporada en cromos»: the previous season's recap once a later season has
-// taken over, until 30 days after its last match, linking to /profile#cromos. Real seasonRecap over
+// taken over, until 30 days after its last match, linking to /perfil/temporada/cromos. Real seasonRecap over
 // a two-season fixture.
 
 vi.mock("@tanstack/react-router", () => ({
@@ -79,6 +79,6 @@ describe("RecapBanner", () => {
     render(<RecapBanner seasonName="Temporada 1" />);
     expect(screen.getByRole("heading", { name: "Ya está tu temporada en cromos" })).toBeTruthy();
     expect(screen.getByText("Temporada 1 · cerrada")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Ver mis cromos" }).getAttribute("href")).toBe("/profile#cromos");
+    expect(screen.getByRole("link", { name: "Ver mis cromos" }).getAttribute("href")).toBe("/perfil/temporada/cromos");
   });
 });

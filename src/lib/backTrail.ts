@@ -36,9 +36,17 @@ function write(trail: Trail) {
   }
 }
 
+/** The page an address shows: a match's screens (/partidos/<id>/siete…) and a player's sections are that
+ *  match's and that player's page, as their tabs were («Volver» steps past them all). */
+export function pageOf(pathname: string): string {
+  const m = /^(\/partidos\/[^/]+|\/jugadores\/[^/]+)\/(siete|numeros|vestuario|temporada|jornadas|juego|analisis|cromo)\/?$/.exec(pathname);
+  return m && !/^\/partidos\/(tabla|balance)$/.test(m[1]) ? m[1] : pathname;
+}
+
 /** Notes that the entry at `index` shows `pathname` (a push, a replace or a step through history). */
-export function recordTrail(index: number, pathname: string) {
+export function recordTrail(index: number, rawPathname: string) {
   if (!Number.isInteger(index) || index < 0) return;
+  const pathname = pageOf(rawPathname);
   const trail = read();
   if (trail[index] === pathname) return;
   const next: Trail = {};
@@ -48,12 +56,13 @@ export function recordTrail(index: number, pathname: string) {
 }
 
 /**
- * How many entries back the previous page of the app is: the nearest earlier entry whose path is not
- * `pathname` (the same page with another tab or season does not count). 0 = none, or not known (a first
+ * How many entries back the previous page of the app is: the nearest earlier entry whose page is not
+ * `pathname`'s (the same page on another screen, tab or season does not count). 0 = none, or not known (a first
  * load, a deep link, or a trail with a gap): the caller falls back to the section.
  */
-export function stepsBack(index: number, pathname: string): number {
+export function stepsBack(index: number, rawPathname: string): number {
   if (!Number.isInteger(index) || index <= 0) return 0;
+  const pathname = pageOf(rawPathname);
   const trail = read();
   for (let i = index - 1; i >= 0; i--) {
     const at = trail[i];
