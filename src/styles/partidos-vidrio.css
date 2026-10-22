@@ -927,3 +927,6 @@ html[data-pa-dir]::view-transition-new(pa-facet),html[data-pa-dir]::view-transit
 .pa .vd-provtag{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:650;line-height:1;color:var(--vd-ink);background:rgba(234,243,252,.10);box-shadow:inset 0 0 0 1px var(--vd-rule2);white-space:nowrap}
 .pa .vd-provtag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--vd-live);flex:none}
 :root[data-theme="light"] .pa .vd-provtag{background:rgba(255,255,255,.6)}
+.pa .pa-poster em,.pa .pa-poster small,.pa .pa-poster b{color:#fff}
+/* (board fault fixed: between 700 and 1099 px the gap between tiles is 16 px, too narrow for «1 nov, sin partido») */
+@container (max-width:1099px){.pa .pa-gap small{display:none}}
