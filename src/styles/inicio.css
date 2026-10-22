@@ -769,3 +769,14 @@
   /* (the narrower lens track: the score keeps clear of both crests) */
   .vi-lens .vi-score{font-size:128px}
 }
+@container (min-width:1100px) and (max-width:1367px){
+  /* (a narrower plays card — up to 1367 it also keeps 24 px of air inside its track —: three rows, and «31 jugadas más · Ver todo el partido» may take two lines — on one it
+     ran 16 px past the card) */
+  .vi-slot--r .vd-more{flex-wrap:wrap}
+  .vi-slot--r .vd-more>span{white-space:normal}
+  .vi-slot--r .vd-play:nth-child(n+4){display:none}
+  .vi-slot--r .vi-more-4{display:none}
+  .vi-slot--r .vi-more-3{display:inline}
+  .vi-slot--r .vi-orn-foot[data-more="3"] .vd-more{display:flex}
+  .vi-slot--r .vi-orn-foot[data-more="3"] .vi-openmatch{display:none}
+}
