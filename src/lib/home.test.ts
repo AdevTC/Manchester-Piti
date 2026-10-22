@@ -135,6 +135,6 @@ describe("home season data", () => {
   it("countdown parts and the match as a calendar event", () => {
     expect(countdownParts(NOW + DAY + 3_600_000 * 2 + 60_000 * 5, NOW)).toEqual({ d: 1, h: 2, m: 5 });
     const ev = matchEvent({ id: "m9", date: Date.UTC(2026, 9, 18, 9), rival: "Rival X", venue: "Campo", duration: 50 }, "https://x.test");
-    expect(ev).toEqual({ uid: "m9", title: "Manchester Piti vs Rival X", start: Date.UTC(2026, 9, 18, 9), end: Date.UTC(2026, 9, 18, 10, 20), location: "Campo", url: "https://x.test/matches/m9" });
+    expect(ev).toEqual({ uid: "m9", title: "Manchester Piti vs Rival X", start: Date.UTC(2026, 9, 18, 9), end: Date.UTC(2026, 9, 18, 10, 20), location: "Campo", url: "https://x.test/partidos/m9" });
   });
 });

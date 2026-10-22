@@ -85,10 +85,10 @@ describe("his page's shortcuts, by who is looking", () => {
     expect(ficha()).toBeNull();
   });
 
-  it("his own page (the member linked to him): «Editar tu carta» → /profile; no admin ficha", () => {
+  it("his own page (the member linked to him): «Editar tu carta» → /perfil; no admin ficha", () => {
     as({ member: true, playerId: "erik" });
     render(<JugadorPage />);
-    expect(carta()).toHaveAttribute("href", "/profile");
+    expect(carta()).toHaveAttribute("href", "/perfil");
     expect(ficha()).toBeNull();
   });
 
@@ -109,15 +109,15 @@ describe("his page's shortcuts, by who is looking", () => {
   it("an admin on his own page: both, his carta and his ficha", () => {
     as({ member: true, admin: true, playerId: "erik" });
     render(<JugadorPage />);
-    expect(carta()).toHaveAttribute("href", "/profile");
+    expect(carta()).toHaveAttribute("href", "/perfil");
     expect(ficha()).toHaveAttribute("href", "/admin/plantilla?jugador=erik");
   });
 });
 
-it("«Comparar con…» opens /stats › Comparar with him first, in the season, for anyone", () => {
+it("«Comparar con…» opens the cara a cara with him first, in the season, for anyone", () => {
   who.viewer = { member: false, admin: false, playerId: null };
   render(<JugadorPage />);
-  expect(screen.getByRole("link", { name: /Comparar con…/ })).toHaveAttribute("href", "/stats?view=compare&a=erik&season=t1");
+  expect(screen.getByRole("link", { name: /Comparar con…/ })).toHaveAttribute("href", "/plantilla/cara-a-cara?a=erik&season=t1");
 });
 
 it("«Sus cambios»: the teammate is a link to his page in the season; one no longer in the squad is text", () => {
@@ -209,7 +209,7 @@ describe("«Sus medallas»", () => {
     const box = screen.getByRole("heading", { name: "Sus medallas" }).closest("section") as HTMLElement;
     const won = within(box).getByRole("list", { name: "Sus logros" });
     const debut = within(won).getByText("Debut").closest("li") as HTMLElement;
-    expect(within(debut).getByRole("link", { name: "6 sept · vs MAD SKY" })).toHaveAttribute("href", "/matches/j1");
+    expect(within(debut).getByRole("link", { name: "6 sept · vs MAD SKY" })).toHaveAttribute("href", "/partidos/j1");
     expect(within(box).getByRole("region", { name: "Lo próximo" })).toHaveTextContent(/\d+ \/ \d+/);
     expect(box.querySelector("details.lg-all")).not.toBeNull();
   });

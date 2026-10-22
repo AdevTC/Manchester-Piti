@@ -20,7 +20,7 @@ export function Scorers({ matchId }: { matchId: string }) {
   return <section className="match-clock" aria-label="Anotadores designados">
     <h3>Anotadores del partido</h3><p>Los administradores ya tienen acceso. Autoriza a miembros del vestuario para controlar las partes y anotar jugadas en la mesa del partido. No podrán publicar actas ni acceder al resto de administración.</p>
     <div className="mc-actions">{(people ?? []).filter(p => !p.removed && !["admin", "superadmin"].includes(p.role)).map(p => <button key={p.uid} type="button" aria-pressed={selected.includes(p.uid)} disabled={busy || loading || error} onClick={() => void toggle(p.uid)}>{selected.includes(p.uid) ? "✓ " : "+ "}{p.nickname || p.displayName || p.email}</button>)}</div>
-    <Link to="/matches/$matchId/mesa" params={{ matchId }}>Abrir la mesa</Link>
+    <Link to="/partidos/$matchId/mesa" params={{ matchId }}>Abrir la mesa</Link>
     {(message || error) && <p role="alert">{message || "No se pudieron cargar los permisos de anotación."}</p>}
   </section>;
 }

@@ -52,7 +52,7 @@ import { Portada } from "./portada/Portada";
 import { Campo, Jugadas, LoTuyo, SubHead, SubNext, SubTitle } from "./portada/Screens";
 import { Camiseta } from "./portada/Camiseta";
 import { CartelSheet, MvpSheet, PorraSheet, type CartelView } from "./portada/Sheets";
-import { MatchLink } from "./portada/links";
+import { MatchLink, PageLink } from "./portada/links";
 import { PI } from "./portada/ui";
 import { hrefOf, useInicioNav, type Screen } from "./portada/nav";
 import { applyMaqueta, readMaqueta } from "./portada/maqueta";
@@ -654,9 +654,9 @@ export function HomePage() {
       }
       case "calendario":
         return (
-          <a key={a.id} className={cls} href="/partidos">
+          <PageLink key={a.id} to="partidos" className={cls}>
             {inner}
-          </a>
+          </PageLink>
         );
       case "cartel":
         return (

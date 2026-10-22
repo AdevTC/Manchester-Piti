@@ -51,7 +51,7 @@ describe("the match workspace · «Ver en la web»", () => {
     setAdminData(adminFixture());
     mountAdmin("/admin/partidos/m6", { partidos: Partidos });
     const det = await screen.findByRole("region", { name: "Partido J1" });
-    expect(within(det).getByRole("link", { name: /Ver en la web/ })).toHaveAttribute("href", "/matches/m6");
+    expect(within(det).getByRole("link", { name: /Ver en la web/ })).toHaveAttribute("href", "/partidos/m6");
   });
 
   it("a draft not in the calendar yet has no public page: no link", async () => {
@@ -69,7 +69,7 @@ describe("the match workspace · «Ver en la web»", () => {
     await screen.findByRole("region", { name: "Partido J1" });
     const list = await palette(user, "ver en la web");
     await user.click(within(list).getByRole("option", { name: /Ver en la web/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/matches/m6"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/partidos/m6"));
   });
 });
 

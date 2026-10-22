@@ -258,7 +258,7 @@ export function useCambios(c: CambiosCtx): Cambios {
         pending: (lw?.pending ?? []).map((s) => ({ id: s.id, txt: "Sale " + nm(s.out) + " → entra " + nm(s.in) })),
         canWrite: c.isAdmin,
         busy,
-        actaHref: c.isAdmin && c.match ? "/matches/" + encodeURIComponent(c.match.id) + "/mesa" : null,
+        actaHref: c.isAdmin && c.match ? "/partidos/" + encodeURIComponent(c.match.id) + "/mesa" : null,
         people: [...live.field, ...live.bench].map((id) => ({ id, label: nm(id), field: live.field.includes(id), off: off.has(id) })),
         takers: takersNow(t, live.field, nm),
       }

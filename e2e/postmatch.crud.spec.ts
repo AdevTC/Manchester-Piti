@@ -9,7 +9,7 @@ test.afterAll(()=>{
 
 test('resumen personal, historial mensual y cobertura sin confundir ceros con ausencias',async({page},testInfo)=>{
   await enterVestuario(page);
-  await page.goto('/matches/preview-balance?tab=vestuario');
+  await page.goto('/partidos/preview-balance/vestuario');
   const summary=page.getByRole('region',{name:'Tu resumen del partido'});
   await expect(summary.getByText('50′',{exact:true})).toBeVisible();
   await expect(summary.getByText('+20′ respecto a tu anterior partido')).toBeVisible();
@@ -24,7 +24,7 @@ test('resumen personal, historial mensual y cobertura sin confundir ceros con au
   await summary.scrollIntoViewIfNeeded();await page.screenshot({path:testInfo.outputPath('postmatch-mobile.png')});
   await page.getByLabel('Periodo de la porra').selectOption('');
   await page.locator('.ph-history').scrollIntoViewIfNeeded();await page.screenshot({path:testInfo.outputPath('history-mobile.png')});
-  await page.goto('/matches/preview-balance?tab=estadisticas');
+  await page.goto('/partidos/preview-balance/numeros');
   const workspace=page.getByRole('region',{name:'Todos los números, a tu medida'});
   await workspace.getByRole('group',{name:'Columnas habituales'}).getByRole('button',{name:'Pases y creación',exact:true}).click();
   const attempts=workspace.getByRole('button',{name:/^Total del Piti: Pases intentados,/});
@@ -41,7 +41,7 @@ test('resumen personal, historial mensual y cobertura sin confundir ceros con au
   await expect(detail.getByRole('region',{name:'Jugadas que sustentan la estadística'}).getByRole('listitem')).toHaveCount(1);
   await page.screenshot({path:testInfo.outputPath('coverage-mobile.png')});
   // The previous acta explicitly covers the whole game: here no passes really is zero.
-  await page.goto('/matches/preview-balance-previous?tab=estadisticas');
+  await page.goto('/partidos/preview-balance-previous/numeros');
   await workspace.getByRole('group',{name:'Columnas habituales'}).getByRole('button',{name:'Pases y creación',exact:true}).click();
   await expect(attempts.locator('strong')).toHaveText('0');
   await expect(attempts).toHaveAccessibleName(/Completo/);
@@ -55,7 +55,7 @@ test('la mesa: «Gol del Piti» con su goleador llega una sola vez al partido (l
   page.on('request', request => {
     if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/liveEvent')) requests.push(request.postDataJSON().data);
   });
-  await page.goto('/matches/preview-bench/mesa');
+  await page.goto('/partidos/preview-bench/mesa');
   await page.getByRole('button',{name:'Gol del Piti',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'¿Quién marcó?'});
   await sheet.getByRole('button',{name:/Mario/}).click();

@@ -130,7 +130,7 @@ export function Capitanes() {
         <li>Dar o quitar el brazalete pide confirmación y se puede deshacer.</li>
       </ul>
       <p className="hint">Para ser socio, primero se entra por La puerta.</p>
-      <Link className="btn sm line" to="/vestuario" hash="puerta" style={{ alignSelf: "flex-start" }}>
+      <Link className="btn sm line" to="/vestuario/puerta" style={{ alignSelf: "flex-start" }}>
         La puerta
         <AdIcon name="ext" size={14} />
       </Link>

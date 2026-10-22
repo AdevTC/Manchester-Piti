@@ -331,7 +331,7 @@ function ProposeTraining({ first, onDone, canCancel, now }: { first: number | nu
 function ToMatch({ id, children }: { id: string; children: ReactNode }) {
   return (
     <p className="vx-tomatch">
-      <Link to="/matches/$matchId" params={{ matchId: id }} search={{ tab: "vestuario" }}>
+      <Link to="/partidos/$matchId/vestuario" params={{ matchId: id }}>
         {children}
         <Icon name="arrow" size={14} stroke={2.2} />
       </Link>
@@ -644,7 +644,7 @@ export function Access({ admin, playerId, onLogout }: { admin: boolean; playerId
       </Link>
       <div>
         <div className="vx-links">
-          <Link className="vx-link" to="/stats">
+          <Link className="vx-link" to="/numeros">
             <Icon name="stats" size={22} />
             Estadísticas
           </Link>
@@ -654,7 +654,7 @@ export function Access({ admin, playerId, onLogout }: { admin: boolean; playerId
               Mi ficha
             </Link>
           ) : (
-            <Link className="vx-link" to="/profile">
+            <Link className="vx-link" to="/perfil">
               <Icon name="user" size={22} />
               Mi perfil
             </Link>

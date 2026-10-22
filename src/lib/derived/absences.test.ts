@@ -179,7 +179,7 @@ describe("in words", () => {
   });
   it("the captains' one notice: «NOMBRE no puede del 12 al 19 oct (2 partidos)», once per absence", () => {
     const n = absenceNotice(abs({ note: "Boda" }), "PEPE", [{ id: "m13" }, { id: "m14" }]);
-    expect(n).toMatchObject({ topic: "convocatoria", title: "PEPE no puede del 12 al 19 oct (2 partidos)", tag: "absence-a1", log: "absence-a1", url: "/matches/m13?tab=vestuario" });
+    expect(n).toMatchObject({ topic: "convocatoria", title: "PEPE no puede del 12 al 19 oct (2 partidos)", tag: "absence-a1", log: "absence-a1", url: "/partidos/m13/vestuario" });
     expect(n.body).toBe("«Boda». Ya sale como «No puedo» en la convocatoria.");
     expect(absenceNotice(abs(), "PEPE", [{ id: "m13" }]).title).toBe("PEPE no puede del 12 al 19 oct (1 partido)");
     const none = absenceNotice(abs(), "@pepe", []);

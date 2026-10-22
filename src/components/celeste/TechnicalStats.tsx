@@ -205,7 +205,7 @@ export function TechnicalStatsPanel({ matches, people, initialPlayer = "", seaso
         <label className="ts-complete-filter"><input type="checkbox" checked={completeOnly} onChange={e=>setCompleteOnly(e.target.checked)}/>Comparar solo actas completas</label>
         <p className="st-mono">«—» significa que falta información para afirmar un cero. Los valores positivos cuentan lo registrado; los porcentajes usan solo resultados conocidos.</p>
         {includedCoverage.unassigned > 0 && <p className="st-mono">{includedCoverage.unassigned} acciones del Piti sin jugador identificado: los totales individuales pueden estar incompletos.</p>}
-        <details><summary>Ver cobertura por partido</summary><ul>{coverage.rows.map(({match, state, recorded})=><li key={match.id}><a href={`/matches/${match.id}?tab=estadisticas`}>{formatDate(match.date)} · {match.rival ?? "Rival"}</a><span>{state === "complete" ? "Completa" : state === "partial" ? "Parcial" : "Sin narración"} · {recorded} acciones</span></li>)}</ul></details>
+        <details><summary>Ver cobertura por partido</summary><ul>{coverage.rows.map(({match, state, recorded})=><li key={match.id}><a href={`/partidos/${encodeURIComponent(match.id)}/numeros`}>{formatDate(match.date)} · {match.rival ?? "Rival"}</a><span>{state === "complete" ? "Completa" : state === "partial" ? "Parcial" : "Sin narración"} · {recorded} acciones</span></li>)}</ul></details>
         <p>
           <b>{complete ? "Análisis completo" : "Cobertura parcial"}</b>
           {complete ? " · Cada jugada está apuntada." : " · No todas las jugadas están apuntadas: las cifras cuentan solo lo apuntado."}

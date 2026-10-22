@@ -71,7 +71,7 @@ it("the card: the score on tiles, the last play on the strap in words, «Abrir l
   const strap = screen.getByRole("status");
   expect(strap).toHaveTextContent("AMARILLA");
   expect(strap).toHaveTextContent("Amarilla a Atlético");
-  expect(screen.getByRole("link", { name: "Abrir la mesa, para anotadores" })).toHaveAttribute("href", "/matches/m/mesa");
+  expect(screen.getByRole("link", { name: "Abrir la mesa, para anotadores" })).toHaveAttribute("href", "/partidos/m/mesa");
 });
 
 it("a goal of ours arriving live: the gold card, the tile ring and the sweep", () => {

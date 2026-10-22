@@ -224,7 +224,7 @@ export function Rail({ current, counters, captain, icon, foldable, folded, onFol
         Club
       </p>
       {club}
-      <Link className="it fr" to="/vestuario" hash="puerta" aria-label={DOOR_LABEL} style={{ "--i": doorAt } as CSSProperties} {...bind({ id: "puerta", name: "La puerta", note: "sales al vestuario ↗" })}>
+      <Link className="it fr" to="/vestuario/puerta" aria-label={DOOR_LABEL} style={{ "--i": doorAt } as CSSProperties} {...bind({ id: "puerta", name: "La puerta", note: "sales al vestuario ↗" })}>
         <NavIcon name="door" />
         <span className="lb">La puerta</span>
         <span className="x" aria-hidden="true">

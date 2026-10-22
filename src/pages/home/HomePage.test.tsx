@@ -125,7 +125,7 @@ describe("Inicio, la portada", () => {
     state.viewer = { member: true, admin: false, playerId: "huberoski" };
     state.scorers = ["u1"];
     render(<HomePage />);
-    expect(screen.getAllByRole("link", { name: /Abrir la mesa/ })[0]).toHaveAttribute("href", "/matches/j1/mesa");
+    expect(screen.getAllByRole("link", { name: /Abrir la mesa/ })[0]).toHaveAttribute("href", "/partidos/j1/mesa");
   });
 
   it("live: «La moviola» in the lens, el siete on the pitch, the plays newest first", () => {
@@ -136,7 +136,7 @@ describe("Inicio, la portada", () => {
     expect(within(lens).getByRole("slider", { name: /La moviola/ })).toBeInTheDocument();
     const plays = screen.getByRole("region", { name: "Jugada a jugada" });
     expect(within(plays).getAllByRole("listitem")[0]).toHaveTextContent("Gol de Adrián T.C.");
-    expect(screen.getAllByRole("link", { name: "Abrir el partido" })[0]).toHaveAttribute("href", "/matches/j1");
+    expect(screen.getAllByRole("link", { name: "Abrir el partido" })[0]).toHaveAttribute("href", "/partidos/j1");
   });
 
   it("the moviola goes back: the score and the headline follow the minute", () => {

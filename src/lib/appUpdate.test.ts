@@ -129,7 +129,7 @@ describe("startAppUpdates", () => {
     stop();
     const second = start();
     touch();
-    router.state.location.pathname = "/matches/m1/mesa";
+    router.state.location.pathname = "/partidos/m1/mesa";
     second.sw.takeOver();
     setVisibility("hidden");
     expect(second.reload).not.toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe("startAppUpdates", () => {
   });
 
   it("la mesa never switches by itself, but leaving it does", () => {
-    router.state.location.pathname = "/matches/m1/mesa";
+    router.state.location.pathname = "/partidos/m1/mesa";
     const { sw, reload } = start();
     sw.takeOver(); // untouched, just opened: still held
     setVisibility("hidden");
@@ -152,7 +152,7 @@ describe("startAppUpdates", () => {
   });
 
   it("«Actualizar» switches now, on any page", () => {
-    router.state.location.pathname = "/matches/m1/mesa";
+    router.state.location.pathname = "/partidos/m1/mesa";
     const { sw, reload } = start();
     sw.takeOver();
     appUpdate.apply();
@@ -199,10 +199,10 @@ describe("startAppUpdates", () => {
 
 describe("holdsUpdate", () => {
   it("holds on la mesa, the admin and the pizarra", () => {
-    expect(holdsUpdate(document, "/matches/abc/mesa")).toBe(true);
+    expect(holdsUpdate(document, "/partidos/abc/mesa")).toBe(true);
     expect(holdsUpdate(document, "/admin/partidos/en-juego/abc")).toBe(true);
     expect(holdsUpdate(document, "/pizarra")).toBe(true);
-    expect(holdsUpdate(document, "/matches/abc")).toBe(false);
+    expect(holdsUpdate(document, "/partidos/abc")).toBe(false);
     expect(holdsUpdate(document, "/")).toBe(false);
   });
 

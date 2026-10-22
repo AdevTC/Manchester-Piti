@@ -87,7 +87,7 @@ export function Logros({ list, next, now, self = false, headingLevel = 3 }: { li
                 <Tier a={a} />
               </span>
               {a.at ? (
-                <Link className="lg-at" to="/matches/$matchId" params={{ matchId: a.at.matchId }}>
+                <Link className="lg-at" to="/partidos/$matchId" params={{ matchId: a.at.matchId }}>
                   {`${medalDay(a.at.date, now)} · vs ${a.at.rival}`}
                 </Link>
               ) : (

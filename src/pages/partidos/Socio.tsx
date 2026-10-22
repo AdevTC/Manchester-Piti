@@ -200,7 +200,7 @@ export function MvpMine({ match, until, nameOf }: { match: ClubMatch; until: str
   if (!me) return null;
   return (
     <div className="vp-btns vp-mvpme">
-      <Link className="vd-glass vd-btn vd-btn--sm vd-btn--gold vd-press" to="/matches/$matchId" params={{ matchId: match.id }}>
+      <Link className="vd-glass vd-btn vd-btn--sm vd-btn--gold vd-press" to="/partidos/$matchId" params={{ matchId: match.id }}>
         <Glyph name="star" />
         {vote.data ? "Cambiar tu voto" : "Vota al MVP"}
       </Link>

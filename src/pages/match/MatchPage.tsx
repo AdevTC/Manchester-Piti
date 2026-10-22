@@ -15,7 +15,8 @@ import { reactionsOpen } from "../../lib/derived/trasElPartido";
 // Números · Pulso · Vestuario (the URL keeps ?tab=), the play-by-play as a two-sided feed with «Ver todo el
 // partido» and «Ahora en el campo» beside it. Pure logic in lib/ficha.ts, lib/partidos.ts and lib/derived.
 import { useCallback, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
-import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
+import { defaultStringifySearch, getRouteApi, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { matchTabAt as tabAtPath, matchTabHref } from "../../lib/interimScreens";
 import { isCompleted, matchPhase, nameFor, useClubData, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -67,7 +68,7 @@ import "../../styles/vidrio/reading.css";
 import "../../styles/vidrio-paginas.css";
 import "../../styles/match-vidrio.css";
 
-const route = getRouteApi("/matches/$matchId");
+const route = getRouteApi("/partidos/$matchId");
 
 /** The headline of the page, by moment. */
 function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: string) => string) {
@@ -179,13 +180,17 @@ const ORDER = [0, 1, 4, 2, 3] as const;
 
 export function MatchPage() {
   const { matchId } = route.useParams();
-  // The tab lives in the URL (?tab=campo…): a push or a shared link opens it, and each tab change is
-  // a history entry, so back and forward step through the tabs. No tab (or an unknown one) = the first.
+  // The tab lives in the URL (/partidos/<id>/siete…; Pulso as ?tab=pulso until the match page lands): a push or
+  // a shared link opens it, and each tab change is a history entry, so back and forward step through the tabs.
   const search = route.useSearch();
-  const active = matchTabIndex(search.tab);
+  const pathname = useLocation({ select: (l) => l.pathname });
+  const active = matchTabIndex(tabAtPath(pathname, search));
   const navigate = useNavigate();
   const setTab = (i: number) => {
-    if (i !== active) void navigate({ to: ".", search: (prev) => ({ ...prev, tab: matchTabAt(i) }), resetScroll: false });
+    if (i === active) return;
+    const { to, pulso } = matchTabHref(matchId, matchTabAt(i));
+    const { tab: _tab, ...rest } = search;
+    void navigate({ href: to + defaultStringifySearch(pulso ? { ...rest, tab: "pulso" } : rest), resetScroll: false });
   };
   // The ARIA tabs pattern: ←/→ wrap, Inicio/Fin to the ends; the key selects the tab (it is the URL's
   // tab) and the focus goes with it (roving tabindex: only the selected tab is in the Tab order).
@@ -527,7 +532,7 @@ export function MatchPage() {
         {active === 3 && <VestuarioTab match={match} matches={matches} players={players} phase={phase} ratings={ratings.data} ratingsError={ratings.error} />}
       </div>
       {pip && live && (
-        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip} bottom={pipBottom("/matches/")}>
+        <PipWindow pip={pip} title={`Manchester Piti contra ${rival}`} onClose={closePip} bottom={pipBottom("/partidos/" + matchId)}>
           <span className="vd-score">
             {gf}–{ga}
           </span>
