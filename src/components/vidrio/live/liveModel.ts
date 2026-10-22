@@ -11,7 +11,7 @@ import type { MatchMoment } from "../../../lib/derived/moments";
 import type { PlayRow } from "../../../lib/derived/vidrio/plays";
 import { withGuestNames } from "../../../lib/derived/guests";
 import { madridDate, madridTime } from "../../../lib/derived/madrid";
-import { capital, plural } from "../../../lib/derived/words";
+import { capital, plural, scoreText } from "../../../lib/derived/words";
 import { venueName } from "../../../lib/derived/venue";
 import type { FloatMatch } from "../floatText";
 
@@ -83,7 +83,7 @@ export function dayStateOf({ matches, now, voteOpen, today = {}, winnerOf = () =
 
 /** «Ganamos 3–1», «Empatamos 2–2», «Perdemos 1–2». */
 export function resultWords(gf: number, ga: number): string {
-  return `${gf > ga ? "Ganamos" : gf === ga ? "Empatamos" : "Perdemos"} ${gf}–${ga}`;
+  return `${gf > ga ? "Ganamos" : gf === ga ? "Empatamos" : "Perdemos"} ${scoreText(gf, ga)}`;
 }
 
 /** The drop's words when the state itself turns (what no play says): «Ya está el acta» and «Vota al MVP» right
@@ -126,7 +126,7 @@ export function dropEvent(moment: MatchMoment | null, rows: readonly PlayRow[], 
     case "reanudacion":
       return { title: "Segunda parte", sub: match ? `Quedan ${Math.round((match.duration ?? 50) / 2)} minutos` : moment.sub };
     case "descanso":
-      return match ? { title: "Descanso", sub: `${gf}–${ga} en la primera parte` } : null;
+      return match ? { title: "Descanso", sub: `${scoreText(gf, ga)} en la primera parte` } : null;
     case "final":
       return match ? { title: "Final", sub: resultWords(gf, ga) } : null;
   }
@@ -250,7 +250,7 @@ export function sheetOf({ state, now, nameOf, counts = null, rows = [], anotador
   const { gf, ga } = scoreOf(m);
   const at = dateMillis(m.date);
   const time = Number.isFinite(at) ? madridTime(at) : "";
-  const score = `${gf}–${ga}`;
+  const score = scoreText(gf, ga);
   const field = playing(state) ? onFieldNames(m as ClubMatch & { lineup?: unknown }, nameOf) : [];
   const seven = beforeKickoff(state) ? onFieldNames({ starters: m.starters, guests: m.guests, events: [], lineup: (m as { lineup?: unknown }).lineup }, nameOf) : [];
   const sevenNote = [seven.length ? `El siete ya está publicado: ${andList(seven)}.` : m.venue ? `En ${venueName(m.venue)}.` : "", mesaLine].filter(Boolean).join(" ");

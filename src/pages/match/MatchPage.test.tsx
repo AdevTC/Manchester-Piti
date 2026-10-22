@@ -12,7 +12,7 @@ import { _resetSnapshotMetaForTesting, metaKeyOf, recordSnapshotMeta } from "../
 
 // (one narrated pass: its «Estadísticas» tab has an analysis to show)
 const MATCH: ClubMatch = { id: "j1", seasonId: "t1", rival: "Rival", date: Date.UTC(2026, 8, 1, 10), duration: 50, status: "finished", goalsFor: 1, goalsAgainst: 0, events: [{ id: "a1", type: "pass", outcome: "complete", playerId: "p1", minute: 5 }] };
-// a 2–1 with our scorer, a guest scorer nobody has in the squad, and the rival's goal
+// a 2\u2060–\u20601 with our scorer, a guest scorer nobody has in the squad, and the rival's goal
 const SCORED: ClubMatch = { ...MATCH, id: "j2", goalsFor: 2, goalsAgainst: 1, events: [
   { id: "g1", type: "goal", minute: 12, playerId: "p1" },
   { id: "g2", type: "goal", minute: 30, playerId: "invitado" },
@@ -93,13 +93,13 @@ describe("MatchPage · the headline counts goals, not goal kicks", () => {
   it("hundreds of actions and goal kicks never create a scorer in a goalless match", async () => {
     club.extraMatches = [{ ...MATCH, id: "no-goals", goalsFor: 0, goalsAgainst: 0, events: actions }];
     open("/matches/no-goals?tab=campo");
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Empate 0–0 ante Rival");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Empate 0\u2060–\u20600 ante Rival");
   });
 
   it("four different scorers produce the result headline instead of the keeper's false hat-trick", async () => {
     club.extraMatches = [{ ...MATCH, id: "many-actions", goalsFor: 4, goalsAgainst: 2, events: [...actions, ...["mario", "hugo", "sergio", "david"].map((playerId, index) => ({ id: `goal-${index}`, type: "goal" as const, playerId, minute: index * 10 + 1 }))] }];
     open("/matches/many-actions?tab=campo");
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Victoria 4–2 ante Rival");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Victoria 4\u2060–\u20602 ante Rival");
   });
 
   it.each([[2, "Doblete"], [3, "Hat-trick"]] as const)("retains a real %i-goal achievement, including set pieces and excluding unresolved duplicates", async (goals, label) => {

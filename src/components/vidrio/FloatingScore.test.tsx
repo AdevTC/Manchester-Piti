@@ -42,7 +42,7 @@ describe("FloatingScore", () => {
     const onOpen = vi.fn();
     render(<FloatingScore match={LIVE} now={0} onOpen={onOpen} storageKey="test" />);
     const drop = screen.getByRole("button", { name: "Manchester Piti 2, Orduña fc 1, minuto 23" });
-    expect(drop).toHaveTextContent("2–1");
+    expect(drop).toHaveTextContent("2\u2060–\u20601");
     fireEvent.click(drop);
     expect(onOpen).toHaveBeenCalledOnce();
   });
@@ -122,7 +122,7 @@ describe("FloatingScore", () => {
   it("pendiente del acta: no score", () => {
     render(<FloatingScore match={{ ...LIVE, state: "pendiente" }} now={0} onOpen={() => undefined} storageKey="test" />);
     const drop = screen.getByRole("button", { name: "Contra Orduña fc, pendiente del acta" });
-    expect(drop).not.toHaveTextContent("2–1");
+    expect(drop).not.toHaveTextContent("2\u2060–\u20601");
     expect(drop).toHaveTextContent("Pendiente del acta");
   });
 });

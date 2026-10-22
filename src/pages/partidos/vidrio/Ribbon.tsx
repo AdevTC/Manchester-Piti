@@ -10,6 +10,7 @@ import type { SeasonStrip, StripSegment, StripWindow } from "../../../lib/derive
 import type { PickLetter } from "../../../lib/derived/vidrio/table";
 import { lightLine, newDateOf, minimapOf, nearestOnTrack, paintGradient, paintOf, ribbonGaps, segmentAria, shortDay, tinyDay, untilText } from "./model";
 import { Glyph, SignatureSvg } from "./bits";
+import { scoreText } from "../../../lib/derived/words";
 
 export interface RibbonProps {
   strip: SeasonStrip;
@@ -97,7 +98,7 @@ function Segment({ seg, selected, now, minute, tabbable, simLetter, temp, onPick
         )}
         {(live || played) && seg.score && (
           <span className="vp-seg__score">
-            {seg.score.gf}–{seg.score.ga}
+            {scoreText(seg.score.gf, seg.score.ga)}
             {live && minute !== null && (
               <span className="vd-live">
                 <span className="vd-clock">{minute}′</span>

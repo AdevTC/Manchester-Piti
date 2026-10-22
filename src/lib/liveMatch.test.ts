@@ -16,7 +16,7 @@ describe("one live match across home, pitch and backend", () => {
     const m = { ...match, goalsFor: 9, goalsAgainst: 9, events: [ev("goal", 5, "a"), ev("opponent_goal", 7)] };
     const p = seasonPulse([m], "s", date + 10 * MIN);
     expect(scoreOf(m)).toEqual({ gf: 1, ga: 1 });
-    expect(narrative(p, { seasonName: "Liga", squadSize: 10, now: date + 10 * MIN, nameOf: (id) => id }).head).toContain("1–1");
+    expect(narrative(p, { seasonName: "Liga", squadSize: 10, now: date + 10 * MIN, nameOf: (id) => id }).head).toContain("1\u2060–\u20601");
     expect(scoreOf({ ...m, events: m.events.slice(0, 1) })).toEqual({ gf: 1, ga: 0 });
     expect(scoreOf({ ...m, status: "finished" })).toEqual({ gf: 9, ga: 9 });
   });

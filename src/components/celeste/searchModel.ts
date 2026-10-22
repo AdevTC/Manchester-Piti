@@ -12,6 +12,7 @@ import { scoreOf } from "../../lib/partidos";
 import { dateMillis } from "../../../functions/src/matchEngine";
 import { madridTime } from "../../lib/derived/madrid";
 import { rivalKey } from "../../lib/derived/rival";
+import { scoreText } from "../../lib/derived/words";
 
 export type PanelKind = SearchKind | "ahora" | "accion";
 export type PanelTarget = SearchTarget | { to: "href"; href: string } | { to: "pip" } | { to: "match"; matchId: string; tab?: "vestuario" } | { to: "clubAt"; hash: string };
@@ -63,7 +64,7 @@ export function nowEntries(state: FloatDay | null, now: number): PanelEntry[] {
     case "halftime": {
       const minute = state.kind === "halftime" ? "Descanso" : `En directo, minuto ${clockText(m, now).replace(/′.*/, "")}`;
       return [
-        { ...base, title: `Piti ${gf}–${ga} ${rival}`, detail: `${minute}. Abrir el partido`, icon: "ball", target: { to: "partido", matchId: m.id } },
+        { ...base, title: `Piti ${scoreText(gf, ga)} ${rival}`, detail: `${minute}. Abrir el partido`, icon: "ball", target: { to: "partido", matchId: m.id } },
         { id: "now:pip", kind: "ahora", title: "Sacar el marcador", detail: "A una ventana que flota encima de todo", keywords: "marcador ventana pip", icon: "pip", target: { to: "pip" } },
       ];
     }
@@ -78,7 +79,7 @@ export function nowEntries(state: FloatDay | null, now: number): PanelEntry[] {
     case "final":
     case "vote":
     case "mvpres":
-      return [{ ...base, live: false, title: `Piti ${gf}–${ga} ${rival}`, detail: state.kind === "final" && !state.published ? "Final. El acta llega enseguida" : "Final. Leer el acta", icon: "ball", target: { to: "partido", matchId: m.id } }];
+      return [{ ...base, live: false, title: `Piti ${scoreText(gf, ga)} ${rival}`, detail: state.kind === "final" && !state.published ? "Final. El acta llega enseguida" : "Final. Leer el acta", icon: "ball", target: { to: "partido", matchId: m.id } }];
     case "unplayed":
       return [{ ...base, live: false, title: `Contra ${rival}`, detail: "Pendiente del acta. Abrir el partido", icon: "fixtures", target: { to: "partido", matchId: m.id } }];
   }

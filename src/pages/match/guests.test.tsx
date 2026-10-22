@@ -34,8 +34,8 @@ describe("the match page · invitados", () => {
     ]);
     const { container } = render(<CronicaTab match={match} matches={[match]} players={squad} nameOf={nameOf(match)} />);
     const [first, second] = [...container.querySelectorAll<HTMLElement>(".fc-ch")];
-    expect(first.querySelector("p")).toHaveTextContent("Rafa (invitado) marca, con asistencia de A. 1–0.");
-    expect(second.querySelector("p")).toHaveTextContent("A marca, con asistencia de Rafa (invitado). 2–0.");
+    expect(first.querySelector("p")).toHaveTextContent("Rafa (invitado) marca, con asistencia de A. 1\u2060–\u20600.");
+    expect(second.querySelector("p")).toHaveTextContent("A marca, con asistencia de Rafa (invitado). 2\u2060–\u20600.");
     expect(within(first).queryByRole("link", { name: /Rafa/ })).toBeNull();
     expect(within(first).getByRole("link", { name: "A" })).toBeInTheDocument();
     expect(linked.ids).not.toContain("guest:g1");

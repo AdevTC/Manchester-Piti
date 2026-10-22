@@ -7,6 +7,7 @@ import type { ClubMatch } from "./clubData";
 import { eventMinute, OURS } from "./partidos";
 import { withGuestNames, type MatchGuest } from "./derived/guests";
 import { settled } from "./eventMeta";
+import { scoreText } from "./derived/words";
 
 const THEIRS = new Set(["opponent_goal", "own_goal"]);
 const playerGoal = (event: MatchEvent) => OURS.has(event.type) && event.type !== "opponent_own_goal";
@@ -44,30 +45,30 @@ export function chapters(events: MatchEvent[] | undefined, memberName: (id: stri
       const how = e.type === "goal_penalty" ? " de penalti" : e.type === "goal_freekick" ? " de falta" : "";
       const scorer = e.type === "opponent_own_goal" ? `Autogol de ${rival}` : `${who} marca${how}`;
       const assist = e.assistPlayerId ? `, con asistencia de ${nameOf(e.assistPlayerId)}` : "";
-      out.push({ id: e.id, minute: shownAt(e), title, text: `${scorer}${assist}. ${gf}–${ga}.`, side: "us", playerId: e.type === "opponent_own_goal" ? undefined : e.playerId, people });
+      out.push({ id: e.id, minute: shownAt(e), title, text: `${scorer}${assist}. ${scoreText(gf, ga)}.`, side: "us", playerId: e.type === "opponent_own_goal" ? undefined : e.playerId, people });
     } else if (THEIRS.has(e.type)) {
       const tiedBefore = gf === ga;
       ga++;
       const title = ga === 1 && gf === 0 ? `Golpe de ${rival}` : ga === gf ? `Empata ${rival}` : ga > gf && tiedBefore ? `${rival} se adelanta` : ga > gf ? `${rival} amplía` : `${rival} recorta`;
-      const text = e.type === "own_goal" ? `Gol en propia puerta de ${who}. ${gf}–${ga}.` : `Marca ${rival}. ${gf}–${ga}.`;
+      const text = e.type === "own_goal" ? `Gol en propia puerta de ${who}. ${scoreText(gf, ga)}.` : `Marca ${rival}. ${scoreText(gf, ga)}.`;
       out.push({ id: e.id, minute: shownAt(e), title, text, side: "them", people });
     } else if (e.type === "penalty_saved") {
-      out.push({ id: e.id, minute: shownAt(e), title: `${who} para un penalti`, text: `Penalti para ${rival} y ${who} lo detiene. Sigue el ${gf}–${ga}.`, side: "us", playerId: e.playerId, people });
+      out.push({ id: e.id, minute: shownAt(e), title: `${who} para un penalti`, text: `Penalti para ${rival} y ${who} lo detiene. Sigue el ${scoreText(gf, ga)}.`, side: "us", playerId: e.playerId, people });
     } else if (e.type === "penalty_missed") {
-      out.push({ id: e.id, minute: shownAt(e), title: "Penalti fallado", text: `${who} no acierta desde los once metros. Sigue el ${gf}–${ga}.`, side: "us", playerId: e.playerId, people });
+      out.push({ id: e.id, minute: shownAt(e), title: "Penalti fallado", text: `${who} no acierta desde los once metros. Sigue el ${scoreText(gf, ga)}.`, side: "us", playerId: e.playerId, people });
     } else if (e.type === "red_card" || e.type === "double_yellow") {
       out.push({ id: e.id, minute: shownAt(e), title: `Roja para ${who}`, text: e.type === "double_yellow" ? "Expulsión por segunda amarilla." : "Expulsión por roja directa.", side: "them", playerId: e.playerId, people });
     } else if (["chance", "opponent_chance", "corner", "opponent_corner"].includes(e.type)) {
       const theirs = e.type.startsWith("opponent_");
       const corner = e.type.endsWith("corner");
-      out.push({ id: e.id, minute: shownAt(e), title: `${corner ? "Córner" : "Ocasión"} ${theirs ? `para ${rival}` : who ? `de ${who}` : "del Piti"}`, text: e.note || `${corner ? "Saque de esquina" : "Ocasión sin gol"}. Sigue el ${gf}–${ga}.`, side: theirs ? "them" : "us", playerId: theirs ? undefined : e.playerId, people });
+      out.push({ id: e.id, minute: shownAt(e), title: `${corner ? "Córner" : "Ocasión"} ${theirs ? `para ${rival}` : who ? `de ${who}` : "del Piti"}`, text: e.note || `${corner ? "Saque de esquina" : "Ocasión sin gol"}. Sigue el ${scoreText(gf, ga)}.`, side: theirs ? "them" : "us", playerId: theirs ? undefined : e.playerId, people });
     } else if (e.type === "substitution") {
       out.push({ id: e.id, minute: shownAt(e), title: `Entra ${e.inPlayerId ? nameOf(e.inPlayerId) : "un suplente"}`, text: `Sale ${who}.`, side: "us", playerId: e.inPlayerId, people });
     }
   }
   if (final) {
     const verdict = final.gf > final.ga ? `Victoria ante ${rival}` : final.gf === final.ga ? `Empate ante ${rival}` : `Derrota ante ${rival}`;
-    out.push({ id: "final", minute: null, title: `Final: ${final.gf}–${final.ga}`, text: `${verdict}.`, side: "end" });
+    out.push({ id: "final", minute: null, title: `Final: ${scoreText(final.gf, final.ga)}`, text: `${verdict}.`, side: "end" });
   }
   return out;
 }

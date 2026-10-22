@@ -21,7 +21,7 @@ describe("vitrinaPieces", () => {
 
   it("while it is played: the score and the minute; the first victory «Se juega ahora»; the debut comes with the acta", () => {
     const v = vitrinaPieces({ ...base, day: { phase: "directo1", match: j1, minute: 23, score: { gf: 2, ga: 1 }, jornada: 1, next: null } });
-    expect(v.top[1]).toMatchObject({ score: "2–1", sub: "2–1, minuto 23" });
+    expect(v.top[1]).toMatchObject({ score: "2\u2060–\u20601", sub: "2\u2060–\u20601, minuto 23" });
     expect(v.bottom[0].sub).toBe("Se juega ahora");
     expect(v.bottom[2]).toMatchObject({ title: "Logro «Debut»", sub: "Llega con el acta" });
   });
@@ -29,8 +29,8 @@ describe("vitrinaPieces", () => {
   it("after the win: the ball on the shelf", () => {
     const won: ClubMatch = { ...j1, status: "finished", goalsFor: 3, goalsAgainst: 1 };
     const v = vitrinaPieces({ ...base, matches: [won], now: KO + 7_200_000, day: { phase: "acta", match: won, minute: null, score: { gf: 3, ga: 1 }, jornada: 1, next: null } });
-    expect(v.top[1].sub).toBe("Final, 3–1");
-    expect(v.bottom[0]).toMatchObject({ art: "ball", sub: "3–1 a Orduña fc" });
+    expect(v.top[1].sub).toBe("Final, 3\u2060–\u20601");
+    expect(v.bottom[0]).toMatchObject({ art: "ball", sub: "3\u2060–\u20601 a Orduña fc" });
   });
 });
 

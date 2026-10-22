@@ -242,7 +242,7 @@ describe("the sheet", () => {
       for (let i = 0; i < 3; i++) await Promise.resolve();
     });
     const win = screen.getByRole("dialog", { name: "Marcador en una ventana aparte" });
-    expect(win).toHaveTextContent("1–0");
+    expect(win).toHaveTextContent("1\u2060–\u20600");
     // the board's window: the bold line and the last play
     expect(win).toHaveTextContent("En directo, 11′");
     expect(within(win).getByRole("button", { name: "Volver a la pestaña" })).toBeInTheDocument();

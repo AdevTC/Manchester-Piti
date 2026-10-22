@@ -100,7 +100,7 @@ it("opens on tonight's live jornada: the ribbon, the lens on Directo, the score,
   render(<PartidosPage />);
   expect(screen.getByRole("heading", { level: 1, name: "Partidos" })).toBeInTheDocument();
   expect(seg(17)).toHaveAttribute("aria-pressed", "true");
-  expect(seg(17)).toHaveAccessibleName("J17, domingo 17 de enero, contra Orduña fc. En directo: 2–1, minuto 23");
+  expect(seg(17)).toHaveAccessibleName("J17, domingo 17 de enero, contra Orduña fc. En directo: 2\u2060–\u20601, minuto 23");
   expect(within(lens()).getByRole("heading", { level: 2 })).toHaveTextContent("Contra Orduña fc");
   expect(within(lens()).getByRole("tab", { name: /Directo/ })).toHaveAttribute("aria-selected", "true");
   expect(within(lens()).getByRole("img", { name: "Manchester Piti 2, Orduña fc 1" })).toBeInTheDocument();
@@ -121,7 +121,7 @@ it("a played jornada opens on its acta: the result, the scorers, the signature, 
   fireEvent.click(screen.getByRole("button", { name: /^J5, Red Demons/ }));
   expect(within(lens()).getByRole("heading", { level: 2 })).toHaveTextContent("Contra Red Demons");
   expect(within(lens()).getByRole("tab", { name: "Acta" })).toHaveAttribute("aria-selected", "true");
-  expect(lens()).toHaveTextContent(/Final, (ganamos|empatamos|perdimos) \d–\d\. Acta publicada\./);
+  expect(lens()).toHaveTextContent(/Final, (ganamos|empatamos|perdimos) \d\u2060–\u2060\d\. Acta publicada\./);
   expect(within(lens()).getByRole("list", { name: "Goles" })).toBeInTheDocument();
   expect(within(lens()).getByRole("img", { name: /^La firma del partido/ })).toBeInTheDocument();
   expect(lens()).toHaveTextContent("MVP del partidoAlcides");

@@ -1,3 +1,4 @@
+import { scoreText } from "../../lib/derived/words";
 // The floating score's words, pure: what the compact drop says in each state and its accessible name.
 // (P5 added the member's own states of the match day: «¿Vas hoy?», «Hoy anotas tú», the whistle's wait and
 // «Vota al MVP».)
@@ -48,7 +49,7 @@ export interface FloatLines {
 }
 
 export function floatLines(m: FloatMatch, now: number): FloatLines {
-  const score = `${m.us}–${m.them}`;
+  const score = scoreText(m.us, m.them);
   // (a play or a turn of the match unfolds the drop, whatever the state: «Descanso · 2–1 en la primera parte»)
   if (m.event && m.state !== "offline") return { big: m.state === "previa" || m.state === "rsvp" || m.state === "anotador" || m.state === "pitido" ? null : score, main: m.event.title, small: m.event.sub ?? "", clock: false };
   switch (m.state) {

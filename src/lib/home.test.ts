@@ -85,19 +85,19 @@ describe("home narrative", () => {
   it("a win in the last days names the scorer and the leader", () => {
     const p = seasonPulse([played("m1", 2, 3, 1, [goal("a"), goal("a"), goal("e", "h")])], "s1", NOW);
     const n = narrative(p, ctx(p));
-    expect(n.head).toBe("¡Victoria! 3–1 ante Rival m1.");
+    expect(n.head).toBe("¡Victoria! 3\u2060–\u20601 ante Rival m1.");
     expect(n.em).toBe("ADRIÁN T.C. firmó un doblete: ya suma 2 y lidera el Pichichi.");
     expect(n.kick).toBe("Temporada 1 · jornada 1");
   });
   it("a loss points to the revancha", () => {
     const p = seasonPulse([played("m1", 1, 0, 2), upcoming("m2", 5)], "s1", NOW);
-    expect(narrative(p, ctx(p)).head).toBe("Tocó perder ante Rival m1, 0–2.");
+    expect(narrative(p, ctx(p)).head).toBe("Tocó perder ante Rival m1, 0\u2060–\u20602.");
     expect(narrative(p, ctx(p)).em).toMatch(/^Revancha: .* ante Rival m2\.$/);
   });
   it("a live match wins over everything", () => {
     const live: ClubMatch = { id: "l", seasonId: "s1", rival: "Rival L", status: "scheduled", date: NOW - 10 * 60_000, goalsFor: 0, goalsAgainst: 0, events: [goal("a")] };
     const p = seasonPulse([played("m1", 1, 2, 2), live], "s1", NOW);
-    expect(narrative(p, ctx(p)).head).toBe("¡En juego! Piti 1–0 Rival L.");
+    expect(narrative(p, ctx(p)).head).toBe("¡En juego! Piti 1\u2060–\u20600 Rival L.");
   });
   it("mid-season quiet week falls back to the leader", () => {
     const p = seasonPulse([played("m1", 20, 1, 0, [goal("e")])], "s1", NOW);
@@ -124,7 +124,7 @@ describe("home season data", () => {
     expect(clubMedals(empty, playerLines(squad, []), nameOf, () => "").every((m) => !m.earned)).toBe(true);
     const p = seasonPulse([played("m1", 9, 0, 1), played("m2", 3, 4, 2, [goal("e"), goal("a", "e")])], "s1", NOW);
     const medals = clubMedals(p, playerLines(squad, p.played), nameOf, () => "d");
-    expect(medals.find((m) => m.id === "win")).toMatchObject({ earned: true, title: "4–2" });
+    expect(medals.find((m) => m.id === "win")).toMatchObject({ earned: true, title: "4\u2060–\u20602" });
     expect(medals.find((m) => m.id === "goal")?.title).toBe("ERIK");
     expect(medals.find((m) => m.id === "record")).toMatchObject({ earned: true, title: "4 goles" });
   });

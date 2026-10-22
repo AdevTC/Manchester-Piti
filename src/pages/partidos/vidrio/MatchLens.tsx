@@ -25,7 +25,7 @@ import { matchSignature, signaturePoint } from "../../../lib/derived/vidrio/sign
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
 import type { Cartel } from "../../../lib/derived/vidrio/cartel";
 import { venueName } from "../model";
-import { capital, endSentence, plural } from "../../../lib/derived/words";
+import { capital, endSentence, plural, scoreText } from "../../../lib/derived/words";
 import { clockTime, closesWord, decollide, newDateLine, newDateOf, onPitchLines, placeLine, playedWeatherLine, postponedLine, distanceText, lensTabs, longDay, rivalInitials, rivalTitle, untilText, whenLine, type LensTab, type SegmentPaint } from "./model";
 import { Glyph, PitchLines, RivalCrest, Shirt, SignatureSvg, SunRibbon, type GlyphName } from "./bits";
 import { CartelInline } from "./Cartel";
@@ -270,7 +270,7 @@ function Previa({ seg, ctx, idBase }: { seg: StripSegment; ctx: LensCtx; idBase:
     : starters.slice(0, 7).map((id, i) => ({ id, left: [8, 30, 26, 30, 54, 54, 80][i] ?? 50, top: [50, 18, 50, 82, 34, 66, 50][i] ?? 50 }));
   const captain = (m as ClubMatch & { captainId?: string | null }).captainId ?? ctx.captainId;
   const day = at === null ? "Fecha por confirmar" : seg.state === "hoy" ? `Hoy, ${untilText(at, ctx.now).toLowerCase()}` : seg.state === "directo" ? "Hoy, en juego" : capital(longDay(at));
-  const resultTxt = seg.score && seg.letter && seg.letter !== "A" ? `${seg.letter === "G" ? "ganamos" : seg.letter === "E" ? "empatamos" : "perdimos"} ${seg.score.gf}–${seg.score.ga}` : "";
+  const resultTxt = seg.score && seg.letter && seg.letter !== "A" ? `${seg.letter === "G" ? "ganamos" : seg.letter === "E" ? "empatamos" : "perdimos"} ${scoreText(seg.score.gf, seg.score.ga)}` : "";
   const sub =
     seg.state === "hoy" ? "Llegad media hora antes para calentar." : seg.state === "directo" ? "Empezó a su hora." : seg.state === "jugado" ? (resultTxt ? `Se jugó: ${resultTxt}.` : "Se jugó.") : seg.state === "pendiente" ? "Se tenía que jugar a esta hora." : at !== null ? distanceText(at, ctx.now) : "";
   const kit = kitLabel(m, m.home === false ? "2ª equipación" : "1ª equipación");
@@ -486,7 +486,7 @@ function Acta({ seg, ctx, onCartel }: { seg: StripSegment; ctx: LensCtx; onCarte
     labels.push({ id: mk.eventId, minute: Math.round(mk.minute), text: who, them: mk.kind === "rival", x: p.x, y: p.y, left: p.left });
     if (labels.length >= 6) break;
   }
-  const resultTxt = seg.score && seg.letter && seg.letter !== "A" ? `${seg.letter === "G" ? "ganamos" : seg.letter === "E" ? "empatamos" : "perdimos"} ${seg.score.gf}–${seg.score.ga}` : "";
+  const resultTxt = seg.score && seg.letter && seg.letter !== "A" ? `${seg.letter === "G" ? "ganamos" : seg.letter === "E" ? "empatamos" : "perdimos"} ${scoreText(seg.score.gf, seg.score.ga)}` : "";
   const finalLine = seg.provisional ? "Final. El acta llega en unos minutos." : `Final${resultTxt ? `, ${resultTxt}` : ""}. Acta publicada.`;
   const voteOpen = !seg.provisional && typeof m.voteClosesAt === "number" && m.voteClosesAt > ctx.now;
   const report = (m.report ?? "").trim();

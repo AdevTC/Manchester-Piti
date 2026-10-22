@@ -34,10 +34,10 @@ describe("cartelOf", () => {
 
   it("a played one: result, scorers, MVP", () => {
     const c = cartelOf(byId("j8"), ctx(8, { mvp: "Alcides" }));
-    expect(c).toMatchObject({ big: "5–1", played: true, letter: "G", resultLine: "Ganamos 5–1", mvp: "Alcides", side: "Fuera" });
+    expect(c).toMatchObject({ big: "5\u2060–\u20601", played: true, letter: "G", resultLine: "Ganamos 5\u2060–\u20601", mvp: "Alcides", side: "Fuera" });
     expect(c.scorers).toBe("Adrián T.C., Erik, Huberoski, Alcides, Kevin");
     expect(c.signature).toMatchObject({ closed: true });
-    expect(c.aria).toMatch(/\. Resultado 5–1\.$/);
+    expect(c.aria).toMatch(/\. Resultado 5\u2060–\u20601\.$/);
   });
 
   it("a guest's goal on the poster is the guest's", () => {

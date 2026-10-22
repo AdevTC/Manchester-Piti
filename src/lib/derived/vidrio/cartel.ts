@@ -9,6 +9,7 @@ import { norm } from "../../standings";
 import { resultLetter, type ResultLetter } from "../result";
 import { matchSignature, type MatchSignature } from "./signature";
 import { lightAt, stripStateOf, type MatchLight, type StripState } from "./strip";
+import { scoreText as gluedScore } from "../words";
 
 export interface CartelContext {
   jornada: number | null;
@@ -70,7 +71,7 @@ export function cartelOf(match: ClubMatch, ctx: CartelContext): Cartel {
   const played = state === "jugado";
   const sc = played || state === "directo" ? scoreOf(match) : null;
   const letter = played && sc ? resultLetter(sc.gf, sc.ga) : null;
-  const scoreText = sc ? `${sc.gf}–${sc.ga}` : "";
+  const scoreText = sc ? gluedScore(sc.gf, sc.ga) : "";
   const time = dated ? parts.time : "";
   const big =
     played

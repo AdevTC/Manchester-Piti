@@ -131,7 +131,7 @@ describe("La constelación por posición exacta", () => {
 });
 
 describe("Radar, ritmo y porcentajes", () => {
-  it("scores stay in 0–1 and the polygon has one point per axis", () => {
+  it("scores stay in 0\u2060–\u20601 and the polygon has one point per axis", () => {
     const s = radarScores(rows[0], rows, games.length);
     expect(s).toHaveLength(6);
     expect(s.every((v) => v >= 0 && v <= 1)).toBe(true);
@@ -168,7 +168,7 @@ describe("Minutos, rivales, colección y rótulo", () => {
   it("the ticker speaks about live streaks and leaders", () => {
     const lines = tickerLines(rows, games);
     expect(lines).toContain("Pichichi: ANA con 3");
-    expect(lines.some((l) => l.includes("Mayor victoria: 2–0"))).toBe(true);
+    expect(lines.some((l) => l.includes("Mayor victoria: 2\u2060–\u20600"))).toBe(true);
   });
 });
 

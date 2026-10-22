@@ -64,12 +64,12 @@ it("the crónica links every one of ours it names, once per chapter; an unknown 
   const [goal, sub, other] = [...container.querySelectorAll<HTMLElement>(".fc-ch")];
   expect(within(goal).getByRole("link", { name: "A" })).toHaveAttribute("href", "/jugadores/a?season=t1");
   expect(within(goal).getByRole("link", { name: "B" })).toHaveAttribute("href", "/jugadores/b?season=t1");
-  expect(goal.querySelector("p")).toHaveTextContent("A marca, con asistencia de B. 1–0.");
+  expect(goal.querySelector("p")).toHaveTextContent("A marca, con asistencia de B. 1\u2060–\u20600.");
   // «Entra H» (title) · «Sale B.» (sentence): each linked where it is said
   expect(within(sub.querySelector("h3")!).getByRole("link", { name: "H" })).toHaveAttribute("href", "/jugadores/h?season=t1");
   expect(within(sub.querySelector("p")!).getByRole("link", { name: "B" })).toBeInTheDocument();
   expect(within(other).queryByRole("link")).toBeNull();
-  expect(other.querySelector("p")).toHaveTextContent("ZZ marca. 2–0.");
+  expect(other.querySelector("p")).toHaveTextContent("ZZ marca. 2\u2060–\u20600.");
 });
 
 it("two of ours with the same name in one change: «Entra» links who comes on, «Sale» who goes off", () => {

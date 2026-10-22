@@ -43,7 +43,7 @@ import { RESULT_WORD, resultLetter, resultTitle } from "../../lib/derived/result
 import { shareClubPage } from "../../lib/share";
 import { AWAITING_ACTA, kickoffState, PENDING_WHISTLE, toBePlayed, type KickoffState } from "../../lib/derived/kickoff";
 import { madridDate } from "../../lib/derived/madrid";
-import { niceName } from "../../lib/derived/words";
+import { niceName, scoreText } from "../../lib/derived/words";
 import { mesaLine, mesaOf } from "../../lib/derived/mesa";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { CampoTab, CronicaTab, PreviaTab, PulsoTab, VestuarioTab } from "./Tabs";
@@ -83,7 +83,7 @@ function headline(m: ClubMatch, phase: string, kick: KickoffState, nameOf: (id: 
   const [top] = [...count.entries()].sort((a, b) => b[1] - a[1]);
   const r = resultLetter(gf, ga);
   if (top && top[1] >= 2) return `${top[1] >= 3 ? "Hat-trick" : "Doblete"} de ${nameOf(top[0])} y ${RESULT_WORD[r]} ${gf}–${ga}`;
-  return `${resultTitle(r)} ${gf}–${ga} ante ${rival}`;
+  return `${resultTitle(r)} ${scoreText(gf, ga)} ante ${rival}`;
 }
 
 /** «Faltan 2 h 14 min», «Faltan 3 días». */

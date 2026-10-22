@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capital, endSentence, plural, pluralWord } from "./words";
+import { capital, endSentence, plural, pluralWord, SCORE_DASH, scoreText } from "./words";
 import { madridDay, madridDayParts, madridTime } from "./madrid";
 
 describe("words", () => {
@@ -34,5 +34,17 @@ describe("madrid day and time", () => {
   it("prints the clock in 24 h", () => {
     expect(madridTime(lateSept)).toBe("00:30");
     expect(madridTime(Date.UTC(2026, 10, 8, 11))).toBe("12:00");
+  });
+});
+
+describe("scoreText", () => {
+  it("glues a score into one word: an en dash between word joiners, so «1–8» never breaks across lines", () => {
+    expect(SCORE_DASH).toBe("\u2060–\u2060");
+    expect(scoreText(1, 8)).toBe("1\u2060–\u20608");
+    expect(scoreText("10", 0)).toBe("10\u2060–\u20600");
+    // (what a reader sees and copies: the plain «1–8»)
+    expect(scoreText(1, 8).replace(/\u2060/g, "")).toBe("1–8");
+    // (no break opportunity around the dash: every character next to it is a word joiner)
+    expect(/\d\u2060–\u2060\d/.test(`Perdemos ${scoreText(1, 8)} el estreno`)).toBe(true);
   });
 });

@@ -53,9 +53,9 @@ describe("the floating score's match", () => {
     const rival: MatchMoment = { id: "r0", kind: "golrival", ours: false, minute: 11, title: "GOL · ORDUÑA FC", sub: "", said: "" };
     expect(dropEvent(rival, rows)?.title).toBe("Gol de Orduña fc");
     expect(dropEvent({ ...m, id: "j1:arranque", kind: "arranque", minute: 0 }, rows)).toEqual({ title: "Empieza el partido", sub: "El siete, en el campo" });
-    // the turns of the clock unfold too (the board: «Descanso · 2–1 en la primera parte», «Final · Ganamos 3–1»)
-    expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows, live)).toEqual({ title: "Descanso", sub: "2–1 en la primera parte" });
-    expect(dropEvent({ ...m, id: "j1:final", kind: "final" }, rows, live)).toEqual({ title: "Final", sub: "Ganamos 2–1" });
+    // the turns of the clock unfold too (the board: «Descanso · 2\u2060–\u20601 en la primera parte», «Final · Ganamos 3\u2060–\u20601»)
+    expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows, live)).toEqual({ title: "Descanso", sub: "2\u2060–\u20601 en la primera parte" });
+    expect(dropEvent({ ...m, id: "j1:final", kind: "final" }, rows, live)).toEqual({ title: "Final", sub: "Ganamos 2\u2060–\u20601" });
     expect(dropEvent({ ...m, id: "j1:reanudacion", kind: "reanudacion" }, rows, live)?.sub).toBe("Quedan 25 minutos");
     expect(dropEvent({ ...m, id: "j1:descanso", kind: "descanso" }, rows)).toBeNull();
     expect(dropEvent(null, rows)).toBeNull();
@@ -84,7 +84,7 @@ describe("the sheet", () => {
     const withSub: ClubMatch = { ...live, clock: second, events: [...(live.events ?? []), ev("s1", "substitution", 32, { playerId: "d", inPlayerId: "h" })] };
     const rows = playsLog(withSub, nameOf).rows;
     const s = sheetOf({ state: { kind: "live", match: withSub }, now: KICK + 33 * MIN, nameOf, rows });
-    expect(s).toMatchObject({ big: "2–1", live: true, status: "Segunda parte", plays: true, hide: "Ocultar hasta el próximo gol" });
+    expect(s).toMatchObject({ big: "2\u2060–\u20601", live: true, status: "Segunda parte", plays: true, hide: "Ocultar hasta el próximo gol" });
     expect(s.onField).toBe("En el campo: Evans, Fer, Alcides, Adrián T.C., Jordi, Huberoski y Kevin.");
     expect(sheetOf({ state: { kind: "live", match: live }, now: KICK + 22 * MIN, nameOf }).status).toBe("Primera parte");
   });
