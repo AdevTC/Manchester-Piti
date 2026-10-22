@@ -214,7 +214,7 @@ export function PartidosPage() {
   const [hover, setHover] = useState<number | null>(null);
   const [facet, setFacet] = useState<Facet>(url.facet);
   const [facetAll, setFacetAll] = useState(url.facetAll);
-  const [cartel, setCartel] = useState(false);
+  const [cartel, setCartel] = useState(screen === "jornadas" && str(search.hoja) === "cartel");
   const [pip, setPip] = useState<ScorePip | null>(null);
   const [say, setSay] = useState<{ t: string; on: boolean }>({ t: "", on: false });
   const [balH, setBalH] = useState(680);
@@ -265,7 +265,7 @@ export function PartidosPage() {
   // ── the address follows the screen's state (replace), a screen change pushes
   const searchFor = (s: Screen): Record<string, string | undefined> => {
     const base: Record<string, string | undefined> = { temporada, demo: demoKey ?? undefined, momento: demoKey ? (momento ?? undefined) : undefined };
-    if (s === "jornadas") return { ...base, jornada: sel !== null ? String(sel) : undefined, lente: lente ?? undefined, ver: filt !== "todos" ? filt : undefined };
+    if (s === "jornadas") return { ...base, jornada: sel !== null ? String(sel) : undefined, lente: lente ?? undefined, ver: filt !== "todos" ? filt : undefined, hoja: cartel ? "cartel" : undefined };
     if (s === "tabla") return { ...base, ver: all ? "entera" : undefined, "y-si": picksParam(picks, ms) };
     return { ...base, jornada: bal !== null ? String(bal) : undefined, faceta: facet !== "goles" ? facet : undefined, ver: facetAll ? "todo" : undefined };
   };
