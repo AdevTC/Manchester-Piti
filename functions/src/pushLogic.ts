@@ -705,3 +705,26 @@ export function sieteMayCover(kind: "first" | "changes", now: { starters: readon
   if (!announced || !Array.isArray(announced.starters) || !Array.isArray(announced.bench)) return false;
   return sameCalled([...now.starters, ...now.bench], [...announced.starters, ...announced.bench]);
 }
+
+/** The fields of a `standings/{seasonId}` doc the «Ya está la clasificación» notice looks at. */
+export interface StandingsLike {
+  jornada?: unknown;
+  updatedAt?: unknown;
+  rows?: unknown;
+}
+/**
+ * «Ya está la clasificación» (topic «tabla»): when a captain publishes the league table, or a new one replaces it.
+ * Our place in it, our points and the jornada it counts to; once per save (pushLog `tabla-<season>-<at>`), never
+ * for a save that left the rows and the jornada as they were.
+ */
+export function standingsNotice(seasonId: string, before: StandingsLike | undefined, after: StandingsLike | undefined): Notice | null {
+  const at = millisOf(after?.updatedAt);
+  if (!after || at == null || !Array.isArray(after.rows)) return null;
+  if (before && Array.isArray(before.rows) && JSON.stringify(before.rows) === JSON.stringify(after.rows) && before.jornada === after.jornada) return null;
+  const rows = after.rows as { isUs?: unknown; pts?: unknown }[];
+  const i = rows.findIndex((r) => !!r && r.isUs === true);
+  const j = typeof after.jornada === "number" && after.jornada > 0 ? ` tras la J${after.jornada}` : "";
+  const pts = i >= 0 && typeof rows[i].pts === "number" ? (rows[i].pts as number) : null;
+  const body = i >= 0 ? `Vamos ${i + 1}.º de ${rows.length}${pts !== null ? ` con ${pts} ${pts === 1 ? "punto" : "puntos"}` : ""}${j}.` : `La tabla de la liga${j}, en la web.`;
+  return { topic: "tabla", title: before?.rows ? "Nueva clasificación" : "Ya está la clasificación", body, tag: `tabla-${seasonId}`, url: "/partidos/tabla", log: `tabla-${seasonId}-${at}` };
+}
