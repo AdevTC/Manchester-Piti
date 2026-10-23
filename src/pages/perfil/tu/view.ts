@@ -55,7 +55,8 @@ export function cardOf(d: ProfileData, kind: Kind, origin: string, typed: string
     name: c.name || d.shirt.current.toUpperCase(),
     num: c.number,
     club: clubLineOf(c.clubLine),
-    attrs: c.attrs.map((a) => ({ k: a.k, text: a.text })),
+    // (a card without its first rating says «—» for all six, as the boards draw it)
+    attrs: c.attrs.map((a) => ({ k: a.k, text: c.showNumbers && c.rating !== null ? a.text : "—" })),
     typed,
     racha: c.racha,
     back,
@@ -85,7 +86,8 @@ export interface Identity {
 }
 /** The identity above the tabs (component.js idn). */
 export function identityOf(d: ProfileData, kind: Kind, captain: boolean): Identity {
-  const name = firstName(d.google.name, d.nickname);
+  // (his ficha's first name; else his apodo's, as the top bar's avatar says it)
+  const name = kind === "jugador" && d.shirt.fullName ? firstName(d.shirt.fullName, d.nickname) : firstName("", d.nickname.charAt(0).toLocaleUpperCase("es") + d.nickname.slice(1));
   const nick = `@${d.nickname}`;
   if (kind === "jugador") {
     const c = d.card;

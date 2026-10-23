@@ -8,8 +8,10 @@ import { TuIcon, TuLayer } from "../../../components/vidrio/tu/ui";
 import { copyText, saveBlob } from "../fxRuntime";
 import { shareOut, type ShareNav } from "../share";
 import { seasonCalendar } from "../card";
-import { matchDay, matchTime } from "../lines";
-import { pl } from "./model";
+import { matchTime } from "../lines";
+import { dayName, pl } from "./model";
+
+const cap = (s: string) => s.charAt(0).toLocaleUpperCase("es") + s.slice(1);
 import type { ScreenProps } from "./MiPagina";
 import { cromoImage, cromosOf, type Cromo } from "./cromosModel";
 import { goalClock, minutesTogether, stretchesOf, winsWith } from "./season";
@@ -64,7 +66,7 @@ export function Cromos(p: ScreenProps & { onClose: () => void }) {
     nextMedal: nextM ? { t: nextM.label, left: nextM.progress ? String(Math.max(0, nextM.progress.goal - nextM.progress.now)) : "" } : null,
     rating: c.rating === null ? "" : String(c.rating),
     tier: c.tierName,
-    next: nx ? { j: nx.j ? `J${nx.j}` : "Lo próximo", where: nx.home === false ? `en casa de ${nx.rival}` : `en casa contra ${nx.rival}`, when: `${matchDay(nx.dateMs)} a las ${matchTime(nx.dateMs)}`, revancha: lastRes === "P" } : null,
+    next: nx ? { j: nx.j ? `J${nx.j}` : "Lo próximo", where: nx.home === false ? `en casa de ${nx.rival}` : `en casa contra ${nx.rival}`, when: `${cap(dayName(nx.dateMs))} a las ${matchTime(nx.dateMs)}`, revancha: lastRes === "P" } : null,
   });
   const n = list.length;
   const k = Math.min(i, n - 1);

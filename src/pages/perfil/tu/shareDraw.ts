@@ -138,7 +138,7 @@ export async function shareImage(o: ShareImage): Promise<Blob | null> {
   cv.height = h;
   const g = cv.getContext("2d");
   if (!g) return null;
-  if (document.fonts?.ready) await document.fonts.ready;
+  if (typeof document.fonts !== "undefined") await document.fonts.ready;
   const [shirt, crest] = await Promise.all([o.shirt ? load(o.shirt) : Promise.resolve(null), load(o.crest)]);
   // the frame: tu.css .tu-frame
   const lg = g.createLinearGradient(0, 0, 0, h);

@@ -14,8 +14,10 @@ import { Shirt, type CardModel } from "../TuCard";
 import { secDesc, secLabel, pl } from "../model";
 import type { ScreenProps } from "../MiPagina";
 import { wantedNumber } from "../view";
-import { matchDay, matchTime } from "../../lines";
+import { matchTime } from "../../lines";
+import { dayName } from "../model";
 import { Screen, type Act } from "./Head";
+import { PorraBlock } from "./Porra";
 import type { MenuItem } from "../../../../components/vidrio/tu/ui";
 
 /** The tier's reason, as the board words it. */
@@ -103,7 +105,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
     ? `${WHY[c.tier ?? "bronce"]}. Sale de tus partidos, goles, asistencias, minutos y MVP: la misma que ve el capitán en la pizarra.`
     : !started
       ? c.first
-        ? `La ${data.seasonName} aún no ha empezado: tus números salen en la J1, el ${matchDay(c.first.dateMs)} contra ${c.first.rival}.`
+        ? `La ${data.seasonName} aún no ha empezado: tus números salen en la J1, el ${dayName(c.first.dateMs)} contra ${c.first.rival}.`
         : `La ${data.seasonName} aún no ha empezado: tus números salen en la J1.`
       : `Tus números salen con tu primer partido.${c.last5.length ? ` La ${c.last5[c.last5.length - 1].j} la viste desde fuera.` : ""}`;
 
@@ -188,7 +190,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
                 <section className="tu-call" aria-labelledby="tu-call-t">
                   <div>
                     <h3 className="tu-h3" id="tu-call-t">
-                      ¿Vas el {matchDay(nx.dateMs)} a {nx.rival}?
+                      ¿Vas el {dayName(nx.dateMs)} a {nx.rival}?
                     </h3>
                     <p className="tu-blk__d">
                       Tu estreno puede ser la J{nx.j ?? ""}: {matchTime(nx.dateMs)}
@@ -203,16 +205,19 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
                   Los seis números
                 </h3>
                 <ul className="tu-six">
-                  {c.attrs.map((a) => (
-                    <li key={a.k}>
-                      <span className="tu-six__k">{a.k}</span>
-                      <b className="tu-six__v">{a.text}</b>
-                      <span className="tu-six__l">{a.label}</span>
-                      <span className="tu-bar" role="img" aria-label={`${a.label}: ${a.text}`}>
-                        <i style={{ width: `${Math.round((a.value === null ? 0 : Math.max(0.04, Math.min(1, a.p))) * 100)}%` }} />
-                      </span>
-                    </li>
-                  ))}
+                  {c.attrs.map((a) => {
+                    const v = rated && a.value !== null;
+                    return (
+                      <li key={a.k}>
+                        <span className="tu-six__k">{a.k}</span>
+                        <b className="tu-six__v">{v ? a.text : "—"}</b>
+                        <span className="tu-six__l">{a.label}</span>
+                        <span className="tu-bar" role="img" aria-label={`${a.label}: ${v ? a.text : "sin datos aún"}`}>
+                          <i style={{ width: `${v ? Math.round(Math.max(0.04, Math.min(1, a.p)) * 100) : 0}%` }} />
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
               <section className="tu-blk" aria-labelledby="tu-evo-t">
@@ -344,6 +349,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
               </section>
             </>
           )}
+          {card.kind !== "face" && <PorraBlock seasonId={data.seasonId} uid={data.uid} />}
         </div>
       </div>
     </Screen>

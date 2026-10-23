@@ -6,8 +6,9 @@ import { jornadaNumbers } from '../../lib/derived/jornada';
 import { usePorraHistory } from '../../pages/vestuario/live';
 import './post-match.css';
 
-export function PorraHistory({ matches, seasonId, uid }: { matches: readonly ClubMatch[]; seasonId: string; uid: string }) {
-  const [open,setOpen] = useState(false);
+/** `defaultOpen`: opened on arrival (Mi página reached through /perfil#porra). */
+export function PorraHistory({ matches, seasonId, uid, defaultOpen = false }: { matches: readonly ClubMatch[]; seasonId: string; uid: string; defaultOpen?: boolean }) {
+  const [open,setOpen] = useState(defaultOpen);
   return <details className="ph-history" open={open} onToggle={e=>setOpen(e.currentTarget.open)}><summary>Historial de la porra · evolución y clasificación mensual</summary>{open && <History key={seasonId} matches={matches.filter(m=>m.seasonId===seasonId)} uid={uid}/>}</details>;
 }
 function History({matches,uid}:{matches:readonly ClubMatch[];uid:string}) {

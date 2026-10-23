@@ -9,8 +9,10 @@ import { flushSync } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { usePublishedViewer } from "../../hooks/viewerSignal";
 import { readTuMaqueta } from "../vidrio/tu/maqueta";
-import { tuSurface } from "../vidrio/tu/ui";
+import { tuSurface } from "../vidrio/tu/surface";
 import { firstName, initialOf, usePublishedAccount } from "./accountSignal";
+// (the bar's magnifier, bell and avatar from the first paint, on every page: tu.css comes later, with the sheets)
+import "../../styles/tu-chrome.css";
 
 const MemberAccount = lazy(() => import("../vidrio/account/AccountSheet").then((m) => ({ default: m.MemberAccount })));
 const FanAccountLayer = lazy(() => import("../vidrio/account/AccountSheet").then((m) => ({ default: m.FanAccountLayer })));

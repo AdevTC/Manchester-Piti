@@ -4,7 +4,7 @@
 // como leído». A notice is unread when the map says false, or when the map says nothing and it is newer than
 // that look. A fan's (no account) is this browser's (localStorage). The map stays small: an id the list no
 // longer has (notices expire after 60 days) and an entry that says what the look already says both go.
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
 import { useLiveDoc } from "../pages/vestuario/live";
@@ -113,15 +113,12 @@ export function useNoticeReads(uid: string | undefined, list: readonly Item[] | 
   const fanRaw = useSyncExternalStore(fanSubscribe, fanRead, () => "");
   const fan = useMemo(() => fanState(fanRaw), [fanRaw]);
   // (what this device just wrote, until the listener says the same; `seen`: the look it just moved)
-  const [mine, setMine] = useState<{ uid: string; read: Record<string, boolean> | null; seen: number | null } | null>(null);
-  const ours = mine && mine.uid === uid ? mine : null;
   const serverRead = live.data;
-  const echoed = !!ours?.read && sameMap(ours.read, serverRead);
-  useEffect(() => {
-    // (the listener caught up: from now on another device's change shows too)
-    if (echoed) setMine((m) => (m ? { ...m, read: null } : m));
-  }, [echoed]);
-  const read: ReadMap = uid ? (ours?.read ?? serverRead) : fan.read;
+  const [mine, setMine] = useState<{ uid: string; read: Record<string, boolean>; base: ReadMap; seen: number | null } | null>(null);
+  const ours = mine && mine.uid === uid ? mine : null;
+  // (the map written here stands while the listener still holds what it held then; its next snapshot, the echo
+  // or another device's change, rules again)
+  const read: ReadMap = uid ? (ours && ours.base === serverRead ? ours.read : serverRead) : fan.read;
   const seenAt = uid ? maxOf(serverSeen, ours?.seen ?? null) : fan.seenAt;
 
   const unread = useCallback((n: Item) => isUnreadWith(n, seenAt, read), [seenAt, read]);
@@ -134,7 +131,7 @@ export function useNoticeReads(uid: string | undefined, list: readonly Item[] | 
         return;
       }
       if (sameMap(next, read)) return;
-      setMine({ uid, read: next, seen: ours?.seen ?? null });
+      setMine({ uid, read: next, base: serverRead, seen: ours?.seen ?? null });
       try {
         await setDoc(doc(db, "users", uid, "private", "notices"), { read: next });
       } catch (e) {
@@ -142,7 +139,7 @@ export function useNoticeReads(uid: string | undefined, list: readonly Item[] | 
         throw e;
       }
     },
-    [uid, read, list, seenAt, ours?.seen],
+    [uid, read, list, seenAt, ours?.seen, serverRead],
   );
   const markAll = useCallback(async () => {
     const now = Date.now();
@@ -150,7 +147,7 @@ export function useNoticeReads(uid: string | undefined, list: readonly Item[] | 
       fanWrite({ read: {}, seenAt: now });
       return;
     }
-    setMine({ uid, read: {}, seen: now });
+    setMine({ uid, read: {}, base: serverRead, seen: now });
     const batch = writeBatch(db);
     batch.update(doc(db, "users", uid), { noticesSeenAt: serverTimestamp() });
     batch.set(doc(db, "users", uid, "private", "notices"), { read: {} });
@@ -160,7 +157,7 @@ export function useNoticeReads(uid: string | undefined, list: readonly Item[] | 
       setMine(null);
       throw e;
     }
-  }, [uid]);
+  }, [uid, serverRead]);
   return { seenAt, read, unread, mark, markAll };
 }
 

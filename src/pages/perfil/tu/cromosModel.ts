@@ -75,7 +75,7 @@ export async function cromoImage(c: Cromo, shirt: string | null, crest: string):
   cv.height = h;
   const g = cv.getContext("2d");
   if (!g) return null;
-  if (document.fonts?.ready) await document.fonts.ready;
+  if (typeof document.fonts !== "undefined") await document.fonts.ready;
   const load = (src: string) =>
     new Promise<HTMLImageElement | null>((res) => {
       const im = new Image();

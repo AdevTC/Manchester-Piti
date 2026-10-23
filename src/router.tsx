@@ -376,7 +376,8 @@ const avisosAMedidaRoute = createRoute({ getParentRoute: () => avisosRoute, path
 const buscarRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/buscar",
-  validateSearch: z.object({ q: z.string().max(160).optional().catch(undefined) }),
+  // (a typed ?q=11 reaches here as the number 11: a dorsal or a jornada is a search too)
+  validateSearch: z.object({ q: z.union([z.string(), z.number()]).transform(String).pipe(z.string().max(160)).optional().catch(undefined) }),
   component: lazyRouteComponent(() => import("./components/celeste/BuscarPage"), "BuscarPage"),
 });
 

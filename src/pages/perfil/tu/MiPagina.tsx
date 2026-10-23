@@ -59,14 +59,13 @@ export interface ScreenProps {
 export function MiPagina(p: { data: ProfileData; who: { kind: Kind; captain: boolean }; sec: Sec; open: Open; go: ScreenProps["go"]; actions: TuActions; say: (t: string) => void; now: number; maq: TuMaqueta | null }) {
   const { data, who, sec, open, go } = p;
   const [flip, setFlip] = useState(false);
-  const [run, setRun] = useState(0);
-  const [typed, setTyped] = useState<string | null>(null);
   // «Salida de la carta»: the card comes up with a lift and a glint (Ajustes: every time, once a visit, never)
+  const [walkout] = useState(() => typeof window !== "undefined" && shouldPlayIntro(readProfilePrefs().intro, prefersReducedMotion(), introSeen()));
+  const [run, setRun] = useState(walkout ? 1 : 0);
   useEffect(() => {
-    if (!shouldPlayIntro(readProfilePrefs().intro, prefersReducedMotion(), introSeen())) return;
-    markIntroSeen();
-    setRun(1);
-  }, []);
+    if (walkout) markIntroSeen();
+  }, [walkout]);
+  const [typed, setTyped] = useState<string | null>(null);
   const preset = usePushPreset();
   const { pref } = useTheme();
   const origin = typeof window === "undefined" ? "" : window.location.origin;

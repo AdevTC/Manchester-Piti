@@ -66,17 +66,18 @@ export function Nombre(p: ScreenProps) {
   // ── the apodo
   const [nick, setNick] = useState<string | null>(null);
   const [fixed, setFixed] = useState(false);
-  const [taken, setTaken] = useState<boolean | "checking" | undefined>(undefined);
+  // (the answer for the draft it was asked about: any other draft is still «Comprobando…»)
+  const [checked, setChecked] = useState<{ nick: string; taken: boolean | undefined } | null>(null);
   const nv = nick ?? data.nickname;
+  const taken: boolean | "checking" | undefined = checked && checked.nick === nick ? checked.taken : "checking";
   useEffect(() => {
     if (nick === null || nick === data.nickname) return;
     let live = true;
-    setTaken("checking");
     const t = window.setTimeout(() => {
       p.actions
         .nicknameTaken(nick)
-        .then((x) => live && setTaken(x))
-        .catch(() => live && setTaken(undefined));
+        .then((x) => live && setChecked({ nick, taken: x }))
+        .catch(() => live && setChecked({ nick, taken: undefined }));
     }, 400);
     return () => {
       live = false;

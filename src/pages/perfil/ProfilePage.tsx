@@ -20,13 +20,14 @@ import { useTheme } from "../../hooks/useTheme";
 import { leaveDoorNotice } from "../../lib/doorNotice";
 import { savedTopics, setTopics } from "../../lib/push";
 import { readTuMaqueta } from "../../components/vidrio/tu/maqueta";
-import { tuGo, useToast } from "../../components/vidrio/tu/ui";
+import { tuGo, useToast } from "../../components/vidrio/tu/kit";
 import { cancelPlayerClaim, leaveVestuario, nicknameTaken, proposePositions, requestPlayerClaim, setNickname, setShirtName } from "./api";
 import { useProfileData } from "./useProfileData";
 import { allowedSec, dirOf, screenAt, secPath, COMPARTIR_PATH, CROMOS_PATH, type Screen, type Sec } from "./tu/model";
 import { Door } from "./tu/Door";
 import { MiPagina, type TuActions } from "./tu/MiPagina";
 import { kindOf } from "./tu/view";
+import { PORRA_ID } from "./tu/screens/Porra";
 
 const keyOf = (s: Screen) => `${s.page}:${s.sec}:${s.open ?? ""}`;
 const AvisosMain = lazy(() => import("./bandeja/AvisosMain").then((m) => ({ default: m.AvisosMain })));
@@ -64,6 +65,14 @@ export function ProfilePage() {
     // (only the address drives this)
   }, [urlKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const sec: Sec = allowedSec(screen.sec, who);
+  // /perfil#porra (the match's vestuario links it): a player's «Tu recorrido en la porra» lives in Temporada
+  const porraHash = useLocation({ select: (l) => l.hash === PORRA_ID });
+  const toTemporada = porraHash && !checking && who.kind === "jugador" && screen.page === "perfil" && screen.sec === "carta" && !screen.open;
+  useEffect(() => {
+    if (!toTemporada) return;
+    // (the address moves; the screen follows it, as on any other arrival)
+    void navigate({ to: secPath("temporada"), hash: PORRA_ID, replace: true });
+  }, [toTemporada]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Goes to another screen (or opens/closes the studio or the cromos over this one). */
   const go = (to: Screen, opts: { replace?: boolean; search?: Record<string, string> } = {}) => {

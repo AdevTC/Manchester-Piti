@@ -11,3 +11,6 @@
 
 /* An MVP candidate whose printed still is still on its way keeps the shirt's place. */
 .tu-mvp__ph{display:block;width:60px;height:64px}
+
+/* A notice or a match whose «⋯» is open stays above the rows after it (the board's has-menu, said by the menu itself). */
+.tu-nt:has(>.tu-nt__more .tu-pop),.tu-ms:has(.tu-ms__head .tu-pop){position:relative;z-index:5}

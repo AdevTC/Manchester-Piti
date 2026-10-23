@@ -17,8 +17,8 @@ vi.mock("../../pages/perfil/bandeja/useInbox", () => ({ useInbox: () => state.in
 vi.mock("../../components/jersey3d/usePageKitStills", () => ({ usePageKitStills: () => () => undefined }));
 vi.mock("../../pages/perfil/bandeja/device", () => ({
   useThisDevice: () => ({ kind: "listo", ready: true, words: { tone: "ok", chip: "Listo", title: "Este móvil recibe avisos", dev: "", steps: [], btn: "" }, blocked: "", choice: "todo", vibrate: false, pause: null, line: "Todo", setPreset: async () => undefined, setVibrate: async () => undefined, refresh: () => undefined }),
-  PresetSeg: () => <div role="group" aria-label="Qué te avisamos" />,
 }));
+vi.mock("../../pages/perfil/bandeja/deviceParts", () => ({ PresetSeg: () => <div role="group" aria-label="Qué te avisamos" /> }));
 
 const { NoticesBell, FanBell } = await import("./NoticesBell");
 const { NoticesGate } = await import("./NoticesGate");

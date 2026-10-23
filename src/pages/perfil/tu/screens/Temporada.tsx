@@ -6,12 +6,14 @@ import { isCompleted } from "../../../../../functions/src/matchEngine";
 import { useClubData } from "../../../../lib/clubData";
 import { TuIcon, Seg } from "../../../../components/vidrio/tu/ui";
 import { seasonCalendar } from "../../card";
-import { ago, matchDay, matchTime } from "../../lines";
+import { ago, matchTime } from "../../lines";
+import { dayName } from "../model";
 import { pl, secDesc } from "../model";
 import type { ScreenProps } from "../MiPagina";
 import { goalClock, minutesTogether, oneMatch, stretchesOf, watchedLine, winsWith } from "../season";
 import { Shirt } from "../TuCard";
 import { Screen, type Act } from "./Head";
+import { PorraBlock, PORRA_ID } from "./Porra";
 import type { MatchMark } from "../../../../lib/derived/vidrio/matchMarks";
 import { useState } from "react";
 import { setAvailability, useMe } from "../../../vestuario/writes";
@@ -87,9 +89,9 @@ export function Temporada(p: ScreenProps) {
   const boards = data.stuff.boards;
   const porra = data.stuff.porra;
   const stuff = [
-    nx && { k: "conv", t: `¿Vas a ${nx.rival}?`, d: `J${nx.j ?? ""} · ${matchDay(nx.dateMs)} · ${matchTime(nx.dateMs)}${nx.home === null ? "" : nx.home ? " · en casa" : " · fuera"}. ${answer ? ANSWERED[answer] : "Aún no has respondido."}`, icon: "check" as const, call: !answer, go: () => void navigate({ to: "/vestuario" }) },
+    nx && { k: "conv", t: `¿Vas a ${nx.rival}?`, d: `J${nx.j ?? ""} · ${dayName(nx.dateMs)} · ${matchTime(nx.dateMs)}${nx.home === null ? "" : nx.home ? " · en casa" : " · fuera"}. ${answer ? ANSWERED[answer] : "Aún no has respondido."}`, icon: "check" as const, call: !answer, go: () => void navigate({ to: "/vestuario" }) },
     { k: "piz", t: "Tus pizarras", d: boards.count ? `${pl(boards.count, "tablero", "tableros")}${boards.last ? ` · el último, «${boards.last.name}», ${ago(boards.last.at, p.now)}` : ""}` : "Aún ningún tablero tuyo", icon: "poll" as const, call: false, go: () => void navigate({ to: "/pizarra", search: boards.last ? { tablero: boards.last.id } : {} } as never) },
-    { k: "porra", t: "Tu porra", d: porra ? `${pl(porra.predictions, "pronóstico", "pronósticos")} · ${pl(porra.exact, "exacto", "exactos")} · vas ${porra.rank}.º de ${porra.of}` : "Aún sin pronósticos esta temporada", icon: "star" as const, call: false, go: () => void navigate({ to: "/partidos" }) },
+    { k: "porra", t: "Tu porra", d: porra ? `${pl(porra.predictions, "pronóstico", "pronósticos")} · ${pl(porra.exact, "exacto", "exactos")} · vas ${porra.rank}.º de ${porra.of}` : "Aún sin pronósticos esta temporada", icon: "star" as const, call: false, go: () => void navigate({ to: "/perfil/temporada", hash: PORRA_ID, replace: true, resetScroll: false }) },
     { k: "convs", t: "Convocatorias", d: conv.total ? `${conv.answered} de ${conv.total} respondidas` : "Aún ninguna esta temporada", icon: "cal" as const, call: false, go: () => void navigate({ to: "/vestuario" }) },
   ].filter((x): x is Exclude<typeof x, null | undefined | false> => !!x);
   const medals = (data.logros?.list ?? []).filter((m) => m.earned);
@@ -132,7 +134,8 @@ export function Temporada(p: ScreenProps) {
             <span className="tu-tl__half" aria-hidden="true" />
             {stretch.stints.map((s) => (
               <span key={s.from} className="tu-stint" style={{ left: `${s.left}%`, width: `${s.width}%` }}>
-                <small>{s.t}</small>
+                {/* (a stretch too short for its words keeps them for the line's label: they spilled out on the board) */}
+                {s.width >= 9 && <small>{s.t}</small>}
               </span>
             ))}
             <Marks marks={stretch.marks} />
@@ -160,7 +163,7 @@ export function Temporada(p: ScreenProps) {
         <section className="tu-call" aria-labelledby="tu-call2-t">
           <div>
             <h3 className="tu-h3" id="tu-call2-t">
-              ¿Vas el {matchDay(nx.dateMs)} a {nx.rival}?
+              ¿Vas el {dayName(nx.dateMs)} a {nx.rival}?
             </h3>
             <p className="tu-blk__d">
               Tu estreno puede ser la J{nx.j ?? ""}: {matchTime(nx.dateMs)}
@@ -280,6 +283,7 @@ export function Temporada(p: ScreenProps) {
             ))}
           </ul>
         </section>
+        <PorraBlock seasonId={data.seasonId} uid={data.uid} />
       </div>
     </Screen>
   );

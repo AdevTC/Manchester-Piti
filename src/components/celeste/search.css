@@ -5,7 +5,7 @@
 /* the top bar's magnifier (tu.css .tu-cbtn): the header is not inside the boards' .tu container (no --tu-sans and
    no container «tupg»), so its face and its ≥1100 px «Buscar · Ctrl K» are said again against the header's own
    container, the one chrome.css measures */
-header.vx-top .tu-cbtn.tu-cbtn--sr{font-family:var(--vd-sans);flex:0 0 auto}
+header.vx-top .tu-cbtn.tu-cbtn--sr{font:600 14px var(--vd-sans);flex:0 0 auto}
 header.vx-top .tu-cbtn--sr:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
 @container (min-width:1100px){
   header.vx-top .tu-cbtn.tu-cbtn--sr{padding:0 12px 0 14px}
@@ -24,3 +24,7 @@ header.vx-top .tu-cbtn--sr:focus-visible{outline:2px solid var(--vd-celeste);out
 @container tupg (max-width:699px){
   .tu.tu-ovl .tu-sr{top:0;padding-top:env(safe-area-inset-top,0px)}
 }
+
+/* the field keeps the focus the whole time and its celeste rim already says so: tu.css's `.tu :focus-visible` ring
+   would draw a second box inside it (the board's own `.tu-sr__field input{outline:none}` loses to it on specificity) */
+.tu.tu-ovl .tu-sr__field input:focus-visible{outline:none}

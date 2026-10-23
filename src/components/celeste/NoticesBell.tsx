@@ -9,10 +9,14 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import { bellLabel } from "../../lib/derived/notices";
-import { DotsMenu, rove, TuIcon, TuLayer, tuSurface, useToast } from "../vidrio/tu/ui";
+import { DotsMenu, TuIcon, TuLayer } from "../vidrio/tu/ui";
+import { rove, useToast } from "../vidrio/tu/kit";
 import { useInbox, type Inbox } from "../../pages/perfil/bandeja/useInbox";
-import { MatchStack, NoticeRow, PendList, useAvisoActions, type ActionInbox, type AvisoActions } from "../../pages/perfil/bandeja/parts";
-import { PresetSeg, useThisDevice, type ThisDevice } from "../../pages/perfil/bandeja/device";
+import { MatchStack, NoticeRow, PendList } from "../../pages/perfil/bandeja/parts";
+import { useAvisoActions, type ActionInbox, type AvisoActions } from "../../pages/perfil/bandeja/actions";
+import { useThisDevice, type ThisDevice } from "../../pages/perfil/bandeja/device";
+import { PresetSeg } from "../../pages/perfil/bandeja/deviceParts";
+import { tuSurface } from "../vidrio/tu/surface";
 import { askFlyBell } from "../../pages/perfil/bandeja/flyBell";
 import { nextLine, pauseLine, unreadText } from "../../pages/perfil/bandeja/model";
 import "../../styles/tu-avisos.css";

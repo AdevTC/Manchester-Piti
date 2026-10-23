@@ -1,7 +1,7 @@
 // A Mi página screen's frame (TU boards tu-scr__head + tu-scr__body): its title and line, its one primary action
 // at the top right and the rest in «Más» (a menu with keys).
 import type { ReactNode } from "react";
-import { Menu, TuIcon, useMenu, type MenuItem, type TuIconName } from "../../../../components/vidrio/tu/ui";
+import { MoreMenu, TuIcon, type MenuItem, type TuIconName } from "../../../../components/vidrio/tu/ui";
 
 export interface Act {
   t: string;
@@ -11,7 +11,6 @@ export interface Act {
 }
 
 export function Screen({ title, desc, act, more = [], children }: { title: string; desc: string; act?: Act | null; more?: MenuItem[]; children: ReactNode }) {
-  const menu = useMenu();
   return (
     <>
       <header className="tu-scr__head vd-reg-2">
@@ -28,15 +27,7 @@ export function Screen({ title, desc, act, more = [], children }: { title: strin
               {act.t}
             </button>
           )}
-          {more.length > 0 && (
-            <div className="tu-more-w">
-              <button ref={menu.btn} type="button" className="vd-glass vd-press vd-btn tu-more-btn" data-menu-btn="1" aria-haspopup="menu" aria-expanded={menu.open} onClick={() => menu.setOpen((o) => !o)}>
-                <TuIcon name="more" />
-                <span>Más</span>
-              </button>
-              <Menu items={more} label="Más acciones" menu={menu} right />
-            </div>
-          )}
+          {more.length > 0 && <MoreMenu kind="more" items={more} label="Más acciones" right />}
         </div>
       </header>
       <div className="tu-scr__body vd-reg-3">{children}</div>

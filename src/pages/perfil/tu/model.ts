@@ -134,6 +134,15 @@ export function sinceLong(s: string): string {
   return i < 0 || !y ? s : `${MONTHS_LONG[i]} de ${y}`;
 }
 
+const DAY = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long", day: "numeric" });
+/** «domingo 25» (the convocatoria's question, as the boards say it). */
+export function dayName(ms: number): string {
+  const parts = DAY.formatToParts(ms);
+  const wd = parts.find((p) => p.type === "weekday")?.value ?? "";
+  const d = parts.find((p) => p.type === "day")?.value ?? "";
+  return `${wd} ${d}`.trim();
+}
+
 /** Initials of a name («Jordi Sumba» → «JS»). */
 export function initials(name: string): string {
   return name

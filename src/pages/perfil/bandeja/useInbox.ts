@@ -109,8 +109,12 @@ export function useInbox(): Inbox {
   const maq = readTuMaqueta();
   const { user, profile } = useAuth();
   const real = useViewer();
-  const claim = useMyClaim(real.member ? user?.uid : undefined);
-  const viewer = viewerOf({ ...real, pendingClaim: claim.data?.status === "pending" }, maq?.quien ?? null);
+  const claim = useMyClaim(real.member && !real.playerId ? user?.uid : undefined);
+  const pendingClaim = claim.data?.status === "pending";
+  const quien = maq?.quien ?? null;
+  const v = viewerOf({ ...real, pendingClaim }, quien);
+  // (one object while who looks stays the same: the lists below are memoised on it)
+  const viewer = useMemo<Viewer>(() => ({ who: v.who, captain: v.captain }), [v.who, v.captain]);
   const member = viewer.who !== "fan";
   const uid = member ? user?.uid : undefined;
   const now = useClock(30_000);

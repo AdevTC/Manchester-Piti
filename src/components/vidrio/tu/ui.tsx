@@ -1,11 +1,10 @@
 // «Tú» (TU boards): the small pieces the page (/perfil, /avisos) and the chrome's surfaces («Tú», the bell, the
 // search) share — the board's glyphs (VIcon's plus the few the boards add), the layer the surfaces float in, the
-// «Más» menu with its keys, the segmented control, the switch, the toast and the move between screens (a View
-// Transition: exit → morph → enter). The CSS is styles/tu.css (the boards' own, ported).
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+// «Más» and «⋯» menus with their keys, the segmented control and the switch (the behaviour: kit.tsx). The CSS is
+// styles/tu.css (the boards' own, ported).
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { VIcon, type VIconName } from "../VIcon";
-import { isShot, prefersReducedMotion, supportsViewTransitions } from "../env";
 import "../../../styles/vidrio/tokens.css";
 import "../../../styles/vidrio/glass.css";
 import "../../../styles/vidrio/components.css";
@@ -142,17 +141,16 @@ export function TuLayer({ children, cls }: { children: ReactNode; cls?: string }
   return createPortal(<div className={`vx tu tu-ovl has-open${cls ? ` ${cls}` : ""}`}>{children}</div>, document.body);
 }
 
-/** ↑ ↓ Inicio Fin move the focus between `sel` inside the element the key landed on (the boards' rove). */
-export function rove(e: KeyboardEvent<HTMLElement>, sel: string): void {
+/** ↑ ↓ Inicio Fin between the items of a menu. */
+function roveIn(e: KeyboardEvent<HTMLElement>, sel: string): void {
   const k = e.key;
   if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "Home" && k !== "End") return;
-  const items = [...e.currentTarget.querySelectorAll<HTMLElement>(sel)].filter((x) => !(x as HTMLButtonElement).disabled && x.offsetParent !== null);
+  const items = [...e.currentTarget.querySelectorAll<HTMLElement>(sel)].filter((x) => x.offsetParent !== null);
   if (!items.length) return;
   e.preventDefault();
   const i = items.indexOf(document.activeElement as HTMLElement);
   const n = items.length;
-  const j = k === "Home" ? 0 : k === "End" ? n - 1 : k === "ArrowDown" ? (i + 1) % n : (i - 1 + n) % n;
-  items[j]?.focus();
+  items[k === "Home" ? 0 : k === "End" ? n - 1 : k === "ArrowDown" ? (i + 1) % n : (i - 1 + n) % n]?.focus();
 }
 
 export interface MenuItem {
@@ -162,10 +160,11 @@ export interface MenuItem {
 }
 
 /**
- * «Más» / «⋯»: the button and its menu (role menu, ↑ ↓ Inicio Fin, Esc closes and gives the focus back, a press
- * outside closes). `button` draws the trigger; the menu opens under it (`right`: aligned to its right edge).
+ * «Más» (kind "more": a glass button with its word) or «⋯» (kind "dots": a notice, a match's stack, the bell) and
+ * its menu: role menu, ↑ ↓ Inicio Fin, Esc closes and gives the focus back, a press outside closes. The menu opens
+ * under its button (`right`: aligned to its right edge).
  */
-export function useMenu() {
+export function MoreMenu({ items, label, right, kind = "dots" }: { items: MenuItem[]; label: string; right?: boolean; kind?: "dots" | "more" }) {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement | null>(null);
   const box = useRef<HTMLDivElement | null>(null);
@@ -183,61 +182,64 @@ export function useMenu() {
       window.clearTimeout(f);
     };
   }, [open]);
-  const close = useCallback((refocus = false) => {
+  const close = (refocus: boolean) => {
     setOpen(false);
     if (refocus) btn.current?.focus({ preventScroll: true });
-  }, []);
-  return { open, setOpen, close, btn, box };
-}
-
-export function Menu({ items, label, menu, right }: { items: MenuItem[]; label: string; menu: ReturnType<typeof useMenu>; right?: boolean }) {
-  if (!menu.open) return null;
+  };
+  const trigger =
+    kind === "more" ? (
+      <button ref={btn} type="button" className="vd-glass vd-press vd-btn tu-more-btn" data-menu-btn="1" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <TuIcon name="more" />
+        <span>Más</span>
+      </button>
+    ) : (
+      <button ref={btn} type="button" className="tu-more" data-menu-btn="1" aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={() => setOpen((o) => !o)}>
+        <TuIcon name="more" />
+      </button>
+    );
   return (
-    <div
-      ref={menu.box}
-      className={`vd-glass vd-glass--deep tu-pop${right ? " tu-pop--r" : ""}`}
-      role="menu"
-      aria-label={label}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          e.stopPropagation();
-          menu.close(true);
-          return;
-        }
-        rove(e, "[role=menuitem]");
-      }}
-    >
-      {items.map((m) => (
-        <button
-          key={m.t}
-          type="button"
-          role="menuitem"
-          className="tu-pop__i"
-          onClick={() => {
-            menu.close();
-            m.go();
+    <div className={kind === "more" ? "tu-more-w" : "tu-nt__more"}>
+      {trigger}
+      {open && (
+        <div
+          ref={box}
+          className={`vd-glass vd-glass--deep tu-pop${right ? " tu-pop--r" : ""}`}
+          role="menu"
+          aria-label={label}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              close(true);
+              return;
+            }
+            roveIn(e, "[role=menuitem]");
           }}
         >
-          <TuIcon name={m.icon} />
-          <span>{m.t}</span>
-        </button>
-      ))}
+          {items.map((m) => (
+            <button
+              key={m.t}
+              type="button"
+              role="menuitem"
+              className="tu-pop__i"
+              onClick={() => {
+                close(false);
+                m.go();
+              }}
+            >
+              <TuIcon name={m.icon} />
+              <span>{m.t}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /** The «⋯» of a notice, a match's stack or the bell. */
 export function DotsMenu({ items, label, right }: { items: MenuItem[]; label: string; right?: boolean }) {
-  const menu = useMenu();
-  return (
-    <div className="tu-nt__more">
-      <button ref={menu.btn} type="button" className="tu-more" data-menu-btn="1" aria-haspopup="menu" aria-expanded={menu.open} aria-label={label} onClick={() => menu.setOpen((o) => !o)}>
-        <TuIcon name="more" />
-      </button>
-      <Menu items={items} label={label} menu={menu} right={right} />
-    </div>
-  );
+  return <MoreMenu items={items} label={label} right={right} kind="dots" />;
 }
 
 export interface SegOpt<V extends string> {
@@ -282,94 +284,3 @@ export function Switch({ on, onToggle, label, id, dis }: { on: boolean; onToggle
   );
 }
 
-/** The toast and its live region: `say(text)` shows it for 2.8 s. */
-export function useToast() {
-  const [said, setSaid] = useState({ t: "", on: false });
-  const timer = useRef(0);
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-  const say = useCallback((t: string) => {
-    window.clearTimeout(timer.current);
-    setSaid({ t, on: true });
-    timer.current = window.setTimeout(() => setSaid((s) => ({ ...s, on: false })), 2800);
-  }, []);
-  const node = (
-    <>
-      <p className="vd-vh" role="status" aria-live="polite">
-        {said.t}
-      </p>
-      <div className={`vd-glass tu-toast${said.on ? " is-on" : ""}`} aria-hidden="true">
-        <TuIcon name="check" />
-        <span>{said.t}</span>
-      </div>
-    </>
-  );
-  return { say, node };
-}
-
-/**
- * A surface (the bell's sheet, «Tú») grows out of its button and goes back into it (the board's openSurface /
- * closeSurface): the button carries the sheet's view-transition-name (`tu-bell`, `tu-acct`: the sheet's own, in
- * the CSS) in the snapshot where the sheet is not, so the two morph. `update` opens or closes it.
- */
-export function tuSurface(opening: boolean, btn: HTMLElement | null, name: string, update: () => void): void {
-  const d = document.documentElement;
-  const clean = () => {
-    d.removeAttribute("data-vd-dir");
-    d.removeAttribute("data-vd-calm");
-    d.removeAttribute("data-tu-surface");
-    if (btn) btn.style.viewTransitionName = "";
-  };
-  if (!supportsViewTransitions() || isShot()) {
-    update();
-    return;
-  }
-  d.setAttribute("data-vd-dir", opening ? "up" : "left");
-  if (prefersReducedMotion()) d.setAttribute("data-vd-calm", "");
-  d.setAttribute("data-tu-surface", "");
-  if (opening && btn) btn.style.viewTransitionName = name;
-  const start = (document as Document & { startViewTransition: (cb: () => Promise<void> | void) => { finished: Promise<void> } }).startViewTransition;
-  try {
-    const vt = start.call(document, () => {
-      if (opening && btn) btn.style.viewTransitionName = "";
-      update();
-      if (!opening && btn?.isConnected) btn.style.viewTransitionName = name;
-    });
-    vt.finished.then(clean, clean);
-  } catch {
-    clean();
-    update();
-  }
-}
-
-export type TuDir = "left" | "right" | "up";
-
-/**
- * A move between Tú's screens, or a surface opening over the same screen (`surface`: the screen's regions stay
- * put): html[data-vd-dir] + a View Transition whose update may be async (a router navigation). Without View
- * Transitions, under reduced motion's calm crossfade rules or in a design shot, it just happens.
- */
-export function tuGo(dir: TuDir, update: () => void | Promise<void>, surface = false): void {
-  const d = document.documentElement;
-  const clean = () => {
-    d.removeAttribute("data-vd-dir");
-    d.removeAttribute("data-vd-calm");
-    d.removeAttribute("data-tu-surface");
-  };
-  if (!supportsViewTransitions() || isShot()) {
-    void update();
-    return;
-  }
-  d.setAttribute("data-vd-dir", dir);
-  if (prefersReducedMotion()) d.setAttribute("data-vd-calm", "");
-  if (surface) d.setAttribute("data-tu-surface", "");
-  const start = (document as Document & { startViewTransition: (cb: () => Promise<void> | void) => { finished: Promise<void> } }).startViewTransition;
-  try {
-    const vt = start.call(document, async () => {
-      await update();
-    });
-    vt.finished.then(clean, clean);
-  } catch {
-    clean();
-    void update();
-  }
-}

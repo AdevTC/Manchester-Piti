@@ -573,7 +573,7 @@ export async function setPushPause(pause: PushPause | null): Promise<PushPause |
 const pauseSnapshot = (): string => read(PAUSE_KEY) ?? "";
 
 /** This device's pause, live across the app (null: none, or over at `now`), and its setter. */
-export function usePushPause(now: number = Date.now()): { pause: PushPause | null; set: (p: PushPause | null) => Promise<PushPause | null> } {
+export function usePushPause(now: number): { pause: PushPause | null; set: (p: PushPause | null) => Promise<PushPause | null> } {
   const subscribe = useCallback((cb: () => void) => {
     presetListeners.add(cb);
     return () => {

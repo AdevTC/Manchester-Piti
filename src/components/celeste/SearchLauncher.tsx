@@ -8,7 +8,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "@tanstack/react-router";
-import { TuIcon, tuGo } from "../vidrio/tu/ui";
+import { TuIcon } from "../vidrio/tu/ui";
+import { tuGo } from "../vidrio/tu/kit";
 import { isShot, supportsViewTransitions } from "../vidrio/env";
 import { isSearchShortcut } from "./searchShortcut";
 import "./search.css";

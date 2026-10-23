@@ -11,9 +11,12 @@ import { useAuth } from "../../../context/AuthContext";
 import { useTheme, type ThemePref } from "../../../hooks/useTheme";
 import { usePageKitStills } from "../../jersey3d/usePageKitStills";
 import { readTuMaqueta } from "../tu/maqueta";
-import { rove, Seg, TuIcon, TuLayer, tuGo, tuSurface, useToast, type TuIconName } from "../tu/ui";
+import { Seg, TuIcon, TuLayer, type TuIconName } from "../tu/ui";
+import { rove, tuGo, useToast } from "../tu/kit";
 import { useInbox, type Inbox } from "../../../pages/perfil/bandeja/useInbox";
-import { PendList, useAvisoActions } from "../../../pages/perfil/bandeja/parts";
+import { PendList } from "../../../pages/perfil/bandeja/parts";
+import { useAvisoActions } from "../../../pages/perfil/bandeja/actions";
+import { tuSurface } from "../tu/surface";
 import { useThisDevice } from "../../../pages/perfil/bandeja/device";
 import { pl, tocaMore } from "../../../pages/perfil/bandeja/model";
 import { useProfileData } from "../../../pages/perfil/useProfileData";
@@ -22,7 +25,7 @@ import { initialOf } from "../../celeste/accountSignal";
 import "../../../styles/tu-avisos.css";
 
 /** «Jordi Alejandro Sumba Rodríguez» → «Jordi Sumba» (the first name and the first surname). */
-export function shortName(full: string): string {
+function shortName(full: string): string {
   const p = full.trim().split(/\s+/).filter(Boolean);
   return p.length > 2 ? `${p[0]} ${p[p.length - 2]}` : p.join(" ");
 }
@@ -36,15 +39,14 @@ interface Item {
 }
 
 /** Opens and closes a sheet out of its button (the board's openSurface / closeSurface). */
-function useSurface(name: string) {
+function useSurface(name: string, btn: { readonly current: HTMLElement | null }) {
   const [open, setOpen] = useState(false);
-  const btn = useRef<HTMLElement | null>(null);
   const show = () => tuSurface(true, btn.current, name, () => flushSync(() => setOpen(true)));
   const close = (refocus = true) => {
     tuSurface(false, btn.current, name, () => flushSync(() => setOpen(false)));
     if (refocus) window.setTimeout(() => btn.current?.focus({ preventScroll: true }), 60);
   };
-  return { open, show, close, btn };
+  return { open, show, close };
 }
 
 function useSheetKeys(close: () => void) {
@@ -101,7 +103,8 @@ function MenuList({ items }: { items: Item[] }) {
 /** The member's avatar («J Jordi», a dot while something waits on him) and his «Tú». */
 export function MemberAccount({ name, here }: { name: string; here?: boolean }) {
   const inbox = useInbox();
-  const s = useSurface("tu-acct");
+  const btn = useRef<HTMLButtonElement | null>(null);
+  const s = useSurface("tu-acct", btn);
   const toast = useToast();
   const jugador = inbox.viewer.who === "jugador";
   const shown = name || "Tú";
@@ -110,9 +113,7 @@ export function MemberAccount({ name, here }: { name: string; here?: boolean }) 
   return (
     <>
       <button
-        ref={(el) => {
-          s.btn.current = el;
-        }}
+        ref={btn}
         type="button"
         className={`vd-glass vd-press tu-acct${here ? " on" : ""}`}
         aria-label={label}

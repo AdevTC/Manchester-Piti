@@ -6,7 +6,8 @@
 // the router inside a View Transition.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { Switch, TuIcon, tuGo, type TuDir } from "../../../components/vidrio/tu/ui";
+import { Switch, TuIcon } from "../../../components/vidrio/tu/ui";
+import { tuGo, type TuDir } from "../../../components/vidrio/tu/kit";
 import { useAuth } from "../../../context/AuthContext";
 import { nameFor, useClubData } from "../../../lib/clubData";
 import { googleSubscribeUrl, webcalUrl } from "../../../lib/calendarLinks";
@@ -17,8 +18,10 @@ import { upcomingRows } from "../avisos";
 import { showTestNotice } from "../device";
 import { copyText } from "../fxRuntime";
 import { useInbox, type Inbox } from "./useInbox";
-import { MatchStack, NoticeRow, PendList, useAvisoActions, type AvisoActions } from "./parts";
-import { PauseChips, PresetSeg, useThisDevice, type ThisDevice } from "./device";
+import { MatchStack, NoticeRow, PendList } from "./parts";
+import { useAvisoActions, type AvisoActions } from "./actions";
+import { useThisDevice, type ThisDevice } from "./device";
+import { PauseChips, PresetSeg } from "./deviceParts";
 import { filterOf, filterRows, kindOf, nextLine, pauseLine, pendTitle, pl, PRESET_NOTE, RES_WORD, shownBy, testNotice, topicsFor, unreadText, verOf, type AvFilter } from "./model";
 import { takeFlyBell } from "./flyBell";
 import "../../../styles/tu-avisos.css";
