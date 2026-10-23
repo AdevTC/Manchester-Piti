@@ -1,6 +1,6 @@
 import type { EventType } from '../matchEngine.js';
 import type { AnalysisEvent, Outcome } from '../matchAnalysis.js';
-import { isPass } from './operators.js';
+import { isPass, passComplete } from './operators.js';
 import { mergedObservations } from './observations.js';
 import { DEFAULT_ANALYSIS_PROFILE, type NarratedMatch } from './types.js';
 
@@ -18,7 +18,7 @@ export function technicalEvents(match: NarratedMatch): (AnalysisEvent & { type: 
     if (kind === 'context' && (f.chance === true || f.subtype === 'chance')) type = o.team === 'opponent' ? 'opponent_chance' : 'chance';
     if (kind === 'restart') {
       const subtype = String(f.subtype ?? '');
-      if (['throw_in','goal_kick','kickoff','corner'].includes(subtype) && (!f.stage || f.stage === 'executed')) type = subtype as EventType;
+      if (['throw_in','goal_kick','kickoff','corner'].includes(subtype) && f.stage === 'executed') type = subtype as EventType;
     }
     if (kind === 'discipline') {
       const subtype = String(f.subtype ?? '');
@@ -31,14 +31,21 @@ export function technicalEvents(match: NarratedMatch): (AnalysisEvent & { type: 
     if (['complete','completed','success'].includes(String(f.outcome))) outcome = ['tackle','dribble','duel','aerial_duel'].includes(type) ? 'won' : 'complete';
     if (['failed','lost'].includes(String(f.outcome))) outcome = ['tackle','dribble','duel','aerial_duel'].includes(type) ? 'lost' : 'incomplete';
     if (f.outcome === 'won') outcome = 'won';
-    if (['on_target','saved'].includes(String(f.outcome)) || f.onTarget === true) outcome = 'on_target';
-    if (f.outcome === 'off_target') outcome = 'off_target';
-    if (f.outcome === 'blocked' || f.blocked === true) outcome = 'blocked';
-    if (f.outcome === 'woodwork' || f.woodwork === true) outcome = 'woodwork';
+    if (kind === 'shot' || kind === 'goal') {
+      if (['on_target','saved'].includes(String(f.outcome)) || f.onTarget === true) outcome = 'on_target';
+      if (f.outcome === 'off_target') outcome = 'off_target';
+      if (f.outcome === 'blocked' || f.blocked === true) outcome = 'blocked';
+      if (f.outcome === 'woodwork' || f.woodwork === true) outcome = 'woodwork';
+    }
     if (type === 'save' && ['held','parried'].includes(String(f.subtype))) outcome = f.subtype as Outcome;
     const time = o.time?.precision === 'exact' ? { minute: Math.floor(o.time.from / 60), elapsedSeconds: o.time.from, timingUnknown: false } : { minute: base?.minute, elapsedSeconds: undefined, timingUnknown: base?.minute == null };
     const delivery = f.subtype === 'cross' ? 'cross' : f.distanceBand === 'long' ? 'long' : f.distanceBand === 'short' ? 'short' : undefined;
-    if (isPass(o, profile) && f.deflected === true && profile.passes.deflection === 'fail') outcome = 'incomplete';
+    if (kind === 'pass' || kind === 'distribution') {
+      // A blocked delivery remains a failed pass, not the unrelated shot outcome.
+      // Share the catalogue's resolved/unknown classification and deflection policy.
+      const completed = passComplete(o, profile);
+      outcome = completed == null ? 'unknown' : completed ? 'complete' : 'incomplete';
+    }
     return [{ ...base, id: o.id, type, team: o.team, playerId: o.actorId, receiverId: o.receiverId,
       ...time, ...(o.period === 1 || o.period === 2 ? { period: o.period } : {}), outcome,
       ...(delivery ? { delivery } : {}), ...(typeof f.keyPass === 'boolean' ? { keyPass: f.keyPass } : {}),

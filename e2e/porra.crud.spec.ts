@@ -6,7 +6,7 @@ import { enterVestuario } from "./helpers";
 // add matches: the preview seed (idempotent) puts that fixture back as the next one, scheduled and open.
 test.beforeAll(() => execFileSync(process.execPath, ["functions/test/seed-preview.mjs"], { stdio: "inherit" }));
 
-test("la porra conserva goleadores y asistencias entre vestuario y partido, también en móvil", async ({ page }) => {
+test("la porra conserva goleador y asistencia entre vestuario y partido, también en móvil", async ({ page }) => {
   await enterVestuario(page);
   const form = page.locator(".pr-form");
   // The form is the seeded fixture's, and editable (its saved porra loaded) before the score is reset.
@@ -23,33 +23,52 @@ test("la porra conserva goleadores y asistencias entre vestuario y partido, tamb
   await form.getByRole("button", { name: /Guardar mi porra|Cambiar mi porra/ }).click();
   await expect(form.getByRole("button", { name: "Porra guardada" })).toBeVisible();
   await page.getByRole("link", { name: "La porra, en la ficha del partido" }).click();
-  // Client-side navigation: the vestuario's form must not answer for the ficha's.
-  await expect(page).toHaveURL(/\/partidos\/preview-next(\?|$)/);
-  await expect(form.getByRole("group", { name: "Tu porra: Piti contra Atlético Demo" })).toBeVisible();
-  await expect(form.getByLabel("Goleador del gol 1")).toHaveValue(scorer);
-  await expect(form.getByLabel("Asistencia del gol 1")).toHaveValue("none");
-  await form.getByRole("button", { name: "Un gol más del Piti" }).click();
-  await form.getByLabel("Goleador del gol 2").selectOption(scorer);
-  await form.getByLabel("Asistencia del gol 2").selectOption({ index: 2 });
-  const assist = await form.getByLabel("Asistencia del gol 2").inputValue();
+  // Client-side navigation to the match's Vestuario screen: one «Tu goleador» and an optional asistencia.
+  await expect(page).toHaveURL(/\/partidos\/preview-next\/vestuario(\?|$)/);
+  const porra = page.getByRole("region", { name: "Tu porra", exact: true });
+  const more = page.locator(".ves-more").getByRole("button", { name: "Ver todo" });
+  const unfold = async () => {
+    await expect(porra.or(more).first()).toBeVisible();
+    if (!(await porra.isVisible())) await more.click();
+    await expect(porra).toBeVisible();
+  };
+  await unfold();
+  // The vestuario's porra is the match's: one goal, the same goleador and no asistencia.
+  await expect(porra.getByRole("img", { name: /^Tu porra: 1 a \d+$/ })).toBeVisible();
+  await porra.getByRole("button", { name: "Cambiar mi porra" }).click();
+  const steps = porra.getByRole("group", { name: "Tu porra: Piti contra Atlético Demo" });
+  await expect(steps).toBeVisible();
+  await expect(porra.getByLabel("Tu goleador")).toHaveValue(scorer);
+  await expect(porra.getByLabel("Asistencia (si quieres)")).toHaveValue("");
+  await steps.getByRole("button", { name: "Un gol más del Piti" }).click();
+  await porra.getByLabel("Asistencia (si quieres)").selectOption({ index: 1 });
+  const assist = await porra.getByLabel("Asistencia (si quieres)").inputValue();
+  expect(assist).not.toBe("");
   expect(assist).not.toBe(scorer);
-  await form.getByRole("button", { name: "Cambiar mi porra" }).click();
-  await expect(form.getByRole("button", { name: "Porra guardada" })).toBeVisible();
+  await porra.getByRole("button", { name: "Cambiar mi porra" }).click();
+  await expect(porra.getByRole("img", { name: /^Tu porra: 2 a \d+$/ })).toBeVisible();
+  const reopen = async () => {
+    await unfold();
+    await porra.getByRole("button", { name: "Cambiar mi porra" }).click();
+  };
   await page.reload();
-  await expect(form.getByLabel("Asistencia del gol 2")).toHaveValue(assist);
-  await form.getByRole("button", { name: /Cómo se puntúa/ }).click();
-  await expect(form.getByRole("heading", { name: "Los puntos de la porra" })).toBeVisible();
+  await reopen();
+  await expect(porra.getByLabel("Tu goleador")).toHaveValue(scorer);
+  await expect(porra.getByLabel("Asistencia (si quieres)")).toHaveValue(assist);
+  await porra.getByRole("button", { name: "Cómo se puntúa" }).click();
+  await expect(porra.getByText(/^Resultado exacto: 3 puntos/)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await form.getByRole("button", { name: /Cómo se puntúa/ }).click();
-  await form.scrollIntoViewIfNeeded();
+  await porra.getByRole("button", { name: "Ocultar cómo se puntúa" }).click();
+  await porra.scrollIntoViewIfNeeded();
   await page.screenshot({ path: ".emulator-data/porra-mobile.png" });
   await page.setViewportSize({ width: 1280, height: 950 });
-  await form.scrollIntoViewIfNeeded();
+  await porra.scrollIntoViewIfNeeded();
   await page.screenshot({ path: ".emulator-data/porra-desktop.png" });
   await page.getByRole("button", { name: "Cambiar a tema oscuro" }).click();
   await page.reload();
-  await expect(form.getByLabel("Asistencia del gol 2")).toHaveValue(assist);
-  await form.scrollIntoViewIfNeeded();
+  await reopen();
+  await expect(porra.getByLabel("Asistencia (si quieres)")).toHaveValue(assist);
+  await porra.scrollIntoViewIfNeeded();
   await page.screenshot({ path: ".emulator-data/porra-dark.png", animations: "disabled" });
 });

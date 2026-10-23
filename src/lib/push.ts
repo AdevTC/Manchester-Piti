@@ -69,7 +69,9 @@ const SW_PRESET = "/__piti-push-preset";
 /** A callable's plain HTTPS address (the service worker calls it with fetch, without the SDK). */
 export function callableUrl(name: string): string {
   const project = import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined;
-  return import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" ? `http://127.0.0.1:5001/${project}/${FUNCTIONS_REGION}/${name}` : `https://${FUNCTIONS_REGION}-${project}.cloudfunctions.net/${name}`;
+  // (the emulator's port as src/firebase.ts reads it: firebase.json's, or a spare set's)
+  const port = /^\d+$/.test(import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT ?? "") ? import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT : "5001";
+  return import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" ? `http://127.0.0.1:${port}/${project}/${FUNCTIONS_REGION}/${name}` : `https://${FUNCTIONS_REGION}-${project}.cloudfunctions.net/${name}`;
 }
 
 export type PushState = "unsupported" | "ios-install" | "denied" | "ready";

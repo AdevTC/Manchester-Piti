@@ -71,7 +71,11 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
 
     await page.goto(`/partidos/${id}/numeros`);
     // The canonical goal survives an observations-only import, while the new passes reach the graphs.
-    await expect(page.getByRole("status", { name: "Resultado: 1 a 0" })).toBeVisible();
+    await expect(page.getByRole("img", { name: /^Manchester Piti 1, .+ 0$/ })).toBeVisible();
+    // The graphs live in Números now: the match's Números screen opens this match's selection there.
+    await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
+    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
+    expect(JSON.parse(new URL(page.url()).searchParams.get("partidos") ?? "[]")).toEqual([id]);
     const technical = page.getByRole("region", { name: "Estadísticas detalladas" });
     await expect(technical.getByRole("heading", { name: "La red de pases" })).toBeVisible();
     await expect(technical.getByRole("button", { name: `Ver 1 pases de ${names[2]} a ${names[3]}` })).toBeVisible();
@@ -85,10 +89,6 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await expect(detail).toContainText(`Pase · ${names[2]} → ${names[3]}`);
     await expect(detail).not.toContainText(privateQuote);
 
-    await page.getByRole("link", { name: "Abrir esta selección en Números ↗" }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
-    await expect(page.getByRole("region", { name: "Pases intentados", exact: true }).locator(".an-detail__value")).toContainText("2 acciones");
-    expect(new URL(page.url()).searchParams.get("partidos")).toBe(id);
     await page.locator("summary[aria-label='Filtrar partidos']").click();
     await page.getByRole("checkbox", { name: new RegExp(otherRival) }).check();
     await expect(page.getByRole("region", { name: "Pases intentados", exact: true }).locator(".an-detail__value")).toContainText("3 acciones");

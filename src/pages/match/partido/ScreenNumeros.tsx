@@ -309,7 +309,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                     </li>
                   ))}
                 </ul>
-                <Go className="vd-glass vd-press vd-btn vd-btn--sm ppn-open" href={`/numeros/juego?partidos=${encodeURIComponent(match.id)}`}>
+                <Go className="vd-glass vd-press vd-btn vd-btn--sm ppn-open" href={`/numeros/juego?temporada=todas&partidos=${encodeURIComponent(match.id)}`}>
                   <Icon name="chart" />
                   Abrir el análisis en Números
                 </Go>
