@@ -12,6 +12,7 @@ import { seedPublicData } from './lib/publicSeed'
 import { serverNow, setPaintedAt } from './lib/serverTime'
 import { createAppRouter } from './router'
 import { startAppUpdates } from './lib/appUpdate'
+import { tapsSkipTransitions } from './components/celeste/pageTransition'
 
 // The data bundle (inside a server-rendered page, or downloading since the HTML): the page paints from it
 // without Firebase, which loads after the first paint (lib/fb) and gets the same documents in its local cache
@@ -22,6 +23,8 @@ primeFromBundle(inline?.text, (bytes) => {
 })
 
 const router = createAppRouter()
+// (a tap during a page change finishes it and lands where it was meant to)
+tapsSkipTransitions()
 
 // The service worker (built only for production) and the move to a new deploy at a safe moment.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) startAppUpdates({ router, busy: () => queryClient.isMutating() > 0 })

@@ -52,3 +52,31 @@ export function startPageTransition(direction: SwapDirection): void {
 
 /** Whether a page change (not an in-page one) owns the transition attributes right now. */
 export const pageTransitionActive = (): boolean => typeof document !== "undefined" && "vdPage" in document.documentElement.dataset;
+
+let tapsInstalled = false;
+/**
+ * A tap during a View Transition finishes it at once and reaches what was tapped (Chrome's guidance): while one
+ * runs, its pseudo-elements cover the page and would swallow the tap (a page change is ~380 ms). Every
+ * transition started through `document.startViewTransition` (the router's, the in-page ones) is followed.
+ */
+export function tapsSkipTransitions(doc: Document = document): void {
+  if (tapsInstalled || typeof doc.startViewTransition !== "function") return;
+  tapsInstalled = true;
+  const start = doc.startViewTransition.bind(doc);
+  let running: ViewTransition | null = null;
+  doc.startViewTransition = (arg?: ViewTransitionUpdateCallback | StartViewTransitionOptions) => {
+    const t = start(arg);
+    running = t;
+    const done = () => {
+      if (running === t) running = null;
+    };
+    t.finished.then(done, done);
+    return t;
+  };
+  doc.addEventListener("pointerdown", () => running?.skipTransition(), { capture: true, passive: true });
+}
+
+/** Test-only. */
+export function _resetTapsForTesting(): void {
+  tapsInstalled = false;
+}
