@@ -88,11 +88,15 @@ test("jugador, datos de temporada y reparto real de minutos", async ({
     .filter({ hasText: "Hugo" });
   await expect(row.getByRole("cell").first()).toHaveText("40");
 });
-test("el club, con su vitrina, trofeos y contacto", async ({ page }) => {
+test("el club, con su vitrina, sus cuatro salas y el contacto", async ({ page }) => {
   await page.goto("/club");
   await expect(page.getByRole("heading", { level: 1, name: "El club" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "La sala de trofeos" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /la sala/ })).toBeVisible();
+  // the vitrina (CL- boards): the shelves with every piece, the crest first
+  await expect(page.getByRole("list", { name: /Las baldas/ }).getByRole("button", { name: /^El escudo:/ })).toBeVisible();
+  const doors = page.getByRole("navigation", { name: "Las salas del club" });
+  await expect(doors.getByRole("button")).toHaveCount(4);
+  await doors.getByRole("button", { name: /^La gente\./ }).click();
+  await expect(page).toHaveURL(/\/club\/gente$/);
   await expect(page.getByRole("heading", { name: "Clasificados" })).toBeVisible();
 });
 test("la puerta no pide clave y admin está protegido", async ({
