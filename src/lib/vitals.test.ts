@@ -93,3 +93,13 @@ describe("a flood of reports can't run up the writes", () => {
     expect(withinRate(recent, 61_000)).toBe(true);
   });
 });
+
+describe("nothing that could drive a terminal is stored", () => {
+  it.each([
+    ["in the page", { n: "INP", v: 1, p: "/\u001b[2J" }],
+    ["in a cause", { n: "INP", v: 1, p: "/", a: { el: "x\u0007" } }],
+    ["in a cause's name", { n: "INP", v: 1, p: "/", a: { "e\u0000l": "x" } }],
+  ])("refuses control characters %s", (_label, m) => {
+    expect(parseVitals(JSON.stringify({ d: { os: "ios", touch: true, w: 390, dpr: 3, ssr: false, sw: true }, m: [m] }))).toBeNull();
+  });
+});

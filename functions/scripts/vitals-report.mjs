@@ -21,7 +21,9 @@ const db = getFirestore();
 
 const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 const snap = await db.collection("vitals").where("day", ">=", since).get();
-const reports = snap.docs.map((d) => d.data()).filter((r) => !touchOnly || r.d?.touch);
+// (what visitors sent is printed: control characters out, whatever got stored)
+const clean = (v) => (typeof v === "string" ? [...v].filter((c) => { const k = c.charCodeAt(0); return k >= 0x20 && !(k >= 0x7f && k <= 0x9f); }).join("") : Array.isArray(v) ? v.map(clean) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [clean(k), clean(x)])) : v);
+const reports = snap.docs.map((d) => clean(d.data())).filter((r) => !touchOnly || r.d?.touch);
 const rows = reports.flatMap((r) => (r.m ?? []).map((m) => ({ ...m, d: r.d })));
 console.log(`${reports.length} visitas, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}\n`);
 
