@@ -237,15 +237,21 @@ export interface Ctx {
   results: ReadonlyMap<string, MvpResult>;
   now: number;
 }
-export function periodCtx(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[], results: ReadonlyMap<string, MvpResult>, now: number): Ctx {
+/** The heavy part of a period, which only the data changes (no clock): its games, every player's acta numbers
+ *  and one narrated analysis for the whole squad. */
+export type PeriodBase = Pick<Ctx, "games" | "rows" | "tech" | "passes" | "jornada">;
+export function periodBase(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[]): PeriodBase {
   const games = chronological(matches.filter((m) => isVisibleMatch(m) && (seasonId === "all" || m.seasonId === seasonId)));
-  const rows = new Map<string, PlayerAnalysis>();
-  for (const raw of players) rows.set(raw.id, analysePlayer(playerForSeason(raw, seasonId, [...seasons]), games));
-  const winners = mvpOfFrom(results, games, now);
   const tech = technicalAnalysis(games);
+  const rows = new Map<string, PlayerAnalysis>();
+  for (const raw of players) rows.set(raw.id, analysePlayer(playerForSeason(raw, seasonId, [...seasons]), games, tech.players[raw.id] ?? emptyTechnical()));
   const passes = new Map<string, number>();
   for (const l of tech.links) passes.set(`${l.from}>${l.to}`, (passes.get(`${l.from}>${l.to}`) ?? 0) + l.count);
-  return { games, rows, mvpOf: winners, tech, passes, jornada: jornadaNumbers(matches as ClubMatch[]), results, now };
+  return { games, rows, tech, passes, jornada: jornadaNumbers(matches as ClubMatch[]) };
+}
+/** A period with its MVPs at `now` (cheap on top of a base). */
+export function periodCtx(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[], results: ReadonlyMap<string, MvpResult>, now: number, base: PeriodBase = periodBase(players, matches, seasonId, seasons)): Ctx {
+  return { ...base, mvpOf: mvpOfFrom(results, base.games, now), results, now };
 }
 
 export interface PStats {
@@ -281,17 +287,39 @@ export interface PStats {
 const ZERO: PStats = { pj: 0, g: 0, a: 0, min: null, tit: 0, sup: 0, nc: 0, inn: 0, out: 0, am: 0, rojas: 0, ocas: 0, palo: 0, paradas: 0, fh: 0, fr: 0, pen: 0, gpen: 0, gfal: 0, pcom: 0, prec: 0, mvp: 0, wins: 0, goalMin: [0, 0, 0, 0, 0], tracked: false };
 const eventMinute = (e: { elapsedSeconds?: number; minute?: number }) => (typeof e.elapsedSeconds === "number" ? e.elapsedSeconds / 60 : typeof e.minute === "number" ? e.minute : null);
 
-export function stats(id: string, ctx: Ctx): PStats {
-  const r = ctx.rows.get(id);
-  if (!r) return ZERO;
-  const goalMin = [0, 0, 0, 0, 0];
+// (every view asks for the same player's numbers many times: once per period and player)
+const statsCache = new WeakMap<Ctx, Map<string, PStats>>();
+const goalMinCache = new WeakMap<Ctx, Map<string, number[]>>();
+/** Every player's goals by ten-minute bins over the period, in one pass over its plays. */
+function goalMins(ctx: Ctx): Map<string, number[]> {
+  let out = goalMinCache.get(ctx);
+  if (out) return out;
+  out = new Map();
   for (const m of ctx.games)
     for (const e of settled(m.events ?? [])) {
-      if (e.playerId !== id || e.type === "opponent_own_goal" || eventMetaOf(e).goal !== "for") continue;
+      if (!e.playerId || e.type === "opponent_own_goal" || eventMetaOf(e).goal !== "for") continue;
       const t = eventMinute(e);
       if (t === null) continue;
-      goalMin[Math.min(4, Math.max(0, Math.floor(Math.max(0, t - 1e-9) / 10)))]++;
+      const bins = out.get(e.playerId) ?? [0, 0, 0, 0, 0];
+      bins[Math.min(4, Math.max(0, Math.floor(Math.max(0, t - 1e-9) / 10)))]++;
+      out.set(e.playerId, bins);
     }
+  goalMinCache.set(ctx, out);
+  return out;
+}
+export function stats(id: string, ctx: Ctx): PStats {
+  let cache = statsCache.get(ctx);
+  if (!cache) statsCache.set(ctx, (cache = new Map()));
+  const hit = cache.get(id);
+  if (hit) return hit;
+  const computed = statsOf(id, ctx);
+  cache.set(id, computed);
+  return computed;
+}
+function statsOf(id: string, ctx: Ctx): PStats {
+  const r = ctx.rows.get(id);
+  if (!r) return ZERO;
+  const goalMin = [...(goalMins(ctx).get(id) ?? [0, 0, 0, 0, 0])];
   const played = r.series.filter((g) => g.played);
   return {
     pj: r.matchesPlayed,
@@ -338,10 +366,17 @@ export interface AdnDay {
   exchanges: { minute: number; with: string; direction: "in" | "out" }[];
   duration: number;
 }
+const adnCache = new WeakMap<Ctx, Map<string, AdnDay[]>>();
 /** His jornadas (oldest first); the boards draw the last twelve. */
 export function adn(id: string, ctx: Ctx): AdnDay[] {
-  return ctx.games.map((m) => {
-    const g = playerGame(id, m);
+  let cache = adnCache.get(ctx);
+  if (!cache) adnCache.set(ctx, (cache = new Map()));
+  const hit = cache.get(id);
+  if (hit) return hit;
+  // (his rows already hold each game, in the period's order)
+  const series = ctx.rows.get(id)?.series;
+  const days = ctx.games.map((m, i) => {
+    const g = series?.[i]?.match === m ? series[i] : playerGame(id, m);
     const row = m.ledger?.[id];
     const gf = m.goalsFor ?? 0;
     const ga = m.goalsAgainst ?? 0;
@@ -363,6 +398,8 @@ export function adn(id: string, ctx: Ctx): AdnDay[] {
       duration: m.duration || 50,
     };
   });
+  cache.set(id, days);
+  return days;
 }
 
 /** Goals or assists leaders (ties share it): the most and who has it. */
@@ -474,11 +511,15 @@ export function partner(id: string, ids: readonly string[], ctx: Ctx): PartnerVi
 
 /** The constellation: the teammates he shared a match with (eight at most), the closest first. */
 export function partners(id: string, ids: readonly string[], ctx: Ctx, numOf: (id: string) => number): { id: string; games: number; links: number; together: number }[] {
-  const mine = ctx.games.filter((m) => playerGame(id, m).played);
+  // (who played each match, from the period's rows: no acta is re-read)
+  const playedIn = (pid: string) => new Set((ctx.rows.get(pid)?.series ?? []).filter((g) => g.played).map((g) => g.match.id));
+  const mineIds = playedIn(id);
+  const mine = ctx.games.filter((m) => mineIds.has(m.id));
   const out: { id: string; games: number; links: number; together: number }[] = [];
   for (const o of ids) {
     if (o === id) continue;
-    const games = mine.filter((m) => playerGame(o, m).played).length;
+    const theirs = playedIn(o);
+    const games = mine.filter((m) => theirs.has(m.id)).length;
     if (!games) continue;
     const goalLinks = mine.reduce((s, m) => s + (m.events ?? []).filter((e) => eventMetaOf(e).goal === "for" && ((e.playerId === id && e.assistPlayerId === o) || (e.playerId === o && e.assistPlayerId === id))).length, 0);
     const links = passesBetween(ctx, id, o) + passesBetween(ctx, o, id) || goalLinks;

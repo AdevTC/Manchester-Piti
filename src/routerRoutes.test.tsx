@@ -31,8 +31,10 @@ vi.mock("./pages/match/MatchPage", async () => {
 vi.mock("./pages/mesa/Mesa", () => ({ Mesa: () => <h1>la mesa</h1> }));
 vi.mock("./pages/stats/StatsPage", () => ({ StatsPage: () => <h1>números</h1> }));
 vi.mock("./pages/stats/NumerosPage", () => ({ NumerosPage: () => <h1>números</h1> }));
-vi.mock("./pages/squad/SquadPage", () => ({ SquadPage: () => <h1>la percha</h1> }));
-vi.mock("./pages/jugador/JugadorPage", () => ({ JugadorPage: () => <h1>el jugador</h1> }));
+vi.mock("./pages/squad/SquadPage", async () => {
+  const { useEffect } = await import("react");
+  return { SquadPage: () => (useEffect(() => void (mounts.percha = (mounts.percha ?? 0) + 1), []), <h1>la percha</h1>) };
+});
 vi.mock("./pages/club/ClubPage", () => ({ ClubPage: () => <h1>el club</h1> }));
 vi.mock("./pages/vestuario/VestuarioPage", () => ({ VestuarioPage: () => <h1>el vestuario</h1> }));
 vi.mock("./pages/perfil/ProfilePage", async () => {
@@ -52,8 +54,7 @@ describe("every new address resolves", () => {
     "el partido": ["/partidos/j1", "/partidos/j1/siete", "/partidos/j1/numeros", "/partidos/j1/vestuario"],
     "la mesa": ["/partidos/j1/mesa"],
     números: ["/numeros", "/numeros/y-si", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion"],
-    "la percha": ["/plantilla", "/plantilla/album", "/plantilla/cara-a-cara"],
-    "el jugador": ["/jugadores/alcides", "/jugadores/alcides/temporada", "/jugadores/alcides/jornadas", "/jugadores/alcides/juego", "/jugadores/alcides/analisis", "/jugadores/alcides/cromo"],
+    "la percha": ["/plantilla", "/plantilla/album", "/plantilla/cara-a-cara", "/jugadores/alcides", "/jugadores/alcides/temporada", "/jugadores/alcides/jornadas", "/jugadores/alcides/juego", "/jugadores/alcides/analisis", "/jugadores/alcides/cromo"],
     "el club": ["/club", "/club/vitrina", "/club/vitrina/escudo", "/club/historia", "/club/equipo", "/club/equipo/camiseta", "/club/gente"],
     "el vestuario": ["/vestuario", "/vestuario/caja", "/vestuario/encuestas", "/vestuario/encuestas/p1", "/vestuario/ausencias", "/vestuario/turnos", "/vestuario/entrenos", "/vestuario/tablon", "/vestuario/puerta", "/vestuario/ficha"],
     "tu página": ["/perfil", "/perfil/temporada", "/perfil/temporada/cromos", "/perfil/posiciones", "/perfil/nombre", "/perfil/ajustes", "/perfil/cuenta", "/perfil/capitania", "/perfil/compartir", "/avisos", "/avisos/a-medida"],
@@ -112,7 +113,7 @@ describe("every old address redirects, with its parameters, replacing the old en
     ["/vestuario#vx-caja", "/vestuario/caja", "el vestuario"],
     ["/#temporada", "/numeros", "números"],
     ["/jugadores", "/plantilla", "la percha"],
-    ["/jugadores/alcides/posiciones", "/jugadores/alcides/juego", "el jugador"],
+    ["/jugadores/alcides/posiciones", "/jugadores/alcides/juego", "la percha"],
   ])("%s → %s", async (from, to, page) => {
     const history = createMemoryHistory({ initialEntries: [from] });
     const router = createAppRouter(history);
@@ -172,6 +173,17 @@ describe("tu página: /perfil and /avisos are one page", () => {
       expect(router.state.location.href).toBe(href);
     }
     expect(mounts.tu).toBe(1);
+  });
+  it("la percha and its players are one page: the shirt flies without a remount", async () => {
+    mounts.percha = 0;
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/plantilla"] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
+    for (const href of ["/jugadores/alcides", "/jugadores/alcides/cromo", "/plantilla/album", "/jugadores/erik", "/plantilla/cara-a-cara?a=erik"]) {
+      await act(() => router.navigate({ href }));
+      expect(router.state.location.href).toBe(href);
+    }
+    expect(mounts.percha).toBe(1);
   });
 });
 

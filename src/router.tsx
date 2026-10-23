@@ -289,11 +289,17 @@ export const plantillaSearchSchema = z.object({
   // (the router parses «?q=11» as a number: a dorsal searched stays text)
   q: z.union([z.string(), z.number()]).transform(String).pipe(z.string().max(80)).optional().catch(undefined),
 });
-const plantillaRoute = createRoute({
+// One page for la percha and its players (pathless, like Inicio and Tú): moving between /plantilla and
+// /jugadores/<id> keeps it mounted, so the shirt flies from its hanger to the player without a remount.
+const plantillaLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: "plantilla",
+  component: lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage"),
+});
+const plantillaRoute = createRoute({
+  getParentRoute: () => plantillaLayoutRoute,
   path: "/plantilla",
   validateSearch: plantillaSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage"),
 });
 const plantillaIndexRoute = createRoute({ getParentRoute: () => plantillaRoute, path: "/" });
 const plantillaAlbumRoute = createRoute({
@@ -309,9 +315,8 @@ const caraACaraRoute = createRoute({
 });
 
 const playerProfileRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => plantillaLayoutRoute,
   path: "/jugadores/$playerId",
-  component: lazyRouteComponent(() => import("./pages/jugador/JugadorPage"), "JugadorPage"),
 });
 const playerIndexRoute = createRoute({ getParentRoute: () => playerProfileRoute, path: "/" });
 const playerTemporadaRoute = createRoute({ getParentRoute: () => playerProfileRoute, path: "temporada" });
@@ -529,8 +534,10 @@ const routeTree = rootRoute.addChildren([
     numerosCromosRoute,
     numerosEvolucionRoute,
   ]),
-  plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute, caraACaraRoute]),
-  playerProfileRoute.addChildren([playerIndexRoute, playerTemporadaRoute, playerJornadasRoute, playerJuegoRoute, playerAnalisisRoute, playerCromoRoute]),
+  plantillaLayoutRoute.addChildren([
+    plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute, caraACaraRoute]),
+    playerProfileRoute.addChildren([playerIndexRoute, playerTemporadaRoute, playerJornadasRoute, playerJuegoRoute, playerAnalisisRoute, playerCromoRoute]),
+  ]),
   clubRoute.addChildren([clubIndexRoute, clubVitrinaRoute, clubPiezaRoute, clubHistoriaRoute, clubEquipoRoute, clubCamisetaRoute, clubGenteRoute]),
   vestuarioRoute.addChildren([
     vestuarioIndexRoute,

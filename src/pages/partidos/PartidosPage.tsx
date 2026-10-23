@@ -4,7 +4,7 @@
 // identity stays on top (the season, the three screens with their live headlines, the rival search); changing
 // screen is a View Transition (the screen leaves, every jornada flies to its place in the next one, the new screen
 // enters), and «atrás» runs it backwards. Server-rendered for fans; the viewer's own pieces load once hydrated.
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type MouseEvent, type TouchEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type MouseEvent, type TouchEvent } from "react";
 import { flushSync } from "react-dom";
 import { useLocation, useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import { PipWindow, VidrioSky, openScorePip, useLiveDock, useReducedMotion, useRefraction, type ScorePip } from "../../components/vidrio";
@@ -167,7 +167,7 @@ export function PartidosPage() {
   }, [demoKey, momento]);
   const matches = demo ? demo.matches : club.matches;
   const players = demo ? (demo.players as unknown as typeof club.players) : club.players;
-  const seasons = demo ? [...realSeasons, demo.season] : realSeasons;
+  const seasons = useMemo(() => (demo ? [...realSeasons, demo.season] : realSeasons), [demo, realSeasons]);
   const now = demo ? demo.now : clockNow;
 
   // ── the screen and the season (both in the address)
@@ -178,25 +178,33 @@ export function PartidosPage() {
   const asked = askedT ? (seasons.find((s) => s.id === askedT || slugW(s.name) === askedT)?.id ?? null) : null;
   const seasonId = asked ?? current;
   const season = seasons.find((s) => s.id === seasonId);
-  const seasonName = season?.name ?? "La temporada";
+  // (a memo of its own: the memos below key on it)
+  const seasonName = useMemo(() => seasons.find((s) => s.id === seasonId)?.name ?? "La temporada", [seasons, seasonId]);
   const temporada = seasonId && seasonId !== current && season ? slugW(season.name) : undefined;
   const realStandings = useStandings(seasonId || undefined).standings;
   const standings = demo ? demo.standings : realStandings;
 
   // ── names and numbers as the season prints them
-  const inSeason = players.filter((p) => p.seasons?.includes(seasonId));
-  const squad = new Map(
-    inSeason.map((raw) => {
-      const p = playerForSeason(raw, seasonId, seasons);
-      return [p.id, { name: niceName(nameFor(p, seasonId)), num: p.number != null ? String(p.number) : "", printed: nameFor(p, seasonId) }] as const;
-    }),
+  // (this and the season's model below are rebuilt when the data, the clock's 30 s or the viewer's choices change,
+  // not on every hover or keystroke that touches only one screen's view)
+  const squad = useMemo(
+    () =>
+      new Map(
+        players
+          .filter((p) => p.seasons?.includes(seasonId))
+          .map((raw) => {
+            const p = playerForSeason(raw, seasonId, seasons);
+            return [p.id, { name: niceName(nameFor(p, seasonId)), num: p.number != null ? String(p.number) : "", printed: nameFor(p, seasonId) }] as const;
+          }),
+      ),
+    [players, seasonId, seasons],
   );
-  const nm = (id: string) => squad.get(id)?.name ?? niceName(nameFor(players.find((p) => p.id === id), seasonId || undefined));
-  const numOf = (id: string) => squad.get(id)?.num ?? "";
+  const nm = useCallback((id: string) => squad.get(id)?.name ?? niceName(nameFor(players.find((p) => p.id === id), seasonId || undefined)), [squad, players, seasonId]);
+  const numOf = useCallback((id: string) => squad.get(id)?.num ?? "", [squad]);
   const stillOf = usePageKitStills({ on: hydrated, theme, kits: ["home", "away"], players: [...squad.values()].map((s) => ({ name: s.printed, num: s.num })) });
 
   // ── the season at now
-  const strip = seasonStrip(matches, seasonId, now);
+  const strip = useMemo(() => seasonStrip(matches, seasonId, now), [matches, seasonId, now]);
   const liveSeg = strip.segments.find((s) => s.state === "directo") ?? null;
   const liveMinute = liveSeg ? shownMinute(liveSeg.match, now) : null;
   const url = urlState(screen, search);
@@ -225,19 +233,23 @@ export function PartidosPage() {
   const fcFor = fcSeg && (fcSeg.state === "hoy" || fcSeg.state === "proximo") ? fcSeg.id : null;
   const fcMatch = fcFor ? fcSeg?.match : undefined;
   const hourly = useMatchWeatherHourly(fcMatch, now);
-  const se = seasonOf({
-    segments: strip.segments,
-    now,
-    liveMinute,
-    mvpOf: (m) => {
-      const r = mvpResults.get(m.id);
-      const open = mvpVoteOpen(m, now);
-      return { open, votes: open ? (r?.total ?? null) : null, of: open && typeof r?.eligible === "number" && r.eligible > 0 ? r.eligible : null, closes: typeof m.voteClosesAt === "number" ? m.voteClosesAt : null, winners: open ? [] : mvpWinners(m, r, now) };
-    },
-    fcOf: (m) => (m.id === fcFor && hourly ? hourly.hours.map((h) => ({ h: clockTime(h.at), t: h.temp, ko: h.kickoff })) : null),
-  });
+  const se = useMemo(
+    () =>
+      seasonOf({
+        segments: strip.segments,
+        now,
+        liveMinute,
+        mvpOf: (m) => {
+          const r = mvpResults.get(m.id);
+          const open = mvpVoteOpen(m, now);
+          return { open, votes: open ? (r?.total ?? null) : null, of: open && typeof r?.eligible === "number" && r.eligible > 0 ? r.eligible : null, closes: typeof m.voteClosesAt === "number" ? m.voteClosesAt : null, winners: open ? [] : mvpWinners(m, r, now) };
+        },
+        fcOf: (m) => (m.id === fcFor && hourly ? hourly.hours.map((h) => ({ h: clockTime(h.at), t: h.temp, ko: h.kickoff })) : null),
+      }),
+    [strip, now, liveMinute, mvpResults, fcFor, hourly],
+  );
   const ms = se.matches;
-  const picks = picksRaw ?? parsePicks(url.ysi, ms);
+  const picks = useMemo(() => picksRaw ?? parsePicks(url.ysi, ms), [picksRaw, url.ysi, ms]);
 
   const sayT = useRef(0);
   const toast = (t: string) => {
@@ -247,21 +259,25 @@ export function PartidosPage() {
   };
 
   const captain = member && !!viewer.playerId && (viewer.playerId === season?.captainPlayerId || viewer.admin);
-  const ctx: Ctx = {
-    w,
-    q,
-    nm,
-    num: numOf,
-    known: (id) => squad.has(id),
-    myId: member ? viewer.playerId : null,
-    member,
-    captain,
-    seasonName,
-    league: f7(leaguePhrase(standings?.competition || matches.find((m) => m.seasonId === seasonId && m.competition)?.competition)),
-    standings: standings ? { rows: standings.rows, prev: ("rowsPrev" in standings ? standings.rowsPrev : null) ?? null, jornada: standings.jornada, updatedAt: standings.updatedAt, by: standings.updatedBy } : null,
-    matchPath: (m) => `/partidos/${m.id}`,
-  };
-  const id = identityView(se, ctx);
+  const myId = member ? viewer.playerId : null;
+  const ctx: Ctx = useMemo(
+    () => ({
+      w,
+      q,
+      nm,
+      num: numOf,
+      known: (id) => squad.has(id),
+      myId,
+      member,
+      captain,
+      seasonName,
+      league: f7(leaguePhrase(standings?.competition || matches.find((m) => m.seasonId === seasonId && m.competition)?.competition)),
+      standings: standings ? { rows: standings.rows, prev: ("rowsPrev" in standings ? standings.rowsPrev : null) ?? null, jornada: standings.jornada, updatedAt: standings.updatedAt, by: standings.updatedBy } : null,
+      matchPath: (m) => `/partidos/${m.id}`,
+    }),
+    [w, q, nm, numOf, squad, myId, member, captain, seasonName, standings, matches, seasonId],
+  );
+  const id = useMemo(() => identityView(se, ctx), [se, ctx]);
 
   // ── the address follows the screen's state (replace), a screen change pushes
   const searchFor = (s: Screen): Record<string, string | undefined> => {
@@ -348,8 +364,8 @@ export function PartidosPage() {
       }),
     );
   };
-  const jor = screen === "jornadas" ? jornadasView(se, { sel, lente, filt, win }, ctx) : null;
-  const lv = jor ? lensView(se, jor.sel, lente, ctx) : null;
+  const jor = useMemo(() => (screen === "jornadas" ? jornadasView(se, { sel, lente, filt, win }, ctx) : null), [screen, se, sel, lente, filt, win, ctx]);
+  const lv = useMemo(() => (jor ? lensView(se, jor.sel, lente, ctx) : null), [jor, se, lente, ctx]);
   const ribRef = useRef<HTMLDivElement | null>(null);
   const mmRef = useRef<HTMLDivElement | null>(null);
   const lensRef = useRef<HTMLElement | null>(null);
@@ -468,10 +484,10 @@ export function PartidosPage() {
   const ourMember = member;
 
   const lens = lv?.lens;
-  const cartelData = jor ? cartelView(jor.sel, seasonName) : null;
+  const cartelData = useMemo(() => (jor ? cartelView(jor.sel, seasonName) : null), [jor, seasonName]);
   const shareCartel = useCartelShare(jor ? cartelOf(jor.sel.match, { jornada: jor.sel.j, seasonName, nameOf: nm, now, mvp: jor.sel.raw.mvp?.winners[0] ? nm(jor.sel.raw.mvp.winners[0]) : null }) : null, jor ? { a: jor.sel.paint.a, b: jor.sel.paint.b, m0: jor.sel.paint.m0, m1: jor.sel.paint.m1, sun: jor.sel.paint.sun, floods: jor.sel.paint.floods } : null);
 
-  const tb = screen === "tabla" ? tablaView(se, { picks, preset, asi, all }, ctx) : null;
+  const tb = useMemo(() => (screen === "tabla" ? tablaView(se, { picks, preset, asi, all }, ctx) : null), [screen, se, picks, preset, asi, all, ctx]);
   const bv = screen === "balance" ? balanceView(se, { bal, hover, facet, all: facetAll }, ctx, id.usRow) : null;
   const t0 = SCREENS.indexOf(screen);
 

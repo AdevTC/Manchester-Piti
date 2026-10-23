@@ -1,6 +1,6 @@
 // /profile «La carta»: the motion plumbing — reduced motion, the loops that pause offscreen
 // ([data-paused] via IntersectionObserver, and the whole page while the tab is hidden), and the living
-// card's tilt (pointer always; the phone's gyro when «Brillo al inclinar» is on — on iOS only after the
+// card's tilt (a mouse or a pen always; the phone's gyro when «Brillo al inclinar» is on — on iOS only after the
 // permission asked from a tap). Everything writes CSS custom properties: no re-renders.
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -106,7 +106,7 @@ export function useTilt(opts: { gyro: boolean; rm: boolean; gyroAllowed: boolean
   }, [rm, gyro, gyroAllowed, tilt]);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
   // The pointer, on the card itself.
-  const handlers = useRef<{ move: (e: PointerEvent) => void; leave: () => void } | null>(null);
+  const handlers = useRef<{ move: (e: PointerEvent) => void; leave: (e: PointerEvent) => void } | null>(null);
   return useCallback(
     (node: HTMLElement | null) => {
       const prev = el.current;
@@ -116,12 +116,16 @@ export function useTilt(opts: { gyro: boolean; rm: boolean; gyroAllowed: boolean
       }
       el.current = node;
       if (!node || rm) return;
+      // (a mouse or a pen only: a finger scrolls the page; on a phone the card tilts with the gyro, when it's on)
       const move = (e: PointerEvent) => {
+        if (e.pointerType === "touch") return;
         const r = node.getBoundingClientRect();
         if (!r.width || !r.height) return;
         tilt(clamp(((e.clientX - r.left) / r.width) * 2 - 1), clamp(((e.clientY - r.top) / r.height) * 2 - 1), 1);
       };
-      const leave = () => tilt(0, 0, 0);
+      const leave = (e: PointerEvent) => {
+        if (e.pointerType !== "touch") tilt(0, 0, 0);
+      };
       handlers.current = { move, leave };
       node.addEventListener("pointermove", move);
       node.addEventListener("pointerleave", leave);

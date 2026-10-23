@@ -1,7 +1,10 @@
 // Real refraction for the lens glass (the boards' VK.refract): a displacement map shaped like a convex squircle
 // bezel (steep at the rim, flat inside) drives an SVG feDisplacementMap, three passes a little apart give the
 // faint chromatic edge, and the element's backdrop-filter becomes `blur() url(#map) saturate()`. Chromium only
-// (env.canRefract); everywhere else the blur glass stays. One filter per size, cached, in one hidden <svg>.
+// (env.canRefract); everywhere else the blur glass stays. One filter per size, in one hidden <svg>; the last 24
+// sizes stay cached (a resize drag would otherwise leave a filter behind for every width it went through).
+import { Lru } from "./lru";
+
 const NS = "http://www.w3.org/2000/svg";
 
 /** Signed distance from (x, y) to a w × h rounded rectangle of radius r (negative inside). */
@@ -69,7 +72,19 @@ export interface LensOptions {
 /** The backdrop-filter value for a filter id. */
 export const lensBackdrop = (id: string, blur = 10): string => `blur(${blur}px) url(#${id}) saturate(1.7) brightness(1.05)`;
 
-const cache = new Map<string, string>();
+/** A filter a lensed element still shows (useRefraction marks it [data-vd-lensed=id]) is never dropped: it goes
+ *  once that element has moved on to another size. */
+const inUse = (id: string): boolean => !!document.querySelector(`[data-vd-lensed="${id}"]`);
+
+const LENS_CACHE = 24;
+const cache = new Lru<string>(
+  LENS_CACHE,
+  (id) => !inUse(id),
+  (id) => document.getElementById(id)?.remove(),
+);
+let seq = 0;
+// (one canvas for every map: each build resizes it, which clears it, and putImageData then writes every pixel)
+let canvas: HTMLCanvasElement | null = null;
 
 function defsRoot(): SVGSVGElement {
   let svg = document.getElementById("vd-lens-defs") as SVGSVGElement | null;
@@ -98,7 +113,7 @@ export function lensFilter(w: number, h: number, r: number, bezel = 22, strength
   const hit = cache.get(key);
   if (hit) return hit;
   const map = displacementMap(w, h, r, bezel);
-  const c = document.createElement("canvas");
+  const c = (canvas ??= document.createElement("canvas"));
   c.width = map.width;
   c.height = map.height;
   const g = c.getContext("2d");
@@ -107,7 +122,7 @@ export function lensFilter(w: number, h: number, r: number, bezel = 22, strength
   img.data.set(map.data);
   g.putImageData(img, 0, 0);
   const href = c.toDataURL();
-  const id = `vd-lf-${cache.size}`;
+  const id = `vd-lf-${seq++}`;
   const f = el("filter", { id, x: "0", y: "0", width: String(w), height: String(h), filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
   const im = el("feImage", { x: "0", y: "0", width: String(w), height: String(h), preserveAspectRatio: "none", result: "map", href });
   f.appendChild(im);

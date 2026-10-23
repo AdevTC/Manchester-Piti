@@ -6,7 +6,7 @@
 // swipe moves to the next one. The moviola's minute (?min=) drives the score, the sky and the open screen; the
 // sheets (el cartel, compartir el momento, los avisos) open on top (?hoja=) and «atrás» closes them.
 // The logic is pure in partido/model.ts, moviola.ts and words.ts; each screen lives in partido/Screen*.tsx.
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
 import { Link, useLocation, useRouter } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useSeason } from "../../context/SeasonContext";
@@ -94,6 +94,67 @@ const useHydrated = (): boolean =>
     () => false,
   );
 
+type Players = ReturnType<typeof useClubData>["players"];
+type Seasons = ReturnType<typeof useSeason>["seasons"];
+
+// The page's model that doesn't read the clock is rebuilt when the data changes, not on every tick of the match
+// clock (a second while it runs). Each part is a hook of its own: inside the page the compiler can't keep a memo
+// whose inputs later calls might change, inside a hook its arguments are fixed.
+
+/** The people of the match's season (and its guests), and the names and numbers read from them. */
+function useSeasonPeople(players: Players, seasonId: string, seasons: Seasons, guests: ClubMatch["guests"]) {
+  const people = useMemo(() => {
+    const out = new Map<string, Person>();
+    for (const raw of players) {
+      const p = seasonId ? playerForSeason(raw, seasonId, seasons) : raw;
+      const short = nameFor(p, seasonId || undefined);
+      out.set(p.id, {
+        id: p.id,
+        name: niceName(short),
+        short: short.toLocaleUpperCase("es"),
+        num: p.number != null ? String(p.number) : "",
+        first: p.firstName ?? "",
+        last: p.lastName ?? "",
+        pos: p.naturalPosition ?? "MED",
+      });
+    }
+    for (const g of guests ?? [])
+      out.set(`guest:${g.id}`, {
+        id: `guest:${g.id}`,
+        name: `${g.name} (invitado)`,
+        short: g.name.toLocaleUpperCase("es"),
+        num: "",
+        first: g.name,
+        last: "",
+        pos: "MED",
+      });
+    return out;
+  }, [players, seasonId, seasons, guests]);
+  const nameOf = useCallback((id: string) => people.get(id)?.name ?? "Jugador", [people]);
+  const numOf = useCallback((id: string) => people.get(id)?.num ?? "", [people]);
+  const printed = useMemo(() => [...people.values()].filter((p) => p.num && !p.id.startsWith("guest:")).map((p) => ({ name: p.short, num: p.num })), [people]);
+  return { people, nameOf, numOf, printed };
+}
+
+/** The plays, the line-up, the pulse, the numbers and the result; the timeline reads the edge (a minute's move). */
+function useMatchModel(match: ClubMatch | undefined, nameOf: (id: string) => string, rival: string, duration: number, edge: number) {
+  const plays = useMemo((): Play[] => (match ? playsOf(match, nameOf, rival) : []), [match, nameOf, rival]);
+  const lineup = useMemo(() => (match ? lineupOf(match) : null), [match]);
+  const tl = useMemo(() => (match && lineup ? timelineOf(match, lineup, plays, duration, edge, nameOf) : null), [match, lineup, plays, duration, edge, nameOf]);
+  const pulse = useMemo(() => (match ? pulseOf(match, duration) : []), [match, duration]);
+  const nums = useMemo(() => (match ? numHitsOf(match) : { kinds: [], hits: [], narrated: false }), [match]);
+  const result = useMemo(() => resultWords(scoreAt(plays, duration), scoreAt(plays, duration / 2)), [plays, duration]);
+  return { plays, lineup, tl, pulse, nums, result };
+}
+
+/** The season around the match: its matches by date (the cancelled ones out) and the match's jornada. */
+function useSeasonAround(matches: readonly ClubMatch[], match: ClubMatch | undefined) {
+  const seasonId = match?.seasonId;
+  const seasonMatches = useMemo(() => matches.filter((x) => isVisibleMatch(x) && x.seasonId === seasonId && x.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date)), [matches, seasonId]);
+  const jornada = useMemo(() => (match ? jornadaOf(matches, match.id) : null), [matches, match]);
+  return { seasonMatches, jornada };
+}
+
 export function MatchPage() {
   const router = useRouter();
   const location = useLocation();
@@ -122,37 +183,8 @@ export function MatchPage() {
 
   // ---- the people of the match's season
   const seasonId = match?.seasonId ?? "";
-  const people = (() => {
-    const out = new Map<string, Person>();
-    for (const raw of players) {
-      const p = seasonId ? playerForSeason(raw, seasonId, seasons) : raw;
-      const short = nameFor(p, seasonId || undefined);
-      out.set(p.id, {
-        id: p.id,
-        name: niceName(short),
-        short: short.toLocaleUpperCase("es"),
-        num: p.number != null ? String(p.number) : "",
-        first: p.firstName ?? "",
-        last: p.lastName ?? "",
-        pos: p.naturalPosition ?? "MED",
-      });
-    }
-    for (const g of match?.guests ?? [])
-      out.set(`guest:${g.id}`, {
-        id: `guest:${g.id}`,
-        name: `${g.name} (invitado)`,
-        short: g.name.toLocaleUpperCase("es"),
-        num: "",
-        first: g.name,
-        last: "",
-        pos: "MED",
-      });
-    return out;
-  })();
-  const nameOf = (id: string) => people.get(id)?.name ?? "Jugador";
-  const numOf = (id: string) => people.get(id)?.num ?? "";
+  const { people, nameOf, numOf, printed } = useSeasonPeople(players, seasonId, seasons, match?.guests);
   const kit = match?.kit === "away" ? "away" : "home";
-  const printed = [...people.values()].filter((p) => p.num && !p.id.startsWith("guest:")).map((p) => ({ name: p.short, num: p.num }));
   const stillOf = usePageKitStills({
     on: hydrated,
     theme,
@@ -266,12 +298,7 @@ export function MatchPage() {
 
   // ---- model
   const rival = match?.rival ?? "el rival";
-  const plays: Play[] = match ? playsOf(match, nameOf, rival) : [];
-  const lineup = match ? lineupOf(match) : null;
-  const tl = match && lineup ? timelineOf(match, lineup, plays, duration, edge, nameOf) : null;
-  const pulse = match ? pulseOf(match, duration) : [];
-  const nums = match ? numHitsOf(match) : { kinds: [], hits: [], narrated: false };
-  const result = resultWords(scoreAt(plays, duration), scoreAt(plays, duration / 2));
+  const { plays, lineup, tl, pulse, nums, result } = useMatchModel(match, nameOf, rival, duration, edge);
   const resultNow = live || fase === "final" ? resultWords(scoreAt(plays, edge), scoreAt(plays, Math.min(edge, duration / 2))) : result;
   const score = scoreAt(plays, minute);
   const kickMs = match ? dateMillis(match.date) : NaN;
@@ -372,12 +399,11 @@ export function MatchPage() {
   const viewer: Viewer = quien ? maquetaViewer(quien, real, people) : real;
 
   // ---- the season around it
-  const seasonMatches = matches.filter((x) => isVisibleMatch(x) && x.seasonId === match?.seasonId && x.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date));
+  const { seasonMatches, jornada } = useSeasonAround(matches, match);
   const idx = match ? seasonMatches.findIndex((x) => x.id === match.id) : -1;
   const prevMatch = idx > 0 ? seasonMatches[idx - 1] : null;
   const nextMatches = idx >= 0 ? seasonMatches.slice(idx + 1).filter((x) => !isPlayedMatch(x)) : [];
   const nextMatch = idx >= 0 ? (seasonMatches[idx + 1] ?? null) : null;
-  const jornada = match ? jornadaOf(matches, match.id) : null;
   const { standings } = useStandings(match?.seasonId);
   const hasTable = !!standings && standings.rows.length > 0 && standings.rows.some((r) => r.pj > 0);
   const proj = hasTable && standings ? projectTable(standings.rows, live || fase === "final" ? { rival, gf: score.us, ga: score.them } : null) : null;

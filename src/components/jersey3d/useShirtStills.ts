@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { StillRequest } from "./scene";
 import { STILL_VERSION } from "./scene-constants";
 
@@ -45,6 +45,39 @@ async function toStore(k: string, blob: Blob) {
     /* quota or storage disabled: the photo stays for this visit only */
   }
 }
+/**
+ * Re-renders at most once per animation frame: the first request at once, any later ones of that frame together
+ * when it ends (a squad's stills arriving back to back re-render the page once, not once each).
+ */
+function frameThrottle(fn: () => void) {
+  let raf = 0;
+  let again = false;
+  const tick = () => {
+    raf = 0;
+    if (!again) return;
+    again = false;
+    fn();
+    raf = requestAnimationFrame(tick);
+  };
+  return {
+    run() {
+      if (raf) {
+        again = true;
+        return;
+      }
+      fn();
+      raf = requestAnimationFrame(tick);
+    },
+    cancel() {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      again = false;
+    },
+  };
+}
+/** The lookup a version hands out: a new function only when the stills changed, so memoized readers can skip. */
+const lookupAt = (_version: number) => (r: StillRequest) => urls.get(stillKey(r));
+
 /** Rendering waits until the page is idle, so it never competes with the first paint. */
 const whenIdle = () =>
   new Promise<void>((ok) => ("requestIdleCallback" in window ? requestIdleCallback(() => ok(), { timeout: 1500 }) : setTimeout(ok, 200)));
@@ -55,7 +88,9 @@ const whenIdle = () =>
  * so a page that renders one or two stills next to a live jersey is better off on the main thread).
  */
 export function useShirtStills(reqs: StillRequest[], { offMainThread = false } = {}) {
-  const [, bump] = useState(0);
+  const [version, bump] = useState(0);
+  const [refresh] = useState(() => frameThrottle(() => bump((n) => n + 1)));
+  useEffect(() => refresh.cancel, [refresh]);
   const keys = reqs.map(stillKey).join("\n");
   useEffect(() => {
     if (failed || !keys) return;
@@ -69,7 +104,7 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
         if (url && !urls.has(todo[i])) urls.set(todo[i], url);
         else if (!url) missing.push(todo[i]);
       });
-      if (!cancelled && missing.length < todo.length) bump((n) => n + 1);
+      if (!cancelled && missing.length < todo.length) refresh.run();
       if (!missing.length) return;
       await whenIdle();
       const render = offMainThread
@@ -77,16 +112,20 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
         : (await import("./scene")).renderStill;
       for (const k of missing) {
         if (cancelled) return;
-        if (urls.has(k)) continue;
+        // (another page or shirt got it first: show it here too)
+        if (urls.has(k)) {
+          refresh.run();
+          continue;
+        }
         const blob = await render(parse(k));
         urls.set(k, URL.createObjectURL(blob));
         void toStore(k, blob);
-        if (!cancelled) bump((n) => n + 1);
+        if (!cancelled) refresh.run();
       }
     })().catch((error: unknown) => {
       console.error("No se han podido preparar las camisetas:", error);
       failed = true;
-      if (!cancelled) bump((n) => n + 1);
+      if (!cancelled) refresh.run();
     });
     return () => {
       cancelled = true;
@@ -94,5 +133,5 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
     // offMainThread is fixed per call site
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys]);
-  return (r: StillRequest) => urls.get(stillKey(r));
+  return useMemo(() => lookupAt(version), [version]);
 }

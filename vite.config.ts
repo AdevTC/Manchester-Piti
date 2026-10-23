@@ -48,7 +48,7 @@ const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/numeros(\/|$)/, 'src/pages/stats/NumerosPage.tsx'],
   [/^\/club(\/|$)/, 'src/pages/club/ClubPage.tsx'],
   [/^\/vestuario(\/|$)/, 'src/pages/vestuario/VestuarioPage.tsx'],
-  [/^\/jugadores\//, 'src/pages/jugador/JugadorPage.tsx'],
+  [/^\/jugadores\//, 'src/pages/squad/SquadPage.tsx'],
   [/^\/(perfil|avisos)(\/|$)/, 'src/pages/perfil/ProfilePage.tsx'],
 ]
 // Same map, as JSON for the server render's shell (scripts/ssr-shell.mjs): which files each route needs.
@@ -224,6 +224,8 @@ export default defineConfig(({ isSsrBuild }) => ({
     }),
   ],
   resolve: {
+    // functions/ has its own copy of zod: one copy for the app (it was bundled twice, ~25 KB gzip)
+    dedupe: ['zod'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       // Firestore bundles the RE2 engine for Pipelines, which we never use (see the stub).
@@ -258,12 +260,10 @@ export default defineConfig(({ isSsrBuild }) => ({
         codeSplitting: {
           groups: [
             { name: 'firebase', test: vendor('@firebase', 'firebase', 'idb') },
-            { name: 'motion', test: vendor('motion-dom', 'framer-motion', 'motion-utils') },
-            // React core lands in the `motion` chunk, not here: motion pulls it
-            // in as a transitive dep and Rolldown keeps it there. Harmless —
-            // both are vendor chunks on the entry path. `react-dom` + `scheduler`
-            // land in this `react-vendor` chunk (verified via build sourcemaps).
-            { name: 'react-vendor', test: vendor('react', 'react-dom', 'scheduler') },
+            // React first (higher priority): otherwise it lands in the `motion` chunk, which pulls it in, and
+            // motion (admin only) would ride on every page's entry path.
+            { name: 'react-vendor', test: vendor('react', 'react-dom', 'scheduler'), priority: 2 },
+            { name: 'motion', test: vendor('motion-dom', 'framer-motion', 'motion-utils'), priority: 1 },
           ],
         },
       },

@@ -53,7 +53,7 @@ const SEASONS = [{ id: "t1", name: "Temporada 1" }];
 function squad(): Squad {
   const cur = periodCtx(PLAYERS, [J1], "t1", SEASONS, new Map(), NOW);
   const roster = PLAYERS.map((p) => toPlayer(p, "t1", SEASONS)).sort((a, b) => (a.n ?? 0) - (b.n ?? 0));
-  return { ids: roster.map((p) => p.id), by: new Map(roster.map((p) => [p.id, p])), seasonId: "t1", seasonName: "Temporada 1", now: NOW, captain: null, matches: [J1], seasons: SEASONS, cur, all: cur, jornadaOf: (id) => cur.jornada.get(id), seasonCtx: () => cur };
+  return { ids: roster.map((p) => p.id), by: new Map(roster.map((p) => [p.id, p])), seasonId: "t1", seasonName: "Temporada 1", now: NOW, captain: null, matches: [J1], seasons: SEASONS, cur, jornadaOf: (id) => cur.jornada.get(id), seasonCtx: () => cur };
 }
 const ST: ViewState = { screen: "home", focus: null, sec: "ficha", period: "cur", duelA: "evans", duelB: "jordi", pick: null, alFilter: "todos", kit: "home", orden: "dorsal", q: "", bdayOpen: false, numOpen: false, anCat: "pases", anNotes: false, adnSel: null, radarVs: "media", turned: false, flip: false, run: 0, flyHome: null, said: "" };
 const FAN: Who = { quien: "fan", member: false, admin: false, me: null };

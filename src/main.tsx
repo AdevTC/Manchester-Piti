@@ -2,7 +2,6 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import { MotionConfig } from 'motion/react'
 import './styles/tailwind.css'
 import './styles/fonts.css'
 import './index.css'
@@ -27,10 +26,9 @@ const mount = () =>
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <MotionConfig reducedMotion="user">
-          <App router={router} />
-          {import.meta.env.DEV && new URLSearchParams(location.search).has('debug') && <ReactQueryDevtools initialIsOpen={false} />}
-        </MotionConfig>
+        {/* (motion is only the admin's, whose layout sets reducedMotion itself: none of it ships with the public pages) */}
+        <App router={router} />
+        {import.meta.env.DEV && new URLSearchParams(location.search).has('debug') && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </StrictMode>,
   )

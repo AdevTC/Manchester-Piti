@@ -35,6 +35,11 @@
 /* the live dot on «Partidos» (chrome) and anywhere else a thing is live */
 .vd-livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--vd-live);margin-left:7px;vertical-align:2px;flex:none;animation:vd-live 1.8s ease-out infinite}
 @keyframes vd-live{0%{box-shadow:0 0 0 0 rgba(255,93,93,.55)}80%,100%{box-shadow:0 0 0 9px rgba(255,93,93,0)}}
+/* the same ring as a layer that only scales and fades (no repaint each frame): a disc of the dot's size in the
+   ring's red, grown to dot + 2 × 9px while it fades .55 → 0, on the same timing. For a ring whose dot nothing
+   paints after (the chrome's dot: chrome.css; the ribbon's now: components.css). 3.571429 = 25/7, 2.8 = 28/10. */
+@keyframes vd-live-ring7{0%{transform:none;opacity:1}80%,100%{transform:scale(3.571429);opacity:0}}
+@keyframes vd-live-ring10{0%{transform:none;opacity:1}80%,100%{transform:scale(2.8);opacity:0}}
 
 .vd-vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-transparency:reduce){

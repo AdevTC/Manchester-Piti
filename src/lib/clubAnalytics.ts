@@ -1,4 +1,5 @@
 import { technicalForPlayer } from "./technicalAnalysis";
+import type { TechnicalStats } from "../../functions/src/matchAnalysis";
 import { dateMillis, isCompleted, isVisibleMatch } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import type { PlayerDoc } from "./schemas";
@@ -117,7 +118,9 @@ export function streaks<T extends { match: ClubMatch }>(
   if (run.count) all.push(run);
   return { best, current: run, runs: all.sort((a, b) => b.count - a.count) };
 }
-export function analysePlayer(player: PlayerDoc, games: ClubMatch[]) {
+/** `technical`: his narrated totals when the caller already ran technicalAnalysis over `games` (one pass for the
+ *  whole squad instead of one per player). */
+export function analysePlayer(player: PlayerDoc, games: ClubMatch[], technical?: TechnicalStats) {
   games = games.filter(isVisibleMatch);
   const series = games.map((match) => playerGame(player.id, match));
   const totals = computeStats(player.id, games);
@@ -127,7 +130,7 @@ export function analysePlayer(player: PlayerDoc, games: ClubMatch[]) {
   return {
     ...player,
     ...totals,
-    technical: technicalForPlayer(player.id, games),
+    technical: technical ?? technicalForPlayer(player.id, games),
     series,
     ga: totals.goals + totals.assists,
     tracked: tracked.length,

@@ -35,9 +35,9 @@ export function Hook() {
 
 /** `<span class="pl-shirt …"><img class="pl-shirt__img"></span>`: the board's shirt. */
 export function Shirt({ kit, num, className, vtn }: { kit: "home" | "away"; num?: string; className: string; vtn?: string }) {
-  // (his own still, with name and dorsal printed by the scene; the kit's blank one only for a shirt without dorsal)
   const still = useContext(KitStillContext)(kit, num || undefined);
-  const src = still && (still.printed || !num) ? still.src : undefined;
+  // (until his own still is ready, the kit's blank printed shirt holds the place: no empty box, no CSS number)
+  const src = still?.src;
   return (
     <span className={`pl-shirt ${className}`} aria-hidden="true">
       {src && <img className="pl-shirt__img" src={src} alt="" width={540} height={600} style={vtn ? ({ viewTransitionName: vtn } as CSSProperties) : undefined} />}
