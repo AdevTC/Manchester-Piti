@@ -467,7 +467,7 @@ let crestP: Promise<HTMLImageElement | null> | null = null;
 /** The club's crest (a slow or missing image never holds the poster back). */
 function crestImage(): Promise<HTMLImageElement | null> {
   if (typeof Image === "undefined") return Promise.resolve(null);
-  crestP ??= Promise.race([loadImage("/crest.png"), new Promise<null>((r) => window.setTimeout(() => r(null), 3000))]).then((img) => {
+  crestP ??= Promise.race([loadImage("/crest.webp"), new Promise<null>((r) => window.setTimeout(() => r(null), 3000))]).then((img) => {
     if (!img) crestP = null;
     return img;
   });
