@@ -8,6 +8,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDoor } from "../../acceso/useDoor";
 import { DevSignIn } from "../../acceso/AccessGate";
 import { useDocumentTheme } from "../../../hooks/useDocumentTheme";
+import { niceName } from "../../../lib/derived/words";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { CelesteDock, CelesteHeader } from "../../../components/celeste/Chrome";
 import { ThemeToggle } from "../../../components/ThemeToggle";
@@ -48,7 +49,7 @@ export function VestuarioDoor() {
   const chosenShirt = chosen ? door.shirts.find((x) => x.id === chosen) : undefined;
   const stepN = { puerta: 1, invitacion: 1, caducada: 1, quien: 2, espera: 3, abierta: 3, rechazada: 3, dentro: 4 }[D];
   const askedName = door.asked?.playerId ? door.squad.find((x) => x.id === door.asked?.playerId)?.name : (door.asked?.name ?? "");
-  const nice = (n: string) => n.charAt(0) + n.slice(1).toLocaleLowerCase("es");
+  const nice = niceName;
   const reservedShirt = reserved ? door.shirts.find((x) => x.id === reserved) : undefined;
   const nextVas = door.next ? `¿Vas ${door.next.home ? "contra" : "a"} ${door.next.rival}?` : "";
   const TXT: Record<D, [string, string, string, string]> = {
