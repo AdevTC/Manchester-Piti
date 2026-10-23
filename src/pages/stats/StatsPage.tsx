@@ -6,7 +6,7 @@ import { inScope, scopeSeasons, type AnalysisSearch, type StatsScopeSearch } fro
 // From the Design canvas "Estadísticas · elegida"; pure logic in lib/clubAnalytics.ts + lib/statsView.ts.
 import { useMemo } from "react";
 import { Link, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
-import { interimStatsSearch, statsSearchToWrite, statsViewAt, statsViewPath } from "../../lib/interimScreens";
+import { statsViewAt, statsViewPath } from "../../lib/interimScreens";
 import type { StatsSearch } from "../../router";
 import { ALL_SEASONS_LABEL } from "../../lib/useSetSeason";
 import { nextFixture, playerForSeason, nameFor, useClubData, formatDate } from "../../lib/clubData";
@@ -63,15 +63,14 @@ export function StatsPage() {
   const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
   // (each view is a /numeros screen now, and Comparar is /plantilla/cara-a-cara: lib/interimScreens says which)
   const pathname = useLocation({ select: (l) => l.pathname });
-  const search = interimStatsSearch(useSearch({ strict: false }), pathname) as StatsSearch;
+  const search = useSearch({ strict: false }) as StatsSearch;
   const navigate = useNavigate();
   const now = useClock(15_000);
   const results = useMvpResults();
   const at = statsViewAt(pathname, search);
   const view: View = at.view;
   const section: ExploreSection = at.section ?? "individual";
-  // Every write starts from the page's own fields (Números' Spanish ones read into them and dropped).
-  const own = (prev: Record<string, unknown>) => statsSearchToWrite(prev, pathname);
+  const own = (prev: Record<string, unknown>) => ({ ...prev });
   // (Comparar's pair goes with Comparar: any other view's URL is clean to share)
   const setView = (next: View) =>
     void navigate({

@@ -22,11 +22,13 @@ test("los goleadores empatados conservan puesto y medalla entre plantilla y esta
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.goto("/numeros?temporada=preview-season");
-  const leaders = page.getByRole("list", { name: "Líderes del período" });
-  // Números: the shared lead said in words, both names and the figure
-  const pichichi = leaders.getByRole("listitem").filter({ hasText: "Pichichi" });
-  await expect(pichichi.getByText("Liderato compartido", { exact: true })).toBeVisible();
-  await expect(pichichi.locator("b")).toHaveText("1");
-  await expect(pichichi.getByRole("link", {name:"Hugo",exact:true})).toBeVisible();
-  await expect(pichichi.getByRole("link", {name:"Mario",exact:true})).toBeVisible();
+  // Números: the shared lead said in words in the race and in Jugadores, both names and the figure
+  await expect(page.locator(".nu-race__cap")).toContainText("En cabeza tras la J");
+  await expect(page.locator(".nu-race__cap b")).toContainText(/(Hugo y Mario|Mario y Hugo), 1/);
+  await expect(page.locator(".nu-said")).toContainText(/Pichichi compartido: (Hugo y Mario|Mario y Hugo), con 1\./);
+  await page.goto("/numeros/jugadores?temporada=preview-season");
+  await expect(page.getByRole("heading", { level: 2, name: /^(Hugo y Mario|Mario y Hugo), 1 gol$/ })).toBeVisible();
+  const podium = page.getByRole("list", { name: "Los primeros" });
+  await expect(podium.locator(".nu-podium__rk")).toHaveText(["1º", "1º"]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

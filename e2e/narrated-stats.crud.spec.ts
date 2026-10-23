@@ -70,37 +70,55 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await expect(page.getByRole("region", { name: "Acta publicada", exact: true })).toBeVisible();
 
     await page.goto(`/partidos/${id}/numeros`);
-    // The canonical goal survives an observations-only import, while the new passes reach the graphs.
+    // The canonical goal survives an observations-only import, while the new passes reach the numbers.
     await expect(page.getByRole("img", { name: /^Manchester Piti 1, .+ 0$/ })).toBeVisible();
-    // The graphs live in Números now: the match's Números screen opens this match's selection there.
+    // The analysis lives in Números now: the match's Números screen opens El juego with this match.
     await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
-    expect(JSON.parse(new URL(page.url()).searchParams.get("partidos") ?? "[]")).toEqual([id]);
-    const technical = page.getByRole("region", { name: "Estadísticas detalladas" });
-    await expect(technical.getByRole("heading", { name: "La red de pases" })).toBeVisible();
-    await expect(technical.getByRole("button", { name: `Ver 1 pases de ${names[2]} a ${names[3]}` })).toBeVisible();
+    await expect(page).toHaveURL(/\/numeros\/juego\?/);
+    expect(new URL(page.url()).searchParams.get("partidos")).toBe(id);
+    await expect(page.locator(".nu-conn").getByRole("listitem").filter({ hasText: `${names[2]} → ${names[3]}` })).toContainText("1");
     await expect(page.locator("body")).not.toContainText(privateQuote);
-    await page.getByRole("button", { name: "Catálogo de estadísticas" }).click();
+    // the catalogue grows in place; a statistic opens its card with its value and who did it
+    await page.getByRole("button", { name: /^Catálogo de estadísticas/ }).click();
+    await expect(page).toHaveURL(/\/numeros\/juego\/catalogo\?/);
     await page.getByRole("searchbox", { name: "Buscar estadística" }).fill("Pases intentados");
-    await page.getByRole("list", { name: "Estadísticas del catálogo" }).getByRole("button", { name: /Pases intentados/ }).click();
-    const detail = page.getByRole("region", { name: "Pases intentados", exact: true });
-    await expect(detail.locator(".an-detail__value")).toContainText("2 acciones");
-    await expect(detail.getByRole("region", { name: "Jugadas que sustentan la estadística" }).getByRole("listitem")).toHaveCount(2);
-    await expect(detail).toContainText(`Pase · ${names[2]} → ${names[3]}`);
+    await page.locator(".nu-cat").getByRole("button", { name: /Pases intentados/ }).first().click();
+    const detail = page.getByRole("dialog", { name: /Pases intentados/ });
+    await expect(detail.locator(".nu-mt__v b")).toHaveText("2");
+    await expect(detail.locator(".nu-mt__v")).toContainText("Parcial");
+    await expect(detail.locator(".nu-ev").getByRole("listitem")).toHaveCount(2);
+    await expect(detail.locator(".nu-ev")).toContainText(names[2]);
     await expect(detail).not.toContainText(privateQuote);
+    await detail.getByRole("button", { name: "Cerrar" }).click();
+    await page.getByRole("region", { name: "Una ficha para cada estadística" }).getByRole("button", { name: "Cerrar" }).click();
 
-    await page.locator("summary[aria-label='Filtrar partidos']").click();
-    await page.getByRole("checkbox", { name: new RegExp(otherRival) }).check();
-    await expect(page.getByRole("region", { name: "Pases intentados", exact: true }).locator(".an-detail__value")).toContainText("3 acciones");
-    expect(JSON.parse(new URL(page.url()).searchParams.get("matches") ?? "[]")).toEqual([id, otherId]);
-    await page.locator("summary[aria-label='Filtrar jugadores']").click();
-    await page.getByRole("checkbox", { name: names[2], exact: true }).check();
-    await expect(page.getByRole("region", { name: "Pases intentados", exact: true }).locator(".an-detail__value")).toContainText("2 acciones");
-    expect(JSON.parse(new URL(page.url()).searchParams.get("players") ?? "[]")).toEqual([players[2]]);
+    // «Qué números ver»: the other match adds its pass, a player narrows the tables (the team keeps everyone)
+    const pick = async (name: RegExp) => {
+      await page.getByRole("button", { name: /^Qué números ver/ }).click();
+      const sheet = page.getByRole("dialog", { name: "Qué números ver" });
+      await sheet.getByRole("button", { name }).click();
+      await sheet.getByRole("button", { name: "Ver los números" }).click();
+    };
+    const attempts = page.getByRole("list", { name: "Indicadores de la selección" }).getByRole("button", { name: /Pases intentados/ }).locator(".nu-fig__v");
+    await expect(attempts).toHaveText("2");
+    await pick(new RegExp(otherRival));
+    await expect(attempts).toHaveText("3");
+    expect(new URL(page.url()).searchParams.get("partidos")).toBe(`${id},${otherId}`);
+    await pick(new RegExp(`^\\d+\\s*${names[2]}$`));
+    // (the address names him as the boards do: his name's word)
+    expect(new URL(page.url()).searchParams.get("jugadores")).toBe(`marcos-${stamp}`);
     await page.reload();
-    await expect(page.getByRole("region", { name: "Pases intentados", exact: true }).locator(".an-detail__value")).toContainText("2 acciones");
+    await expect(attempts).toHaveText("3");
+    await page.getByRole("button", { name: /^Todos los números, a tu medida/ }).click();
+    const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
+    await workspace.getByRole("button", { name: "Pases y creación", exact: true }).click();
+    await expect(workspace.getByRole("row", { name: /^Total del Piti/ }).getByRole("cell").nth(1)).toHaveText("2");
+    await expect(workspace).toContainText(names[2]);
+    await workspace.getByRole("button", { name: "Cerrar" }).click();
+
+    // the selection exported in JSON: the matches, the filters and the figures, never the private narration
     const downloadReady = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Exportar selección JSON" }).click();
+    await page.getByRole("button", { name: "Exportar la selección en JSON" }).click();
     const download = await downloadReady;
     expect(download.suggestedFilename()).toMatch(/^piti-estadisticas-.*\.json$/);
     const stream = await download.createReadStream();
@@ -110,19 +128,14 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     const exported = JSON.parse(exportedText);
     expect(exportedText).not.toContain(privateQuote);
     expect(exportedText).not.toContain('"sourceRef"');
-    expect(exported.metadata.matchIds).toEqual(expect.arrayContaining([id, otherId]));
-    expect(exported.filters.playerIds).toEqual([players[2]]);
-    expect(exported.results.find((metric: { id: string }) => metric.id === "067").value).toBe(2);
-    expect(exported.matches.find((match: { id: string }) => match.id === id).analysis.observations).toHaveLength(3);
+    expect(exported.partidos.map((m: { id: string }) => m.id)).toEqual(expect.arrayContaining([id, otherId]));
+    expect(exported.filtros.jugadores).toEqual([players[2]]);
+    expect(exported.deUnVistazo.find((metric: { id: string }) => metric.id === "067").valor).toBe(3);
     await page.setViewportSize({ width: 1440, height: 1050 });
-    await page.getByRole("region", { name: "Análisis de las jugadas" }).screenshot({ path: testInfo.outputPath("narrated-catalog-desktop.png") });
+    await page.locator(".nu-screen").screenshot({ path: testInfo.outputPath("narrated-juego-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.getByRole("region", { name: "Análisis de las jugadas" }).screenshot({ path: testInfo.outputPath("narrated-catalog-mobile.png") });
-    await page.getByRole("button", { name: "Resumen del juego" }).click();
-    const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
-    await expect(workspace.getByRole("table", { name: "Estadísticas por jugador" })).toContainText(names[2]);
-    await expect(page.getByLabel("Gráficas de la selección")).toBeVisible();
+    await page.locator(".nu-screen").screenshot({ path: testInfo.outputPath("narrated-juego-mobile.png") });
   } finally {
     try {
       for (const createdId of created) await callFunction(token, "deleteMatch", { id: createdId });

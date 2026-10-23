@@ -36,17 +36,18 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await expect(editor.getByText("Análisis incorporado al borrador. Revisa y publica el acta para actualizar la web.")).toBeVisible();
   await page.locator(".det .df").getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByText(/Acta .* corregida · web al día/)).toBeVisible();
-  // The full analysis lives in Números now: the match's Números screen opens it for this match.
+  // The full analysis lives in Números now: the match's Números screen opens El juego for this match.
   await page.goto("/partidos/preview-finished/numeros");
   await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
   await expect(page).toHaveURL(/\/numeros\/juego\?/);
-  expect(JSON.parse(new URL(page.url()).searchParams.get("partidos") ?? "[]")).toEqual(["preview-finished"]);
-  const stats = page.getByRole("region", { name: "Estadísticas detalladas" });
-  await stats.getByRole("button", { name: "Ver 1 pases de Marcos a Pablo" }).click();
-  const evidence = stats.getByRole("region", { name: "Pases completados · Marcos" });
-  await expect(evidence.getByRole("listitem")).toHaveCount(1);
-  await expect(evidence).toContainText("Marcos → Pablo");
-  // Literal narration is kept with private admin sources, never in the public acta or evidence.
-  await expect(evidence).not.toContainText("Marcos se la pasa a Pablo");
-  await expect(evidence.getByRole("link", { name: /Ver acta/ })).toHaveAttribute("href", "/partidos/preview-finished/numeros");
+  expect(new URL(page.url()).searchParams.get("partidos")).toBe("preview-finished");
+  // «Quién conecta con quién»: the corrected pass, Marcos → Pablo
+  const pairs = page.locator(".nu-conn");
+  await expect(pairs.getByRole("listitem").filter({ hasText: "Marcos → Pablo" })).toContainText("1");
+  // a narrated figure opens its card, with who did it in that match
+  await page.getByRole("list", { name: "Indicadores de la selección" }).getByRole("button", { name: /Pases intentados/ }).click();
+  const card = page.getByRole("dialog", { name: /Pases intentados/ });
+  await expect(card.getByRole("listitem").filter({ hasText: "Marcos" })).toBeVisible();
+  // Literal narration is kept with private admin sources, never in the public numbers.
+  await expect(page.locator("body")).not.toContainText("Marcos se la pasa a Pablo");
 });

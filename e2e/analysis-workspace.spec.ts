@@ -62,132 +62,93 @@ async function fixture(): Promise<Fixture> {
     return { id, seasonId: sheet.seasonId, observations, participantCount: 7, player: { id: players[3], name: "Pablo E2E" }, other: { id: otherId, rival: otherRival }, cleanup };
   } catch (error) { await cleanup(); throw error; }
 }
-const number = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
-function sample(observations: Observation[], playerId?: string, period?: number) {
-  const passes = observations.filter(o => o.kind === "pass" && o.team === "us" && (!playerId || o.actorId === playerId) && (!period || o.period === period));
-  const completed = passes.filter(o => o.facts.outcome === "complete").length;
-  return { attempts: passes.length, percent: passes.length ? `${number.format(completed * 100 / passes.length)}%` : "-" };
+function sample(observations: Observation[], playerId?: string) {
+  const passes = observations.filter(o => o.kind === "pass" && o.team === "us" && (!playerId || o.actorId === playerId));
+  return { attempts: passes.length, completed: passes.filter(o => o.facts.outcome === "complete").length };
 }
-async function checkTotal(workspace: Locator, observations: Observation[], playerId?: string, period?: number) {
-  const expected = sample(observations, playerId, period);
-  await expect(workspace.getByRole("button", { name: /^Total .*: Pases intentados,/ }).locator("strong")).toHaveText(String(expected.attempts));
-  await expect(workspace.getByRole("button", { name: /^Total .*: Precisión de pase,/ }).locator("strong")).toHaveText(expected.percent);
+const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+/** The row «Total del Piti» of «Todos los números, a tu medida» (its first column after the name). */
+const totalOf = (workspace: Locator, column: number) => workspace.getByRole("row", { name: /^Total del Piti/ }).getByRole("cell").nth(column);
+async function openTable(page: Page) {
+  await page.getByRole("button", { name: /^Todos los números, a tu medida/ }).click();
+  const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
+  await expect(workspace).toBeVisible();
+  await workspace.getByRole("button", { name: "Pases y creación", exact: true }).click();
+  return workspace;
 }
-async function checkLayout(page: Page, cards: Locator) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  const problems = await cards.getByRole("button").evaluateAll(elements => {
-    const rects = elements.map(element => element.getBoundingClientRect());
-    const issues: string[] = [];
-    rects.forEach((rect, i) => {
-      rects.slice(i + 1).forEach(other => { if (Math.min(rect.right, other.right) - Math.max(rect.left, other.left) > 1 && Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top) > 1) issues.push(`Tarjeta ${i} solapada`); });
-      for (const child of elements[i].querySelectorAll(".an-highlight__figure, .an-highlight__figure strong")) if (child.scrollWidth > child.clientWidth + 1) issues.push(`Cifra ${i} desbordada`);
-    });
-    return issues;
-  });
-  expect(problems).toEqual([]);
+async function pickInScope(page: Page, name: RegExp) {
+  await page.getByRole("button", { name: /^Qué números ver/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Qué números ver" });
+  await sheet.getByRole("button", { name }).click();
+  await sheet.getByRole("button", { name: "Ver los números" }).click();
 }
 
-test("Números: doce indicadores, tabla configurable, muestras y móvil sin desbordamientos", async ({ page, baseURL }, testInfo) => {
+test("Números · El juego: De un vistazo, la tabla de trabajo con su total, los filtros y el móvil sin desbordamientos", async ({ page, baseURL }, testInfo) => {
   test.setTimeout(100_000);
   expect(new URL(baseURL!).hostname).toBe("127.0.0.1");
   if (readOnlyDemo) expect(new URL(baseURL!).port).toBe("3102");
   const f = await fixture();
   try {
-    // The full analysis lives in Números: the match's Números screen opens it with this match selected.
+    // The full analysis lives in Números: the match's Números screen opens El juego with this match selected.
     await page.goto(`/partidos/${f.id}/numeros`);
     await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
-    expect(JSON.parse(new URL(page.url()).searchParams.get("partidos") ?? "[]")).toEqual([f.id]);
-    const panel = page.getByRole("region", { name: "Análisis de las jugadas" });
-    const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
-    const cards = page.getByLabel("Indicadores de la selección");
-    await expect(cards.getByRole("button")).toHaveCount(12);
-    await expect(workspace).toBeVisible();
-    await workspace.getByRole("group", { name: "Columnas habituales" }).getByRole("button", { name: "Pases y creación", exact: true }).click();
-    const table = workspace.getByRole("table", { name: /^Estadísticas por jugador/ });
-    await expect(table.locator("tbody tr")).toHaveCount(f.participantCount);
-    await checkTotal(workspace, f.observations);
-    const insights = page.getByRole("region", { name: "Dónde cambia el juego" });
-    await expect(insights).toBeVisible();
-    await insights.getByRole("combobox", { name: "Qué ver por tramos" }).selectOption("070");
-    await insights.getByRole("region", { name: "Barras de 1.ª parte" }).getByRole("button").first().click();
-    const segment = insights.getByRole("region", { name: "Detalle del tramo" });
-    await expect(segment.locator(".ai-value strong")).toContainText("%");
-    await expect(segment.getByRole("heading", { name: /Jugadas de esta muestra \([1-9]/ })).toBeVisible();
-    await expect(segment.locator(".ai-evidence li").first()).toContainText("1.ª");
-    await insights.getByRole("button", { name: "Quién conecta con quién" }).click();
-    const matrix = insights.getByRole("table", { name: "Matriz dirigida de pases" });
-    await expect(matrix.locator("tbody tr")).toHaveCount(f.participantCount);
-    await matrix.getByRole("button", { name: /\. [1-9]\d* completados,/ }).first().click();
-    const connection = insights.getByRole("region", { name: "Detalle de la conexión" });
-    await expect(connection.getByRole("heading", { name: /Jugadas de esta muestra \([1-9]/ })).toBeVisible();
-    await insights.getByRole("combobox", { name: "Color y cifra de la matriz" }).selectOption("accuracy");
-    await expect(matrix.getByRole("button", { name: /\. [1-9]\d* completados,/ }).first().locator("strong")).toContainText("%");
-    const readValues = async () => (await table.locator("tbody tr td:first-of-type strong").allTextContents()).map(value => Number(value.replace(/[^\d,-]/g, "").replace(",", ".")));
-    const descending = await readValues(); expect(descending).toEqual([...descending].sort((a, b) => b - a));
-    await workspace.getByRole("button", { name: "Ordenar por Pases intentados, de menor a mayor" }).click();
-    const ascending = await readValues(); expect(ascending).toEqual([...ascending].sort((a, b) => a - b));
-    await workspace.getByRole("button", { name: "Ordenar por Pases intentados, de mayor a menor" }).click();
-    expect(await readValues()).toEqual(descending);
+    await expect(page).toHaveURL(/\/numeros\/juego\?/);
+    expect(new URL(page.url()).searchParams.get("partidos")).toBe(f.id);
+    const all = sample(f.observations);
+    // De un vistazo: the team's figures, the narrated ones «Parcial»
+    const cards = page.getByRole("list", { name: "Indicadores de la selección" });
+    await expect(cards.getByRole("button")).toHaveCount(16);
+    const attempts = cards.getByRole("button", { name: /Pases intentados/ });
+    await expect(attempts.locator(".nu-fig__v")).toHaveText(String(all.attempts));
+    await expect(attempts.locator(".nu-fig__st")).toHaveText("Parcial");
+    // Quién conecta con quién: the pair that most often finds each other
+    await expect(page.locator(".nu-conn li").first()).toContainText("Pablo E2E → Dani");
+    // The workspace grows in place with its own address; its total row is the narrated total
+    const workspace = await openTable(page);
+    await expect(page).toHaveURL(/\/numeros\/juego\/tabla\?/);
+    const rows = workspace.locator(".nu-ws__r:not(.nu-ws__r--h):not(.nu-ws__r--f)");
+    await expect(rows).toHaveCount(f.participantCount);
+    await expect(totalOf(workspace, 1)).toHaveText(String(all.attempts));
+    await expect(totalOf(workspace, 2)).toHaveText(String(all.completed));
+    await workspace.screenshot({ path: testInfo.outputPath("analysis-table-1440.png") });
+    await workspace.getByRole("button", { name: "Cerrar" }).click();
 
-    await workspace.locator("summary").filter({ hasText: "Personalizar columnas" }).click();
-    await workspace.getByRole("searchbox", { name: "Buscar columna" }).fill("378");
-    await workspace.getByRole("checkbox").check();
-    await workspace.locator("summary").filter({ hasText: "Personalizar columnas" }).click();
-    await expect(table.locator("tbody tr td:last-child strong")).toHaveText(Array(f.participantCount).fill("-"));
-    await expect(table.locator("tfoot tr td:last-child strong")).toHaveText("-");
+    if (f.other) {
+      // another match of the period, picked in «Qué números ver», adds its pass
+      await pickInScope(page, new RegExp(f.other.rival));
+      expect(new URL(page.url()).searchParams.get("partidos")).toBe(`${f.id},${f.other.id}`);
+      await expect(attempts.locator(".nu-fig__v")).toHaveText(String(all.attempts + 1));
+      await pickInScope(page, new RegExp(f.other.rival));
+    }
+    // a player picked: the tables show him, the team's figures keep everyone
+    await pickInScope(page, new RegExp(`^\\d+\\s*${f.player.name}$`));
+    const one = await openTable(page);
+    await expect(one.locator(".nu-ws__r:not(.nu-ws__r--h):not(.nu-ws__r--f)")).toHaveCount(1);
+    await expect(totalOf(one, 1)).toHaveText(String(sample(f.observations, f.player.id).attempts));
+    // the address keeps the screen and the selection
+    await page.reload();
+    const again = page.getByRole("region", { name: "Todos los números, a tu medida" });
+    await again.getByRole("button", { name: "Pases y creación", exact: true }).click();
+    await expect(totalOf(again, 1)).toHaveText(String(sample(f.observations, f.player.id).attempts));
+    await page.getByRole("region", { name: "Todos los números, a tu medida" }).getByRole("button", { name: "Cerrar" }).click();
+    // by halves only goals and cards are counted: the narrated figures say so instead of a wrong number
+    await page.getByRole("radiogroup", { name: "Parte" }).getByRole("radio", { name: "2ª parte" }).click();
+    expect(new URL(page.url()).searchParams.get("parte")).toBe("2");
+    await expect(attempts.locator(".nu-fig__v")).toHaveText("–");
+    await expect(attempts).toContainText("Por partes, solo goles y tarjetas");
 
     for (const viewport of [{ width: 1440, height: 1050 }, { width: 375, height: 812 }]) {
       await page.setViewportSize(viewport);
       await cards.scrollIntoViewIfNeeded();
-      await expect(cards.getByRole("button")).toHaveCount(12);
-      await checkLayout(page, cards);
+      expect(await noOverflow(page)).toBe(true);
       await cards.screenshot({ path: testInfo.outputPath(`analysis-cards-${viewport.width}.png`) });
-      await workspace.scrollIntoViewIfNeeded();
-      await workspace.screenshot({ path: testInfo.outputPath(`analysis-table-${viewport.width}.png`) });
-      await insights.scrollIntoViewIfNeeded();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-      await expect(insights.getByRole("region", { name: "Matriz de pases con desplazamiento horizontal" })).toBeVisible();
     }
-    // The contextual total survives a local name search, which hides rows only.
-    await workspace.getByRole("searchbox", { name: "Buscar jugador o dorsal" }).fill(f.player.name);
-    await expect(table.locator("tbody tr")).toHaveCount(1);
-    await checkTotal(workspace, f.observations);
-    await workspace.getByRole("searchbox", { name: "Buscar jugador o dorsal" }).fill("");
-
-    if (f.other) {
-      await page.locator("summary[aria-label='Filtrar partidos']").click();
-      await page.getByRole("checkbox", { name: new RegExp(f.other.rival) }).check();
-      await expect(workspace.getByRole("button", { name: /^Total .*: Pases intentados,/ }).locator("strong")).toHaveText(String(sample(f.observations).attempts + 1));
-      await page.getByRole("checkbox", { name: new RegExp(f.other.rival) }).uncheck();
-      await page.locator("summary[aria-label='Filtrar partidos']").click();
-    }
-    await page.locator("summary[aria-label='Filtrar jugadores']").click();
-    await page.getByRole("checkbox", { name: new RegExp(`^${f.player.name}$`, "i") }).check();
-    await page.locator("summary[aria-label='Filtrar jugadores']").click();
-    await expect(table.locator("tbody tr")).toHaveCount(1);
-    await checkTotal(workspace, f.observations, f.player.id);
-    await panel.getByRole("combobox", { name: "Parte", exact: true }).selectOption("2");
-    await checkTotal(workspace, f.observations, f.player.id, 2);
-    await page.reload();
-    await workspace.getByRole("group", { name: "Columnas habituales" }).getByRole("button", { name: "Pases y creación", exact: true }).click();
-    await checkTotal(workspace, f.observations, f.player.id, 2);
-    await checkLayout(page, cards);
-    await workspace.screenshot({ path: testInfo.outputPath("analysis-filtered-mobile.png") });
-    // The second half only, in the bars by tramos, here in Números where the analysis lives.
-    await expect(insights.getByRole("region", { name: "Barras de 2.ª parte" })).toBeVisible();
-    await expect(insights.getByRole("region", { name: "Barras de 1.ª parte" })).toHaveCount(0);
-    await insights.getByRole("button", { name: "Quién conecta con quién" }).click();
-    await expect(matrix.locator("tbody tr")).toHaveCount(1);
-    expect(await matrix.locator("thead th").count()).toBeGreaterThan(2);
-    await matrix.getByRole("button", { name: /\. [1-9]\d* completados,/ }).first().click();
-    await expect(connection.locator(".ai-evidence li").first()).toContainText("2.ª");
-    // A play opens its match (its Números screen), carrying the selection in the address.
-    await connection.getByRole("link", { name: /^Abrir partido/ }).first().click();
-    await expect(page).toHaveURL(new RegExp(`/partidos/${f.id}/numeros\\?`));
-    expect(new URL(page.url()).searchParams.get("period")).toBe("2");
-    expect(JSON.parse(new URL(page.url()).searchParams.get("players") ?? "[]")).toEqual([f.player.id]);
-    await expect(page.getByRole("link", { name: "Abrir el análisis en Números" })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    // A play's match opens from a figure's card: «Goles marcados» lists them; this match has none
+    await page.getByRole("radiogroup", { name: "Parte" }).getByRole("radio", { name: "Todo" }).click();
+    await cards.getByRole("button", { name: /Goles marcados/ }).click();
+    const sheet = page.getByRole("dialog", { name: /Goles/ });
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toContainText("Sin jugadas que mostrar en este período.");
+    await expect.poll(() => new URL(page.url()).searchParams.get("metrica")).toBe("015");
   } finally { await f.cleanup(); }
 });

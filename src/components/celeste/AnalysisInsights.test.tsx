@@ -26,7 +26,7 @@ describe("interactive analysis charts", () => {
     fireEvent.click(screen.getByRole("button", { name: /Ver el cálculo de esta estadística/ }));
     expect(inspect).toHaveBeenCalledWith("070");
   });
-  it("selects a directed pair with its denominator and preserves scope when opening the match", () => {
+  it("selects a directed pair with its denominator and opens the match with a clean address", () => {
     render(<AnalysisInsights matches={[match]} people={people} filters={{ playerIds: ["a"], team: "us", period: 2 }}/>);
     fireEvent.click(screen.getByRole("button", { name: "Quién conecta con quién" }));
     const table = screen.getByRole("table", { name: "Matriz dirigida de pases" });
@@ -34,8 +34,8 @@ describe("interactive analysis charts", () => {
     const detail = screen.getByRole("region", { name: "Detalle de la conexión" });
     expect(detail).toHaveTextContent("Álex → Bruno"); expect(detail).toHaveTextContent("0/1");
     const link = within(detail).getByRole("link", { name: /Abrir partido/ });
-    expect(link).toHaveAttribute("data-search", expect.stringContaining('"players":["a"]'));
-    expect(link).toHaveAttribute("data-search", expect.stringContaining('"period":2'));
+    // (the match page has no player or half of its own: the link carries neither)
+    expect(link).toHaveAttribute("data-search", "{}");
     fireEvent.change(screen.getByRole("combobox", { name: "Color y cifra de la matriz" }), { target: { value: "accuracy" } });
     expect(within(table).getByRole("button", { name: /^Álex a Bruno:/ })).toHaveTextContent("0%");
   });

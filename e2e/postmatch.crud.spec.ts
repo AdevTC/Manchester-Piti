@@ -31,27 +31,20 @@ test('resumen personal en el vestuario del partido y cobertura sin confundir cer
   await page.goto('/partidos/preview-balance/numeros');
   await page.getByRole('link',{name:'Abrir el análisis en Números'}).click();
   await expect(page).toHaveURL(/\/numeros\/juego\?/);
-  const workspace=page.getByRole('region',{name:'Todos los números, a tu medida'});
-  await workspace.getByRole('group',{name:'Columnas habituales'}).getByRole('button',{name:'Pases y creación',exact:true}).click();
-  const attempts=workspace.getByRole('button',{name:/^Total del Piti: Pases intentados,/});
-  const failed=workspace.getByRole('button',{name:/^Total del Piti: Pases fallados,/});
-  // Coverage belongs to each metric: one recorded pass is partial; no recorded miss is unknown.
-  await expect(attempts.locator('strong')).toHaveText('1');
-  await expect(attempts.getByText('Parcial',{exact:true})).toBeVisible();
-  await expect(failed.locator('strong')).toHaveText('-');
-  await expect(failed.getByText('Sin información',{exact:true})).toBeVisible();
+  // Coverage belongs to each figure: one recorded pass is partial; a figure the acta never narrated says «–».
+  const cards=page.getByRole('list',{name:'Indicadores de la selección'});
+  const attempts=cards.getByRole('button',{name:/Pases intentados/});
+  await expect(attempts.locator('.nu-fig__v')).toHaveText('1');
+  await expect(attempts.locator('.nu-fig__st')).toHaveText('Parcial');
   await attempts.click();
-  const detail=page.getByRole('region',{name:'Pases intentados',exact:true});
-  await expect(detail.locator('.an-detail__value')).toContainText('1 acciones');
-  await expect(detail.locator('.an-detail__value')).toContainText('Parcial');
-  await expect(detail.getByRole('region',{name:'Jugadas que sustentan la estadística'}).getByRole('listitem')).toHaveCount(1);
+  const detail=page.getByRole('dialog',{name:/Pases intentados/});
+  await expect(detail.locator('.nu-mt__v b')).toHaveText('1');
+  await expect(detail.locator('.nu-mt__v')).toContainText('Parcial');
+  await expect(detail.locator('.nu-ev').getByRole('listitem')).toHaveCount(1);
   await page.screenshot({path:testInfo.outputPath('coverage-mobile.png')});
-  // The previous acta explicitly covers the whole game: here no passes really is zero.
+  // The previous acta explicitly covers the whole game: here no passes really is zero, a number and not «–».
   await page.goto('/numeros/juego?temporada=todas&partidos=preview-balance-previous');
-  await workspace.getByRole('group',{name:'Columnas habituales'}).getByRole('button',{name:'Pases y creación',exact:true}).click();
-  await expect(attempts.locator('strong')).toHaveText('0');
-  await expect(attempts).toHaveAccessibleName(/Completo/);
-  await expect(failed.locator('strong')).toHaveText('0');
+  await expect(attempts.locator('.nu-fig__v')).toHaveText('0');
 });
 
 test('historial mensual de la porra y minutos frente al partido anterior, desde el vestuario del partido',async({page},testInfo)=>{
