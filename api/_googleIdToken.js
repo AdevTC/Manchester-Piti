@@ -6,12 +6,17 @@ import { createPublicKey, verify } from "node:crypto";
 const CERTS = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 const KEYS_FOR_MS = 60 * 60_000;
+/** A key the set doesn't have fetches it again at most this often (Google rotates its keys; a made-up one
+ *  mustn't make every call fetch them). */
+const MISS_REFETCH_MS = 60_000;
 let keys = null;
 
-/** Google's key `kid` (as a JWK), from its published set, fetched again when it's an hour old or misses one. */
+/** Google's key `kid` (as a JWK), from its published set: fetched again when it's an hour old, or (at most once a
+ *  minute) when it lacks the one asked for. */
 async function googleKey(kid) {
-  const fresh = keys && Date.now() - keys.at < KEYS_FOR_MS;
-  if (!fresh || !keys.byKid.has(kid)) {
+  const now = Date.now();
+  const fresh = keys && now - keys.at < KEYS_FOR_MS;
+  if (!fresh || (!keys.byKid.has(kid) && now - keys.at >= MISS_REFETCH_MS)) {
     const res = await fetch(CERTS, { signal: AbortSignal.timeout(5_000) });
     if (!res.ok) throw new Error(`google certs ${res.status}`);
     const { keys: list } = await res.json();
