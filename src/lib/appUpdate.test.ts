@@ -92,30 +92,27 @@ describe("startAppUpdates", () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
-  it("the next navigation to another page loads it from the new version, after the history entry", () => {
+  it("a stale page keeps moving between pages without reloading (the previous deploy's chunks stay reachable)", () => {
     const { sw, reload } = start();
     touch();
     sw.takeOver();
-    navigate({ pathChanged: false }); // a search or tab change on the same page: nothing
+    navigate({ pathChanged: false });
+    navigate({ pathChanged: true });
     vi.runOnlyPendingTimers();
     expect(reload).not.toHaveBeenCalled();
-    navigate({ pathChanged: true });
-    expect(reload).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(0);
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(appUpdate.get()).toBe(true);
   });
 
-  it("never reloads on a navigation while a write is in flight", () => {
+  it("never switches while a write is in flight, even when the tab goes to the background", () => {
     let busy = true;
     const { sw, reload } = start({ busy: () => busy });
     touch();
     sw.takeOver();
-    navigate({ pathChanged: true });
-    vi.runOnlyPendingTimers();
+    setVisibility("hidden");
     expect(reload).not.toHaveBeenCalled();
     busy = false;
-    navigate({ pathChanged: true });
-    vi.runOnlyPendingTimers();
+    setVisibility("visible");
+    setVisibility("hidden");
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
@@ -138,7 +135,7 @@ describe("startAppUpdates", () => {
     expect(second.reload).toHaveBeenCalledTimes(1);
   });
 
-  it("la mesa never switches by itself, but leaving it does", () => {
+  it("la mesa never switches by itself, but the tab hidden after leaving it does", () => {
     router.state.location.pathname = "/partidos/m1/mesa";
     const { sw, reload } = start();
     sw.takeOver(); // untouched, just opened: still held
@@ -146,8 +143,11 @@ describe("startAppUpdates", () => {
     setVisibility("visible");
     expect(reload).not.toHaveBeenCalled();
     expect(appUpdate.get()).toBe(true);
+    router.state.location.pathname = "/partidos";
     navigate({ pathChanged: true });
     vi.advanceTimersByTime(0);
+    expect(reload).not.toHaveBeenCalled();
+    setVisibility("hidden");
     expect(reload).toHaveBeenCalledTimes(1);
   });
 

@@ -6,8 +6,8 @@
 // app re-asserts it on boot (reassertPush) — also when the session changes, so a signed-out device stops
 // carrying the member's uid.
 import { useCallback, useSyncExternalStore } from "react";
-import { httpsCallable } from "firebase/functions";
-import { auth, functions, FUNCTIONS_REGION } from "../firebase";
+import { firebaseNow, lazyCallable } from "./fb";
+import { FUNCTIONS_REGION } from "../firebaseRegion";
 import { presetOf, presetTopics, TOPICS_VERSION, type PushChoice, type PushPreset } from "../../functions/src/pushPresets";
 import { isMatchTopic, type MatchTopic } from "../../functions/src/pushMatchTopics";
 import { capPause, type PauseKind } from "../../functions/src/pushPauseLogic";
@@ -60,7 +60,7 @@ interface SubscribeAnswer {
   /** Whether the server still had this device before this call. */
   known?: boolean;
 }
-const subscribeCall = httpsCallable<{ subscription: PushSubscriptionJSON; topics: Topic[]; vibrate?: boolean; v?: number; resetMatches?: boolean }, SubscribeAnswer>(functions, "pushSubscribe");
+const subscribeCall = lazyCallable<{ subscription: PushSubscriptionJSON; topics: Topic[]; vibrate?: boolean; v?: number; resetMatches?: boolean }, SubscribeAnswer>("pushSubscribe");
 /** «Vibrar con los goles» on this device ("1"; off by default). */
 const VIBRATE_KEY = "piti-push-vibrate";
 /** Left by the service worker when a notice's «Solo goles» button changed this device's topics. */
@@ -127,7 +127,8 @@ const keyBytes = (base64: string) => {
 };
 
 /** This browser's session: the signed-in uid, "" signed out. */
-const session = (): string => auth.currentUser?.uid ?? "";
+// (signed out until Firebase is in: lib/fb)
+const session = (): string => firebaseNow()?.auth.currentUser?.uid ?? "";
 
 async function swCache(): Promise<Cache | null> {
   try {
@@ -406,7 +407,7 @@ async function syncFromWorker(): Promise<void> {
  */
 export async function setPushPreset(preset: PushPreset, vibrate: boolean): Promise<Topic[]> {
   write(VIBRATE_KEY, vibrate ? "1" : "0");
-  const topics = presetTopics(preset, savedTopics(), !!auth.currentUser) as Topic[];
+  const topics = presetTopics(preset, savedTopics(), !!firebaseNow()?.auth.currentUser) as Topic[];
   return setTopics(topics, { resetMatches: true });
 }
 
@@ -494,7 +495,7 @@ export function pushChoiceOf(key: string): { topics: Topic[]; matches: Record<st
   return { topics: topicsOf(typeof t === "string" ? t : null), matches: matchTopicsOf(typeof m === "string" ? m : null) };
 }
 
-const matchCall = httpsCallable<{ endpoint: string; keys?: { p256dh: string; auth: string }; matchId: string; topics: MatchTopic[] | null }, { matchTopics: Record<string, MatchTopic[]>; kept: boolean }>(functions, "pushSetMatchTopics");
+const matchCall = lazyCallable<{ endpoint: string; keys?: { p256dh: string; auth: string }; matchId: string; topics: MatchTopic[] | null }, { matchTopics: Record<string, MatchTopic[]>; kept: boolean }>("pushSetMatchTopics");
 
 /**
  * Chooses this device's notices for one match (`null`: drop the choice, its global topics decide again).
@@ -548,7 +549,7 @@ function pauseOf(stored: string | null, now: number): PushPause | null {
   }
 }
 
-const pauseCall = httpsCallable<{ endpoint: string; until: number | null }, { pausedUntil: number | null }>(functions, "pushSetPause");
+const pauseCall = lazyCallable<{ endpoint: string; until: number | null }, { pausedUntil: number | null }>("pushSetPause");
 
 /** The pause this device keeps, sent again for `endpoint` (a renewed subscription is a new doc on the server,
  *  without `pausedUntil`). Best effort: the next reassert tries again. */

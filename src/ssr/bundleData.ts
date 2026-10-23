@@ -1,8 +1,43 @@
-// Reads the public data bundle (functions/src/bundle.ts) on the server, without a Firestore client:
-// the format is a sequence of `<byte length><JSON element>`; documents carry their values in
-// Firestore's typed JSON. Decoded to what the SDK's snapshot.data() returns (Timestamp included),
-// so the app's own mappers turn them into exactly the cache the browser builds.
-import { Timestamp } from "firebase/firestore";
+// Reads the public data bundle (functions/src/bundle.ts) without a Firestore client — on the server, and in
+// the browser before Firebase has loaded (lib/publicSeed): the format is a sequence of `<byte length><JSON
+// element>`; documents carry their values in Firestore's typed JSON. Decoded to what the SDK's snapshot.data()
+// returns (a timestamp with the SDK Timestamp's own reading methods), so the app's own mappers turn them into
+// exactly the cache the listeners build.
+
+/** A Firestore timestamp as the mappers read it (seconds, toMillis, toDate…), without the SDK. */
+export class BundleTimestamp {
+  readonly seconds: number;
+  readonly nanoseconds: number;
+  constructor(seconds: number, nanoseconds: number) {
+    this.seconds = seconds;
+    this.nanoseconds = nanoseconds;
+  }
+  static fromDate(d: Date): BundleTimestamp {
+    const ms = d.getTime();
+    const seconds = Math.floor(ms / 1000);
+    return new BundleTimestamp(seconds, Math.floor((ms - seconds * 1000) * 1e6));
+  }
+  toMillis(): number {
+    return this.seconds * 1000 + this.nanoseconds / 1e6;
+  }
+  toDate(): Date {
+    return new Date(this.toMillis());
+  }
+  isEqual(other: { seconds: number; nanoseconds: number }): boolean {
+    return other.seconds === this.seconds && other.nanoseconds === this.nanoseconds;
+  }
+  valueOf(): string {
+    // (the SDK's own: comparable as a string, so <, > and sort work as on a real Timestamp)
+    const adjusted = this.seconds - -62135596800;
+    return String(adjusted).padStart(12, "0") + "." + String(this.nanoseconds).padStart(9, "0");
+  }
+  toString(): string {
+    return `Timestamp(seconds=${this.seconds}, nanoseconds=${this.nanoseconds})`;
+  }
+  toJSON(): { seconds: number; nanoseconds: number; type: string } {
+    return { seconds: this.seconds, nanoseconds: this.nanoseconds, type: "firestore/timestamp/1.0" };
+  }
+}
 
 type Json = Record<string, unknown>;
 export interface BundleDoc {
@@ -19,10 +54,10 @@ export interface PublicBundle {
 
 const seconds = (v: unknown) => Number(typeof v === "object" && v ? (v as Json).seconds : 0);
 
-function timestamp(v: unknown): Timestamp {
-  if (typeof v === "string") return Timestamp.fromDate(new Date(v));
+function timestamp(v: unknown): BundleTimestamp {
+  if (typeof v === "string") return BundleTimestamp.fromDate(new Date(v));
   const o = v as Json;
-  return new Timestamp(seconds(o), Number(o.nanos ?? 0));
+  return new BundleTimestamp(seconds(o), Number(o.nanos ?? 0));
 }
 
 export function decodeValue(v: Json): unknown {
@@ -73,7 +108,7 @@ export function parseBundle(bytes: Uint8Array): PublicBundle {
   return { queries, docs };
 }
 
-const millis = (v: unknown) => (v instanceof Timestamp ? v.toMillis() : 0);
+const millis = (v: unknown) => (v instanceof BundleTimestamp ? v.toMillis() : 0);
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 

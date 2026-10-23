@@ -53,6 +53,10 @@ const ROUTE_CHUNKS: [RegExp, string][] = [
 ]
 // Same map, as JSON for the server render's shell (scripts/ssr-shell.mjs): which files each route needs.
 let routeAssets: (readonly [string, string[]])[] = []
+// The entry's own graph (what every page loads first): with routeAssets, what the service worker precaches.
+let bootAssets: string[] = []
+// Pages for members only that the service worker caches on first use instead of precaching (la mesa).
+const PRIVATE_ROUTES = new Set<string>([String.raw`^\/partidos\/[^/]+\/mesa\/?$`])
 const preloadRouteChunk = (): Plugin => ({
   name: 'preload-route-chunk',
   apply: 'build',
@@ -85,6 +89,7 @@ const preloadRouteChunk = (): Plugin => ({
       // The HTML already loads the entry and everything it imports: only add the page's own files.
       const entry = chunks.find((c) => c.isEntry)
       const loaded = entry ? graph(entry) : new Set<string>()
+      bootAssets = [...loaded].map((f) => '/' + f)
       const files = (route: (typeof chunks)[number]) => [...graph(route, loaded)].filter((f) => !loaded.has(f)).map((f) => '/' + f)
       const map = ROUTE_CHUNKS.flatMap(([re, src]) => {
         const chunk = chunks.find((c) => c.isDynamicEntry && c.facadeModuleId?.replace(/\\/g, '/').endsWith(src))
@@ -187,6 +192,21 @@ export default defineConfig(({ isSsrBuild }) => ({
         // Not precached: latin-ext faces (only fetched for rare letters), the 3D assets (runtime cache
         // below) and the admin-only screens.
         globIgnores: ['**/*-latin-ext-*', 'models/**', 'assets/AdminHub-*', 'assets/ContentEditor-*'],
+        // Precached: the shell, what every page boots with and the public pages' own files (their graphs, as
+        // the HTML preloads them). Everything else in /assets/ (admin, pizarra, la mesa, the 3D scene…) is cached
+        // the first time it is used (runtime cache below): a first visit no longer downloads ~2.5 MB of screens it
+        // may never open, and a hashed file never changes, so the runtime copy is as good.
+        manifestTransforms: [
+          (entries) => {
+            const keep = new Set<string>(bootAssets)
+            for (const [re, files] of routeAssets) if (!PRIVATE_ROUTES.has(re)) for (const f of files) keep.add(f)
+            const manifest = entries.filter((e) => {
+              const url = '/' + e.url.replace(/^\//, '')
+              return !url.startsWith('/assets/') || keep.has(url) || url.endsWith('.woff2')
+            })
+            return { manifest, warnings: [] }
+          },
+        ],
         // The three.js chunk is ~590 KB minified: above Workbox's 2 MiB default it would be skipped silently.
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         cleanupOutdatedCaches: true,
@@ -202,6 +222,13 @@ export default defineConfig(({ isSsrBuild }) => ({
         // Served by Cloud Functions through vercel.json rewrites: never answer them with the SPA.
         navigateFallbackDenylist: [/^\/calendario\.ics/, /^\/compartir\//, /^\/social\//, /^\/__\//, /^\/datos\//, /^\/api\//],
         runtimeCaching: [
+          {
+            // Every hashed file not precached, on first use. Kept across deploys (cleanupOutdatedCaches only
+            // clears the precache): a tab still on the previous version finds its own chunks here.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'piti-assets', expiration: { maxEntries: 400, maxAgeSeconds: 30 * 24 * 3600 } },
+          },
           {
             // Public data bundle: the last copy at once on repeat visits, a fresh one fetched behind it.
             urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname === '/datos/club.bundle',

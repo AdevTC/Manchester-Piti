@@ -100,7 +100,10 @@ function getSnapshot(): ThemeState {
   if (!listeners.size) sync(compute());
   return state;
 }
-const getServerSnapshot = (): ThemeState => state;
+// The server always paints «Día»: React takes a server-rendered page over with that too (then re-renders with
+// the stored choice), so nothing of the markup is left unmatched.
+const SERVER_STATE: ThemeState = { pref: "light", theme: "light" };
+const getServerSnapshot = (): ThemeState => SERVER_STATE;
 
 /** Sets «Día» (light), «Noche» (dark) or «Sistema»; applied to <html data-theme> at once and kept. */
 export function setThemePref(pref: ThemePref): void {

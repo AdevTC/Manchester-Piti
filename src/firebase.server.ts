@@ -1,6 +1,7 @@
 // Server-render stand-in for ./firebase (swapped in by the SSR build, vite.config.ts). The server
 // never reads or listens: it renders from the data bundle (src/ssr/bundleData.ts). The app's modules
 // only need SDK instances to build queries and callables at import time, without browser storage.
+import { FUNCTIONS_REGION } from "./firebaseRegion";
 import { initializeApp } from "firebase/app";
 import { getFunctions } from "firebase/functions";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
@@ -14,7 +15,7 @@ const app = initializeApp({
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 });
-export const FUNCTIONS_REGION = "europe-southwest1";
+export { FUNCTIONS_REGION };
 export const functions = getFunctions(app, FUNCTIONS_REGION);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

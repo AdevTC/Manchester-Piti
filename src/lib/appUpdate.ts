@@ -9,8 +9,9 @@
 //
 // So: the page asks for a new sw.js when the tab comes back, every half hour and on navigations; when a new
 // worker takes over a page that was already controlled, the page is stale and moves to the new version at a
-// safe moment: the next navigation to another page (a full load of the destination), the tab going to the
-// background, or a page just opened or brought back and not touched yet. Never while a field is being
+// safe moment: the tab going to the background, or a page just opened or brought back and not touched yet.
+// Moving between pages meanwhile never reloads: each deploy keeps the previous deploys' hashed files
+// (scripts/keep-assets.mjs) and the worker caches them on use, so the old version still finds its chunks. Never while a field is being
 // filled, a dialog is open or a write is in flight, nor on la mesa, the admin or the pizarra (live scoring
 // and unsaved boards). Meanwhile UpdateNotice offers «Hay una versión nueva · Actualizar».
 
@@ -152,15 +153,11 @@ export function startAppUpdates(o: UpdateOptions): () => void {
   const every = win.setInterval(() => doc.visibilityState === "visible" && check(), CHECK_EVERY_MS);
   offs.push(() => win.clearInterval(every));
 
-  // A navigation to another page: the stale page lets the browser load the destination from the new
-  // version. The history entry is written in a microtask (TanStack history), so reload after it.
+  // A navigation to another page asks for a new worker now and then; a stale page keeps going (no blank
+  // reload on a tap) and switches when the tab is hidden or brought back untouched.
   offs.push(
     o.router.subscribe("onBeforeNavigate", ({ pathChanged }) => {
-      if (!pathChanged) return;
-      if (stale && !o.busy()) {
-        switching = true;
-        win.setTimeout(reload, 0);
-      } else check(NAV_CHECK_GAP_MS);
+      if (pathChanged && !stale) check(NAV_CHECK_GAP_MS);
     }),
   );
 

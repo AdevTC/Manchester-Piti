@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { loadFirebase } from "../../../lib/fb";
 
 // «Voy · Duda · No puedo»: the shared convocatoria control. The real write (vestuario/writes.ts) runs on
 // a stubbed Firestore, so the test sees the exact document and payload it sends.
@@ -31,6 +32,9 @@ beforeEach(() => {
   fs.setDoc.mockResolvedValue(undefined);
   auth.signedIn = true;
 });
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 it("open: three answers, the current one checked (and with a tick), one tab stop", () => {
   render(<RsvpSwitch match={MATCH} now={NOW} answer="maybe" id="vx-rsvp" />);

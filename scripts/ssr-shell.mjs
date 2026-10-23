@@ -4,7 +4,8 @@
 // - the page's own stylesheets go in the head (<!--ssr-head-->), so the markup arrives styled;
 // - the JavaScript starts after the first paint (the markup needs none to be seen), so the page's CSS
 //   and fonts get the connection first; with a URL or saved season the server can't know about, the
-//   markup is dropped and the app boots exactly as from the shell.
+//   markup is dropped and the app boots exactly as from the shell;
+// - the data bundle comes inside the page (api/render.js), so the shell's preload of it is left out.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 
 const shell = readFileSync("dist/shell.html", "utf8");
@@ -19,8 +20,9 @@ const entry = take(/<script type="module" crossorigin src="([^"]+)"><\/script>/g
 const preloads = take(/<link rel="modulepreload" crossorigin href="([^"]+)">/g);
 const routePreload = take(/<script>(\(function\(\)\{var p=location\.pathname[\s\S]*?)<\/script>/g);
 const registerSw = take(/<script id="vite-plugin-pwa:register-sw" src="([^"]+)" defer(?:="")?><\/script>/g);
-if (entry.values.length !== 1 || !shell.includes('<div id="root"></div>')) {
-  throw new Error("ssr-shell: shell.html no longer has the expected entry script / root");
+const bundlePreload = take(/<link rel="preload" href="\/datos\/club\.bundle"[^>]*>\s*/g);
+if (entry.values.length !== 1 || bundlePreload.tags.length !== 1 || !shell.includes('<div id="root"></div>')) {
+  throw new Error("ssr-shell: shell.html no longer has the expected entry script / bundle preload / root");
 }
 
 const boot = `(function(){var d=document.documentElement,r=document.getElementById("root"),s;
@@ -36,7 +38,7 @@ try{new PerformanceObserver(function(l){if(l.getEntriesByName("first-contentful-
 setTimeout(go,1500)})()`;
 
 let template = shell;
-for (const tag of [...entry.tags, ...preloads.tags, ...routePreload.tags, ...registerSw.tags]) template = template.replace(tag, "");
+for (const tag of [...entry.tags, ...preloads.tags, ...routePreload.tags, ...registerSw.tags, ...bundlePreload.tags]) template = template.replace(tag, "");
 template = template
   .replace(/<html([^>]*)>/, "<html$1 data-ssr>")
   .replace("</head>", "<!--ssr-head--></head>")

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/ssr-shell.mjs",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/ssr-shell.mjs && node scripts/keep-assets.mjs",
     "lint": "oxlint --disable-nested-config",
     "test": "vitest run",
     "preview": "vite preview",

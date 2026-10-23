@@ -2,7 +2,8 @@
 // renewed subscription at most once a day, a stale session (signed out, another account) at once, the
 // service worker's own re-subscription at once, and all-well once a week (to learn whether the server
 // dropped it); setTopics remembers what the server accepted and leaves the service worker what it needs.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadFirebase } from "./fb";
 
 const h = vi.hoisted(() => ({ call: vi.fn(), auth: { currentUser: null as { uid: string } | null } }));
 vi.mock("firebase/functions", () => ({ httpsCallable: () => h.call }));
@@ -85,6 +86,9 @@ const registered = (endpoint = "https://push.test/a", topics: string[] = ["goals
   localStorage.setItem("piti-push-checked", String(T0));
   localStorage.setItem("piti-push-accepted", "1");
 };
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 describe("reassertDue: when the boot check re-tells the server", () => {
   const due = (o: Partial<ReassertInput>) =>
