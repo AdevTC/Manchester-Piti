@@ -157,7 +157,7 @@ export function VestuarioDoor() {
                         La porra, el MVP y tu carta
                       </li>
                     </ul>
-                    {door.inside !== null && <p className="cb-inside__n">{door.inside} compañeros ya tienen acceso. Quién va y quién no, solo dentro.</p>}
+                    {door.inside !== null && <p className="cb-inside__n">{door.inside === 1 ? "1 compañero ya tiene" : `${door.inside} compañeros ya tienen`} acceso. Quién va y quién no, solo dentro.</p>}
                   </div>
                 </>
               )}
