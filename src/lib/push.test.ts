@@ -173,6 +173,20 @@ describe("reassertPush on app boot", () => {
     expect(subscribe).not.toHaveBeenCalled();
     expect(sent()[0]).toEqual({ subscription: current.toJSON(), topics: ["start"] });
   });
+  it("a renewed subscription gets this device's pause again (a new endpoint is a new doc, without it)", async () => {
+    registered("https://push.test/old", ["goals"]);
+    localStorage.setItem("piti-push-pause", JSON.stringify({ until: T0 + DAY + 3600_000, kind: "1h" }));
+    current = fakeSub("https://push.test/renewed");
+    expect(await reassertPush(T0 + DAY)).toBe("ok");
+    expect(h.call.mock.calls.at(-1)?.[0]).toEqual({ endpoint: "https://push.test/renewed", until: T0 + DAY + 3600_000 });
+  });
+  it("the same endpoint, already known: no pause call", async () => {
+    registered("https://push.test/a", ["goals"]);
+    localStorage.setItem("piti-push-pause", JSON.stringify({ until: T0 + WEEK + 3600_000, kind: "1h" }));
+    current = fakeSub("https://push.test/a");
+    await reassertPush(T0 + WEEK);
+    expect(h.call.mock.calls.some((c) => "until" in (c[0] as object))).toBe(false);
+  });
   it("signed out: at once, without the personal topics (so the server drops the uid and them)", async () => {
     registered("https://push.test/a", ["goals", "convocatoria", "door"]);
     h.auth.currentUser = null;

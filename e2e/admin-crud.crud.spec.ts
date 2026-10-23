@@ -26,7 +26,8 @@ test("Google permite votar una vez por cuenta y cambiar el voto", async ({
 // Convocatoria · Acta · Publicar) → the calendar, a draft, the acta and the publish peak ──
 async function openPartidos(page: Page) {
   await enterVestuario(page);
-  await page.getByRole("link", { name: /Administrar el club/ }).click();
+  // (the vestuario's «Modo capitán» strip links to the Sala de control)
+  await page.getByRole("link", { name: "Sala de control" }).click();
   await page
     .getByRole("navigation", { name: "Sala de control" })
     .getByRole("link", { name: /^Partidos/ })

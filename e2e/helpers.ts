@@ -5,9 +5,8 @@ export async function enterVestuario(page: Page) {
   await page
     .getByRole("button", { name: "Google de prueba · Solo emulador" })
     .click();
-  await expect(
-    page.getByRole("link", { name: /Administrar el club/ }),
-  ).toBeVisible();
+  // (inside: the seeded admin is a captain, and the vestuario's «Modo capitán» links to the Sala de control)
+  await expect(page.getByRole("link", { name: "Sala de control" })).toBeVisible();
 }
 
 // ── Emulator-only fixtures (demo project, loopback): a spec sets up the state it needs itself. ──

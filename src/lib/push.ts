@@ -10,7 +10,7 @@ import { httpsCallable } from "firebase/functions";
 import { auth, functions, FUNCTIONS_REGION } from "../firebase";
 import { presetOf, presetTopics, TOPICS_VERSION, type PushChoice, type PushPreset } from "../../functions/src/pushPresets";
 import { isMatchTopic, type MatchTopic } from "../../functions/src/pushMatchTopics";
-import type { PauseKind } from "../../functions/src/pushPauseLogic";
+import { capPause, type PauseKind } from "../../functions/src/pushPauseLogic";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
 export type Topic = "start" | "goals" | "cards" | "final" | "mvp" | "dates" | "lineup" | "tabla" | DoorTopic | "convocatoria";
@@ -343,8 +343,11 @@ export function reassertPush(now: number = Date.now()): Promise<ReassertResult> 
         await sub.unsubscribe();
         const fresh = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) });
         await register(fresh, topics, true);
+        await reapplyPause(fresh.endpoint, now);
         return "renewed";
       }
+      // (a new endpoint, or a doc the server re-created, starts without the pause this device keeps)
+      if (registered !== sub.endpoint || answer.known === false) await reapplyPause(sub.endpoint, now);
       return "ok";
     } catch {
       return "failed";
@@ -547,12 +550,22 @@ function pauseOf(stored: string | null, now: number): PushPause | null {
 
 const pauseCall = httpsCallable<{ endpoint: string; until: number | null }, { pausedUntil: number | null }>(functions, "pushSetPause");
 
+/** The pause this device keeps, sent again for `endpoint` (a renewed subscription is a new doc on the server,
+ *  without `pausedUntil`). Best effort: the next reassert tries again. */
+async function reapplyPause(endpoint: string, now: number): Promise<void> {
+  const pause = savedPause(now);
+  if (!pause) return;
+  await pauseCall({ endpoint, until: capPause(pause.until, now) }).catch(() => undefined);
+}
+
 /**
  * Pauses this device until `pause.until` (null: resume now). The server keeps it on the device's subscription (a
  * week at most, clamped there) and sendTo skips the device meanwhile; a device the server doesn't have gets
  * nothing anyway, so the choice is only kept here. Resolves to the pause kept.
  */
-export async function setPushPause(pause: PushPause | null): Promise<PushPause | null> {
+export async function setPushPause(asked: PushPause | null): Promise<PushPause | null> {
+  // (a week at most, as the server keeps it: «Hasta después del partido» of a far match, a clock running ahead)
+  const pause = asked ? { ...asked, until: capPause(asked.until, Date.now()) } : null;
   let kept = pause;
   const reg = typeof navigator !== "undefined" && "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : undefined;
   const sub = reg && "pushManager" in reg ? await reg.pushManager.getSubscription() : null;
