@@ -33,6 +33,15 @@ describe("deviceGets", () => {
     // the global switches keep it on «start»
     expect(deviceGets({ preset: "custom" }, half, "j8")).toBe(true);
   });
+  it("so does the 2ª parte: a sheet with everything off lets nothing of the match through", () => {
+    const base = { rival: "MAD SKY", status: "scheduled", version: 2, date: NOW - 60 * 60_000 };
+    const [second] = noticesFor("j8", { ...base, clock: { phase: "halftime" } }, { ...base, clock: { phase: "second" } }, () => "", NOW);
+    expect(second).toMatchObject({ title: "Arranca la 2ª parte", topic: "start", matchTopic: "final" });
+    expect(deviceGets({ preset: "todo", matchTopics: { j8: ["final"] } }, second, "j8")).toBe(true);
+    // (what was left of a choice made before the kick-off: «start» no longer brings the 2ª parte)
+    expect(deviceGets({ preset: "todo", matchTopics: { j8: ["start", "mvp", "dates", "lineup"] } }, second, "j8")).toBe(false);
+    expect(deviceGets({ preset: "custom" }, second, "j8")).toBe(true);
+  });
   it("personal, door and convocatoria notices never look at the overrides", () => {
     expect(deviceGets({ preset: "custom", matchTopics: { j8: [] } }, { topic: "personal" }, "j8")).toBe(true);
     expect(deviceGets({ preset: "goles", matchTopics: { j8: ["goals"] } }, { topic: "personal" }, "j8")).toBe(false);

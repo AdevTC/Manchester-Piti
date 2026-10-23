@@ -29,7 +29,7 @@ vi.mock("../../../lib/push", () => ({
 }));
 vi.mock("../../perfil/device", () => ({ pushSubscribed: async () => h.subscribed, watchPermission: () => () => undefined }));
 
-import { avisosView, notifyTopic, toggled, useAvisos } from "./avisos";
+import { avisosView, notifyTopic, toggled, useAvisos, withoutOver } from "./avisos";
 
 beforeEach(() => {
   h.state = "ready";
@@ -69,6 +69,15 @@ describe("avisosView", () => {
     expect(avisosView({ fase: "pendiente", rival: "x", topics: ["dates"], state: "ready" }).notifyOn).toBe(false);
     expect(toggled(["goals"], "dates", true)).toEqual(["goals", "dates"]);
     expect(toggled(["goals", "dates"], "goals", false)).toEqual(["dates"]);
+  });
+  it("once kicked off, «Cuando empiece» and «El siete oficial» leave what is saved (they show off)", () => {
+    const all = ["start", "goals", "cards", "final", "lineup", "mvp", "dates"] as const;
+    expect(withoutOver("antes", all)).toEqual([...all]);
+    expect(withoutOver("pitido", all)).toEqual([...all]);
+    expect(withoutOver("segunda", all)).toEqual(["goals", "cards", "final", "mvp", "dates"]);
+    expect(withoutOver("despues", ["start", "mvp"])).toEqual(["mvp"]);
+    // (an aplazado keeps its choice for the new date)
+    expect(withoutOver("aplazado", all)).toEqual([...all]);
   });
 });
 

@@ -5,7 +5,7 @@ import { enterVestuario } from "./helpers";
 // (a ficha claimed first if the account has none: a captain's claim links at once), «Tu nombre» (a shirt
 // name another player wears is refused; a free one is stamped on the card and «Deshacer» brings the old
 // one back), «Tu apodo» (lowercase, no accents or spaces as you type; saved and put back), the tabs by
-// keyboard (the #hash follows), Ajustes › Tema on <html data-theme>, the share studio (Diseño, Formato
+// keyboard (the address follows: /perfil/<tab>), Ajustes › Tema on <html data-theme>, the share studio (Diseño, Formato
 // and a real PNG download) and Cuenta › «Salir en este dispositivo» back to the door. Reduced motion, so
 // the walkout intro doesn't play; and no WebGL anywhere on the page (the card is CSS, the image 2D canvas).
 
@@ -88,18 +88,18 @@ test("el perfil: la carta, tu nombre, el apodo, las pestañas, el tema, comparti
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByText(`Guardado: ahora eres @${nickBefore}`)).toBeVisible({ timeout: 15_000 });
 
-  // ── the tabs by keyboard: → moves the tab and the #hash
+  // ── the tabs by keyboard: → moves the tab and the address
   const tabs = page.getByRole("tablist", { name: "Secciones de tu perfil" });
   await tabs.getByRole("tab", { name: /Tu carta/ }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(tabs.getByRole("tab", { name: /Temporada/ })).toHaveAttribute("aria-selected", "true");
   await expect(tabs.getByRole("tab", { name: /Temporada/ })).toBeFocused();
-  await expect(page).toHaveURL(/#temporada$/);
+  await expect(page).toHaveURL(/\/perfil\/temporada$/);
   await expect(page.getByRole("heading", { name: "Tus números" })).toBeVisible();
 
   // ── Ajustes › Tema: Día / Noche on <html data-theme>
   await tabs.getByRole("tab", { name: /Ajustes/ }).click();
-  await expect(page).toHaveURL(/#ajustes$/);
+  await expect(page).toHaveURL(/\/perfil\/ajustes$/);
   const theme = page.getByRole("group", { name: /^Tema: / });
   for (let i = 0; i < 3 && (await theme.getAttribute("aria-label")) !== "Tema: Día"; i++) await theme.getByRole("button", { name: "Tema: siguiente" }).click();
   await expect(theme).toHaveAttribute("aria-label", "Tema: Día");

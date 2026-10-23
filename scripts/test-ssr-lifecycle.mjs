@@ -71,12 +71,13 @@ await test("Tabla and Balance are their own server-rendered addresses; Jornadas 
     const page = async (path) => (await GET(new Request(`https://piti.test/api/render?p=${path}`))).text();
     const tabla = await page("/partidos/tabla");
     assert.ok(tabla.includes("data-ssr"), "must render actual page, not fallback shell");
-    assert.ok(tabla.includes("vp-panel--tabla is-on"), "the table is the vista the server paints");
+    // (the page's root names its screen: pa--jornadas, pa--tabla, pa--balance)
+    assert.ok(tabla.includes("pa pa--tabla"), "the table is the screen the server paints");
     assert.ok(tabla.includes("Rayo Norte"));
-    assert.ok((await page("/partidos/balance")).includes("vp-panel--numeros is-on"), "Balance is the vista the server paints");
+    assert.ok((await page("/partidos/balance")).includes("pa pa--balance"), "Balance is the screen the server paints");
     const jornadas = await page("/partidos");
     assert.ok(jornadas.includes("data-ssr"));
-    assert.ok(jornadas.includes("vp-panel--jornadas is-on"), "Jornadas at /partidos");
+    assert.ok(jornadas.includes("pa pa--jornadas"), "Jornadas at /partidos");
     for (const path of ["/numeros", "/numeros/jugadores", "/club/historia", "/plantilla/album"]) assert.ok((await page(path)).includes("data-ssr"), `${path} is server-rendered`);
     assert.ok(!(await page("/numeros/nada")).includes("data-ssr"), "an unknown screen gets the plain shell");
   } finally {
@@ -99,6 +100,9 @@ await test("the old addresses answer a permanent redirect with their parameters,
       ["p=/matches/j1", "/partidos/j1"],
       ["p=/matches/j1&tab=campo", "/partidos/j1/siete"],
       ["p=/matches/j1&tab=vestuario", "/partidos/j1/vestuario"],
+      // (as Vercel calls it: the rewrite also appends its named segments, never part of the new address)
+      ["p=/matches/j1&id=j1&tab=campo", "/partidos/j1/siete"],
+      ["p=/numeros/jugadores&path=jugadores&view=minutes", "/numeros/jugadores?ranking=minutos&ver=todo"],
     ]) {
       const response = await GET(new Request(`https://piti.test/api/render?${request}`));
       assert.equal(response.status, 308, request);
@@ -110,8 +114,8 @@ await test("the old addresses answer a permanent redirect with their parameters,
 });
 
 // The server render links the home's stylesheets with Inicio's before the kit's (.vd-scoreline's 150 px, .vd-score's
-// nowrap), so the lens's own score and word must outrank the kit's single class rather than tie with it: a tie put
-// «Pendiente del acta» on one line over both crests on a phone, and a 150 px score over the names.
+// line-height and letter-spacing), so the lens's own score, kick-off time and word must outrank the kit's single class
+// rather than tie with it: a tie put a 150 px score over the names on a phone.
 await test("the server-rendered home's lens score and word outrank the kit's rules whatever their stylesheets' order", async () => {
   const fetchBefore = globalThis.fetch;
   const bytes = bundle({ seasonId: "test", rival, date: Date.now() + 86400000, status: "scheduled", home: true });
@@ -124,8 +128,9 @@ await test("the server-rendered home's lens score and word outrank the kit's rul
     // (a selector's classes, attributes and pseudo-classes: the middle of its specificity)
     const classes = (selector) => (selector.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g) ?? []).length;
     for (const [cls, props] of [
-      ["vi-score", ["font-size"]],
-      ["vi-word__t", ["font-size", "line-height", "white-space", "letter-spacing"]],
+      ["in-score", ["font-size"]],
+      ["in-kick", ["font-size"]],
+      ["pp-word", ["font-size", "line-height", "letter-spacing"]],
     ]) {
       const named = new RegExp(`\\.${cls}(?![\\w-])`);
       const selectors = rules.flatMap(([, prelude, decls]) => (props.some((p) => new RegExp(`(?:^|;)\\s*${p}\\s*:`).test(decls)) ? prelude.split(",").filter((s) => named.test(s)) : []));
