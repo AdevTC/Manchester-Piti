@@ -1,7 +1,8 @@
-// Deletes the server-rendered pages (tag «club-html», api/render.js) from Vercel's CDN cache when the club's public
-// data changes: the project's Cloud Functions call it on every write (functions/src/htmlCache.ts). A Vercel
-// function purges its own project's cache without any token; the caller proves who it is with a Google identity
-// token of the functions' service account, so nobody else can empty the cache.
+// Deletes the server-rendered pages (tag «club-html», api/render.js) and the data bundle (tag «club-bundle»,
+// api/bundle.js) from Vercel's CDN cache when the club's public data changes: the project's Cloud Functions call it
+// on every write (functions/src/htmlCache.ts). A Vercel function purges its own project's cache without any token;
+// the caller proves who it is with a Google identity token of the functions' service account, so nobody else can
+// empty the cache.
 import { dangerouslyDeleteByTag } from "@vercel/functions";
 import { isGoogleIdToken } from "./_googleIdToken.js";
 
@@ -22,6 +23,6 @@ export async function POST(request) {
   if (!allowed) return new Response(null, { status: 401, headers: { "cache-control": "no-store" } });
   // (deleted, not marked stale: the next visit waits for a fresh render, so an archived or deleted match is never
   // served again, not even once)
-  await dangerouslyDeleteByTag("club-html");
+  await dangerouslyDeleteByTag(["club-html", "club-bundle"]);
   return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
 }

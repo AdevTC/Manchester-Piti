@@ -27,6 +27,7 @@ jobs:
       - run: node --test scripts/test-ssr-lifecycle.mjs
       - run: node scripts/check-boot.mjs
       - run: node --test scripts/test-purge.mjs
+      - run: node --test scripts/test-bundle.mjs
   unit:
     name: Unit ${{ matrix.shard }}/3
     runs-on: ubuntu-latest

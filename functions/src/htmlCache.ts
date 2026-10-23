@@ -1,6 +1,6 @@
 // The public pages are served from Vercel's CDN cache (api/render.js tags them «club-html»). When the public data
 // changes (a match, a player, a season, an MVP tally, the standings or the club's content), this asks the site to
-// delete them from the cache (api/purge.js): the next visit waits for a fresh render (as every visit did before the
+// delete them, and the data bundle they're painted from (api/bundle.js), from the cache (api/purge.js): the next visit waits for a fresh render (as every visit did before the
 // cache), so an archived or deleted match is never served again, not even once. The call carries an identity token
 // of this project's service account from Google's metadata server: no secret to share with Vercel. If it fails,
 // the pages refresh on their own within a minute.

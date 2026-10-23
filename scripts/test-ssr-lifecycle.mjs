@@ -35,11 +35,12 @@ await test("public HTML follows archive, deletion and restoration without servin
   const active = { seasonId: "test", rival, date: Date.now() + 86400000, status: "scheduled", home: true };
   let bytes = bundle(active);
   let requests = 0;
-  globalThis.fetch = async (url, options) => {
-    assert.equal(String(url), "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubBundle");
-    assert.equal(options?.cache, "no-store");
+  // (the render reads the bundle the browsers get, from the site's CDN: api/bundle.js, deleted with the pages on
+  // every write; each render asks again)
+  globalThis.fetch = async (url) => {
+    assert.equal(String(url), "https://piti.test/datos/club.bundle");
     requests++;
-    return new Response(bytes);
+    return new Response(bytes, { headers: { "content-type": "application/octet-stream" } });
   };
   try {
     for (const [match, visible] of [[active, true], [{ ...active, individuallyArchived: true }, false], [null, false], [active, true]]) {

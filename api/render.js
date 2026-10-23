@@ -7,7 +7,9 @@
 // or deleted matches cannot reappear in a cached page.
 // Any failure answers with the plain app shell: the page then boots exactly as without this.
 
-// The bundle function directly (Madrid, next to Firestore).
+// The bundle as the browsers get it, from Vercel's CDN (api/bundle.js: cached under «club-bundle», deleted with
+// the pages on every write), and the function itself when that can't answer (a protected preview deployment).
+const BUNDLE_PATH = "/datos/club.bundle";
 const BUNDLE_URL = "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubBundle";
 // The addresses rendered here (vite.config.ts SSR_PAGES says the same for `vite preview`): each screen of the
 // public pages. Anything else gets the plain shell and the browser renders it.
@@ -35,7 +37,13 @@ export function pageUrl(searchParams) {
   const search = query.toString();
   return { path, url: path, href: path + (search ? `?${search}` : "") };
 }
-async function bundle() {
+async function bundle(origin) {
+  try {
+    const cdn = await fetch(new URL(BUNDLE_PATH, origin), { signal: AbortSignal.timeout(8_000) });
+    if (cdn.ok && (cdn.headers.get("content-type") ?? "").includes("octet-stream")) return new Uint8Array(await cdn.arrayBuffer());
+  } catch {
+    /* the function, below */
+  }
   const response = await fetch(BUNDLE_URL, { cache: "no-store" });
   if (!response.ok) throw new Error(`bundle ${response.status}`);
   return new Uint8Array(await response.arrayBuffer());
@@ -73,7 +81,7 @@ export async function GET(request) {
     const to = server.legacyHref(href);
     if (to) return moved(to);
     if (!isPage(path)) throw new Error(`not a server-rendered page: ${path}`);
-    const [{ template, routes }, bytes] = await Promise.all([import("../dist-ssr/shell.js"), bundle()]);
+    const [{ template, routes }, bytes] = await Promise.all([import("../dist-ssr/shell.js"), bundle(new URL(request.url).origin)]);
     const { renderPage } = server;
     // (one instant for the whole page: its clocks read it, and the browser takes the page over at it too)
     const now = Date.now();
