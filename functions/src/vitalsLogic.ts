@@ -44,6 +44,8 @@ const device = z.object({
   /** the page arrived server-rendered; a service worker served it */
   ssr: z.boolean(),
   sw: z.boolean(),
+  /** navigator.webdriver: a browser driven by automation (a crawler, a test), left out of the report */
+  bot: z.boolean().optional(),
 });
 export type VitalDevice = z.infer<typeof device>;
 

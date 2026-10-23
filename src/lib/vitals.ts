@@ -104,6 +104,7 @@ export function deviceOf(nav: Navigator = navigator, win: Window = window, doc: 
     ...(n.connection?.effectiveType ? { net: n.connection.effectiveType.slice(0, 12) } : {}),
     ssr: doc.documentElement.hasAttribute("data-ssr"),
     sw: !!nav.serviceWorker?.controller,
+    ...(nav.webdriver ? { bot: true } : {}),
   };
 }
 

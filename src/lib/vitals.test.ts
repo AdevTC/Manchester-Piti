@@ -66,6 +66,12 @@ describe("the device is a class, never an identifier", () => {
     const doc = { documentElement: { hasAttribute: () => true } } as unknown as Document;
     expect(deviceOf(nav, win, doc)).toEqual({ os: "android", touch: true, w: 410, dpr: 2.63, mem: 4, cpu: 8, net: "4g", ssr: true, sw: true });
   });
+  it("marks a browser driven by automation", () => {
+    const nav = { userAgent: "Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/150", maxTouchPoints: 0, hardwareConcurrency: 4, webdriver: true } as unknown as Navigator;
+    const win = { innerWidth: 1280, devicePixelRatio: 1, matchMedia: () => ({ matches: false }) } as unknown as Window;
+    const doc = { documentElement: { hasAttribute: () => false } } as unknown as Document;
+    expect(deviceOf(nav, win, doc)).toMatchObject({ os: "other", bot: true });
+  });
 });
 
 describe("what the function accepts", () => {

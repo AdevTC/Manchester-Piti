@@ -23,9 +23,12 @@ const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10
 const snap = await db.collection("vitals").where("day", ">=", since).get();
 // (what visitors sent is printed: control characters out, whatever got stored)
 const clean = (v) => (typeof v === "string" ? [...v].filter((c) => { const k = c.charCodeAt(0); return k >= 0x20 && !(k >= 0x7f && k <= 0x9f); }).join("") : Array.isArray(v) ? v.map(clean) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [clean(k), clean(x)])) : v);
-const reports = snap.docs.map((d) => clean(d.data())).filter((r) => !touchOnly || r.d?.touch);
+// (browsers driven by automation — crawlers, tests — left out)
+const all = snap.docs.map((d) => clean(d.data()));
+const reports = all.filter((r) => !r.d?.bot && (!touchOnly || r.d?.touch));
+const bots = all.length - all.filter((r) => !r.d?.bot).length;
 const rows = reports.flatMap((r) => (r.m ?? []).map((m) => ({ ...m, d: r.d })));
-console.log(`${reports.length} visitas, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}\n`);
+console.log(`${reports.length} envíos, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}${bots ? ` (${bots} de robots fuera)` : ""}\n`);
 
 const p75 = (xs) => {
   if (!xs.length) return null;
