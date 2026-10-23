@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { loadFirebase } from "../../../lib/fb";
 import type { ClubMatch } from "../../../lib/clubData";
 
 // «Tu voto»: the shared MVP ballot. The real write (vestuario/writes.ts) runs on a stubbed Firestore, so
@@ -42,6 +43,9 @@ beforeEach(() => {
   fs.setDoc.mockResolvedValue(undefined);
   live.vote = "";
 });
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 it("open: one radio per player who played, most voted first, then by name", () => {
   render(ballot());

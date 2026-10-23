@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { beforeAll, describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { loadFirebase } from "./fb";
 import { createElement, type ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react";
 import type { QuerySnapshot, Query } from "firebase/firestore";
@@ -12,6 +13,10 @@ const onSnapshotMock = vi.fn();
 vi.mock("firebase/firestore", () => ({
   onSnapshot: (...args: unknown[]) => onSnapshotMock(...args),
 }));
+vi.mock("../firebase", () => ({ db: {} }));
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 describe("mapSnapshotDocs", () => {
   it("aplica el mapper a cada doc con su id", () => {

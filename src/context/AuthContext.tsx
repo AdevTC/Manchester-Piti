@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { type User, browserPopupRedirectResolver, getRedirectResult, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
-import { auth, googleProvider, db } from "../firebase";
+import type { User } from "firebase/auth";
+// (the session is known once Firebase is in, right after the first paint: lib/fb; until then «loading»)
+import { firebaseNow, loadFirebase, withFirebase, type Fb } from "../lib/fb";
 import { userProfileSchema } from "../lib/schemas";
 import { reportDroppedDoc } from "../lib/docTelemetry";
 import { reassertPush } from "../lib/push";
@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (PREVIEW) return;
     // The profile is live: an approved player claim or a role change shows up without reloading.
     let stopProfile: (() => void) | null = null;
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = withFirebase((fb) => fb.onAuthStateChanged(fb.auth, (currentUser) => {
       stopProfile?.();
       stopProfile = null;
       setUser(currentUser);
@@ -77,9 +77,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return;
       }
-      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocRef = fb.doc(fb.db, "users", currentUser.uid);
       const isSuperAdminEmail = currentUser.emailVerified && currentUser.email === "adriantomascv@gmail.com";
-      stopProfile = onSnapshot(
+      stopProfile = fb.onSnapshot(
         userDocRef,
         (userDoc) => {
           if (!userDoc.exists()) {
@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Force superadmin role in DB if logged in with superadmin email
           if (isSuperAdminEmail && data.role !== "superadmin") {
             data.role = "superadmin";
-            void setDoc(userDocRef, { role: "superadmin" }, { merge: true }).catch((error) =>
+            void fb.setDoc(userDocRef, { role: "superadmin" }, { merge: true }).catch((error) =>
               console.error("Error promoting superadmin:", error),
             );
           }
@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         },
       );
-    });
+    }));
 
     return () => {
       stopProfile?.();
@@ -131,13 +131,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
   useEffect(() => {
     if (!standalone()) return;
-    getRedirectResult(auth, browserPopupRedirectResolver).catch((error: unknown) => console.error("Google redirect failed:", error));
+    void loadFirebase()
+      .then((fb) => fb.getRedirectResult(fb.auth, fb.browserPopupRedirectResolver))
+      .catch((error: unknown) => console.error("Google redirect failed:", error));
   }, []);
+  // (the popup opens in the tap itself when Firebase is in, as it is by the time anyone taps «Entrar»: a
+  // browser blocks a popup opened after waiting for something)
+  const signIn = (fb: Fb) =>
+    standalone()
+      ? fb.signInWithRedirect(fb.auth, fb.googleProvider, fb.browserPopupRedirectResolver)
+      : fb.signInWithPopup(fb.auth, fb.googleProvider, fb.browserPopupRedirectResolver);
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
-      if (standalone()) await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
-      else await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
+      const fb = firebaseNow();
+      await (fb ? signIn(fb) : loadFirebase().then(signIn));
     } catch (error) {
       console.error("Google login failed:", error);
       setLoading(false);
@@ -148,7 +156,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setLoading(true);
     try {
-      await signOut(auth);
+      const fb = await loadFirebase();
+      await fb.signOut(fb.auth);
       // This device stops carrying the member's uid (and the personal topics) on the server at once.
       void reassertPush();
     } catch (error) {
@@ -167,8 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      const targetDocRef = doc(db, "users", targetUid);
-      await setDoc(targetDocRef, { role: newRole }, { merge: true });
+      const fb = await loadFirebase();
+      await fb.setDoc(fb.doc(fb.db, "users", targetUid), { role: newRole }, { merge: true });
       return true;
     } catch (error) {
       console.error("Error updating user role:", error);

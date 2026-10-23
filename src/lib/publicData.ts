@@ -2,9 +2,8 @@
 // SeasonContext, clubContent), the boot that waits for them before replacing server-rendered HTML
 // (main.tsx) and the server render (entry-server.tsx) all use the same keys, queries and mappers,
 // so the cache shape is identical wherever the data comes from.
-import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore";
 import type { QueryClient } from "@tanstack/react-query";
-import { db } from "../firebase";
+import { withFirebase, type Fb } from "./fb";
 import { mapMatch, mapMvp, mapPlayer, mapSeason, MVP_RESULTS_KEY } from "./firestoreMappers";
 import { subscribeShared } from "./useFirestoreCollection";
 import { DEFAULT_CONTENT, type ClubContent } from "./clubContentDefaults";
@@ -21,21 +20,24 @@ export { MVP_RESULTS_KEY };
 /** The league tables (`standings/{seasonId}`): public, in the bundle, so the position paints with the page. */
 export { STANDINGS_KEY };
 
-export const matchQuery = query(collection(db, "matches"), orderBy("date", "desc"));
-export const playerQuery = collection(db, "players");
-export const seasonQuery = query(collection(db, "seasons"), orderBy("name", "asc"));
-export const mvpQuery = collection(db, "mvpResults");
-export const standingsQuery = collection(db, "standings");
+// (built once Firebase is in: lib/fb, useFirestoreCollection QuerySource)
+export const matchQuery = (fb: Fb) => fb.query(fb.collection(fb.db, "matches"), fb.orderBy("date", "desc"));
+export const playerQuery = (fb: Fb) => fb.collection(fb.db, "players");
+export const seasonQuery = (fb: Fb) => fb.query(fb.collection(fb.db, "seasons"), fb.orderBy("name", "asc"));
+export const mvpQuery = (fb: Fb) => fb.collection(fb.db, "mvpResults");
+export const standingsQuery = (fb: Fb) => fb.collection(fb.db, "standings");
 
 /** The stored content over the defaults (its grounds read defensively: derived/venue parseVenues). */
 export const withDefaults = (data: Partial<ClubContent> | undefined): ClubContent => ({ ...DEFAULT_CONTENT, ...data, venues: parseVenues(data?.venues) });
 
 /** Live club content into the cache (DEFAULT_CONTENT when the document doesn't exist or can't be read). */
 export function subscribeClubContent(qc: Pick<QueryClient, "setQueryData">): () => void {
-  return onSnapshot(
-    doc(db, "clubContent", "main"),
-    (snap) => qc.setQueryData(CONTENT_KEY, withDefaults(snap.exists() ? (snap.data() as Partial<ClubContent>) : undefined)),
-    () => qc.setQueryData(CONTENT_KEY, (cur: ClubContent | undefined) => cur ?? DEFAULT_CONTENT),
+  return withFirebase((fb) =>
+    fb.onSnapshot(
+      fb.doc(fb.db, "clubContent", "main"),
+      (snap) => qc.setQueryData(CONTENT_KEY, withDefaults(snap.exists() ? (snap.data() as Partial<ClubContent>) : undefined)),
+      () => qc.setQueryData(CONTENT_KEY, (cur: ClubContent | undefined) => cur ?? DEFAULT_CONTENT),
+    ),
   );
 }
 

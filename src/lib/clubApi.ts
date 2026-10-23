@@ -1,5 +1,5 @@
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../firebase";
+// (each callable loads Firebase on its first call: lib/fb)
+import { lazyCallable } from "./fb";
 import type { MatchSheet } from "./clubData";
 import { withServerTime } from "./serverTime";
 import type { MatchGuest } from "./derived/guests";
@@ -12,24 +12,24 @@ export interface Who {
 export type InviteInfo =
   | { state: "valid"; by: string; expiresAt: number; playerId: string | null; playerName: string | null }
   | { state: "missing" | "expired" | "used" | "revoked"; problem: string };
-export const inviteInfo = httpsCallable<{ code: string }, InviteInfo>(functions, "inviteInfo");
-export const joinWithInvite = httpsCallable<Who & { code: string }, { nickname: string; linked: boolean }>(functions, "joinWithInvite");
-export const requestAccess = httpsCallable<Who, { status: "member" | "pending" }>(functions, "requestAccess");
-export const cancelAccessRequest = httpsCallable<void, { ok: boolean }>(functions, "cancelAccessRequest");
-export const createInvite = httpsCallable<{ playerId?: string; maxUses?: 0 | 1; days?: number }, { code: string; expiresAt: number }>(functions, "createInvite");
-export const revokeInvite = httpsCallable<{ code: string }, { ok: boolean }>(functions, "revokeInvite");
-export const resolveAccess = httpsCallable<{ uid: string; approve: boolean; playerId?: string }, { ok: boolean }>(functions, "resolveAccess");
-export const revokeMember = httpsCallable<{ uid: string }, { ok: boolean }>(functions, "revokeMember");
-export const doorShirts = httpsCallable<void, { taken: string[]; inside: number }>(functions, "doorShirts");
+export const inviteInfo = lazyCallable<{ code: string }, InviteInfo>("inviteInfo");
+export const joinWithInvite = lazyCallable<Who & { code: string }, { nickname: string; linked: boolean }>("joinWithInvite");
+export const requestAccess = lazyCallable<Who, { status: "member" | "pending" }>("requestAccess");
+export const cancelAccessRequest = lazyCallable<void, { ok: boolean }>("cancelAccessRequest");
+export const createInvite = lazyCallable<{ playerId?: string; maxUses?: 0 | 1; days?: number }, { code: string; expiresAt: number }>("createInvite");
+export const revokeInvite = lazyCallable<{ code: string }, { ok: boolean }>("revokeInvite");
+export const resolveAccess = lazyCallable<{ uid: string; approve: boolean; playerId?: string }, { ok: boolean }>("resolveAccess");
+export const revokeMember = lazyCallable<{ uid: string }, { ok: boolean }>("revokeMember");
+export const doorShirts = lazyCallable<void, { taken: string[]; inside: number }>("doorShirts");
 // Match/season cascades may use the backend's full nine-minute execution window.
 const lifecycleOptions = { timeout: 540_000 };
 /** Permanently removes a match, its drafts, events and associated participation/votes. Admin only. */
-export const deleteMatch = httpsCallable<{ id: string }, { ok: boolean }>(functions, "deleteMatch", lifecycleOptions);
+export const deleteMatch = lazyCallable<{ id: string }, { ok: boolean }>("deleteMatch", lifecycleOptions);
 /** Reversible exclusion from the calendar and statistics. Admin only. */
-export const setMatchArchived = httpsCallable<{ id: string; archived: boolean }, { ok: boolean }>(functions, "setMatchArchived", lifecycleOptions);
+export const setMatchArchived = lazyCallable<{ id: string; archived: boolean }, { ok: boolean }>("setMatchArchived", lifecycleOptions);
 /** Turnos «Hecho» (functions/src/rota.ts): the member's own turn of a match done (or taken back). */
-export const markTurnDone = httpsCallable<{ turnId: string; done: boolean }, { done: boolean }>(functions, "markTurnDone");
-export const savePrediction = httpsCallable<{ matchId: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] }, { ok: boolean }>(functions, "savePrediction");
+export const markTurnDone = lazyCallable<{ turnId: string; done: boolean }, { done: boolean }>("markTurnDone");
+export const savePrediction = lazyCallable<{ matchId: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] }, { ok: boolean }>("savePrediction");
 /** The one convocatoria (functions/src/convocatoria.ts): el siete + banquillo of a match; `notify` sends its push
  *  («Ya está la convocatoria» / once «Cambios en la convocatoria»). `at` = the `convocatoriaAt` it stamped. */
 export interface SetConvocatoriaInput {
@@ -52,31 +52,27 @@ export interface SetConvocatoriaResult {
    *  (Absent from a server older than this field.) */
   covered?: boolean;
 }
-export const setConvocatoria = httpsCallable<SetConvocatoriaInput, SetConvocatoriaResult>(functions, "setConvocatoria");
-export const saveMatchSheet = httpsCallable<
+export const setConvocatoria = lazyCallable<SetConvocatoriaInput, SetConvocatoriaResult>("setConvocatoria");
+export const saveMatchSheet = lazyCallable<
   { id: string; sheet: MatchSheet; draft: boolean; sources?: MatchSheet["narrationSources"] },
   { id: string }
->(functions, "saveMatchSheet");
-export const requestPlayerClaim = httpsCallable<{ playerId: string }, { ok: boolean; linked: boolean }>(
-  functions,
-  "requestPlayerClaim",
+>("saveMatchSheet");
+export const requestPlayerClaim = lazyCallable<{ playerId: string }, { ok: boolean; linked: boolean }>("requestPlayerClaim",
 );
-export const setSeasonArchived = httpsCallable<
+export const setSeasonArchived = lazyCallable<
   { seasonId: string; archived: boolean },
   { matches: number; players: number }
->(functions, "setSeasonArchived", lifecycleOptions);
-export const resolvePlayerClaim = httpsCallable<{
+>("setSeasonArchived", lifecycleOptions);
+export const resolvePlayerClaim = lazyCallable<{
   uid: string;
   approve: boolean;
-}>(functions, "resolvePlayerClaim");
-export const proposeTraining = httpsCallable<
+}>("resolvePlayerClaim");
+export const proposeTraining = lazyCallable<
   { slots: { at: number; end?: number; place: string }[]; note: string },
   { id: string }
->(functions, "proposeTraining");
-export const confirmTraining = httpsCallable<{ trainingId: string; slotId: string | null }>(functions, "confirmTraining");
-export const deleteTraining = httpsCallable<{ trainingId: string }>(
-  functions,
-  "deleteTraining",
+>("proposeTraining");
+export const confirmTraining = lazyCallable<{ trainingId: string; slotId: string | null }>("confirmTraining");
+export const deleteTraining = lazyCallable<{ trainingId: string }>("deleteTraining",
 );
 export function apiError(error: unknown) {
   const e = error as { code?: string; message?: string };
@@ -111,7 +107,7 @@ export type LiveEventRequest =
   | { action: "edit"; matchId: string; eventId: string; patch: { type?: LiveEventType; playerId?: string; assistPlayerId?: string; inPlayerId?: string; elapsedSeconds?: number; dupOk?: boolean } }
   | { action: "delete"; matchId: string; eventId: string }
   | { action: "undo" | "finish" | "reopen"; matchId: string; eventId?: string };
-const liveEventCall = withServerTime(httpsCallable<LiveEventRequest, { events: number; serverNow?: number }>(functions, "liveEvent"));
+const liveEventCall = withServerTime(lazyCallable<LiveEventRequest, { events: number; serverNow?: number }>("liveEvent"));
 /** An object without its `undefined` keys (same type: those keys are optional). */
 const defined = <T extends object>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 /** The Firebase SDK sends an `undefined` value as `null`, and the callable's zod `.optional()` refuses `null`
@@ -142,16 +138,16 @@ export type MesaEventRequest =
   | { action: "edit"; matchId: string; eventId: string; patch: MesaEventPatch }
   | { action: "delete"; matchId: string; eventId: string }
   | { action: "undo"; matchId: string; eventId: string };
-const mesaEventCall = withServerTime(httpsCallable<MesaEventRequest, { events: number; serverNow?: number }>(functions, "liveEvent"));
+const mesaEventCall = withServerTime(lazyCallable<MesaEventRequest, { events: number; serverNow?: number }>("liveEvent"));
 /** La mesa → liveEvent, with the undefined keys dropped (in the envelope, `event` and `patch`). */
 export const mesaEvent = (data: MesaEventRequest) =>
   mesaEventCall(data.action === "add" ? { ...defined(data), event: defined(data.event) } : data.action === "edit" ? { ...data, patch: defined(data.patch) } : data);
 
 /** La mesa: an admin or one of the match's scorers publishes the acta from the live record (assists answered inline). */
-export const publishLive = httpsCallable<{ matchId: string; assists?: Record<string, string> }, { ok: boolean }>(functions, "publishLive");
-export const controlMatchClock = withServerTime(httpsCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number; value?: number },{ clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>(functions, "controlMatchClock"));
-export const setMatchScorers = httpsCallable<{ matchId: string; uids: string[] }, { ok: boolean }>(functions, "setMatchScorers");
+export const publishLive = lazyCallable<{ matchId: string; assists?: Record<string, string> }, { ok: boolean }>("publishLive");
+export const controlMatchClock = withServerTime(lazyCallable<{ matchId: string; action: import("../../functions/src/matchClock").ClockAction; revision: number; value?: number },{ clock: import("../../functions/src/matchClock").MatchClock; serverNow?: number }>("controlMatchClock"));
+export const setMatchScorers = lazyCallable<{ matchId: string; uids: string[] }, { ok: boolean }>("setMatchScorers");
 /** La alineación del partido: the pizarra sends a board's seven to the match (admin or scorer, until kick-off). */
-export const setMatchLineup = httpsCallable<import("../../functions/src/matchLineup").SetMatchLineupInput, import("../../functions/src/matchLineup").SetMatchLineupResult>(functions, "setMatchLineup");
+export const setMatchLineup = lazyCallable<import("../../functions/src/matchLineup").SetMatchLineupInput, import("../../functions/src/matchLineup").SetMatchLineupResult>("setMatchLineup");
 /** La mesa's «¿Quién ha venido?» (admin or scorer, until kick-off). */
-export const setMatchPresent = httpsCallable<import("../../functions/src/matchLineup").SetMatchPresentInput, { ok: boolean }>(functions, "setMatchPresent");
+export const setMatchPresent = lazyCallable<import("../../functions/src/matchLineup").SetMatchPresentInput, { ok: boolean }>("setMatchPresent");

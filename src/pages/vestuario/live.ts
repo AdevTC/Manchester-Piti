@@ -5,20 +5,9 @@ export type { Prediction } from "../../../functions/src/predictions";
 // Listeners are shared by key and kept warm for a minute after the last reader leaves, so
 // coming back to the vestuario paints the last data at once instead of an empty block.
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import {
-  collection,
-  doc,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-  Timestamp,
-  type DocumentData,
-  type Query,
-  type SnapshotMetadata,
-} from "firebase/firestore";
-import { db } from "../../firebase";
+import type { DocumentData, Query, SnapshotMetadata } from "firebase/firestore";
+// (every listener opens once Firebase is in, handed the SDK: lib/fb)
+import { withFirebase, type Fb } from "../../lib/fb";
 import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay, useOnline, useSnapshotMeta } from "../../lib/syncStatus";
 import { mapMatch, mapMvp, mapNotice, MVP_RESULTS_KEY, mvpPrivateWhileOpen } from "../../lib/firestoreMappers";
 import { mergeNotices, type Notice, type NoticeAudience } from "../../lib/derived/notices";
@@ -62,7 +51,7 @@ const clearTimers = (e: Shared) => {
   if (e.retry) clearTimeout(e.retry);
   e.idle = e.retry = null;
 };
-type Start<T> = (sink: Sink<T>) => () => void;
+type Start<T> = (sink: Sink<T>, fb: Fb) => () => void;
 /** Opens `entry` after `ms`, unless an open is already scheduled; only if it still has readers and no listener. */
 function openIn<T>(key: string, entry: Shared, start: Start<T>, empty: T, ms: number): void {
   if (entry.retry) return;
@@ -91,7 +80,7 @@ function open<T>(key: string, entry: Shared, start: Start<T>, empty: T): void {
   let dead = false;
   let close: (() => void) | null = null;
   const notify = () => entry.readers.forEach((r) => r());
-  close = start({
+  const sink: Sink<T> = {
     snapshot: (data, meta, changed) => {
       if (dead) return;
       recordSnapshotMeta(key, meta);
@@ -116,7 +105,8 @@ function open<T>(key: string, entry: Shared, start: Start<T>, empty: T): void {
       // one automatic retry per streak
       if (streak === 1) openIn(key, entry, start, empty, LISTENER_RETRY_MS);
     },
-  });
+  };
+  close = withFirebase((fb) => start(sink, fb));
   const opened = close;
   if (dead) opened(); // failed before `start` returned: clean up now
   else
@@ -189,7 +179,7 @@ const openProjections = new Map<string, Set<string>>();
 export function useLiveDoc<T>(path: string | null, mapId: string, map: (d: DocumentData | undefined) => T, empty: T): Live<T> {
   return useShared<T>(
     path && `doc:${path}#${mapId}`,
-    (sink) => {
+    (sink, fb) => {
       if (import.meta.env.DEV) {
         const open = openProjections.get(path!) ?? new Set<string>();
         open.add(mapId);
@@ -199,8 +189,8 @@ export function useLiveDoc<T>(path: string | null, mapId: string, map: (d: Docum
       // A doc snapshot has no docChanges: a metadata-only one is told apart by its mapped value.
       let first = true;
       let last: T = empty;
-      const stop = onSnapshot(
-        doc(db, path!),
+      const stop = fb.onSnapshot(
+        fb.doc(fb.db, path!),
         { includeMetadataChanges: true },
         (s) => {
           const next = map(s.exists() ? s.data() : undefined);
@@ -224,14 +214,14 @@ export function useLiveDoc<T>(path: string | null, mapId: string, map: (d: Docum
   );
 }
 const NONE: never[] = [];
-function useLiveQuery<T>(key: string | null, build: () => Query, map: (id: string, d: DocumentData) => T): Live<T[]> {
+function useLiveQuery<T>(key: string | null, build: (fb: Fb) => Query, map: (id: string, d: DocumentData) => T): Live<T[]> {
   return useShared<T[]>(
     key && `query:${key}`,
-    (sink) => {
+    (sink, fb) => {
       let first = true;
       let last: T[] = NONE;
-      return onSnapshot(
-        build(),
+      return fb.onSnapshot(
+        build(fb),
         { includeMetadataChanges: true },
         (s) => {
           // metadata-only snapshots carry no document changes: keep the same array
@@ -246,7 +236,8 @@ function useLiveQuery<T>(key: string | null, build: () => Query, map: (id: strin
     NONE,
   );
 }
-const millis = (v: unknown) => (v instanceof Timestamp ? v.toMillis() : typeof v === "number" ? v : 0);
+const millis = (v: unknown) =>
+  typeof v === "object" && v !== null && typeof (v as { toMillis?: unknown }).toMillis === "function" ? (v as { toMillis: () => number }).toMillis() : typeof v === "number" ? v : 0;
 
 // ---------- convocatoria
 export interface Availability {
@@ -261,7 +252,7 @@ export interface Availability {
 export function useAvailability(matchId: string | undefined) {
   return useLiveQuery<Availability>(
     matchId ? `availability/${matchId}` : null,
-    () => collection(db, "matchPrivate", matchId!, "availability"),
+    (fb) => fb.collection(fb.db, "matchPrivate", matchId!, "availability"),
     (uid, d) => ({
       uid,
       response: d.response,
@@ -277,11 +268,11 @@ export function useAvailability(matchId: string | undefined) {
 const NO_REACTIONS: ReactionDoc[] = [];
 const NO_RATINGS: RatingDoc[] = [];
 export function useMatchReactions(matchId: string | undefined): Live<ReactionDoc[]> {
-  const q = useLiveQuery<ReactionDoc | null>(matchId ? `reactions/${matchId}` : null, () => collection(db, "matches", matchId!, "reactions"), (uid, d) => parseReactionDoc(uid, d));
+  const q = useLiveQuery<ReactionDoc | null>(matchId ? `reactions/${matchId}` : null, (fb) => fb.collection(fb.db, "matches", matchId!, "reactions"), (uid, d) => parseReactionDoc(uid, d));
   return useMemo(() => ({ ...q, data: q.data.length ? q.data.filter((d): d is ReactionDoc => d !== null) : NO_REACTIONS }), [q]);
 }
 export function useMatchRatings(matchId: string | undefined): Live<RatingDoc[]> {
-  const q = useLiveQuery<RatingDoc | null>(matchId ? `ratings/${matchId}` : null, () => collection(db, "matches", matchId!, "ratings"), (uid, d) => parseRatingDoc(uid, d));
+  const q = useLiveQuery<RatingDoc | null>(matchId ? `ratings/${matchId}` : null, (fb) => fb.collection(fb.db, "matches", matchId!, "ratings"), (uid, d) => parseRatingDoc(uid, d));
   return useMemo(() => ({ ...q, data: q.data.length ? q.data.filter((d): d is RatingDoc => d !== null) : NO_RATINGS }), [q]);
 }
 
@@ -314,7 +305,7 @@ export function useMatchScorers(matchId: string | undefined): Live<string[]> {
 
 // ---------- MVP
 // (key and mapper shared with the boot and the server render: lib/publicData)
-const mvpQuery = collection(db, "mvpResults");
+const mvpQuery = (fb: Fb) => fb.collection(fb.db, "mvpResults");
 export function useMvpResults() {
   const q = useFirestoreCollection(MVP_RESULTS_KEY, mvpQuery, mapMvp);
   const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
@@ -370,7 +361,7 @@ export function useMyMvpVote(matchId: string | undefined, uid: string | undefine
 export function useMvpVoters(matchId: string | undefined, enabled: boolean) {
   return useLiveQuery<{ uid: string; voterName: string; playerId: string }>(
     matchId && enabled ? `votes/${matchId}` : null,
-    () => collection(db, "matches", matchId!, "votes"),
+    (fb) => fb.collection(fb.db, "matches", matchId!, "votes"),
     (uid, d) => ({ uid, voterName: d.voterName ?? "Miembro", playerId: d.playerId }),
   );
 }
@@ -399,9 +390,9 @@ export function usePorraStandings(seasonId: string | undefined) {
 /** Finished matches only, subscribed lazily when history opens; no future picks leak. */
 export function usePorraHistory(matchIds: string[], enabled: boolean) {
   const ids = [...matchIds].sort();
-  return useShared<HistoricalPrediction[]>(enabled && ids.length ? `porra-history:${ids.join(',')}` : null, sink => {
+  return useShared<HistoricalPrediction[]>(enabled && ids.length ? `porra-history:${ids.join(',')}` : null, (sink, fb) => {
     const snapshots = new Map<string, { rows: HistoricalPrediction[]; meta: SnapshotMetadata }>();
-    const stops = ids.map(matchId => onSnapshot(collection(db, 'matchPrivate', matchId, 'predictions'), { includeMetadataChanges: true }, s => {
+    const stops = ids.map(matchId => fb.onSnapshot(fb.collection(fb.db, 'matchPrivate', matchId, 'predictions'), { includeMetadataChanges: true }, s => {
       snapshots.set(matchId, { rows: s.docs.map(d=>({ matchId, uid:d.id, name:d.get('name') ?? 'Miembro', goalsFor:d.get('goalsFor'), goalsAgainst:d.get('goalsAgainst'), goals:d.get('goals') })), meta:s.metadata });
       if (snapshots.size !== ids.length) return;
       const all = [...snapshots.values()];
@@ -428,7 +419,7 @@ export function useOpenTrainings(now: number) {
   const bucket = Math.floor(now / 600_000);
   return useLiveQuery<Training>(
     `trainings/${bucket}`,
-    () => query(collection(db, "trainings"), where("lastSlotAt", ">", Timestamp.fromMillis(bucket * 600_000)), orderBy("lastSlotAt", "asc"), limit(5)),
+    (fb) => fb.query(fb.collection(fb.db, "trainings"), fb.where("lastSlotAt", ">", fb.Timestamp.fromMillis(bucket * 600_000)), fb.orderBy("lastSlotAt", "asc"), fb.limit(5)),
     (id, d) => ({
       id,
       slots: ((d.slots ?? []) as { id: string; at: unknown; end?: unknown; place?: string }[]).map((s) => ({ id: s.id, at: millis(s.at), end: s.end ? millis(s.end) : undefined, place: s.place ?? "" })),
@@ -450,7 +441,7 @@ export interface TrainingVote {
 export function useTrainingVotes(trainingId: string | undefined) {
   return useLiveQuery<TrainingVote>(
     trainingId ? `trainingVotes/${trainingId}` : null,
-    () => collection(db, "trainings", trainingId!, "votes"),
+    (fb) => fb.collection(fb.db, "trainings", trainingId!, "votes"),
     (uid, d) => ({ uid, slotIds: d.slotIds ?? [], name: d.name ?? "Miembro" }),
   );
 }
@@ -467,7 +458,7 @@ export interface BoardMessage {
 export function useBoard(size: number) {
   return useLiveQuery<BoardMessage>(
     `board/${size}`,
-    () => query(collection(db, "board"), orderBy("at", "desc"), limit(size)),
+    (fb) => fb.query(fb.collection(fb.db, "board"), fb.orderBy("at", "desc"), fb.limit(size)),
     (id, d) => ({ id, text: d.text, uid: d.uid, name: d.name ?? "Miembro", playerId: d.playerId ?? null, at: millis(d.at) || Date.now() }),
   );
 }
@@ -495,14 +486,14 @@ export function useMyClaim(uid: string | undefined) {
 export function usePendingClaims(enabled: boolean) {
   return useLiveQuery<Claim>(
     enabled ? "claims/pending" : null,
-    () => query(collection(db, "playerClaims"), where("status", "==", "pending")),
+    (fb) => fb.query(fb.collection(fb.db, "playerClaims"), fb.where("status", "==", "pending")),
     mapClaim,
   );
 }
 export function usePlayerLinks(enabled: boolean) {
   return useLiveQuery<{ playerId: string; uid: string }>(
     enabled ? "playerLinks" : null,
-    () => collection(db, "playerLinks"),
+    (fb) => fb.collection(fb.db, "playerLinks"),
     (playerId, d) => ({ playerId, uid: d.uid }),
   );
 }
@@ -510,7 +501,7 @@ export function usePlayerLinks(enabled: boolean) {
 export function useHasPosted(uid: string | undefined) {
   const q = useLiveQuery<string>(
     uid ? `board/by/${uid}` : null,
-    () => query(collection(db, "board"), where("uid", "==", uid), limit(1)),
+    (fb) => fb.query(fb.collection(fb.db, "board"), fb.where("uid", "==", uid), fb.limit(1)),
     (id) => id,
   );
   return { data: q.data.length > 0, loading: q.loading };
@@ -520,7 +511,7 @@ export function useHasPosted(uid: string | undefined) {
 export function useMatchPredictions(matchId: string | undefined, enabled: boolean) {
   return useLiveQuery<Prediction & { uid: string; name: string }>(
     matchId && enabled ? `predictions/${matchId}` : null,
-    () => collection(db, "matchPrivate", matchId!, "predictions"),
+    (fb) => fb.collection(fb.db, "matchPrivate", matchId!, "predictions"),
     (uid, d) => ({ uid, name: d.name ?? "Miembro", goalsFor: d.goalsFor, goalsAgainst: d.goalsAgainst, goals: d.goals, scoringVersion: d.scoringVersion }),
   );
 }
@@ -540,7 +531,7 @@ export interface DoorRequestRow {
 export function useDoorRequests(enabled: boolean) {
   return useLiveQuery<DoorRequestRow>(
     enabled ? "accessRequests" : null,
-    () => query(collection(db, "accessRequests"), where("status", "==", "pending")),
+    (fb) => fb.query(fb.collection(fb.db, "accessRequests"), fb.where("status", "==", "pending")),
     (uid, d) => ({ uid, status: d.status, googleName: d.googleName ?? "", email: d.email ?? "", photo: d.photo ?? "", playerId: d.playerId ?? null, playerName: d.playerName ?? null, name: d.name ?? null, at: millis(d.at) }),
   );
 }
@@ -557,7 +548,7 @@ export interface InviteRow {
 export function useInvites(enabled: boolean) {
   return useLiveQuery<InviteRow>(
     enabled ? "invites" : null,
-    () => query(collection(db, "invites"), where("expiresAt", ">", Timestamp.fromMillis(Date.now()))),
+    (fb) => fb.query(fb.collection(fb.db, "invites"), fb.where("expiresAt", ">", fb.Timestamp.fromMillis(Date.now()))),
     (code, d) => ({ code, byName: d.byName ?? "", expiresAt: millis(d.expiresAt), maxUses: d.maxUses ?? 1, uses: d.uses ?? 0, revoked: !!d.revoked, playerId: d.playerId ?? null, playerName: d.playerName ?? null }),
   );
 }
@@ -567,7 +558,7 @@ export interface MemberRow {
   via: string;
 }
 export function useTeamMembers(enabled: boolean) {
-  return useLiveQuery<MemberRow>(enabled ? "teamMembers" : null, () => collection(db, "teamMembers"), (uid, d) => ({ uid, joinedAt: millis(d.joinedAt), via: d.via ?? "clave" }));
+  return useLiveQuery<MemberRow>(enabled ? "teamMembers" : null, (fb) => fb.collection(fb.db, "teamMembers"), (uid, d) => ({ uid, joinedAt: millis(d.joinedAt), via: d.via ?? "clave" }));
 }
 export interface PersonRow {
   uid: string;
@@ -579,7 +570,7 @@ export interface PersonRow {
   removed: boolean;
 }
 export function useClubPeople(enabled: boolean) {
-  return useLiveQuery<PersonRow>(enabled ? "users" : null, () => collection(db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt }));
+  return useLiveQuery<PersonRow>(enabled ? "users" : null, (fb) => fb.collection(fb.db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt }));
 }
 
 // ---------- your own membership (/profile: «Tu acceso» and the back of the card)
@@ -616,7 +607,7 @@ export function useCaja(seasonId: string | undefined, enabled = true): Caja {
   const settings = useLiveDoc<CajaSettings>(sid && `caja/${sid}`, "caja", parseCajaSettings, EMPTY_CAJA_SETTINGS);
   const movs = useLiveQuery<CajaMov | null>(
     sid && `cajaMovs/${sid}`,
-    () => query(collection(db, "cajaMovs"), where("seasonId", "==", sid)),
+    (fb) => fb.query(fb.collection(fb.db, "cajaMovs"), fb.where("seasonId", "==", sid)),
     parseCajaMov,
   );
   const list = useMemo(() => {
@@ -637,7 +628,7 @@ const okClaims = (list: (CajaClaim | null)[]): CajaClaim[] => {
 };
 /** The member's own payment notices (every season, pending first). `uid` undefined (a fan) opens nothing. */
 export function useMyCajaClaims(uid: string | undefined): Live<CajaClaim[]> {
-  const q = useLiveQuery<CajaClaim | null>(uid ? `cajaClaims/uid/${uid}` : null, () => query(collection(db, "cajaClaims"), where("uid", "==", uid)), parseCajaClaim);
+  const q = useLiveQuery<CajaClaim | null>(uid ? `cajaClaims/uid/${uid}` : null, (fb) => fb.query(fb.collection(fb.db, "cajaClaims"), fb.where("uid", "==", uid)), parseCajaClaim);
   const list = useMemo(() => okClaims(q.data), [q.data]);
   return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
 }
@@ -645,7 +636,7 @@ export function useMyCajaClaims(uid: string | undefined): Live<CajaClaim[]> {
  *  (not a captain) opens nothing: the rules let only captains read everyone's. */
 export function useCajaClaims(seasonId: string | undefined, enabled: boolean): Live<CajaClaim[]> {
   const sid = enabled && seasonId ? seasonId : null;
-  const q = useLiveQuery<CajaClaim | null>(sid && `cajaClaims/season/${sid}`, () => query(collection(db, "cajaClaims"), where("seasonId", "==", sid)), parseCajaClaim);
+  const q = useLiveQuery<CajaClaim | null>(sid && `cajaClaims/season/${sid}`, (fb) => fb.query(fb.collection(fb.db, "cajaClaims"), fb.where("seasonId", "==", sid)), parseCajaClaim);
   const list = useMemo(() => okClaims(q.data), [q.data]);
   return useMemo(() => ({ data: list, loading: q.loading, error: q.error }), [list, q.loading, q.error]);
 }
@@ -660,7 +651,7 @@ const NO_ABSENCES: Absence[] = [];
 export function useAbsences(today: string, enabled = true): Live<Absence[]> {
   const q = useLiveQuery<Absence | null>(
     enabled && today ? `absences/${today}` : null,
-    () => query(collection(db, "absences"), where("to", ">=", today)),
+    (fb) => fb.query(fb.collection(fb.db, "absences"), fb.where("to", ">=", today)),
     parseAbsence,
   );
   const list = useMemo(() => {
@@ -677,7 +668,7 @@ export interface SeasonRotaTurns {
   doc: RotaTurnsDoc;
 }
 export function useSeasonRotaTurns(seasonId: string | undefined, enabled = true): Live<SeasonRotaTurns[]> {
-  return useLiveQuery<SeasonRotaTurns>(enabled && seasonId ? `rotaTurns/${seasonId}` : null, () => query(collection(db, "rotaTurns"), where("seasonId", "==", seasonId)), (id, d) => ({ id, doc: parseRotaTurns(d) }));
+  return useLiveQuery<SeasonRotaTurns>(enabled && seasonId ? `rotaTurns/${seasonId}` : null, (fb) => fb.query(fb.collection(fb.db, "rotaTurns"), fb.where("seasonId", "==", seasonId)), (id, d) => ({ id, doc: parseRotaTurns(d) }));
 }
 
 // ---------- encuestas (members only; derived/polls for the rest)
@@ -690,7 +681,7 @@ const NO_POLLS: Poll[] = [];
 export function usePolls(enabled = true): Live<Poll[]> {
   const q = useLiveQuery<Poll | null>(
     enabled ? `polls/${POLLS_LIMIT}` : null,
-    () => query(collection(db, "polls"), orderBy("createdAt", "desc"), limit(POLLS_LIMIT)),
+    (fb) => fb.query(fb.collection(fb.db, "polls"), fb.orderBy("createdAt", "desc"), fb.limit(POLLS_LIMIT)),
     (id, d) => parsePoll(id, d, Date.now()),
   );
   const list = useMemo(() => {
@@ -702,7 +693,7 @@ export function usePolls(enabled = true): Live<Poll[]> {
 const NO_POLL_VOTES: PollVote[] = [];
 /** A poll's votes (public to the team): one shared listener per poll. */
 export function usePollVotes(pollId: string | undefined): Live<PollVote[]> {
-  const q = useLiveQuery<PollVote | null>(pollId ? `pollVotes/${pollId}` : null, () => collection(db, "polls", pollId!, "votes"), parsePollVote);
+  const q = useLiveQuery<PollVote | null>(pollId ? `pollVotes/${pollId}` : null, (fb) => fb.collection(fb.db, "polls", pollId!, "votes"), parsePollVote);
   const list = useMemo(() => {
     const ok = q.data.filter((v): v is PollVote => v !== null);
     return ok.length ? ok : NO_POLL_VOTES;
@@ -712,10 +703,10 @@ export function usePollVotes(pollId: string | undefined): Live<PollVote[]> {
 
 // ---------- centro de avisos
 const NOTICES_LIMIT = 30;
-const noticesOf = (audience: NoticeAudience, uid?: string) => () =>
+const noticesOf = (audience: NoticeAudience, uid?: string) => (fb: Fb) =>
   uid
-    ? query(collection(db, "notices"), where("audience", "==", audience), where("uid", "==", uid), orderBy("at", "desc"), limit(NOTICES_LIMIT))
-    : query(collection(db, "notices"), where("audience", "==", audience), orderBy("at", "desc"), limit(NOTICES_LIMIT));
+    ? fb.query(fb.collection(fb.db, "notices"), fb.where("audience", "==", audience), fb.where("uid", "==", uid), fb.orderBy("at", "desc"), fb.limit(NOTICES_LIMIT))
+    : fb.query(fb.collection(fb.db, "notices"), fb.where("audience", "==", audience), fb.orderBy("at", "desc"), fb.limit(NOTICES_LIMIT));
 const NO_NOTICES: Notice[] = [];
 /**
  * The bell's notices, newest first: the team's, the captains' (only for an `admin`) and `uid`'s own. Three

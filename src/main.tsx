@@ -7,16 +7,19 @@ import './styles/theme.css'
 import { Root } from './Root'
 import { queryClient } from './lib/queryClient'
 import { primeFromBundle, takeInlineBundle } from './lib/bundle'
-import { primePublicData } from './lib/publicData'
+import { MATCHES_KEY, primePublicData } from './lib/publicData'
 import { seedPublicData } from './lib/publicSeed'
-import { setPaintedAt } from './lib/serverTime'
+import { serverNow, setPaintedAt } from './lib/serverTime'
 import { createAppRouter } from './router'
 import { startAppUpdates } from './lib/appUpdate'
 
-// Before React renders: the data bundle (inside a server-rendered page, or downloading since the HTML) goes
-// into the local cache.
+// The data bundle (inside a server-rendered page, or downloading since the HTML): the page paints from it
+// without Firebase, which loads after the first paint (lib/fb) and gets the same documents in its local cache
+// before its listeners open. (A downloaded one seeds the page unless the listeners got there first.)
 const inline = takeInlineBundle()
-primeFromBundle(inline?.text)
+primeFromBundle(inline?.text, (bytes) => {
+  if (queryClient.getQueryData(MATCHES_KEY) === undefined) seedPublicData(queryClient, bytes, serverNow())
+})
 
 const router = createAppRouter()
 

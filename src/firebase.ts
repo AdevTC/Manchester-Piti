@@ -1,3 +1,4 @@
+import { FUNCTIONS_REGION } from "./firebaseRegion";
 import { initializeApp } from "firebase/app";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 import {
@@ -38,8 +39,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-/** Where the callables live (src/lib/push.ts also builds their plain URLs for the service worker). */
-export const FUNCTIONS_REGION = "europe-southwest1";
+export { FUNCTIONS_REGION };
 export const functions = getFunctions(app, FUNCTIONS_REGION);
 if (USE_EMULATOR) connectFunctionsEmulator(functions, "127.0.0.1", EMULATOR_PORTS.functions);
 

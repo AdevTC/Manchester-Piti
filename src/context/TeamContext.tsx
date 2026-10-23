@@ -3,9 +3,7 @@
 // every device, with no expiry to renew. accessRequests/{uid} tells the door what to show to
 // someone who asked to come in (pending / rejected / removed).
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import { auth, db } from "../firebase";
+import { loadFirebase, withFirebase } from "../lib/fb";
 import { useAuth } from "./AuthContext";
 import { startWelcome } from "../lib/doorWelcome";
 
@@ -33,8 +31,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const waited = useRef(false);
   useEffect(() => {
     if (!uid || uid === "preview") return;
-    return onSnapshot(
-      doc(db, "teamMembers", uid),
+    return withFirebase((fb) => fb.onSnapshot(
+      fb.doc(fb.db, "teamMembers", uid),
       (snap) => {
         const member = snap.exists() && (snap.data()?.expiresAt?.toMillis?.() ?? 0) > Date.now();
         if (member && waited.current) {
@@ -49,25 +47,25 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         setState({ uid, member });
       },
       () => setState({ uid, member: false }),
-    );
+    ));
   }, [uid]);
   useEffect(() => {
     if (!uid || uid === "preview") return;
-    return onSnapshot(
-      doc(db, "accessRequests", uid),
+    return withFirebase((fb) => fb.onSnapshot(
+      fb.doc(fb.db, "accessRequests", uid),
       (snap) => {
         const value = snap.exists() ? ({ ...snap.data(), at: snap.data()?.at?.toMillis?.() } as DoorRequest) : null;
         if (value?.status === "pending") waited.current = true;
         setRequest({ uid, value });
       },
       () => setRequest({ uid, value: null }),
-    );
+    ));
   }, [uid]);
   const preview = uid === "preview";
   const member = preview || (!!uid && state?.uid === uid && state.member);
   const ready = !loading && (!uid || preview || state?.uid === uid);
   return (
-    <TeamContext.Provider value={{ member, ready, request: uid && request?.uid === uid ? request.value : null, exit: () => signOut(auth) }}>
+    <TeamContext.Provider value={{ member, ready, request: uid && request?.uid === uid ? request.value : null, exit: () => loadFirebase().then((fb) => fb.signOut(fb.auth)) }}>
       {children}
     </TeamContext.Provider>
   );

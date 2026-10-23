@@ -25,6 +25,7 @@ jobs:
       - run: pnpm lint --max-warnings 0
       - run: pnpm build
       - run: node --test scripts/test-ssr-lifecycle.mjs
+      - run: node scripts/check-boot.mjs
   unit:
     name: Unit ${{ matrix.shard }}/3
     runs-on: ubuntu-latest

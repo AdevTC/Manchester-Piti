@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, expect, it, vi } from "vitest";
+import { loadFirebase } from "./fb";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -34,6 +35,9 @@ afterEach(() => {
   _resetSnapshotMetaForTesting();
   listeners.clear();
 });
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 it("removes archived and deleted parents from realtime MVPs and linked boards without waiting for child cleanup", async () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

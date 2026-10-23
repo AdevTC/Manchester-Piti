@@ -1,7 +1,12 @@
 import { useEffect } from "react";
-import { onSnapshot, type Query, type QuerySnapshot } from "firebase/firestore";
+import type { Query, QuerySnapshot } from "firebase/firestore";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { afterBundle } from "./bundleGate";
+import { withFirebase, type Fb } from "./fb";
+
+/** A query, or how to build it once Firebase is in (the public pages' queries: lib/publicData). */
+export type QuerySource = Query | ((fb: Fb) => Query);
+const build = (q: QuerySource, fb: Fb): Query => (typeof q === "function" ? q(fb) : q);
 import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay } from "./syncStatus";
 
 export function mapSnapshotDocs<T>(snap: QuerySnapshot, map: (id: string, data: unknown) => T | null): T[] {
@@ -139,7 +144,7 @@ export function _resetSharedSubsForTesting(): void {
 export function subscribeShared<T>(
   qc: Pick<QueryClient, "setQueryData">,
   key: readonly unknown[],
-  q: Query,
+  q: QuerySource,
   map: (id: string, data: unknown) => T | null,
 ): () => void {
   const hash = metaKeyOf(key);
@@ -169,9 +174,9 @@ export function subscribeShared<T>(
       let first = true;
       // Later snapshots remap only the documents that changed (see incrementalMapper).
       const mapSnap = incrementalMapper(map);
-      // (after the data bundle: see bundleGate)
-      sub.unsub = afterBundle(() => onSnapshot(
-        q,
+      // (once Firebase is in, after the data bundle: see lib/fb, bundleGate)
+      sub.unsub = withFirebase((fb) => afterBundle(() => fb.onSnapshot(
+        build(q, fb),
         { includeMetadataChanges: true },
         (snap) => {
           if (sharedSubs.get(hash) !== sub) return;
@@ -197,7 +202,7 @@ export function subscribeShared<T>(
           // one automatic retry per streak
           if (streak === 1) openIn(LISTENER_RETRY_MS);
         },
-      ));
+      )));
     };
     sub.reopen = () => {
       const wait = reopenDelay(hash);
@@ -248,7 +253,7 @@ export function subscribeShared<T>(
  */
 export function useFirestoreCollection<T>(
   key: readonly unknown[],
-  q: Query,
+  q: QuerySource,
   map: (id: string, data: unknown) => T | null,
   /** When false, no `onSnapshot` is opened and the query is disabled. Lets a
    *  consumer keep calling the hook unconditionally (rules of hooks) while

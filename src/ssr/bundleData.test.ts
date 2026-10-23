@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import { decodeValue, inQueryOrder, parseBundle } from "./bundleData";
+import { BundleTimestamp, decodeValue, inQueryOrder, parseBundle } from "./bundleData";
 
 const ROOT = "projects/p/databases/(default)/documents";
 
@@ -34,12 +34,20 @@ describe("decodeValue", () => {
     ).toEqual({ goals: [{ min: 12 }] });
   });
 
-  it("gives real Timestamps, from either encoding", () => {
-    const fromObject = decodeValue({ timestampValue: { seconds: "1778414400", nanos: 5 } });
-    expect(fromObject).toBeInstanceOf(Timestamp);
-    expect(fromObject).toEqual(new Timestamp(1778414400, 5));
-    const fromString = decodeValue({ timestampValue: "2026-05-10T12:00:00Z" }) as Timestamp;
-    expect(fromString.toMillis()).toBe(Date.parse("2026-05-10T12:00:00Z"));
+  it("gives timestamps that read like the SDK's, from either encoding, without the SDK", () => {
+    const fromObject = decodeValue({ timestampValue: { seconds: "1778414400", nanos: 5 } }) as BundleTimestamp;
+    const real = new Timestamp(1778414400, 5);
+    expect(fromObject).toBeInstanceOf(BundleTimestamp);
+    expect({ seconds: fromObject.seconds, nanoseconds: fromObject.nanoseconds }).toEqual({ seconds: real.seconds, nanoseconds: real.nanoseconds });
+    expect(fromObject.toMillis()).toBe(real.toMillis());
+    expect(fromObject.toDate()).toEqual(real.toDate());
+    expect(fromObject.valueOf()).toBe(real.valueOf());
+    expect(fromObject.toString()).toBe(real.toString());
+    expect(fromObject.toJSON()).toEqual(real.toJSON());
+    const fromString = decodeValue({ timestampValue: "2026-05-10T12:00:00.123Z" }) as BundleTimestamp;
+    const realString = Timestamp.fromDate(new Date("2026-05-10T12:00:00.123Z"));
+    expect(fromString.toMillis()).toBe(Date.parse("2026-05-10T12:00:00.123Z"));
+    expect([fromString.seconds, fromString.nanoseconds]).toEqual([realString.seconds, realString.nanoseconds]);
   });
 });
 

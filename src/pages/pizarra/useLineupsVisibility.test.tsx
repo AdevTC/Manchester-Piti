@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from "react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import { loadFirebase } from "../../lib/fb";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -55,6 +56,9 @@ afterEach(() => {
   state.listeners.clear();
   clients.splice(0).forEach(qc => qc.clear());
 });
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 it("keeps active draft-only boards for admins while archived published parents override stale drafts", async () => {
   const { result, qc } = setup();

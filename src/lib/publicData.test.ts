@@ -1,4 +1,5 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, expect, it, vi } from "vitest";
+import { loadFirebase } from "./fb";
 import { QueryClient } from "@tanstack/react-query";
 
 // The boot waits for every public collection the server render painted, the MVP tallies included
@@ -32,6 +33,9 @@ afterEach(() => {
   listeners.clear();
   failures.clear();
 });
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 it("waits for the MVP tallies too, and caches them with the shared mapper", async () => {
   const qc = new QueryClient();

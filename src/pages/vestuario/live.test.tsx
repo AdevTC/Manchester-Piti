@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadFirebase } from "../../lib/fb";
 import { act, renderHook } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 
@@ -38,6 +39,9 @@ const failAt = (path: string) =>
   });
 
 const DOC = { meetingNote: "Quedamos a las 9 en el campo", scorerUids: ["uid-erik", "uid-adri"] };
+
+// (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
+beforeAll(() => loadFirebase());
 
 describe("matchPrivate: la quedada y los anotadores comparten documento, no forma", () => {
   beforeEach(() => {

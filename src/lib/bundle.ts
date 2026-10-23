@@ -1,17 +1,17 @@
 // First paint with data: the public collections arrive as one Firestore bundle from Vercel's CDN
 // (functions/src/bundle.ts). index.html already started the download (<link rel=preload>), so this
-// fetch reuses it; loading it into the local cache makes the listeners' first snapshot immediate.
-// A server-rendered page carries the same bundle inside it (<script id="club-bundle">, api/render.js): then
-// nothing is downloaded at all.
+// fetch reuses it; the page paints from it at once (lib/publicSeed, no Firebase needed), and once Firebase
+// is in (lib/fb, after the first paint) it goes into the local cache, so the listeners' first snapshot is
+// immediate. A server-rendered page carries the same bundle inside it (<script id="club-bundle">,
+// api/render.js): then nothing is downloaded at all.
 // Purely an accelerator: if anything fails, the listeners fetch the same data as always. The shared
 // listeners open only once it has settled (bundleGate: opened during the load, they start empty).
 // Its `Date` header also gives a first estimate of the server's clock (lib/serverTime), but only for
 // an answer that came over the network just now: a copy kept by the browser, the service worker
 // (stale-while-revalidate) or the CDN (an `Age`) carries the time it was first sent, not now.
-import { loadBundle } from "firebase/firestore";
-import { db } from "../firebase";
 import { recordDateHeader } from "./serverTime";
 import { holdListenersFor } from "./bundleGate";
+import { beforeListeners } from "./fb";
 
 export const BUNDLE_URL = "/datos/club.bundle";
 
@@ -49,23 +49,29 @@ export function takeInlineBundle(doc: Document = document): { text: string; at: 
   return text ? { text, at: Number.isFinite(at) && at > 0 ? at : null } : null;
 }
 
-/** Into the local cache: the bundle the page brought (`inline`), or the one downloading since the HTML. */
-export function primeFromBundle(inline?: string | null) {
-  if (inline) {
-    holdListenersFor(loadBundle(db, inline).then(() => undefined, () => undefined), BUNDLE_WAIT_MS);
-    return;
-  }
-  const load = fetch(BUNDLE_URL)
-    .then((r) => {
-      // The SPA fallback answers unknown paths with index.html: only take a real bundle.
-      if (!r.ok || !(r.headers.get("content-type") ?? "").includes("octet-stream")) throw new Error(`bundle ${r.status}`);
-      // (the request's timing entry is written once the body is in)
-      return r.arrayBuffer().then((body) => {
-        noteServerDate(r);
-        return body;
-      });
-    })
-    .then((body) => loadBundle(db, body))
-    .catch(() => undefined);
-  holdListenersFor(load, BUNDLE_WAIT_MS);
+/**
+ * Into Firebase's local cache once Firebase is in, before its listeners open: the bundle the page brought
+ * (`inline`), or the one downloading since the HTML — which `seed` paints the page from as soon as it's here.
+ */
+export function primeFromBundle(inline?: string | null, seed?: (bytes: Uint8Array) => void) {
+  const data: Promise<string | ArrayBuffer | null> = inline
+    ? Promise.resolve(inline)
+    : fetch(BUNDLE_URL)
+        .then((r) => {
+          // The SPA fallback answers unknown paths with index.html: only take a real bundle.
+          if (!r.ok || !(r.headers.get("content-type") ?? "").includes("octet-stream")) throw new Error(`bundle ${r.status}`);
+          // (the request's timing entry is written once the body is in)
+          return r.arrayBuffer().then((body) => {
+            noteServerDate(r);
+            try {
+              seed?.(new Uint8Array(body));
+            } catch {
+              /* not one the seed can read: the listeners bring the same data */
+            }
+            return body;
+          });
+        })
+        .catch(() => null);
+  // (the wait for it starts with Firebase: a bundle still downloading then holds the listeners up to BUNDLE_WAIT_MS)
+  beforeListeners((fb) => holdListenersFor(data.then((d) => (d ? fb.loadBundle(fb.db, d).then(() => undefined) : undefined)).catch(() => undefined), BUNDLE_WAIT_MS));
 }
