@@ -61,10 +61,11 @@ export function RaceBoard({ rows, nameOf, jornada, seasonId }: { rows: PlayerAna
     // play/stop are stable enough: they only touch state setters and the ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [last]);
-  useEffect(() => setJ((cur) => Math.min(cur, last)), [last]);
+  // (the rows can arrive after the first render: a board that started empty opens on the last jornada)
+  useEffect(() => setJ((cur) => (cur < 0 ? last : Math.min(cur, last))), [last]);
 
   if (!frames.length) return null;
-  const frame = frames[Math.min(j, last)];
+  const frame = frames[Math.max(0, Math.min(j, last))];
   /** «J5»: the match's jornada in its own season (the J of /partidos). */
   const jOf = (id: string) => jornadaLabel(jornada.get(id)) || "—";
   // Everyone who appears at any point keeps a row (stable keys, so rows slide instead of remounting).

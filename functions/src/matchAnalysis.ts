@@ -87,9 +87,9 @@ export function analyseActions(events: readonly AnalysisEvent[]) {
     }
     if (e.type === "shot" || goal || ["woodwork", "penalty_missed", "opponent_woodwork", "opponent_penalty_missed"].includes(e.type)) {
       add("shots"); shots.push(e);
+      if (e.type === "woodwork" || e.type === "opponent_woodwork" || e.outcome === "woodwork" || e.woodwork) add("shotsWoodwork");
       if (goal) { add("shotGoals"); add("shotsOnTarget"); }
       else {
-        if (e.type === "woodwork" || e.type === "opponent_woodwork" || e.outcome === "woodwork" || e.woodwork) add("shotsWoodwork");
         if (e.outcome === "on_target" || e.onTarget) add("shotsOnTarget");
         if (e.outcome === "off_target") add("shotsOffTarget");
         if (e.outcome === "blocked") add("shotsBlocked");

@@ -3,6 +3,7 @@
 // stay as stored (they are the editor's, admin-only). Under the hood it is saveMatchSheet's pipeline
 // (publishSheet): ledger, «Ha jugado de», season totals, MVP vote and porra. Reopening a published
 // acta stays admin-only (the editor).
+import { PUBLICATION_RESOURCES } from "./publicationResources.js";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { db, idSchema, memberAs, parse } from "./common.js";
@@ -37,7 +38,7 @@ export function liveReadyProblem(m: { status?: string; clock?: { phase?: string 
   return null;
 }
 
-export const publishLive = onCall(async (req) => {
+export const publishLive = onCall(PUBLICATION_RESOURCES, async (req) => {
   const actor = await memberAs(req);
   const data = parse(input, req.data);
   const id = data.matchId;
