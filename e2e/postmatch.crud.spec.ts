@@ -47,13 +47,15 @@ test('resumen personal en el vestuario del partido y cobertura sin confundir cer
   await expect(attempts.locator('.nu-fig__v')).toHaveText('0');
 });
 
-test('historial mensual de la porra y minutos frente al partido anterior, desde el vestuario del partido',async({page},testInfo)=>{
-  test.fixme(true,'«Tu partido» ya no compara los minutos con el partido anterior ni enlaza «Tu recorrido en la porra» (/perfil#porra en los tableros) para quien jugó, y /perfil aún no tiene el historial de la porra.');
+// (the boards dropped «+20′ respecto a tu anterior partido» from «Tu partido»; «Tu recorrido en la porra» is on Mi
+// página, /perfil#porra: a player's at the end of Temporada, reached from «Lo tuyo en el vestuario › Tu porra»)
+test('historial mensual de la porra en Mi página',async({page},testInfo)=>{
   await enterVestuario(page);
-  await page.goto('/partidos/preview-balance/vestuario');
-  const summary=await vestuarioBlock(page,'Tu partido');
-  await expect(summary.getByText('+20′ respecto a tu anterior partido')).toBeVisible();
-  await summary.getByRole('link',{name:'Tu recorrido en la porra'}).click();
+  await page.goto('/perfil#porra');
+  await expect(page).toHaveURL(/\/perfil\/temporada#porra$/);
+  await expect(page.getByRole('heading',{name:'16 puntos esta temporada'})).toBeVisible();
+  await page.goto('/perfil/temporada');
+  await page.getByRole('button',{name:/^Tu porra/}).click();
   await expect(page.getByRole('heading',{name:'16 puntos esta temporada'})).toBeVisible();
   await page.getByLabel('Periodo de la porra').selectOption('2026-09');
   await expect(page.getByRole('heading',{name:'0 puntos este mes'})).toBeVisible();

@@ -55,21 +55,7 @@ export function statsViewPath(view: StatsView, section?: ExploreSectionId): Stat
   }
 }
 
-const PROFILE_TAB_HASH: Record<string, string> = {
-  "/perfil/temporada": "#temporada",
-  "/perfil/temporada/cromos": "#cromos",
-  "/perfil/ajustes": "#ajustes",
-  "/perfil/cuenta": "#cuenta",
-  "/perfil/capitania": "#capitania",
-  "/avisos": "#avisos",
-  "/avisos/a-medida": "#avisos",
-};
-/** The old #hash of today's profile tab at a /perfil or /avisos screen ("" for La carta). */
-export const profileHashAt = (pathname: string): string => PROFILE_TAB_HASH[trim(pathname)] ?? "";
-
 const ANCHOR: [RegExp, string][] = [
-  [/^\/perfil\/nombre$/, "pe-nombre"],
-  [/^\/perfil\/posiciones$/, "pe-posiciones"],
 ];
 /** The block of today's page a new address points at (the element id its old #hash scrolled to), if any. */
 export function anchorAt(pathname: string): string | null {

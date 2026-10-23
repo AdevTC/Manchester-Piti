@@ -22,6 +22,7 @@ export { publishLive } from "./publishLive.js";
 export { savePrediction } from "./savePrediction.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
 export { pushSubscribe, pushSetPreset, pushSetMatchTopics, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, pushOnStandings, rotaTurnsOnWrite } from "./push.js";
+export { pushSetPause } from "./pushPause.js";
 export { pushReminders, pushOnAnswer } from "./reminders.js";
 export { porraCountOnWrite } from "./porraCount.js";
 export { onAbsenceWritten } from "./absences.js";

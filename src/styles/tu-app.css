@@ -1,0 +1,28 @@
+/* Tú in the app: what the boards' CSS (tu.css, ported as it is) needs around it here. The boards draw the page under
+   a 52 px mock-up strip and the surfaces inside the page; the app has no strip and floats the surfaces in a layer of
+   their own (TuLayer: a viewport-sized .vx.tu, the same container «tupg», so the boards' rules place them). */
+.tu{min-height:100vh;min-height:100dvh}
+.tu.tu-ovl{position:fixed;inset:0;z-index:60;min-height:0;overflow:visible;pointer-events:none;background:none;isolation:auto}
+.tu.tu-ovl>*{pointer-events:auto}
+.tu.tu-ovl>.tu-toast{pointer-events:none}
+/* the headings in Vidrio's sans (the Celeste base gives h1–h3 its display face) */
+.tu :is(h1,h2,h3,h4){font-family:var(--tu-sans)}
+/* the walkout lifts the whole card: on the faces (the board) its last frame «transform:none» undid the back face's
+   turn, so the carné covered the front after every walkout */
+.tu-card.run-1 .tu-card__face{animation:none}
+.tu-card.run-1 .tu-card__btn{animation:tu-walk .9s var(--vd-spring) both}
+.tu-card.run-1.is-flip .tu-card__btn{animation:none}
+@media (prefers-reduced-motion:reduce){.tu-card.run-1 .tu-card__btn{animation:none}}
+/* a match's line and its «0′ · 50′» under it, in one box (on the board the labels hung outside the line's box) */
+.tu-tlw{position:relative;margin:6px 0 0;padding-bottom:18px}
+.tu-tlw>:is(.tu-tl,.tu-stints){margin:0}
+.tu-tlw>:is(.tu-tl__a,.tu-tl__b){top:auto;bottom:0;line-height:15px}
+.tu-ms .tu-tlw{margin:2px 0 0;padding-bottom:16px}
+/* the carné's QR is a real one (the board drew a pattern): it opens the player's page */
+.tu-qr.tu-qr--real{background:#eaf3fc;padding:calc(var(--cw)*.01);box-sizing:border-box;color:#0c1733}
+.tu-qr--real svg{display:block;width:100%;height:100%}
+/* the boards raise the top bar over a surface's scrim; here the bar lives in the page (its own layer) and the
+   surfaces in a layer of theirs, so from a tablet the scrim starts under the bar instead */
+@container tupg (min-width:700px){.tu.tu-ovl .tu-scrim{top:96px}}
+/* (the board's light scrim only scoped its first selector) */
+:root[data-theme="light"] .tu.o-buscar .tu-scrim{background:rgba(12,23,51,.22)}

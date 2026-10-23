@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorAt, profileHashAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
+import { anchorAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
 
 // Until each redesign lands, a new address opens today's page on what its old ?view=, ?tab= or #hash opened.
 describe("Números: the view of each screen", () => {
@@ -24,20 +24,13 @@ describe("Números: the view of each screen", () => {
   });
 });
 
-describe("the profile's tab and the blocks", () => {
-  it("the profile's tabs", () => {
-    expect(profileHashAt("/perfil")).toBe("");
-    expect(profileHashAt("/perfil/temporada")).toBe("#temporada");
-    expect(profileHashAt("/perfil/temporada/cromos")).toBe("#cromos");
-    expect(profileHashAt("/perfil/ajustes/")).toBe("#ajustes");
-    expect(profileHashAt("/avisos/a-medida")).toBe("#avisos");
-  });
+describe("the blocks", () => {
   it("the block an address points at", () => {
     expect(anchorAt("/vestuario")).toBeNull();
-    // (El club and the vestuario read their own address: no anchor)
+    // (El club, the vestuario and the profile read their own address: no anchor)
     expect(anchorAt("/vestuario/caja")).toBeNull();
     expect(anchorAt("/club/historia")).toBeNull();
-    expect(anchorAt("/perfil/nombre")).toBe("pe-nombre");
+    expect(anchorAt("/perfil/nombre")).toBeNull();
     expect(anchorAt("/club")).toBeNull();
   });
 });

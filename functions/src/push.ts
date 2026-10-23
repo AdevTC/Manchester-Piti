@@ -16,6 +16,7 @@ import { db, googleUser, idSchema, memberAs, parse } from "./common.js";
 import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { LATE_TOPICS, legacyTodoGets, presetOf, presetTopics, PUSH_PRESETS, TOPICS_VERSION } from "./pushPresets.js";
 import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
+import { isPaused } from "./pushPauseLogic.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
 import { noticeRecord } from "./noticesLogic.js";
@@ -228,7 +229,9 @@ export async function sendTo(notice: Notice, uid?: string) {
   if (!found.size) return;
   // A device's choice for this match decides alone; otherwise «Avisos a medida»: «Solo goles» gets only
   // the goals (not even the personal notices), «Nada» nothing (pushMatchTopics.ts deviceGets).
-  const devices = [...found.values()].filter((d) => deviceGets({ preset: d.get("preset"), matchTopics: d.get("matchTopics") }, notice, about));
+  // «Pausar» (pushPause.ts): a paused device gets nothing for now; the bell already kept the notice.
+  const now = Date.now();
+  const devices = [...found.values()].filter((d) => !isPaused(d.get("pausedUntil"), now) && deviceGets({ preset: d.get("preset"), matchTopics: d.get("matchTopics") }, notice, about));
   if (!devices.length) return;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
   await Promise.all(

@@ -1,332 +1,277 @@
-// The bell (V-Integracion «Plantilla y los avisos»): a round glass button in the top bar with a celeste dot while
-// something is unread; it opens a glass sheet under it (a sheet over the tab bar on a phone): «Avisos» and how
-// many are unread, the five newest (an icon chip, the title, its line, how long ago; the unread marked), «N avisos
-// más de hoy y de esta semana · Ver todos», which grows the same sheet into «Todos los avisos» with a filter
-// (Todos · Del partido · Del vestuario) and «Cerrar», and «Avisos a medida» at the bottom of both. Members read
-// the team's notices, theirs and (a captain) the captains' (useNotices); the dot says something is newer than
-// their last look (users/{uid}.noticesSeenAt), and opening writes that look once. A fan gets the bell too, with
-// «Avisos a medida» only (the notices are the vestuario's). A dialog: focus moves in and stays, Esc and a click
-// outside close it, focus goes back to the bell. Portalled to the body (nothing in the header covers it).
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type Ref } from "react";
-import { createPortal } from "react-dom";
-import { useRouter } from "@tanstack/react-router";
-import { useAuth } from "../../context/AuthContext";
-import { useViewer } from "../../hooks/useViewer";
-import { useNotices } from "../../pages/vestuario/live";
-import { markNoticesSeen } from "../../pages/vestuario/writes";
-import { bellLabel, isUnread, relativeTime, toMillis, unreadCount, type Notice } from "../../lib/derived/notices";
-import { capital, plural } from "../../lib/derived/words";
-import { VIcon, type VIconName } from "../vidrio/VIcon";
-import { AvisosPrefs } from "../vidrio/account/AvisosPrefs";
-import "./notices.css";
-import "../../styles/vidrio/reading.css";
-import "./avisos.css";
+// The bell (TU boards, shell.html `tu-bell`): a round glass button in the top bar (`tu-cbtn--bell`) with the unread
+// count on its dot; it opens a glass sheet that grows out of it (under it on a desktop, over the tab bar on a
+// phone): «Avisos» and how many are unread with its «⋯» (mark everything read, pause, A medida), «Te toca» —
+// what waits on you, answered right there — and «Todo» — the newest two matches as stacks and the three newest
+// loose notices —, then «Abrir el centro de avisos» and this device's line («Este móvil: Todo · A medida»). A fan
+// gets the sheet too, with the shortcuts of this device only (the notices are the vestuario's). A dialog: the
+// focus moves in (↑ ↓ between what it holds, ← → between the tabs), Esc and a tap outside close it, the focus
+// goes back to the bell. The data: bandeja/useInbox; the pieces: bandeja/parts.
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { flushSync } from "react-dom";
+import { bellLabel } from "../../lib/derived/notices";
+import { DotsMenu, TuIcon, TuLayer } from "../vidrio/tu/ui";
+import { rove, useToast } from "../vidrio/tu/kit";
+import { useInbox, type Inbox } from "../../pages/perfil/bandeja/useInbox";
+import { MatchStack, NoticeRow, PendList } from "../../pages/perfil/bandeja/parts";
+import { useAvisoActions, type ActionInbox, type AvisoActions } from "../../pages/perfil/bandeja/actions";
+import { useThisDevice, type ThisDevice } from "../../pages/perfil/bandeja/device";
+import { PresetSeg } from "../../pages/perfil/bandeja/deviceParts";
+import { tuSurface } from "../vidrio/tu/surface";
+import { askFlyBell } from "../../pages/perfil/bandeja/flyBell";
+import { nextLine, pauseLine, unreadText } from "../../pages/perfil/bandeja/model";
+import "../../styles/tu-avisos.css";
 
-/** Where the panel goes: a sheet under the bell (its fixed top and right edge), or the phone's sheet. */
-type Anchor = { mode: "pop"; top: number; right: number } | { mode: "sheet" };
-
-/** The page width (the Celeste container) from which the panel hangs under the bell. */
-const POPOVER_FROM = 1100;
-/** How many the sheet shows before «Ver todos». */
-const BELL_ROWS = 5;
-
-const FOCUSABLE = 'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])';
-const EMPTY = "Aquí verás los avisos del equipo: convocatorias, el siete, el MVP…";
-const LOADING = "Cargando los avisos…";
-const FAILED = "No se han podido cargar los avisos. Comprueba la conexión y vuelve a abrirlos.";
-
-/** The board's two families: what comes from la mesa (the match) and what from the pizarra, the turns, the caja. */
-const MATCH_TOPICS = new Set(["start", "goals", "final", "mvp", "lineup", "cards", "dates"]);
-type AvisoFilter = "todo" | "partido" | "vestuario";
-const avisoKind = (topic: string): Exclude<AvisoFilter, "todo"> => (MATCH_TOPICS.has(topic) ? "partido" : "vestuario");
-const FILTERS: { id: AvisoFilter; label: string }[] = [
-  { id: "todo", label: "Todos" },
-  { id: "partido", label: "Del partido" },
-  { id: "vestuario", label: "Del vestuario" },
-];
-
-const ICON: Record<string, VIconName> = { goals: "ball", start: "whistle", final: "flag", mvp: "star", lineup: "shirt", dates: "cal", convocatoria: "check", personal: "bell", rota: "wash", polls: "poll", caja: "euro", access: "lock", door: "lock" };
-
-function AvisoIcon({ topic }: { topic: string }) {
-  if (topic === "cards") return <i className="vd-av__card" />;
-  return <VIcon name={ICON[topic] ?? "bell"} size={19} />;
-}
-
-/** A member's bell: his notices (the team's, his, a captain's) and his last look. */
+/** A member's bell: his notices and «Te toca». */
 export function NoticesBell() {
-  const { user, profile } = useAuth();
-  const { admin } = useViewer();
-  const uid = user?.uid;
-  const notices = useNotices(uid, admin);
-  return <Bell member uid={uid} list={notices.data} loading={notices.loading} failed={!!notices.error} serverSeen={toMillis(profile?.noticesSeenAt)} />;
+  const inbox = useInbox();
+  return <Bell inbox={inbox.member ? inbox : null} />;
 }
 
-/** A fan's bell: only «Avisos a medida» (no listener, no account). */
+/** A fan's bell: only this device's shortcuts (no listener, no account). */
 export function FanBell() {
-  return <Bell member={false} uid={undefined} list={[]} loading={false} failed={false} serverSeen={null} />;
+  return <Bell inbox={null} />;
 }
 
-interface BellProps {
-  member: boolean;
-  uid: string | undefined;
-  list: readonly Notice[];
-  loading: boolean;
-  failed: boolean;
-  serverSeen: number | null;
-}
-
-function Bell({ member, uid, list, loading, failed, serverSeen }: BellProps) {
+function Bell({ inbox }: { inbox: Inbox | null }) {
   const [open, setOpen] = useState(false);
-  /** Our own look (`local`), until the server's new timestamp replaces `over`, the one we wrote over (it
-   *  reads null while the write is pending). Then the server's clock rules again. */
-  const [pending, setPending] = useState<{ local: number; over: number | null } | null>(null);
-  /** The look before this opening: what the rows mark new while the panel stays open. */
-  const [seenBefore, setSeenBefore] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-  /** Under the bell or the phone's sheet, measured on opening and on every resize while open. */
-  const [anchor, setAnchor] = useState<Anchor>({ mode: "sheet" });
-  const bell = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-
-  const seenAt = pending && (serverSeen === null || serverSeen === pending.over) ? pending.local : serverSeen;
-  const unread = member ? unreadCount(list, seenAt) : 0;
-
-  const close = useCallback((refocus = true) => {
-    setOpen(false);
-    if (refocus) bell.current?.focus();
-  }, []);
-
-  const measure = useCallback((): Anchor => {
-    const el = bell.current;
-    const width = el?.closest(".vx")?.clientWidth ?? window.innerWidth;
-    if (!el || width < POPOVER_FROM) return { mode: "sheet" };
-    const r = el.getBoundingClientRect();
-    return { mode: "pop", top: Math.round(r.bottom + 6), right: Math.max(16, Math.round(document.documentElement.clientWidth - r.right - 60)) };
-  }, []);
-
-  const toggle = () => {
-    if (open) return close();
-    const t = Date.now();
-    setNow(t);
-    setSeenBefore(seenAt);
-    setAnchor(measure());
-    setOpen(true);
-    if (uid && (unread > 0 || serverSeen === null)) {
-      setPending({ local: t, over: serverSeen });
-      markNoticesSeen(uid).catch((e: unknown) => console.error("No se pudo marcar los avisos como vistos:", e));
-    }
+  const btn = useRef<HTMLButtonElement | null>(null);
+  const toast = useToast();
+  const unread = inbox?.unread ?? 0;
+  const openIt = () => tuSurface(true, btn.current, "tu-bell", () => flushSync(() => setOpen(true)));
+  const close = (refocus = true) => {
+    tuSurface(false, btn.current, "tu-bell", () => flushSync(() => setOpen(false)));
+    if (refocus) window.setTimeout(() => btn.current?.focus({ preventScroll: true }), 60);
   };
+  return (
+    <>
+      <button ref={btn} type="button" className="vd-glass vd-press tu-cbtn tu-cbtn--bell" aria-label={bellLabel(unread)} aria-haspopup="dialog" aria-expanded={open} onClick={() => (open ? close() : openIt())}>
+        <TuIcon name="bell" />
+        {unread > 0 && (
+          <span className="tu-cbtn__dot" aria-hidden="true">
+            {unread}
+          </span>
+        )}
+      </button>
+      <TuLayer cls={open ? "o-campana" : undefined}>
+        {open && (
+          <>
+            <div className="tu-scrim" aria-hidden="true" onClick={() => close()} />
+            {inbox ? <MemberSheet inbox={inbox} say={toast.say} close={close} /> : <FanSheet say={toast.say} close={close} />}
+          </>
+        )}
+        {toast.node}
+      </TuLayer>
+    </>
+  );
+}
 
-  // Focus moves into the panel; the relative times stay fresh while it is open.
+/** Focus into the sheet on opening; Esc closes it; ↑ ↓ move between what it holds. */
+function useSheetKeys(close: (refocus?: boolean) => void) {
+  const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (!open) return;
-    panel.current?.focus();
-    const tick = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(tick);
-  }, [open]);
-
-  // The sheet follows the bell when the window changes size (and becomes the phone's sheet below 1100px).
-  useEffect(() => {
-    if (!open) return;
-    const onResize = () => setAnchor(measure());
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [open, measure]);
-
-  // A click (or touch) outside the panel and the bell closes it.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as Node | null;
-      if (t && (panel.current?.contains(t) || bell.current?.contains(t))) return;
-      close();
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [open, close]);
-
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const t = window.setTimeout(() => ref.current?.querySelector<HTMLElement>("[data-nav]")?.focus({ preventScroll: true }), 40);
+    return () => window.clearTimeout(t);
+  }, []);
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Escape") {
+      e.preventDefault();
       e.stopPropagation();
       close();
       return;
     }
-    if (e.key !== "Tab" || !panel.current) return;
-    const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
-    if (!items.length) return e.preventDefault();
-    const first = items[0];
-    const last = items[items.length - 1];
-    const at = document.activeElement;
-    if (e.shiftKey && (at === first || at === panel.current)) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && at === last) {
-      e.preventDefault();
-      first.focus();
-    }
+    rove(e, "[data-nav]");
   };
+  return { ref, onKey };
+}
 
-  const dialog = open ? (
-    <NoticesPanel
-      anchor={anchor}
-      ref={panel}
-      titleId={titleId}
-      member={member}
-      list={list}
-      // (what was unread when it opened: the header says the same as the rows it marks, not «Al día» once the look is written)
-      unread={member ? unreadCount(list, seenBefore) : 0}
-      loading={member && loading}
-      failed={member && failed}
-      seenBefore={seenBefore}
-      now={now}
-      onKeyDown={onKeyDown}
-      onClose={close}
-    />
-  ) : null;
-
+function Foot({ d, a, member, onAll }: { d: ThisDevice; a: Pick<AvisoActions, "goAv">; member: boolean; onAll: () => void }) {
   return (
-    <div className="nt">
-      <button ref={bell} type="button" className="nt-bell" aria-label={bellLabel(unread)} aria-haspopup="dialog" aria-expanded={open} onClick={toggle}>
-        <VIcon name="bell" size={20} />
-        {unread > 0 && <span className="nt-dot" aria-hidden="true" />}
+    <footer className="tu-bell__foot">
+      {member && (
+        <button type="button" className="tu-mi" data-nav="1" onClick={onAll}>
+          <TuIcon name="bell" />
+          <span className="tu-mi__t">Abrir el centro de avisos</span>
+          <TuIcon name="chev-r" className="tu-mi__c" />
+        </button>
+      )}
+      <button type="button" className="tu-mi tu-mi--quiet" data-nav="1" onClick={() => a.goAv("amedida")}>
+        <TuIcon name="gear" />
+        <span className="tu-mi__t">Este móvil: {d.line}</span>
+        <small className="tu-mi__h">A medida</small>
       </button>
-      {dialog && createPortal(<div className="nt-portal">{dialog}</div>, document.body)}
+    </footer>
+  );
+}
+
+function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => void; close: (refocus?: boolean) => void }) {
+  const leave = () => close(false);
+  const a = useAvisoActions(inbox, say, leave);
+  const d = useThisDevice();
+  const { ref, onKey } = useSheetKeys(close);
+  const [tab, setTab] = useState<"toca" | "todo">("toca");
+  const tabs = [
+    { k: "toca" as const, t: "Te toca", n: inbox.openPend },
+    { k: "todo" as const, t: "Todo", n: inbox.unread },
+  ];
+  const keys = (e: KeyboardEvent<HTMLDivElement>) => {
+    const t = e.target as HTMLElement;
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && t.getAttribute("role") === "tab") {
+      e.preventDefault();
+      const nt = tab === "toca" ? "todo" : "toca";
+      setTab(nt);
+      window.setTimeout(() => document.getElementById(`tu-bt-${nt}`)?.focus(), 0);
+      return;
+    }
+    onKey(e);
+  };
+  const markAll = () =>
+    inbox.reads.markAll().then(
+      () => say("Todo leído. Te avisamos de lo nuevo."),
+      () => say("No se ha podido guardar. Inténtalo otra vez."),
+    );
+  const empty = !inbox.loading && !inbox.failed && !inbox.list.length && !inbox.pends.length;
+  const list = !inbox.loading && !inbox.failed && !empty;
+  const next = nextLine(inbox.next);
+  const [exp, setExp] = useState<Record<string, boolean>>({});
+  const all = () => {
+    askFlyBell();
+    a.goAv("bandeja", tab === "toca" ? "toca" : "todos");
+  };
+  return (
+    <div ref={ref} className="vd-glass vd-glass--deep tu-sheet tu-bell" role="dialog" aria-modal="true" aria-labelledby="tu-bell-t" onKeyDown={keys}>
+      <span className="tu-grab" aria-hidden="true" />
+      <header className="tu-bell__head">
+        <h2 id="tu-bell-t">Avisos</h2>
+        <span className="tu-bell__n">{unreadText(inbox.unread)}</span>
+        <div className="tu-bell__mm">
+          <DotsMenu
+            right
+            label="Más opciones de los avisos"
+            items={[
+              { t: "Marcar todo como leído", icon: "check", go: () => void markAll() },
+              { t: "Pausar una hora", icon: "clock", go: () => a.pause("1h") },
+              { t: "Pausar hasta mañana", icon: "moon", go: () => a.pause("manana") },
+              { t: "Avisos a medida", icon: "gear", go: () => a.goAv("amedida") },
+            ]}
+          />
+        </div>
+        <button type="button" className="tu-x2" aria-label="Cerrar los avisos" onClick={() => close()}>
+          <TuIcon name="close" />
+        </button>
+      </header>
+      <div className="vd-glass vd-seg tu-oseg tu-bell__tabs" role="tablist" aria-label="Qué avisos" style={{ "--n": 2, "--i": tab === "todo" ? 1 : 0 } as CSSProperties}>
+        <span className="vd-shelf__bead" aria-hidden="true" />
+        {tabs.map((t) => (
+          <button key={t.k} type="button" role="tab" id={`tu-bt-${t.k}`} className="vd-seg__b" data-nav="1" aria-selected={tab === t.k} tabIndex={tab === t.k ? 0 : -1} onClick={() => setTab(t.k)}>
+            {t.t}
+            {t.n > 0 && <span className="tu-badge">{t.n}</span>}
+          </button>
+        ))}
+      </div>
+      <div className="tu-bell__body" role="tabpanel" aria-labelledby={`tu-bt-${tab}`}>
+        {d.pause && (
+          <p className="tu-state is-warn">
+            <b>{pauseLine(d.pause.kind)}</b>
+            <button type="button" className="vd-link" onClick={a.resume}>
+              Reanudar
+            </button>
+          </p>
+        )}
+        {!d.ready && (
+          <p className={`tu-state is-${d.words.tone}`}>
+            <b>{d.blocked}</b>
+            <button type="button" className="vd-link" onClick={() => a.goAv("amedida")}>
+              Cómo arreglarlo
+            </button>
+          </p>
+        )}
+        {inbox.loading && (
+          <div className="tu-skel" role="status">
+            <span className="vd-vh">Cargando los avisos…</span>
+            <i />
+            <i />
+            <i />
+          </div>
+        )}
+        {inbox.failed && (
+          <div className="tu-empty" role="alert">
+            <b>No se han podido cargar.</b>
+            <span>Comprueba la conexión y vuelve a abrirlos.</span>
+          </div>
+        )}
+        {empty && (
+          <div className="tu-empty" role="status">
+            <b>Estás al día.</b>
+            <span>{next}</span>
+          </div>
+        )}
+        {list && tab === "toca" && (inbox.pends.length ? <PendList pends={inbox.pends} a={a} say={say} sm /> : (
+          <div className="tu-empty">
+            <b>Nada te toca ahora.</b>
+            <span>{next}</span>
+          </div>
+        ))}
+        {list && tab === "todo" && (
+          <>
+            {inbox.stacks.slice(0, 2).map((x) => (
+              <MatchStack key={x.matchId} x={x} inbox={inbox} a={a} exp={!!exp[x.matchId]} onToggle={() => setExp((e) => ({ ...e, [x.matchId]: !e[x.matchId] }))} />
+            ))}
+            {inbox.loose.length > 0 && (
+              <ol className="tu-nts">
+                {inbox.loose.slice(0, 3).map((n) => (
+                  <NoticeRow key={n.id} n={n} inbox={inbox} a={a} />
+                ))}
+              </ol>
+            )}
+          </>
+        )}
+      </div>
+      <Foot d={d} a={a} member onAll={all} />
     </div>
   );
 }
 
-interface PanelProps {
-  anchor: Anchor;
-  ref: Ref<HTMLDivElement>;
-  titleId: string;
-  member: boolean;
-  list: readonly Notice[];
-  unread: number;
-  loading: boolean;
-  /** A listener failed: said in words instead of the empty line (the list keeps whatever did arrive). */
-  failed: boolean;
-  seenBefore: number | null;
-  now: number;
-  onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
-  onClose: (refocus?: boolean) => void;
-}
-
-function Rows({ list, seenBefore, now, follow }: { list: readonly Notice[]; seenBefore: number | null; now: number; follow: (e: MouseEvent<HTMLAnchorElement>, url: string) => void }) {
+function FanSheet({ say, close }: { say: (t: string) => void; close: (refocus?: boolean) => void }) {
+  const d = useThisDevice();
+  const { ref, onKey } = useSheetKeys(close);
+  const a = useFanActions(close);
   return (
-    <ol className="vd-avs">
-      {list.map((n) => {
-        const fresh = isUnread(n, seenBefore);
-        return (
-          <li key={n.id}>
-            <a className={`vd-av${fresh ? " is-new" : ""}`} href={n.url} onClick={(e) => follow(e, n.url)}>
-              <span className="vd-av__i" aria-hidden="true">
-                <AvisoIcon topic={n.topic} />
-              </span>
-              <span className="vd-av__t">
-                <b>
-                  {fresh && <span className="vd-vh">Nuevo: </span>}
-                  {n.title}
-                </b>
-                <span>{n.body}</span>
-              </span>
-              <time dateTime={new Date(n.at).toISOString()}>{capital(relativeTime(n.at, now))}</time>
-            </a>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function NoticesPanel({ anchor, ref, titleId, member, list, unread, loading, failed, seenBefore, now, onKeyDown, onClose }: PanelProps) {
-  const router = useRouter();
-  const [all, setAll] = useState(false);
-  const [filter, setFilter] = useState<AvisoFilter>("todo");
-  const follow = (e: MouseEvent<HTMLAnchorElement>, url: string) => {
-    onClose(false);
-    // The club's own pages go through the router (no reload); anything else is a plain link.
-    if (!url.startsWith("/") || url.startsWith("//") || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault();
-    void router.navigate({ href: url });
-  };
-  const more = list.length - BELL_ROWS;
-  const shown = all ? list.filter((n) => filter === "todo" || avisoKind(n.topic) === filter) : list.slice(0, BELL_ROWS);
-  const fi = FILTERS.findIndex((f) => f.id === filter);
-  const empty = (
-    // (one polite region: «Cargando…» turning into the list, the empty line or the error is said once)
-    <p className="vd-av-none" role="status">
-      {loading ? LOADING : failed ? FAILED : EMPTY}
-    </p>
-  );
-  return (
-    <>
-      {anchor.mode === "sheet" && <div className="nt-scrim" aria-hidden="true" />}
-      <div
-        ref={ref}
-        className={`vd-glass vd-glass--deep vd-bell ${anchor.mode === "pop" ? "vd-bell--pop" : "vd-bell--sheet"}${all ? " is-all" : ""}`}
-        style={anchor.mode === "pop" ? ({ top: anchor.top, right: anchor.right, "--vd-bell-top": `${anchor.top}px` } as CSSProperties) : undefined}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        onKeyDown={onKeyDown}
-      >
-        <div className="vd-bell__head">
-          <h2 id={titleId}>{all ? "Todos los avisos" : "Avisos"}</h2>
-          {!all && member && <span>{unread > 0 ? (unread <= 2 ? (unread === 1 ? "El primero, sin leer" : "Los dos primeros, sin leer") : `${unread} sin leer`) : "Al día"}</span>}
-          {all && (
-            <div className="vd-glass vd-seg vd-bell__seg" style={{ "--n": FILTERS.length, "--i": fi } as CSSProperties} role="group" aria-label="Qué avisos">
-              <span className="vd-shelf__bead" aria-hidden="true" />
-              {FILTERS.map((f) => (
-                <button key={f.id} type="button" className="vd-seg__b" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            type="button"
-            className="vd-glass vd-press vd-bell__x"
-            aria-label={all ? "Cerrar todos los avisos" : "Cerrar los avisos"}
-            onClick={() => {
-              if (!all) return onClose();
-              setAll(false);
-              setFilter("todo");
-            }}
-          >
-            <VIcon name={all ? "collapse" : "close"} size={16} />
-            {all && <span>Cerrar</span>}
-          </button>
-        </div>
-        {all && <p className="vd-bell__sub">{plural(list.length, "aviso")} en total. Los del partido llegan de la mesa; los del vestuario, de la pizarra, los turnos y la caja.</p>}
-        <div className="vd-bell__body">
-          <div className="vd-bell__list">
-            {!member ? (
-              <p className="vd-av-none">Los avisos del vestuario son de los socios. Desde aquí eliges qué te avisamos del partido en este dispositivo.</p>
-            ) : list.length === 0 ? (
-              empty
-            ) : (
-              <>
-                <Rows list={shown} seenBefore={seenBefore} now={now} follow={follow} />
-                {all && shown.length === 0 && <p className="vd-av-none">Ninguno de este tipo todavía.</p>}
-              </>
-            )}
-            {!all && member && more > 0 && (
-              <div className="vd-more vd-bell__more">
-                <span>
-                  <b>{plural(more, "aviso")} más</b> de hoy y de esta semana
-                </span>
-                <button type="button" className="vd-more__btn" onClick={() => setAll(true)}>
-                  Ver todos
-                  <VIcon name="expand" size={16} />
-                </button>
-              </div>
-            )}
-          </div>
-          <AvisosPrefs className="vd-bell__prefs" />
-        </div>
+    <div ref={ref} className="vd-glass vd-glass--deep tu-sheet tu-bell" role="dialog" aria-modal="true" aria-labelledby="tu-bell-t" onKeyDown={onKey}>
+      <span className="tu-grab" aria-hidden="true" />
+      <header className="tu-bell__head">
+        <h2 id="tu-bell-t">Avisos</h2>
+        <button type="button" className="tu-x2" aria-label="Cerrar los avisos" onClick={() => close()}>
+          <TuIcon name="close" />
+        </button>
+      </header>
+      <div className="tu-bell__body" role="tabpanel" aria-label="Avisos">
+        {d.pause && (
+          <p className="tu-state is-warn">
+            <b>{pauseLine(d.pause.kind)}</b>
+            <button type="button" className="vd-link" onClick={a.resume}>
+              Reanudar
+            </button>
+          </p>
+        )}
+        {!d.ready && (
+          <p className={`tu-state is-${d.words.tone}`}>
+            <b>{d.blocked}</b>
+            <button type="button" className="vd-link" onClick={() => a.goAv("amedida")}>
+              Cómo arreglarlo
+            </button>
+          </p>
+        )}
+        <p className="tu-blk__d">Los avisos del vestuario son de los socios. Desde aquí eliges qué te avisamos del partido en este móvil.</p>
+        <PresetSeg d={d} say={say} label="Qué te avisamos" />
       </div>
-    </>
+      <Foot d={d} a={a} member={false} onAll={() => undefined} />
+    </div>
   );
 }
+
+/** A fan's bell has no inbox: only the way to A medida and the pause's resume. */
+function useFanActions(close: (refocus?: boolean) => void): Pick<AvisoActions, "goAv" | "resume"> {
+  const a = useAvisoActions(FAN_INBOX, () => undefined, () => close(false));
+  return { goAv: a.goAv, resume: a.resume };
+}
+const FAN_INBOX: ActionInbox = { next: null, matchName: () => "", reads: { mark: async () => undefined } };

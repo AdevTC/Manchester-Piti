@@ -2,175 +2,169 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RECENT_KEY } from "../../lib/recentSearches";
 import { SearchPanel } from "./SearchPanel";
-import { actionEntries, groupResults, teamEntries, type PanelEntry } from "./searchModel";
+import { buildEntries, type SrGame, type SrPlayer } from "./searchModel";
 
-const NOW: PanelEntry[] = [
-  { id: "now:j1", kind: "ahora", title: "Piti 2–1 Orduña fc", detail: "En directo. Abrir el partido", live: true, icon: "ball", target: { to: "partido", matchId: "j1" } },
-  { id: "now:pip", kind: "ahora", title: "Sacar el marcador", detail: "A una ventana que flota encima de todo", icon: "pip", target: { to: "pip" } },
+const PLAYERS: SrPlayer[] = [
+  { id: "alcides", name: "Alcides", num: "9", pos: "Punta", full: "Alcides Ramos", shirt: "ALCIDES", line: "48′ en la J1." },
+  { id: "kevin", name: "Kevin", num: "11", pos: "Extremo derecho", full: "Kevin Pérez", shirt: "KEVIN", line: "30′ en la J1." },
 ];
-const PLAYERS: PanelEntry[] = ["Alcides", "Almachi", "Alberto", "Alfonso", "Alonso"].map((t, i) => ({ id: `p:${i}`, kind: "jugador", title: t, detail: `Dorsal ${i + 7}`, shirt: String(i + 7), exact: [String(i + 7)], target: { to: "jugador", playerId: `p${i}` } }));
-const ENTRIES: PanelEntry[] = [
-  ...NOW,
-  ...PLAYERS,
-  { id: "m:m3", kind: "partido", title: "J3 · Rayo Vallecano", detail: "12 oct · 4-0", exact: ["J3"], icon: "fixtures", target: { to: "partido", matchId: "m3" } },
-  { id: "r:rayo", kind: "rival", title: "Rayo Vallecano", detail: "2 partidos", icon: "chart", target: { to: "partido", matchId: "m4" } },
-  { id: "s:plantilla", kind: "seccion", title: "Plantilla", icon: "arrow", target: { to: "plantilla" } },
-  ...actionEntries({ jugador: true, member: true, rsvp: null, vote: null, feed: "webcal://x/calendario.ics" }),
+const GAMES: SrGame[] = [
+  { id: "m1", j: 1, rival: "Orduña fc", res: "P", score: "1–8", live: false, home: true, when: "domingo 18 oct, 19:00", scorers: "Alcides (43′)", goals: 1, changes: 23, marks: [{ m: 43, k: "us", left: 86 }, { m: 10, k: "them", left: 20 }] },
+  { id: "m2", j: 2, rival: "Pitutis", res: null, score: "0–0", live: false, home: false, when: "domingo 25 oct, 14:00", scorers: "", goals: 0, changes: 0, marks: [] },
 ];
+const ENTRIES = buildEntries({ viewer: { kind: "jugador", captain: false }, dia: false, players: PLAYERS, games: GAMES, next: { j: 2 }, vote: null });
 
-const setup = () => {
-  const onGo = vi.fn();
+const setup = (initial?: { q: string; scope: "todo" }) => {
+  const onChoose = vi.fn();
   const onClose = vi.fn();
-  render(<SearchPanel entries={ENTRIES} onGo={onGo} onClose={onClose} />);
+  const onState = vi.fn();
+  render(<SearchPanel entries={ENTRIES} viewer="jugador" onChoose={onChoose} onClose={onClose} onState={onState} initial={initial} />);
   const box = screen.getByRole("combobox", { name: /busca jugadores/i });
-  return { onGo, onClose, box };
+  return { onChoose, onClose, onState, box };
 };
+const pressed = () => screen.getAllByRole("button", { pressed: true }).map((b) => b.firstChild?.textContent);
 
 afterEach(() => window.localStorage.clear());
 
-describe("SearchPanel", () => {
-  it("is a modal dialog whose field (a combobox) has the focus and controls the listbox", () => {
+describe("SearchPanel (TU boards, tu-sr)", () => {
+  it("is a modal dialog in the boards' layer, its field a combobox with the focus", () => {
     const { box } = setup();
-    expect(screen.getByRole("dialog", { name: "Buscar en la web" })).toHaveAttribute("aria-modal", "true");
+    const dialog = screen.getByRole("dialog", { name: "Buscar en la web" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveClass("tu-sr");
+    expect(dialog.closest(".tu.tu-ovl")).toHaveClass("o-buscar");
     expect(box).toHaveFocus();
-    const list = screen.getByRole("listbox");
-    expect(box).toHaveAttribute("aria-controls", list.id);
-    expect(box).toHaveAttribute("aria-autocomplete", "list");
+    expect(box).toHaveAttribute("aria-controls", screen.getByRole("listbox").id);
   });
 
-  it("empty: «Ahora» first (the match of the moment and «Sacar el marcador»), then «Acciones»", () => {
+  it("empty: «Lo próximo», four «Acciones» with «N más», the recents and the prefixes' tip", () => {
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(["orduña", "11"]));
     setup();
-    const groups = screen.getAllByRole("group").map((g) => g.getAttribute("aria-labelledby") && document.getElementById(g.getAttribute("aria-labelledby") ?? "")?.textContent);
-    expect(groups).toEqual(["Ahora", "Acciones"]);
-    const now = within(screen.getByRole("group", { name: "Ahora" })).getAllByRole("option");
-    expect(now[0]).toHaveTextContent("Piti 2–1 Orduña fc");
-    expect(now[1]).toHaveTextContent("Sacar el marcador");
+    expect(within(screen.getByRole("group", { name: "Lo próximo" })).getByRole("option")).toHaveTextContent("J2 · Pitutis");
+    const acts = screen.getByRole("group", { name: "Acciones" });
+    expect(within(acts).getAllByRole("option")).toHaveLength(4);
+    fireEvent.click(within(acts).getByRole("button", { name: /^Ver \d+ más en Acciones$/ }));
+    expect(within(screen.getByRole("group", { name: "Acciones" })).getAllByRole("option").length).toBeGreaterThan(4);
+    expect(screen.getByRole("button", { name: "orduña" })).toBeInTheDocument();
+    expect(screen.getByText(/jugadores · /)).toBeInTheDocument();
   });
 
-  it("«Ahora» stays first whatever is typed; three per group with «N más»; the footer counts them all and grows", () => {
+  it("«or»: «Mejor resultado» the rival (initials in coral), its match with its letter; counts on the scopes", () => {
     const { box } = setup();
-    fireEvent.change(box, { target: { value: "al" } });
-    expect(screen.getByRole("group", { name: "Ahora" })).toBeInTheDocument();
-    const players = screen.getByRole("group", { name: "Jugadores" });
-    expect(within(players).getAllByRole("option")).toHaveLength(3);
-    expect(within(players).getAllByRole("option")[0]).toHaveTextContent("Alcides");
-    const total = screen.getByRole("status").textContent ?? "";
-    expect(total).toMatch(/^\d+ resultados$/);
-    fireEvent.click(screen.getByRole("button", { name: `Ver los ${total.split(" ")[0]} resultados` }));
-    expect(screen.getByRole("dialog")).toHaveClass("is-all");
-    expect(within(screen.getByRole("group", { name: "Jugadores" })).getAllByRole("option")).toHaveLength(5);
-    fireEvent.click(screen.getByRole("button", { name: "Ver menos" }));
-    expect(screen.getByRole("dialog")).not.toHaveClass("is-all");
-    fireEvent.click(screen.getByRole("button", { name: "Ver 2 más en Jugadores" }));
-    expect(within(screen.getByRole("group", { name: "Jugadores" })).getAllByRole("option")).toHaveLength(5);
+    fireEvent.change(box, { target: { value: "or" } });
+    const best = within(screen.getByRole("group", { name: "Mejor resultado" })).getByRole("option");
+    expect(best).toHaveTextContent("Orduña fc");
+    expect(best.querySelector(".tu-sr__rv")).toHaveTextContent("O");
+    const match = within(screen.getByRole("group", { name: "Partidos" })).getByRole("option");
+    expect(match.querySelector(".tu-res.is-P")).toHaveTextContent("P");
+    expect(screen.getByRole("button", { name: /^Partidos/ })).toHaveTextContent("Partidos2");
+    expect(screen.getByRole("status")).toHaveTextContent("2 resultados");
+    // the preview: the rival's initials, its record and its meetings, its address and «Ver los partidos»
+    const pv = screen.getByRole("complementary", { name: "Vista previa" });
+    expect(pv).toHaveTextContent("1 derrota.");
+    expect(pv).toHaveTextContent("/numeros/rivales?rival=orduna-fc");
+    expect(within(pv).getByRole("button", { name: "Ver los partidos" })).toBeInTheDocument();
   });
 
-  it("↑ ↓ move the active option (aria-activedescendant, aria-selected), wrapping; Intro opens it", () => {
-    const { box, onGo } = setup();
-    fireEvent.change(box, { target: { value: "rayo" } });
+  it("↑ ↓ move the active result (aria-activedescendant), the preview follows; Intro chooses and remembers", () => {
+    const { box, onChoose } = setup();
+    fireEvent.change(box, { target: { value: "or" } });
     const opts = screen.getAllByRole("option");
-    // Ahora (2), Jornadas, Equipos
-    expect(opts).toHaveLength(4);
     expect(box).toHaveAttribute("aria-activedescendant", opts[0].id);
     fireEvent.keyDown(box, { key: "ArrowDown" });
+    expect(opts[1]).toHaveAttribute("aria-selected", "true");
+    const pv = screen.getByRole("complementary", { name: "Vista previa" });
+    expect(pv.querySelector(".tu-sr__score")).toHaveTextContent("1–8Perdimos");
+    expect(pv.querySelectorAll(".tu-tl i")).toHaveLength(2);
     fireEvent.keyDown(box, { key: "ArrowDown" });
-    expect(opts[2]).toHaveAttribute("aria-selected", "true");
-    expect(opts[0]).toHaveAttribute("aria-selected", "false");
-    fireEvent.keyDown(box, { key: "ArrowUp" });
-    fireEvent.keyDown(box, { key: "ArrowUp" });
-    fireEvent.keyDown(box, { key: "ArrowUp" });
-    expect(box).toHaveAttribute("aria-activedescendant", opts[3].id);
+    expect(opts[0]).toHaveAttribute("aria-selected", "true");
     fireEvent.keyDown(box, { key: "Enter" });
-    expect(onGo).toHaveBeenCalledWith(expect.objectContaining({ id: "r:rayo" }));
+    expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ id: "r:Orduña fc" }));
+    expect(JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]")).toEqual(["or"]);
   });
 
-  it("the boards' groups: «Jornadas», «Equipos»; the players with their shirt", () => {
+  it("Tab cycles where to search; the chip in the field drops it; Backspace on an empty field too", () => {
     const { box } = setup();
-    fireEvent.change(box, { target: { value: "rayo" } });
-    expect(screen.getByRole("group", { name: "Jornadas" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Equipos" })).toBeInTheDocument();
-    fireEvent.change(box, { target: { value: "7" } });
-    expect(document.querySelector(".vd-sr__shirt")).toHaveTextContent("7");
+    expect(pressed()).toEqual(["Todo"]);
+    fireEvent.keyDown(box, { key: "Tab" });
+    expect(pressed()).toEqual(["Jugadores"]);
+    expect(box).toHaveAttribute("placeholder", "Busca en jugadores");
+    expect(screen.getAllByRole("option").map((o) => o.querySelector("b")?.textContent)).toEqual(["Alcides", "Kevin"]);
+    fireEvent.keyDown(box, { key: "Tab", shiftKey: true });
+    fireEvent.keyDown(box, { key: "Tab", shiftKey: true });
+    expect(pressed()).toEqual(["Acciones"]);
+    fireEvent.click(screen.getByRole("button", { name: "Quitar el filtro Acciones" }));
+    expect(pressed()).toEqual(["Todo"]);
+    fireEvent.keyDown(box, { key: "Tab" });
+    fireEvent.keyDown(box, { key: "Backspace" });
+    expect(pressed()).toEqual(["Todo"]);
   });
 
-  it("with nothing found but «Ahora»: a line in words", () => {
+  it("a prefix sets the scope: @ players", () => {
     const { box } = setup();
-    fireEvent.change(box, { target: { value: "zzzz" } });
-    expect(screen.getAllByRole("option")).toHaveLength(2);
-    expect(screen.getByText(/Nada con «zzzz»/)).toBeInTheDocument();
+    fireEvent.change(box, { target: { value: "@ke" } });
+    expect(pressed()).toEqual(["Jugadores"]);
+    expect(screen.getAllByRole("option").map((o) => o.querySelector("b")?.textContent)).toEqual(["Kevin"]);
   });
 
-  it("Esc empties the field first, then closes (asking for the focus back); so does the Esc button", () => {
+  it("Esc empties the field, then drops the scope, then closes", () => {
     const { box, onClose } = setup();
-    fireEvent.change(box, { target: { value: "al" } });
+    fireEvent.keyDown(box, { key: "Tab" });
+    fireEvent.change(box, { target: { value: "ke" } });
     fireEvent.keyDown(box, { key: "Escape" });
     expect(box).toHaveValue("");
+    expect(pressed()).toEqual(["Jugadores"]);
+    fireEvent.keyDown(box, { key: "Escape" });
+    expect(pressed()).toEqual(["Todo"]);
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(box, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onClose.mock.calls[0]).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: "Cerrar la búsqueda" }));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("Tab stays inside the dialog", () => {
+  it("nothing found: the words and «¿Querías decir…?», which fills the field", () => {
     const { box } = setup();
-    const close = screen.getByRole("button", { name: "Cerrar la búsqueda" });
-    const items = [...screen.getByRole("dialog").querySelectorAll<HTMLElement>("input,button:not([disabled])")];
-    const last = items[items.length - 1];
-    last.focus();
-    fireEvent.keyDown(last, { key: "Tab" });
-    expect(box).toHaveFocus();
-    fireEvent.keyDown(box, { key: "Tab", shiftKey: true });
-    expect(last).toHaveFocus();
-    expect(close).toBeInTheDocument();
+    fireEvent.change(box, { target: { value: "kez" } });
+    expect(screen.getByText("Nada con «kez».")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Kevin" }));
+    expect(box).toHaveValue("Kevin");
   });
 
-  it("a chosen result remembers the search; a recent search refills the field", () => {
-    const { box, onGo } = setup();
-    fireEvent.change(box, { target: { value: "alc" } });
-    fireEvent.click(screen.getByRole("option", { name: /Alcides/ }));
-    expect(onGo).toHaveBeenCalledWith(PLAYERS[0]);
-    expect(JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]")).toEqual(["alc"]);
-  });
-
-  it("lists the recent searches when empty and works when storage throws", () => {
-    window.localStorage.setItem(RECENT_KEY, JSON.stringify(["rayo"]));
+  it("the recents: one refills the field, each one goes with its ×, «Borrar» clears them", () => {
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(["orduña", "calendario", "11"]));
     const { box } = setup();
-    const recent = within(screen.getByRole("group", { name: "Búsquedas recientes" })).getByRole("option");
-    expect(recent).toHaveTextContent("rayo");
-    fireEvent.click(recent);
-    expect(box).toHaveValue("rayo");
+    fireEvent.click(screen.getByRole("button", { name: "11" }));
+    expect(box).toHaveValue("11");
+    fireEvent.change(box, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Quitar «calendario» de las recientes" }));
+    expect(screen.queryByRole("button", { name: "calendario" })).not.toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]")).toEqual(["orduña", "11"]);
+    fireEvent.click(screen.getByRole("button", { name: "Borrar" }));
+    expect(screen.queryByText("Búsquedas recientes")).not.toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "null")).toEqual([]);
   });
 
-  it("renders and finds even when localStorage is blocked", () => {
+  it("starts where it is told and reports every change (the address keeps ?q=)", () => {
+    const { box, onState } = setup({ q: "kevin", scope: "todo" });
+    expect(box).toHaveValue("kevin");
+    expect(screen.getAllByRole("option")[0]).toHaveTextContent("Kevin");
+    fireEvent.change(box, { target: { value: "kev" } });
+    expect(onState).toHaveBeenLastCalledWith({ q: "kev", scope: "todo" });
+  });
+
+  it("works when storage is blocked", () => {
     const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("SecurityError");
     });
     const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("QuotaExceededError");
     });
-    const { box, onGo } = setup();
-    fireEvent.change(box, { target: { value: "7" } });
-    fireEvent.keyDown(box, { key: "ArrowDown" });
-    fireEvent.keyDown(box, { key: "ArrowDown" });
+    const { box, onChoose } = setup();
+    fireEvent.change(box, { target: { value: "11" } });
     fireEvent.keyDown(box, { key: "Enter" });
-    expect(onGo).toHaveBeenCalledWith(PLAYERS[0]);
+    expect(onChoose).toHaveBeenCalledWith(expect.objectContaining({ id: "j:kevin" }));
     get.mockRestore();
     set.mockRestore();
-  });
-});
-
-describe("searchModel", () => {
-  it("every league team is findable once (our rivals already are)", () => {
-    const rows = [{ team: "Manchester Piti", isUs: true }, { team: "Rayo Vallecano" }, { team: "Pitutis" }];
-    expect(teamEntries(rows, ENTRIES).map((e) => e.title)).toEqual(["Pitutis"]);
-  });
-  it("actions by who is looking: a fan only the calendar and the shirt", () => {
-    expect(actionEntries({ jugador: false, member: false, rsvp: null, vote: null, feed: "webcal://x" }).map((e) => e.title)).toEqual(["Al calendario", "Ponte la del Piti"]);
-    expect(actionEntries({ jugador: false, member: true, rsvp: null, vote: null, feed: null }).map((e) => e.title)).toEqual(["Votar al MVP", "Hacer la porra", "Ponte la del Piti"]);
-  });
-  it("groups in the boards' order, «Ahora» always", () => {
-    expect(groupResults(ENTRIES, "plantilla").map((g) => g.title)).toEqual(["Ahora", "Páginas"]);
   });
 });

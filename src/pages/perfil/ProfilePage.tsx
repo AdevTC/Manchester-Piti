@@ -1,30 +1,140 @@
-// /profile «La carta»: the Celeste chrome (header with «Tu perfil», the dock and the footer, like the
-// vestuario and the pizarra) around ProfileView, wired to the real data (useProfileData) and the
-// profile's callables. Members only: the layout shows the door to everybody else.
-import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
-import { ThemeToggle } from "../../components/ThemeToggle";
-import { useEffect } from "react";
-import { useClock } from "../../hooks/useClock";
-import { preloadOverlays } from "./lazy";
+// Tú (TU boards): one page mounted across /perfil/* and /avisos/* (the pathless layout `tu`), so the card travels
+// between the screens. It reads the screen from the address (tu/model screenAt) and draws the board's family:
+//   · /perfil without a session: the door (what is inside and how to get in), never a redirect;
+//   · /perfil/*: «Mi página» — the identity (the small card, the name, the line), the sticky tabs that say what each
+//     screen holds, and the screen with its one primary action and «Más»; /perfil/compartir and
+//     /perfil/temporada/cromos are the studio and the cromos over their screen;
+//   · /avisos/*: the bandeja and «A medida» (bandeja/AvisosMain), for fans too.
+// Every move is a View Transition (exit → morph → enter), with the address as an entry of the history. Only a
+// member's Mi página reads his profile (useProfileData): a fan's door and the avisos open no member listener.
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { flushSync } from "react-dom";
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import { CelesteDock, CelesteHeader } from "../../components/celeste/Chrome";
+import { VidrioSky } from "../../components/vidrio";
+import { usePageKitStills } from "../../components/jersey3d/usePageKitStills";
+import { KitStillContext, type KitStills } from "../../components/jersey3d/kitStill";
 import { useAuth } from "../../context/AuthContext";
+import { useTeam } from "../../context/TeamContext";
+import { useClock } from "../../hooks/useClock";
+import { useTheme } from "../../hooks/useTheme";
 import { leaveDoorNotice } from "../../lib/doorNotice";
 import { savedTopics, setTopics } from "../../lib/push";
+import { readTuMaqueta, type TuMaqueta } from "../../components/vidrio/tu/maqueta";
+import { tuGo, useToast } from "../../components/vidrio/tu/kit";
 import { cancelPlayerClaim, leaveVestuario, nicknameTaken, proposePositions, requestPlayerClaim, setNickname, setShirtName } from "./api";
-import { ProfileView, type ProfileActions } from "./ProfileView";
 import { useProfileData } from "./useProfileData";
-import "../../styles/perfil.css";
-import "../../styles/perfil-app.css";
-import "../../styles/vidrio/tokens.css";
-import "../../styles/perfil-vidrio.css";
+import { allowedSec, dirOf, screenAt, secPath, COMPARTIR_PATH, CROMOS_PATH, type Kind, type Screen, type Sec } from "./tu/model";
+import { Door } from "./tu/Door";
+import { MiPagina, type TuActions } from "./tu/MiPagina";
+import { kindOf } from "./tu/view";
+import { PORRA_ID } from "./tu/screens/Porra";
+
+const keyOf = (s: Screen) => `${s.page}:${s.sec}:${s.open ?? ""}`;
+const AvisosMain = lazy(() => import("./bandeja/AvisosMain").then((m) => ({ default: m.AvisosMain })));
+const NO_STILLS: KitStills = () => undefined;
+
+type Go = (to: Screen, opts?: { replace?: boolean; search?: Record<string, string> }) => void;
+
+/** The page's frame: its sky, the top bar, the dock and the toast around the screen; its root carries the state
+ *  classes the boards' CSS reads (page, viewer, screen, the back of the card, an open surface, Día). */
+function Frame({ screen, kind, sec, stills, toast, children }: { screen: Screen; kind: Kind; sec: Sec; stills: KitStills; toast: ReactNode; children: ReactNode }) {
+  const { theme } = useTheme();
+  const back = screen.page === "perfil" && kind !== "fan" && (sec === "ajustes" || sec === "cuenta" || sec === "capitania");
+  const cls = ["vx", "vd-pg", "tu", `p-${screen.page}`, `k-${kind}`, `s-${sec}`, back ? "is-back" : "", screen.open ? `has-open o-${screen.open}` : "", theme === "light" ? "is-dia" : ""].filter(Boolean).join(" ");
+  return (
+    <KitStillContext.Provider value={stills}>
+      <div className={cls} style={{ "--vd-sky-h": "1100px" } as CSSProperties}>
+        <VidrioSky light={theme === "light" ? "noon" : "noche"} floodlit={false} height={1100} />
+        <CelesteHeader />
+        {children}
+        <CelesteDock />
+        {toast}
+      </div>
+    </KitStillContext.Provider>
+  );
+}
 
 export function ProfilePage() {
-  // The cromos story and the share studio: their chunks once the page is up, before anyone taps.
-  useEffect(preloadOverlays, []);
-  const data = useProfileData();
+  const pathname = useLocation({ select: (l) => l.pathname });
+  const navigate = useNavigate();
+  const maq = readTuMaqueta();
+  const { user, profile } = useAuth();
+  const team = useTeam();
+  const { say, node: toast } = useToast();
+  const member = maq?.quien ? maq.quien !== "fan" : team.member && !!profile;
+  // (the session being restored: no door flash before the page knows him)
+  const checking = !maq?.quien && (!team.ready || (team.member && !profile));
+
+  // ── the screen: the address's, kept in state so a move can commit it inside its View Transition
+  const urlScreen = screenAt(pathname);
+  const [screen, setScreen] = useState<Screen>(urlScreen);
+  const urlKey = keyOf(urlScreen);
+  const shown = useRef(screen);
+  useEffect(() => {
+    shown.current = screen;
+  }, [screen]);
+  useEffect(() => {
+    // (back, forward, a link from elsewhere: the address moved on its own)
+    const cur = shown.current;
+    if (keyOf(cur) === urlKey) return;
+    const to = screenAt(pathname);
+    const surface = cur.page === to.page && cur.sec === to.sec;
+    tuGo(surface ? "left" : dirOf(cur, to), () => flushSync(() => setScreen(to)), surface);
+    // (only the address drives this)
+  }, [urlKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Goes to another screen (or opens/closes the studio or the cromos over this one). */
+  const go: Go = (to, opts = {}) => {
+    const path = to.page === "avisos" ? "/avisos/a-medida" : to.open === "compartir" ? COMPARTIR_PATH : to.open === "cromos" ? CROMOS_PATH : secPath(to.sec);
+    const surface = to.page === screen.page && to.sec === screen.sec && to.open !== screen.open;
+    tuGo(
+      surface ? (to.open ? "up" : "left") : dirOf(screen, to),
+      async () => {
+        flushSync(() => setScreen(to));
+        await navigate({ to: path, search: opts.search ?? {}, replace: opts.replace, resetScroll: !surface } as never);
+      },
+      surface,
+    );
+  };
+
+  if (screen.page === "perfil" && member && !checking) return <Member screen={screen} go={go} maq={maq} say={say} toast={toast} />;
+  return (
+    <Frame screen={screen} kind={member ? "socio" : "fan"} sec="carta" stills={NO_STILLS} toast={toast}>
+      {screen.page === "avisos" ? (
+        <Suspense fallback={<main className="tu-main tu-av" id="tu-main" aria-busy="true" />}>
+          <AvisosMain say={say} />
+        </Suspense>
+      ) : checking ? (
+        <main className="tu-main" id="tu-main" aria-busy="true" />
+      ) : (
+        <Door signedIn={!!user} onAvisos={() => go({ page: "avisos", sec: "carta", open: null })} />
+      )}
+    </Frame>
+  );
+}
+
+/** A member's Mi página: his profile, his card's screens and their actions. */
+function Member({ screen, go, maq, say, toast }: { screen: Screen; go: Go; maq: TuMaqueta | null; say: (t: string) => void; toast: ReactNode }) {
+  const navigate = useNavigate();
   const { logout } = useAuth();
+  const data = useProfileData(maq);
   const now = useClock(60_000);
+  const { theme } = useTheme();
+  const who = { kind: kindOf(data, maq), captain: data.isCaptain };
+  const sec: Sec = allowedSec(screen.sec, who);
+
+  // /perfil#porra (the match's vestuario links it): a player's «Tu recorrido en la porra» lives in Temporada
+  const porraHash = useLocation({ select: (l) => l.hash === PORRA_ID });
+  const toTemporada = porraHash && !data.loading && who.kind === "jugador" && screen.sec === "carta" && !screen.open;
+  useEffect(() => {
+    if (!toTemporada) return;
+    // (the address moves; the screen follows it, as on any other arrival)
+    void navigate({ to: secPath("temporada"), hash: PORRA_ID, replace: true });
+  }, [toTemporada]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const uid = data.uid;
-  const actions: ProfileActions = {
+  const actions: TuActions = {
     setShirtName: async (name) => (await setShirtName({ name })).data,
     setNickname: async (nickname) => (await setNickname({ nickname })).data.nickname,
     nicknameTaken: (nick) => nicknameTaken(nick, uid),
@@ -52,25 +162,12 @@ export function ProfilePage() {
       await logout();
     },
   };
+
+  // ── the shirts: every player's printed still, both kits (the studio and «Tu nombre» wear the second)
+  const stillOf = usePageKitStills({ on: typeof window !== "undefined", theme, kits: ["home", "away"], players: data.shirt.squad.map((s) => ({ name: s.name, num: s.number == null ? "" : String(s.number) })).filter((s) => s.num) });
   return (
-    <ProfileView
-      data={data}
-      actions={actions}
-      now={now}
-      origin={typeof window === "undefined" ? "" : window.location.origin}
-      header={
-        <CelesteHeader
-          active="vestuario"
-          sub="Tu perfil"
-          actions={<ThemeToggle />}
-        />
-      }
-      footer={
-        <>
-          <CelesteFooter />
-          <CelesteDock active="vestuario" />
-        </>
-      }
-    />
+    <Frame screen={screen} kind={who.kind} sec={sec} stills={stillOf} toast={toast}>
+      {data.loading ? <main className="tu-main" id="tu-main" aria-busy="true" /> : <MiPagina data={data} who={who} sec={sec} open={screen.open} go={go} actions={actions} say={say} now={now} maq={maq} />}
+    </Frame>
   );
 }

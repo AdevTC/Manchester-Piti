@@ -848,7 +848,7 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
                     <Go className="vd-link" href="/perfil/cuenta">
                       Vincular mi ficha
                     </Go>
-                    <Go className="vd-link" href="/perfil/temporada">
+                    <Go className="vd-link" href="/perfil#porra">
                       Tu recorrido en la porra
                     </Go>
                   </div>

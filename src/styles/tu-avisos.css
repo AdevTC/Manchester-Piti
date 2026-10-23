@@ -1,0 +1,16 @@
+/* Avisos in the app: the few rules tu.css (the boards' own, ported as it is) lacks here. */
+
+/* A medida's «Tema a tema»: the boards place each switch at the end of its row from 620 px of block (the `scr`
+   container of /perfil's screens); /avisos/a-medida has no such container, so on the board the switches fell under
+   their text at every width. Each block is that container here. */
+.tu-am>.tu-blk{container-type:inline-size;container-name:scr}
+
+/* The top bar outside Tú: the boards' «tupg» queries can't reach the chrome of another page, so the account's
+   first name and the search key follow the page's own container (the same widths: 700 px and up). */
+@container (min-width:700px){header.vx-top .tu-acct__name{display:inline}}
+
+/* An MVP candidate whose printed still is still on its way keeps the shirt's place. */
+.tu-mvp__ph{display:block;width:60px;height:64px}
+
+/* A notice or a match whose «⋯» is open stays above the rows after it (the board's has-menu, said by the menu itself). */
+.tu-nt:has(>.tu-nt__more .tu-pop),.tu-ms:has(.tu-ms__head .tu-pop){position:relative;z-index:5}

@@ -1,126 +1,30 @@
-/* «Buscar» (SearchLauncher, SearchPanel): the header's magnifier and its dialog, portalled to the body — out of .vx
-   the dialog has no Celeste tokens, so .sr-portal carries the few it reads (the same values as styles/vestuario.css,
-   both themes), like the avisos panel. A sheet hanging from the top on a phone (the field stays clear of the
-   keyboard), a centred panel from 720px. Night-match navy, the sky accent for the active row, the kind as a word.
-   Phone first. */
+/* «Buscar» (SearchLauncher, SearchPanel, BuscarPage): the boards' CSS is styles/tu.css (ported as it is, not edited
+   here). These are only what the app needs around it. Selectors carry an extra class or the element so they win
+   over tu.css in either CSS order (a production build may put this sheet first). */
 
-/* the button: the header's round chip (like the theme switch and the bell); from 1100px it says «Buscar» and its keys */
-.vx .sr-btn{position:relative;height:44px;min-width:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:0;border:0;border-radius:999px;background:var(--chip);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.vx .sr-btn[aria-expanded="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
-.vx .sr-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.sr-btn-t,.sr-btn-k{display:none}
-.sr-btn-k{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;font-weight:500;padding:3px 6px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line,rgba(255,255,255,.1));color:var(--muted)}
-@media (min-width:1100px){
-  .vx .sr-btn{padding:0 12px 0 14px}
-  .sr-btn-t,.sr-btn-k{display:inline}
+/* the top bar's magnifier (tu.css .tu-cbtn): the header is not inside the boards' .tu container (no --tu-sans and
+   no container «tupg»), so its face and its ≥1100 px «Buscar · Ctrl K» are said again against the header's own
+   container, the one chrome.css measures */
+header.vx-top .tu-cbtn.tu-cbtn--sr{font:600 14px var(--vd-sans);flex:0 0 auto}
+header.vx-top .tu-cbtn--sr:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+@container (min-width:1100px){
+  header.vx-top .tu-cbtn.tu-cbtn--sr{padding:0 12px 0 14px}
+  header.vx-top .tu-cbtn--sr .tu-cbtn__t{display:inline}
+  header.vx-top .tu-cbtn--sr .tu-cbtn__k{display:inline;font:600 11.5px var(--font-mono,ui-monospace);padding:3px 6px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-g-ink2)}
 }
 
-/* the wrapper places the failure card under the button; the card says it in words (SearchLauncher) */
-.sr-wrap{position:relative;display:flex;flex:0 0 auto}
-.vx .sr-fail{position:absolute;top:calc(100% + 8px);right:0;z-index:calc(var(--z-toast,60) + 1);width:max-content;max-width:min(300px,calc(100vw - 32px));padding:10px 14px;border-radius:14px;background:var(--bg,#030817);box-shadow:inset 0 0 0 1px var(--accent),0 14px 30px -18px rgba(0,0,0,.7);color:var(--ink);font-size:14px;line-height:1.4;font-weight:500;text-align:left}
+/* the button's wrapper (not chrome.css's .sr-wrap, which moved the search after the account under 1100 px: the
+   boards keep search · bell · account at every width); the failure card hangs under the button */
+.tu-srw{position:relative;display:flex;flex:0 0 auto}
+.tu-srw .sr-fail{position:absolute;top:calc(100% + 8px);right:0;z-index:61;width:max-content;max-width:min(300px,calc(100vw - 32px));padding:10px 14px;border-radius:14px;background:var(--vd-solid,#08132f);box-shadow:inset 0 0 0 1px var(--vd-celeste),0 14px 30px -18px rgba(0,0,0,.7);color:var(--vd-ink);font:500 14px/1.4 var(--vd-sans);text-align:left}
+.tu-srw .sr-hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;margin:0}
 
-.sr-portal{--bg:#030817;--ink:#eef4ff;--soft:#c9d8ef;--muted:#9fb3d3;--accent:#9fd0f2;--chip:rgba(255,255,255,.07);--sr-bg:rgba(8,19,47,.98);--sr-line:rgba(159,208,242,.22);--sr-on:rgba(159,208,242,.13);--z-toast:60;font-family:'Geist',system-ui,sans-serif;color:var(--ink)}
-[data-theme="light"] .sr-portal{--bg:#eef4fa;--ink:#0c1733;--soft:#2c3a5c;--muted:#4f5d7d;--accent:#2a73ad;--chip:rgba(12,23,51,.06);--sr-bg:rgba(255,255,255,.98);--sr-line:rgba(12,23,51,.12);--sr-on:rgba(42,115,173,.1)}
-.sr-portal *{box-sizing:border-box}
-.sr-hide,.vx .sr-hide{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;margin:0}
-
-.sr-scrim{position:fixed;inset:0;z-index:calc(var(--z-toast) + 1);background:rgba(3,8,23,.6)}
-[data-theme="light"] .sr-scrim{background:rgba(12,23,51,.32)}
-
-/* phone: a sheet from the top edge */
-.sr-panel{position:fixed;z-index:calc(var(--z-toast) + 2);left:0;right:0;top:0;max-height:min(86svh,640px);display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:var(--sr-bg);border-radius:0 0 24px 24px;box-shadow:inset 0 0 0 1px var(--sr-line),0 30px 60px -30px rgba(0,0,0,.75);padding-top:env(safe-area-inset-top,0px);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);text-align:left}
-@media (min-width:720px){
-  .sr-panel{left:50%;right:auto;top:12vh;width:min(640px,calc(100vw - 48px));max-height:min(72vh,600px);border-radius:24px;transform:translateX(-50%);padding-top:0}
+/* the phone's whole screen: the board starts it at 52 px only to clear its mock-up strip; the app has none, so it
+   starts at the top, clear of the notch */
+@container tupg (max-width:699px){
+  .tu.tu-ovl .tu-sr{top:0;padding-top:env(safe-area-inset-top,0px)}
 }
 
-.sr-field{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 18px;border-bottom:1px solid var(--sr-line);color:var(--muted)}
-.sr-field input{flex:1;min-width:0;height:48px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:18px;font-weight:500;letter-spacing:-.01em;outline:none}
-.sr-field input::placeholder{color:var(--muted);opacity:1}
-/* the field keeps the focus the whole time: an underline says so, not the icon's colour alone */
-.sr-field:focus-within{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
-.sr-close{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;background:var(--chip);color:var(--ink);cursor:pointer}
-.sr-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-
-.sr-body{overflow-y:auto;overscroll-behavior:contain;padding:6px 8px 12px}
-.sr-group{padding-top:6px}
-.sr-gh{padding:8px 12px 6px;font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;color:var(--muted)}
-
-/* a row (≥ 44px): the kind as a word, the title and its line, a chevron; the active one is lit and ruled */
-.sr-row{position:relative;display:grid;grid-template-columns:76px minmax(0,1fr) 20px;align-items:center;gap:10px;min-height:52px;padding:8px 12px;border-radius:14px;cursor:pointer;color:var(--ink)}
-.sr-row.on{background:var(--sr-on)}
-.sr-row.on::before{content:"";position:absolute;left:2px;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--accent)}
-.sr-kind{justify-self:start;font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
-.sr-row.on .sr-kind{color:var(--accent)}
-.sr-txt{display:grid;gap:2px;min-width:0}
-.sr-t{font-weight:600;font-size:16px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sr-d{font-size:13px;line-height:1.3;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sr-go{color:var(--muted);display:flex;opacity:0}
-.sr-row.on .sr-go{opacity:1;color:var(--accent)}
-
-.sr-none{margin:0;padding:14px 12px 18px;max-width:46ch;font-size:15px;line-height:1.5;color:var(--soft)}
-
-.sr-foot{display:none;margin:0;gap:16px;padding:10px 18px;border-top:1px solid var(--sr-line);font-size:12px;color:var(--muted)}
-.sr-foot kbd{display:inline-block;min-width:20px;margin-right:3px;padding:1px 5px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--sr-line);font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;text-align:center;color:var(--soft)}
-@media (min-width:720px) and (hover:hover){.sr-foot{display:flex}}
-
-@media (prefers-reduced-motion:no-preference){
-  .sr-scrim{animation:srFade .2s ease-out both}
-  .sr-panel{animation:srDrop .26s cubic-bezier(.16,1,.3,1) both}
-  @media (min-width:720px){.sr-panel{animation:srPop .18s ease-out both}}
-}
-@keyframes srFade{from{opacity:0}to{opacity:1}}
-@keyframes srDrop{from{transform:translateY(-100%)}to{transform:none}}
-@keyframes srPop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translateX(-50%)}}
-
-/* «Vidrio» (V-Integracion «Buscar, con ⌘K»): the glass window over the dimmed page, Mona Sans, groups in sentence
-   case with «N más», icon chips or the player's shirt, «Intro» on the active row; «Ver los N resultados» grows it. */
-.vd-sr .vd-sr__scrim{position:fixed;inset:0;z-index:70;background:radial-gradient(80% 70% at 50% 30%,rgba(4,8,22,.38),rgba(4,8,22,.62));animation:none}
-:root[data-theme="light"] .vd-sr .vd-sr__scrim{background:radial-gradient(80% 70% at 50% 30%,rgba(12,23,51,.16),rgba(12,23,51,.32))}
-.vd-sr__win{--vd-r:32px;position:fixed;z-index:71;left:50%;top:104px;width:720px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 128px);transform:translateX(-50%);
-  display:flex;flex-direction:column;padding:10px 10px 8px;font-family:var(--vd-sans);color:var(--vd-g-ink);animation:vd-sr-in .55s var(--vd-spring) both;transform-origin:50% 0}
-@keyframes vd-sr-in{from{opacity:0;transform:translateX(-50%) scale(.9,.6)}}
-.vd-sr__win.is-all{top:24px;bottom:24px;max-height:none}
-.vd-sr__field{display:flex;align-items:center;gap:12px;height:62px;flex:none;padding:0 8px 0 18px;border-radius:24px;background:rgba(4,10,28,.35);box-shadow:inset 0 2px 6px rgba(0,0,0,.3),inset 0 0 0 1px rgba(234,243,252,.14)}
-:root[data-theme="light"] .vd-sr__field{background:rgba(255,255,255,.6);box-shadow:inset 0 2px 6px rgba(12,23,51,.08),inset 0 0 0 1px rgba(12,23,51,.14)}
-.vd-sr__field>svg{flex:none;color:var(--vd-g-ink2)}
-.vd-sr__field input{flex:1;min-width:0;height:60px;border:0;outline:0;background:none;color:var(--vd-g-ink);font-family:var(--vd-sans);font-size:21px;font-weight:600;letter-spacing:-.01em}
-.vd-sr__field input::placeholder{color:var(--vd-g-ink2);font-weight:500;opacity:.85}
-.vd-sr__field input:focus-visible{outline:0}
-.vd-sr__win:has(.vd-sr__field input:focus-visible) .vd-sr__field{box-shadow:inset 0 2px 6px rgba(0,0,0,.3),inset 0 0 0 2px var(--vd-celeste)}
-.vd-sr kbd{display:inline-grid;place-items:center;min-width:28px;height:26px;padding:0 7px;border-radius:8px;font-family:var(--vd-sans);font-size:12.8px;font-weight:650;color:var(--vd-g-ink);background:rgba(234,243,252,.10);box-shadow:inset 0 -1.5px 0 rgba(0,0,0,.3),inset 0 0 0 1px rgba(234,243,252,.2)}
-:root[data-theme="light"] .vd-sr kbd{background:rgba(12,23,51,.06);box-shadow:inset 0 -1.5px 0 rgba(12,23,51,.12),inset 0 0 0 1px rgba(12,23,51,.16)}
-.vd-sr__esc{min-width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:12px;background:none;cursor:pointer;padding:0}
-.vd-sr__esc:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
-.vd-sr__hits{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:6px 4px 4px;scrollbar-width:thin}
-.vd-sr__group+.vd-sr__group{margin-top:2px}
-.vd-sr__gh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:12px 14px 6px;font-size:13px;font-weight:650;color:var(--vd-g-ink2)}
-.vd-sr__win.is-all .vd-sr__gh{position:sticky;top:-6px;z-index:2;background:linear-gradient(180deg,rgba(14,26,56,.96) 70%,rgba(14,26,56,0))}
-:root[data-theme="light"] .vd-sr__win.is-all .vd-sr__gh{background:linear-gradient(180deg,rgba(255,255,255,.96) 70%,rgba(255,255,255,0))}
-.vd-sr__more{min-height:32px;padding:0 8px;border:0;border-radius:10px;background:none;cursor:pointer;font-family:var(--vd-sans);font-weight:560;font-size:13px;color:var(--vd-g-ink2)}
-.vd-sr__more:hover{color:var(--vd-g-ink);background:rgba(234,243,252,.08)}
-.vd-sr__more:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:1px}
-.vd-sr__hit{position:relative;display:flex;align-items:center;gap:14px;min-height:58px;padding:6px 14px;border-radius:18px;cursor:pointer;transition:background .25s}
-.vd-sr__hit.is-sel{background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.06));box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 0 0 .5px rgba(255,255,255,.28),0 10px 24px -14px var(--vd-glow)}
-:root[data-theme="light"] .vd-sr__hit.is-sel{background:linear-gradient(180deg,#fff,rgba(255,255,255,.75));box-shadow:inset 0 0 0 1px rgba(12,23,51,.1),0 10px 24px -14px rgba(30,60,110,.35)}
-.vd-sr__i{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;color:var(--vd-g-ink);background:rgba(234,243,252,.08);box-shadow:inset 0 0 0 1px rgba(234,243,252,.14)}
-:root[data-theme="light"] .vd-sr__i{background:rgba(12,23,51,.05);box-shadow:inset 0 0 0 1px rgba(12,23,51,.12)}
-.vd-sr__hit.is-live .vd-sr__i{background:rgba(255,93,93,.14);box-shadow:inset 0 0 0 1px rgba(255,93,93,.4)}
-.vd-sr__shirt{--s:36px;margin:0 2px;flex:none}
-.vd-sr__t{flex:1;min-width:0;display:flex;flex-direction:column}
-.vd-sr__t b{font-weight:650;font-size:16px;color:var(--vd-g-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.vd-sr__t span{font-size:13.5px;color:var(--vd-g-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.vd-sr__go{opacity:0;transition:opacity .2s}
-.vd-sr__hit.is-sel .vd-sr__go{opacity:1}
-.vd-sr__empty{padding:18px 14px;margin:0;font-size:15px;color:var(--vd-g-ink2)}
-.vd-sr__foot{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;flex:none;padding:10px 14px 4px;border-top:1px solid var(--vd-rule);margin-top:4px;font-size:13px;color:var(--vd-g-ink2)}
-.vd-sr__foot>span{display:inline-flex;gap:6px;align-items:center}
-.vd-sr__all{margin-left:auto}
-.vd-sr__count{color:var(--vd-g-ink2)}
-@media (max-width:699px){
-  .vd-sr__win{top:10px;width:auto;left:10px;right:10px;transform:none;max-height:calc(100dvh - 20px)}
-  @keyframes vd-sr-in{from{opacity:0;transform:scale(.95,.7)}}
-  .vd-sr__foot>span{display:none}
-  .vd-sr__field input{font-size:18px}
-}
-@media (prefers-reduced-motion:reduce){.vd-sr__win{animation:none}.vd-sr__hit,.vd-sr__go{transition:none}}
-@media (prefers-reduced-transparency:reduce){.vd-sr__win{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}}
+/* the field keeps the focus the whole time and its celeste rim already says so: tu.css's `.tu :focus-visible` ring
+   would draw a second box inside it (the board's own `.tu-sr__field input{outline:none}` loses to it on specificity) */
+.tu.tu-ovl .tu-sr__field input:focus-visible{outline:none}
