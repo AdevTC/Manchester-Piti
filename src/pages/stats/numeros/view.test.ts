@@ -68,6 +68,18 @@ describe("Números · the boards' faults, fixed", () => {
   });
 });
 
+describe("Números · the porra", () => {
+  it("a member sees an empty porra said in words; a fan sees the door", () => {
+    const socio = { kind: "socio" as const, playerId: null, name: "", porraKey: null };
+    const v = numerosView({ ...BASE, place: "jugadores", rankK: "porra" }, env({ viewer: socio }), act);
+    expect(v.jug.title).toBe("La porra, aún sin puntos");
+    expect(v.jug.porraEmpty).toMatch(/^Aún no hay puntos de porra/);
+    const fan = numerosView({ ...BASE, place: "jugadores", rankK: "porra" }, env(), act);
+    expect(fan.jug.title).toBe("La porra es del vestuario");
+    expect(fan.jug.porraEmpty).toBe("");
+  });
+});
+
 describe("Números · «El cielo»: nobody shares a point", () => {
   it("places each line in its column(s), spread wing to wing", () => {
     const many = squadOf(

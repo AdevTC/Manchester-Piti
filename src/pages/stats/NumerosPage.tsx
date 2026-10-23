@@ -539,6 +539,15 @@ export function NumerosPage() {
     };
   }, []);
 
+  // board fault: on the phone the tab strip scrolls sideways and kept showing the first tabs; the open one comes into view
+  useEffect(() => {
+    const strip = pageRef.current?.querySelector<HTMLElement>(".nu-rail__in");
+    const on = strip?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!strip || !on || strip.scrollWidth <= strip.clientWidth + 1) return;
+    const left = strip.scrollLeft + on.getBoundingClientRect().left - strip.getBoundingClientRect().left - 12;
+    strip.scrollTo({ left: Math.max(0, left), behavior: reduced ? "auto" : "smooth" });
+  }, [st.place, reduced]);
+
   // ── the rail: arrows move between sections, a swipe on the phone too
   const railKey = (e: KeyboardEvent) => {
     const i = PLACES.indexOf(st.place);

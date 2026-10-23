@@ -4,6 +4,9 @@
 .nu>.vd-sky.nu-sky-b{z-index:0}
 .nu-sys__row+.nu-sys__row{margin-top:6px}
 /* board fault: the «Viva» tag of a team streak stretched across the row (li>span{flex:1} caught it too) */
-.nu-streaks li>.vd-provtag{flex:none}
+.nu-streaks li>.vd-provtag{flex:none;display:inline-flex;align-items:center;white-space:nowrap}
 /* the scorers of a rival game keep the row's ink (a link's colour reached them) */
 .nu-rvg__t small{color:var(--vd-ink)}
+/* an open sheet sits above the shared floating score (.vd-floatzone, z 40): the page isolates its stacking, so the
+   page itself goes above while a sheet is open */
+.vx.nu:has(>.nu-sheet){z-index:45}

@@ -548,6 +548,7 @@ export function Jugadores({ v, grow, onClose, numOf }: { v: V; grow: boolean; on
       )}
       <div className="nu-jug">
         <div className="nu-reg nu-reg--rank">
+          {j.porraEmpty && <p className="nu-empty">{j.porraEmpty}</p>}
           {j.locked && (
             <div className="nu-door">
               <I name="lock" />
