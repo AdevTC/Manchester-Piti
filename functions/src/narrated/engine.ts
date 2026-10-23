@@ -134,6 +134,9 @@ export function evaluateNarrated(matches: readonly NarratedMatch[], filters: Ana
     let raw: MetricCalculation;
     if (metric.audio.viability === 'excluded') raw = missing(metric.audio.condition || 'Requiere medición, seguimiento o un modelo externo; no se calcula desde la narración.', 'not_applicable');
     else if (filters.team === 'opponent' && filters.playerIds?.length) raw = missing('Las fichas seleccionadas pertenecen al Piti. Quita ese filtro para consultar al rival.', 'not_applicable');
+    // The match's starters, bench and ledger describe the Piti only. Opponent actions
+    // do not establish the rival's roster, substitutions or combinations of seven.
+    else if (ctx.team === 'opponent' && (Number(id) >= 1 && Number(id) <= 14 || id === '388' || id === '389')) raw = missing('Faltan la convocatoria y las tandas del rival. La participación del Piti no se atribuye al otro equipo.');
     else if (filters.playerIds?.length && metric.scope.trim().toLowerCase() === 'equipo') raw = missing('Esta métrica describe al equipo completo; quita el filtro de jugadores para consultarla.', 'not_applicable');
     else if (ctx.matches.some((_, i) => profileSignature(ctx, metric.parameterIds, i) !== profileSignature(ctx, metric.parameterIds, 0))) raw = missing('Los partidos usan definiciones o parámetros distintos para esta métrica. Selecciona partidos con el mismo perfil de cálculo.', 'not_configured');
     else if (filters.period != null && ['001','002','003','004','009','010','011','012','013','014','219','220','221','223','224','225','228','276','319','320','321','322','382','383','384','388','392','393','394','395','396','400'].includes(id) && ctx.matches.some(m => !periodInterval(ctx, m))) raw = missing('Falta el límite real de esta parte; no se sustituye por la duración programada.');
