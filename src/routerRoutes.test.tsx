@@ -40,7 +40,7 @@ vi.mock("./pages/perfil/ProfilePage", async () => {
 });
 vi.mock("./components/celeste/BuscarPage", () => ({ BuscarPage: () => <h1>buscar</h1> }));
 
-const { createAppRouter } = await import("./router");
+const { createAppRouter, plantillaSearchSchema } = await import("./router");
 
 const leaf = (path: string) => createAppRouter(createMemoryHistory({ initialEntries: ["/"] })).matchRoutes(path, {}).at(-1)?.routeId;
 
@@ -50,8 +50,8 @@ describe("every new address resolves", () => {
     partidos: ["/partidos", "/partidos/tabla", "/partidos/balance"],
     "el partido": ["/partidos/j1", "/partidos/j1/siete", "/partidos/j1/numeros", "/partidos/j1/vestuario"],
     "la mesa": ["/partidos/j1/mesa"],
-    números: ["/numeros", "/numeros/y-si", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion", "/plantilla/cara-a-cara"],
-    "la percha": ["/plantilla", "/plantilla/album"],
+    números: ["/numeros", "/numeros/y-si", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion"],
+    "la percha": ["/plantilla", "/plantilla/album", "/plantilla/cara-a-cara"],
     "el jugador": ["/jugadores/alcides", "/jugadores/alcides/temporada", "/jugadores/alcides/jornadas", "/jugadores/alcides/juego", "/jugadores/alcides/analisis", "/jugadores/alcides/cromo"],
     "el club": ["/club", "/club/vitrina", "/club/vitrina/escudo", "/club/historia", "/club/equipo", "/club/equipo/camiseta", "/club/gente"],
     "el vestuario": ["/vestuario", "/vestuario/caja", "/vestuario/encuestas", "/vestuario/encuestas/p1", "/vestuario/ausencias", "/vestuario/turnos", "/vestuario/entrenos", "/vestuario/tablon", "/vestuario/puerta", "/vestuario/ficha"],
@@ -105,7 +105,7 @@ describe("every old address redirects, with its parameters, replacing the old en
     ["/matches", "/partidos", "partidos"],
     ["/partidos?view=numeros&temporada=t0", "/partidos/balance?temporada=t0", "partidos"],
     ["/stats?view=positions&season=t1", "/numeros/campo/puestos?temporada=t1", "números"],
-    ["/stats?view=compare&a=alcides&b=erik", "/plantilla/cara-a-cara?a=alcides&b=erik", "números"],
+    ["/stats?view=compare&a=alcides&b=erik", "/plantilla/cara-a-cara?a=alcides&b=erik", "la percha"],
     ["/profile#temporada", "/perfil/temporada", "tu página"],
     ["/club#cl-kits", "/club/equipo", "el club"],
     ["/vestuario#vx-caja", "/vestuario/caja", "el vestuario"],
@@ -187,7 +187,7 @@ describe("the server renders Plantilla's pages, never the pending panel", () => 
   it.each([
     ["/plantilla", "la percha"],
     ["/plantilla/album", "la percha"],
-    ["/plantilla/cara-a-cara", "números"],
+    ["/plantilla/cara-a-cara", "la percha"],
   ])("%s", async (url, page) => {
     const router = createAppRouter(createMemoryHistory({ initialEntries: [url] }));
     await router.load();
@@ -196,14 +196,26 @@ describe("the server renders Plantilla's pages, never the pending panel", () => 
   });
 });
 
-describe("Plantilla's percha and today's duel switch without suspending a page by hand", () => {
+describe("Plantilla's screens keep one page mounted", () => {
   it("/plantilla ⇄ /plantilla/cara-a-cara", async () => {
     const router = createAppRouter(createMemoryHistory({ initialEntries: ["/plantilla"] }));
     render(<RouterProvider router={router} />);
     expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
     await act(() => router.navigate({ href: "/plantilla/cara-a-cara?a=alcides" }));
-    expect(await screen.findByRole("heading", { level: 1, name: "números" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({ a: "alcides" });
     await act(() => router.navigate({ href: "/plantilla/album" }));
     expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
+  });
+});
+
+describe("Plantilla's search keeps a dorsal", () => {
+  it("?q=11 stays the text «11» (the router parses it as a number)", async () => {
+    expect(plantillaSearchSchema.parse({ q: 11 }).q).toBe("11");
+    expect(plantillaSearchSchema.parse({ q: "jo" }).q).toBe("jo");
+    expect(plantillaSearchSchema.parse({ q: { x: 1 } }).q).toBeUndefined();
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/plantilla?q=11"] }));
+    await router.load();
+    expect(router.state.matches.at(-1)?.search).toMatchObject({ q: "11" });
   });
 });

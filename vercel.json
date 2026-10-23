@@ -103,6 +103,14 @@
       "destination": "/api/render?p=/plantilla/:screen"
     },
     {
+      "source": "/jugadores/:id",
+      "destination": "/api/render?p=/jugadores/:id"
+    },
+    {
+      "source": "/jugadores/:id/:screen(temporada|jornadas|juego|analisis|cromo)",
+      "destination": "/api/render?p=/jugadores/:id/:screen"
+    },
+    {
       "source": "/club",
       "destination": "/api/render?p=/club"
     },

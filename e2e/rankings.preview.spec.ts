@@ -14,10 +14,11 @@ test("los goleadores empatados conservan puesto y medalla entre plantilla y esta
   // (Partidos' boards — Jornadas, Tabla, Balance — no longer carry the goleadores: the shared lead is said in
   // Plantilla's race and in Números' leaders)
   await page.goto("/plantilla?season=preview-season");
-  await expect(page.getByRole("heading", { name: "Pichichi compartido: 1 gol." })).toBeVisible();
-  await expect(page.locator(".hm-race .hm-pod.gold")).toHaveCount(2);
-  await expect(page.locator(".hm-race .hm-pod.silver")).toHaveCount(0);
-  await expect(page.locator(".hm-race").getByLabel("Puesto 1, compartido")).toHaveCount(2);
+  // Plantilla's podium: both on the first step, the place said shared
+  await expect(page.locator(".pl-big")).toHaveText("Pichichi compartido: Mario y Hugo, 1 gol.");
+  await expect(page.locator(".pl-podium .pl-step.is-p1 .pl-step__b")).toHaveCount(2);
+  await expect(page.locator(".pl-podium .pl-step.is-p2 .pl-step__b")).toHaveCount(0);
+  await expect(page.locator(".pl-podium").getByText("Puesto 1, compartido")).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.goto("/numeros?temporada=preview-season");
