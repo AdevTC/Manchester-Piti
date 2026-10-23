@@ -51,6 +51,17 @@ export function nextReads(read: ReadMap, changes: Readonly<Record<string, boolea
   return out;
 }
 
+/**
+ * What marking `ids` writes, or null for no write: nothing marked, the stored map not read yet (`ready` false: a
+ * write then would replace the marks it hasn't seen), or nothing that changes. `list` null (still loading, or
+ * failed) keeps every id: an empty list would drop them all.
+ */
+export function readsWrite(read: ReadMap, ids: readonly string[], value: boolean, list: readonly Item[] | null, seenAt: number | null, ready: boolean): Record<string, boolean> | null {
+  if (!ids.length || !ready) return null;
+  const next = nextReads(read, Object.fromEntries(ids.map((id) => [id, value])), list, seenAt);
+  return sameMap(next, read) ? null : next;
+}
+
 const mapReads = (d: { read?: unknown } | undefined): ReadMap => {
   const raw = d?.read;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -124,13 +135,13 @@ export function useNoticeReads(uid: string | undefined, list: readonly Item[] | 
   const unread = useCallback((n: Item) => isUnreadWith(n, seenAt, read), [seenAt, read]);
   const mark = useCallback(
     async (ids: readonly string[], value: boolean) => {
-      const changes = Object.fromEntries(ids.map((id) => [id, value]));
-      const next = nextReads(read, changes, list, seenAt);
+      // (a member's map is written only once his stored one has been read: a write before would wipe it)
+      const next = readsWrite(read, ids, value, list, seenAt, !uid || (!live.loading && !live.error));
+      if (!next) return;
       if (!uid) {
         fanWrite({ read: next, seenAt });
         return;
       }
-      if (sameMap(next, read)) return;
       setMine({ uid, read: next, base: serverRead, seen: ours?.seen ?? null });
       try {
         await setDoc(doc(db, "users", uid, "private", "notices"), { read: next });
@@ -139,7 +150,7 @@ export function useNoticeReads(uid: string | undefined, list: readonly Item[] | 
         throw e;
       }
     },
-    [uid, read, list, seenAt, ours?.seen, serverRead],
+    [uid, read, list, seenAt, ours?.seen, serverRead, live.loading, live.error],
   );
   const markAll = useCallback(async () => {
     const now = Date.now();

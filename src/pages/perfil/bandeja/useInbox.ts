@@ -127,7 +127,9 @@ export function useInbox(): Inbox {
   const list = useMemo(() => (bandeja === "vacia" || bandeja === "cargando" || bandeja === "error" || !member ? NO_NOTICES : noticesFor(notices.data, viewer)), [bandeja, member, notices.data, viewer]);
   const loading = member && (bandeja === "cargando" || (bandeja === null && notices.loading && !notices.data.length));
   const failed = member && (bandeja === "error" || (bandeja === null && !!notices.error && !notices.data.length));
-  const reads = useNoticeReads(uid, list, toMillis(profile?.noticesSeenAt));
+  // (the list the read marks are kept against: none while it loads or failed — an empty one would drop every mark)
+  const readList = member && bandeja === null && !notices.loading && !notices.error ? list : null;
+  const reads = useNoticeReads(uid, readList, toMillis(profile?.noticesSeenAt));
 
   // ---------- the matches
   const visible = useMemo(() => matches.filter(isVisibleMatch).sort((a, b) => dateMillis(a.date) - dateMillis(b.date)), [matches]);

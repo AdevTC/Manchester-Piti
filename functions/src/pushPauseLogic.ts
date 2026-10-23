@@ -26,6 +26,14 @@ export function clampPause(until: number | null, now: number): { ok: true; until
   return { ok: true, until: Math.min(until, now + MAX_PAUSE_MS) };
 }
 
+/**
+ * The pause a device asks for at `now` on its own clock: never past a week from now (a match far ahead, or any
+ * pause sent by a clock running ahead of the server's, would be refused by clampPause).
+ */
+export function capPause(until: number, now: number): number {
+  return Math.min(until, now + MAX_PAUSE_MS);
+}
+
 const PARTS = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
 
 /** Madrid's wall clock at `ms`. */

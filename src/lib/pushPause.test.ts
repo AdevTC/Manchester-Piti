@@ -1,7 +1,7 @@
 // «Pausar» (functions/src/pushPauseLogic.ts): what sendTo skips, what pushSetPause keeps, and when «mañana» and
 // «después del partido» are.
 import { describe, expect, it } from "vitest";
-import { clampPause, isPaused, matchEndAt, MAX_PAUSE_MS, tomorrowAtNine } from "../../functions/src/pushPauseLogic";
+import { capPause, clampPause, isPaused, matchEndAt, MAX_PAUSE_MS, tomorrowAtNine } from "../../functions/src/pushPauseLogic";
 
 const NOW = Date.UTC(2026, 9, 22, 12); // Thursday 22 Oct 2026, 14:00 in Madrid (CEST)
 
@@ -49,5 +49,16 @@ describe("matchEndAt («Hasta después del partido»)", () => {
     expect(matchEndAt(NOW)).toBe(NOW + 65 * 60_000);
     expect(matchEndAt(NOW, 60)).toBe(NOW + 75 * 60_000);
     expect(matchEndAt(NOW, 0)).toBe(NOW + 65 * 60_000);
+  });
+});
+
+describe("capPause (the device's side of the week)", () => {
+  it("a match a fortnight away is asked for a week at most, which the server takes", () => {
+    const far = NOW + 14 * 24 * 3600_000;
+    expect(capPause(far, NOW)).toBe(NOW + MAX_PAUSE_MS);
+    expect(clampPause(capPause(far, NOW), NOW)).toEqual({ ok: true, until: NOW + MAX_PAUSE_MS });
+  });
+  it("anything closer stays as it is", () => {
+    expect(capPause(NOW + 3600_000, NOW)).toBe(NOW + 3600_000);
   });
 });
