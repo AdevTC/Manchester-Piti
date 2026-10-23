@@ -221,7 +221,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     scopeCls: all || st.campo !== "todo" || st.jug.length > 0 || nPart ? "is-filtered" : "",
     info: info("moviola"),
   };
-  const playedAll = se.matches.filter((m) => m.st === "fin" || m.st === "live");
+  // (with «Todas», every season's played matches: a match of another season can be chosen too)
+  const playedAll = (all ? env.others.flatMap((o) => ND.season(o.S, o.moment).matches).concat(se.matches) : se.matches).filter((m) => m.st === "fin" || m.st === "live");
   const scope = {
     seasonOpts: [
       { t: se.S.name, on: !all, pick: set({ temporada: "esta", partidos: [] }) },
@@ -796,7 +797,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     m.goals.forEach((g) => inParte(g[2]) && gU++);
     m.opp.forEach((x) => inParte(x) && gT++);
   });
-  const narrated = gs.filter((m) => m.ledger && m.tramos);
+  // (as the boards: every acta with a ledger counts its narrated plays; an acta that narrated none says 0, «Parcial»)
+  const narrated = gs.filter((m) => m.ledger);
   const nN = narrated.length;
   const withActions = gs.filter((m) => m.ledger || m.chances.length || m.corners.length || m.oppChances).length;
   const partial = `${nN} de ${gs.length}${gs.length === 1 ? " acta narrada" : " actas narradas"}`;
@@ -1367,8 +1369,10 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       return m.month >= 11 || m.month <= 3 ? 1 : m.month === 10 ? 0.5 : 0;
     })(),
     json: {
-      temporada: all ? "todas" : se.S.name, hasta: `J${upto}`, campo: st.campo, partidos: gs.map((m) => ({ j: m.j, rival: m.rival, resultado: fmtRes(m), estado: m.st })),
-      jugadores: rs.filter((r) => r.pj).map((r) => ({ nombre: r.name, dorsal: r.n, partidos: r.pj, minutos: r.minKnown ? Math.round(r.min) : null, goles: r.g, asistencias: r.a, amarillas: r.yc })),
+      temporada: all ? "todas" : se.S.name, hasta: `J${upto}`, campo: st.campo,
+      filtros: { partidos: st.partidos, jugadores: st.jug, equipo: us ? "piti" : "rival", parte: parte === "all" ? null : Number(parte) },
+      partidos: gs.map((m) => ({ id: m.id, j: m.j, rival: m.rival, resultado: fmtRes(m), estado: m.st })),
+      jugadores: rs.filter((r) => r.pj).map((r) => ({ id: r.id, nombre: r.name, dorsal: r.n, partidos: r.pj, minutos: r.minKnown ? Math.round(r.min) : null, goles: r.g, asistencias: r.a, amarillas: r.yc })),
       deUnVistazo: vistazo.map((t) => ({ id: t.id, estadistica: t.t, valor: t.v, estado: t.statusT })),
       hoy: env.today,
     },

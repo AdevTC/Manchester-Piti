@@ -14,10 +14,9 @@ describe("Números: the view of each screen", () => {
     expect(statsViewAt("/numeros/records", {})).toEqual({ view: "explore", section: "streaks" });
     expect(statsViewAt("/numeros/records/marcas", {})).toEqual({ view: "explore", section: "individual" });
     expect(statsViewAt("/numeros/records/evolucion", {})).toEqual({ view: "explore", section: "evolution" });
-    expect(statsViewAt("/plantilla/cara-a-cara", {})).toEqual({ view: "compare" });
   });
   it("each view's tab goes to a screen that reads back as that view", () => {
-    const views: StatsView[] = ["summary", "players", "positions", "rivals", "compare", "game", "explore"];
+    const views: StatsView[] = ["summary", "players", "positions", "rivals", "game", "explore"];
     for (const view of views) expect(statsViewAt(statsViewPath(view), {}).view, view).toBe(view);
     expect(statsViewAt(statsViewPath("minutes"), { ranking: "minutos" }).view).toBe("minutes");
     expect(statsViewAt(statsViewPath("explore", "evolution"), {}).section).toBe("evolution");

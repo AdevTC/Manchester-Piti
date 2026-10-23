@@ -93,47 +93,10 @@ describe("StatsPage · Posiciones", () => {
     expect(call.search({ season: "t1", view: "summary" })).toStrictEqual({ season: "t1" });
   });
 
-  it("an old ?tab=compare link still opens Comparar (read as view=compare, never written back)", () => {
-    expect(statsSearchSchema.parse({ tab: "compare" })).toStrictEqual({ view: "compare" });
-    expect(statsSearchSchema.parse({ tab: "compare", view: "minutes" })).toStrictEqual({ view: "minutes" });
-    expect(statsSearchSchema.parse({ tab: "general" })).not.toHaveProperty("view");
-    search.value = statsSearchSchema.parse({ tab: "compare" });
-    render(<StatsPage />);
-    const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
-    expect(nav.getByRole("button", { name: "Comparar" })).toHaveAttribute("aria-pressed", "true");
-  });
-
   it("?a=&b= are Comparar's pair: strings (a numeric id too), anything else dropped", () => {
     expect(statsSearchSchema.parse({ view: "compare", a: "lat", b: "dc" })).toMatchObject({ view: "compare", a: "lat", b: "dc" });
     expect(statsSearchSchema.parse({ a: 123 }).a).toBe("123");
     expect(statsSearchSchema.parse({ a: { x: 1 }, b: ["dc"] })).toMatchObject({ a: undefined, b: undefined });
-  });
-
-  it("Comparar reads the pair from the URL and writes each pick back, replacing the entry", () => {
-    navigate.mockClear();
-    search.value = statsSearchSchema.parse({ view: "compare", a: "dc", b: "lat" });
-    render(<StatsPage />);
-    const left = screen.getByRole("combobox", { name: "Primer jugador" }) as HTMLSelectElement;
-    const right = screen.getByRole("combobox", { name: "Segundo jugador" }) as HTMLSelectElement;
-    expect([left.value, right.value]).toEqual(["dc", "lat"]);
-    fireEvent.click(screen.getByRole("button", { name: "Intercambiar jugadores" }));
-    const call = navigate.mock.lastCall?.[0] as { replace?: boolean; search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.replace).toBe(true);
-    expect(call.search({ season: "t1", view: "compare", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", view: "compare", a: "lat", b: "dc" });
-  });
-
-  it("leaving Comparar drops its pair from the URL; clicking Comparar keeps it", () => {
-    search.value = statsSearchSchema.parse({ view: "compare", a: "dc", b: "lat" });
-    render(<StatsPage />);
-    const nav = within(screen.getByRole("navigation", { name: "Secciones de estadísticas" }));
-    fireEvent.click(nav.getByRole("button", { name: "Minutos" }));
-    let call = navigate.mock.lastCall?.[0] as { to: string; search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.to).toBe("/numeros/jugadores");
-    expect(call.search({ season: "t1", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", ranking: "minutos", ver: "todo" });
-    fireEvent.click(nav.getByRole("button", { name: "Comparar" }));
-    call = navigate.mock.lastCall?.[0] as { to: string; search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.to).toBe("/plantilla/cara-a-cara");
-    expect(call.search({ season: "t1", a: "dc", b: "lat" })).toStrictEqual({ season: "t1", a: "dc", b: "lat" });
   });
 
   it("the Resumen constellation places each star by the position he played", () => {

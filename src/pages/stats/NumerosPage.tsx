@@ -217,19 +217,37 @@ export function NumerosPage() {
   };
   const seasonWord = askedT && askedT !== "todas" && seasonId !== current && season ? slug(season.name) : undefined;
   const ctx = { people, seasonWord, edge: moment.edge, narrow: false };
+  // the page's own address writes go one after another (two quick ones never land in the wrong order), each
+  // compared with the address the router shows when its turn comes
+  const navQ = useRef<Promise<unknown>>(Promise.resolve());
   const write = (next: NuState, replace: boolean) => {
     const u = urlOf(next, ctx);
     const keep: Record<string, string | undefined> = import.meta.env.DEV ? { maqueta: maqueta ?? undefined, quien: quien ?? undefined } : {};
     const search = { ...keep, ...u.search };
     for (const k of Object.keys(search)) if (search[k] === undefined) delete search[k];
-    if (addressKey(u.path, search) === addressKey(location.pathname, raw)) return;
-    void navigate({ to: u.path, search, replace, resetScroll: false } as never);
+    navQ.current = navQ.current
+      .then(() => {
+        const at = router.state.location;
+        if (addressKey(u.path, search) === addressKey(at.pathname, (at.search ?? {}) as Search)) return;
+        return navigate({ to: u.path, search, replace, resetScroll: false } as never);
+      })
+      .catch(() => {});
   };
 
   // back, forward or a link: take what the address says (a change of screen runs the View Transition backwards)
   const seen = useRef(addressKey(location.pathname, raw));
+  // a sheet closed with «atrás» after its filters changed the address: back to the entry under the sheet, then
+  // that entry takes the new address (so the filters chosen in the sheet stay)
+  const afterBack = useRef<NuState | null>(null);
   useEffect(() => {
     const key = addressKey(location.pathname, raw);
+    if (afterBack.current) {
+      const n = afterBack.current;
+      afterBack.current = null;
+      seen.current = key;
+      commit(n, true);
+      return;
+    }
     if (key === seen.current) return;
     seen.current = key;
     const cur = stRef.current;
@@ -256,11 +274,16 @@ export function NumerosPage() {
   }, [people]);
 
   // the address the page writes itself: no transition again
-  const commit = (next: NuState, replace: boolean) => {
+  const keyOf = (next: NuState) => {
     const u = urlOf(next, ctx);
-    seen.current = addressKey(u.path, { ...(import.meta.env.DEV ? { maqueta: maqueta ?? undefined, quien: quien ?? undefined } : {}), ...u.search });
+    return addressKey(u.path, { ...(import.meta.env.DEV ? { maqueta: maqueta ?? undefined, quien: quien ?? undefined } : {}), ...u.search });
+  };
+  const commit = (next: NuState, replace: boolean) => {
+    seen.current = keyOf(next);
     write(next, replace);
   };
+  /** The address under the open sheet when it was pushed. */
+  const underSheet = useRef("");
 
   // ── scroll per screen: the page on a phone, every scrolling region on a desktop
   const pageRef = useRef<HTMLDivElement | null>(null);
@@ -321,8 +344,11 @@ export function NumerosPage() {
     if (sheet === "search") next.sq = "";
     setSt(next);
     if (sheet === "search" || sheet === "metric") void loadCatalog().then(setCatalog);
+    if (!stRef.current.sheet) {
+      underSheet.current = keyOf({ ...stRef.current, sheet: null, sheetId: null });
+      pushedOverlay.current = true;
+    }
     commit(next, !!stRef.current.sheet);
-    if (!stRef.current.sheet) pushedOverlay.current = true;
   };
   const closeSheet = () => {
     const cur = stRef.current;
@@ -333,6 +359,7 @@ export function NumerosPage() {
       pushedOverlay.current = false;
       setSt(next);
       seen.current = "";
+      if (keyOf(next) !== underSheet.current) afterBack.current = next;
       router.history.back();
     } else {
       setSt(next);

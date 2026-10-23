@@ -20,6 +20,8 @@ const FAM: Record<string, string> = {
   tactical: "Táctica", substitution: "Cambios", block: "Bloqueos", judgement: "Arbitraje",
 };
 const GOAL = new Set(["goal", "goal_penalty", "goal_freekick"]);
+/** Narration v1: an event type → the observation it stands for. */
+const V1_KIND: Record<string, string> = { pass: "pass", cross: "pass", shot: "shot", recovery: "recovery", turnover: "loss", save: "save" };
 
 /** «Dom 25 oct», «25 de octubre», the month (1–12) and «14:00», on Madrid's clock. */
 export function madridWhen(ms: number | null): { day: string; long: string; month: number; time: string } {
@@ -68,7 +70,12 @@ interface Obs {
 /** The partial analysis of a narrated acta: coverage per family, pass pairs, the ten 5′ stretches, the rival's counts. */
 function analysisOf(m: ClubMatch) {
   const a = (m.analysis ?? {}) as { observations?: Obs[]; coverage?: { family?: string; team?: string; state?: string }[] };
-  const obs = Array.isArray(a.observations) ? a.observations : [];
+  // the plays typed into the acta as events (narration v1) read like the observations
+  const typed = (m.events ?? []).filter((e) => V1_KIND[e.type]).map((e): Obs => {
+    const x = e as MatchEvent & { receiverId?: string; outcome?: string };
+    return { kind: V1_KIND[e.type], team: e.type.startsWith("opponent_") ? "them" : "us", actorId: e.playerId, receiverId: x.receiverId, facts: { outcome: x.outcome }, time: isNum(e.minute) ? { from: e.minute * 60 } : undefined };
+  });
+  const obs = [...(Array.isArray(a.observations) ? a.observations : []), ...typed];
   const coverage = (Array.isArray(a.coverage) ? a.coverage : []).map((x): [string, "us" | "them", string] => [FAM[x.family ?? ""] ?? x.family ?? "", x.team === "us" ? "us" : "them", x.state ?? ""]);
   const pairs: Record<string, number> = {};
   obs
@@ -162,14 +169,12 @@ export function seasonData(inp: AdaptInput): NSeasonData {
       c.saves = Object.entries(c.ledger)
         .filter(([, l]) => l.sv)
         .map(([k, l]): [string, number] => [k, l.sv]);
-      if (m.analysis) {
-        const a = analysisOf(m);
-        c.coverage = a.coverage;
-        c.passPairs = a.passPairs;
-        c.tramos = a.tramos;
-        c.them = a.them;
-        c.analysisNote = a.note;
-      }
+      const a = analysisOf(m);
+      c.coverage = a.coverage;
+      c.passPairs = a.passPairs;
+      c.tramos = a.tramos;
+      c.them = a.them;
+      c.analysisNote = a.note;
     }
     if (st === "fin") {
       const r = inp.mvpResults.get(m.id);

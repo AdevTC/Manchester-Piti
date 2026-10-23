@@ -57,7 +57,13 @@ export type StatsSearch = z.infer<typeof statsSearchSchema>;
 const slug = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional().catch(undefined);
 const minute = z.coerce.number().int().min(0).max(200).optional().catch(undefined);
 const jornada = z.coerce.number().int().min(1).max(99).optional().catch(undefined);
-const idList = statsScopeSearchFields.matches;
+// Números writes its lists as the boards do, «a,b» (an array would come back to the address as JSON)
+const plainList = z
+  .union([z.string(), z.array(z.string())])
+  .transform((v) => [...new Set((Array.isArray(v) ? v : v.split(",")).map((x) => x.trim()).filter(Boolean))].slice(0, 300).join(","))
+  .refine((v) => v.split(",").every((x) => x.length <= 128))
+  .optional()
+  .catch(undefined);
 
 // Inicio: / (?min= holds the moviola), its screens and its sheets.
 export const homeSearchSchema = z.object({
@@ -70,10 +76,10 @@ export const hoyCampoSearchSchema = homeSearchSchema.extend({ jugador: slug });
 // The old /stats ones redirect here renamed (legacyUrls); the page reads only these.
 export const numerosSearchSchema = z.object({
   temporada: z.string().max(400).optional().catch(undefined),
-  hasta: z.string().regex(/^jd{1,2}$/).optional().catch(undefined),
+  hasta: z.string().regex(/^j\d{1,2}$/).optional().catch(undefined),
   campo: z.enum(["casa", "fuera"]).optional().catch(undefined),
-  partidos: idList,
-  jugadores: idList,
+  partidos: plainList,
+  jugadores: plainList,
   buscar: z.string().max(160).optional().catch(undefined),
   ver: z.enum(["todo"]).optional().catch(undefined),
   /** goles · asistencias · minutos · mvp · porra, or any other of the 38 by its label («amarillas»). */
@@ -84,7 +90,7 @@ export const numerosSearchSchema = z.object({
   equipo: z.enum(["rival"]).optional().catch(undefined),
   parte: z.coerce.number().int().min(1).max(8).optional().catch(undefined),
   familia: z.string().max(160).optional().catch(undefined),
-  metrica: z.string().regex(/^(d{3}|Ad{2})$/).optional().catch(undefined),
+  metrica: z.string().regex(/^(\d{3}|A\d{2})$/).optional().catch(undefined),
   "fuera-del-audio": z.coerce.number().int().min(1).max(1).optional().catch(undefined),
   /** The catalogue's search. */
   q: z.string().max(160).optional().catch(undefined),

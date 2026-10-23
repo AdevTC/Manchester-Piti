@@ -10,12 +10,10 @@ const trim = (pathname: string) => (pathname.length > 1 ? pathname.replace(/\/+$
 export type StatsView = "summary" | "players" | "game" | "minutes" | "positions" | "rivals" | "compare" | "explore";
 export type ExploreSectionId = "individual" | "streaks" | "team" | "evolution";
 
-/** Today's StatsPage view (and its Explorar section) at an old Números screen, or /plantilla/cara-a-cara: Plantilla's
- *  «Cara a cara» still renders it, and the search maps its results through statsViewPath. Números reads its own
- *  address (pages/stats/numeros/url.ts). */
+/** Today's StatsPage view (and its Explorar section) at an old Números screen: the search maps its results through
+ *  statsViewPath. Números reads its own address (pages/stats/numeros/url.ts); Plantilla renders its own cara a cara. */
 export function statsViewAt(pathname: string, search: Search): { view: StatsView; section?: ExploreSectionId } {
   const p = trim(pathname);
-  if (p === "/plantilla/cara-a-cara") return { view: "compare" };
   if (p === "/numeros/jugadores") return { view: search.ranking === "minutos" ? "minutes" : "players" };
   if (p.startsWith("/numeros/campo")) return { view: "positions" };
   if (p.startsWith("/numeros/juego")) return { view: "game" };

@@ -15,13 +15,14 @@ function Harness({ initial = {}, overrides = [] }: { initial?: AnalysisSearch; o
 }
 
 describe("the narrated catalogue", () => {
-  it("keeps the player, team and period context when following evidence into a match", () => {
+  it("follows evidence into its match, with a clean address", () => {
     render(<Harness initial={{ metric: "067", players: ["p1"], team: "us", period: 2 }} overrides={[{ id: "067", value: 1, status: "partial", observed: 1, evidenceEventIds: ["j1:pase1"] }]}/>);
     const evidence = screen.getByRole("region", { name: "Jugadas que sustentan la estadística" });
     const link = within(evidence).getByRole("link");
     // (the match's Números screen, with the catalogue and its scope)
     expect(link).toHaveAttribute("href", "/partidos/j1/numeros");
-    expect(JSON.parse(link.getAttribute("data-search")!)).toEqual({ analysis: "catalog", metric: "067", players: ["p1"], team: "us", period: 2 });
+    // (the match page has no catalogue, player, team or half of its own: its link carries none of them)
+    expect(JSON.parse(link.getAttribute("data-search")!)).toEqual({});
   });
   it("shows all 321 audio candidates by default and explicitly includes the 91 exclusions on request", () => {
     render(<Harness/>);

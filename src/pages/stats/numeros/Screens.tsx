@@ -42,7 +42,7 @@ export function A({ href, className, children, ariaLabel }: { href: string; clas
 
 function GrowWin({ id, title, onClose, table, children }: { id: string; title: string; onClose: () => void; table?: boolean; children: ReactNode }) {
   return (
-    <div className={`vd-glass vd-glass--deep vd-grow nu-grow${table ? " nu-grow--table" : ""}`} aria-labelledby={id}>
+    <section className={`vd-glass vd-glass--deep vd-grow nu-grow${table ? " nu-grow--table" : ""}`} aria-labelledby={id}>
       <header className="vd-grow__head">
         <h2 id={id} tabIndex={-1}>
           {title}
@@ -55,7 +55,7 @@ function GrowWin({ id, title, onClose, table, children }: { id: string; title: s
       <div className="vd-grow__body" tabIndex={0}>
         {children}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -986,7 +986,7 @@ export function Juego({ v, grow, onClose }: { v: V; grow: "mesa" | "catalogo" | 
           <h3 className="nu-h3">
             De un vistazo <Q label="Qué es De un vistazo" onClick={g.i.vistazo} />
           </h3>
-          <ul className="nu-figs">
+          <ul className="nu-figs" aria-label="Indicadores de la selección">
             {g.tiles.map((t) => (
               <li key={t.key}>
                 <button type="button" className={`nu-fig ${t.cls}`} onClick={t.pick} aria-haspopup="dialog">
