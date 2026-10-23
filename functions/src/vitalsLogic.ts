@@ -4,7 +4,12 @@
 import { z } from "zod";
 
 const num = z.number().finite().min(0).max(600_000);
-const short = (n: number) => z.string().max(n).optional();
+/** Text without control characters (it ends up printed in a terminal: functions/scripts/vitals-report.mjs). */
+/** A control character (C0, DEL or C1). */
+export const isControl = (code: number) => code < 0x20 || (code >= 0x7f && code <= 0x9f);
+const printable = (s: string) => ![...s].some((c) => isControl(c.charCodeAt(0)));
+const text = (n: number) => z.string().max(n).refine(printable, "control characters");
+const short = (n: number) => text(n).optional();
 
 /** One measurement: a Web Vital (LCP · INP · CLS · FCP · TTFB) or a View Transition («VT»). */
 const record = z.object({
@@ -15,11 +20,11 @@ const record = z.object({
   /** rating */
   r: z.enum(["good", "needs-improvement", "poor"]).optional(),
   /** the page it belongs to, with ids folded (/jugadores/:id) */
-  p: z.string().max(80),
+  p: text(80),
   /** how the page was reached: navigate · reload · back-forward · back-forward-cache · prerender · restore · soft-navigation */
   nt: short(24),
   /** causes (each metric its own: lib/vitals.ts attributionOf) */
-  a: z.record(z.string().max(24), z.union([z.number().finite(), z.string().max(120), z.boolean()])).optional(),
+  a: z.record(text(24), z.union([z.number().finite(), text(120), z.boolean()])).optional(),
 });
 export type VitalRecord = z.infer<typeof record>;
 
