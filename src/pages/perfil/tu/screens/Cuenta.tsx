@@ -18,6 +18,7 @@ export function Cuenta(p: ScreenProps) {
   const [tech, setTech] = useState(false);
   const [baja, setBaja] = useState<"" | "open" | "done">("");
   const [bajaOk, setBajaOk] = useState(false);
+  const [danger, setDanger] = useState(false);
   const shirt = who.kind === "jugador" ? `${data.shirt.current.toUpperCase()} · dorsal ${data.card.number}` : who.kind === "nuevo" ? (data.ficha.state === "pendiente" ? `Cuando el capitán acepte tu ficha del ${wantedNumber(data)}` : "Cuando tengas ficha") : "Sin ficha de jugador";
   const role = `${data.isCaptain ? "Capitán del vestuario" : who.kind === "jugador" ? "Jugador" : "Socio"} del Manchester Piti`;
   const g = data.google;
@@ -133,9 +134,10 @@ export function Cuenta(p: ScreenProps) {
               </button>
             </div>
           )}
-          <details className="tu-danger">
+          {/* (its content only while it is open: a closed <details> still lays out its button, under the dock) */}
+          <details className="tu-danger" open={danger} onToggle={(e) => setDanger(e.currentTarget.open)}>
             <summary>Darme de baja del vestuario</summary>
-            {data.isSuperadmin ? (
+            {!danger ? null : data.isSuperadmin ? (
               <p className="tu-blk__d">
                 <b>Eres el superadministrador del club:</b> esta cuenta no se puede dar de baja. Si lo dejas, habla antes con el resto de capitanes.
               </p>

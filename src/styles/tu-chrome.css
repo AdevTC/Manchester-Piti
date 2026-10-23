@@ -16,3 +16,12 @@ header.vx-top .tu-acct__dot{position:absolute;top:-2px;right:-3px;width:11px;hei
 :root[data-theme="light"] header.vx-top .tu-acct__dot{box-shadow:0 0 0 2px #fff}
 header.vx-top :is(.tu-cbtn,.tu-acct):focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
 @container (min-width:700px){header.vx-top .tu-acct__name{display:inline}}
+/* a narrow phone: the club's name, the magnifier, the bell and the account («Entrar» is wider than an avatar) fit
+   one row without touching — the boards draw 390 with an avatar; at 360 the name ran into the bell */
+@container (max-width:429px){
+  header.vx-top div.vx-actions{gap:6px}
+  header.vx-top .tu-acct--in{padding:0 13px}
+  header.vx-top a.vx-brand{gap:8px;min-width:0}
+  header.vx-top .vx-brand .vx-brand-name{font-size:15.5px}
+}
+@container (max-width:374px){header.vx-top .vx-brand .vx-brand-name{font-size:14.5px}header.vx-top a.vx-brand img{width:32px;height:32px}}

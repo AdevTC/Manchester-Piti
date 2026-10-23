@@ -130,17 +130,23 @@ export function Temporada(p: ScreenProps) {
             </span>
           </div>
           <p className="tu-blk__d">{stretch.line}</p>
-          <div className="tu-stints" role="img" aria-label={stretch.alt}>
-            <span className="tu-tl__half" aria-hidden="true" />
-            {stretch.stints.map((s) => (
-              <span key={s.from} className="tu-stint" style={{ left: `${s.left}%`, width: `${s.width}%` }}>
-                {/* (a stretch too short for its words keeps them for the line's label: they spilled out on the board) */}
-                {s.width >= 9 && <small>{s.t}</small>}
-              </span>
-            ))}
-            <Marks marks={stretch.marks} />
-            <small className="tu-tl__a">0′</small>
-            <small className="tu-tl__b">{stretch.duration}′</small>
+          <div className="tu-tlw">
+            <div className="tu-stints" role="img" aria-label={stretch.alt}>
+              <span className="tu-tl__half" aria-hidden="true" />
+              {stretch.stints.map((s) => (
+                <span key={s.from} className="tu-stint" style={{ left: `${s.left}%`, width: `${s.width}%` }}>
+                  {/* (a stretch too short for its words keeps them for the line's label: they spilled out on the board) */}
+                  {s.width >= 9 && <small>{s.t}</small>}
+                </span>
+              ))}
+              <Marks marks={stretch.marks} />
+            </div>
+            <small className="tu-tl__a" aria-hidden="true">
+              0′
+            </small>
+            <small className="tu-tl__b" aria-hidden="true">
+              {stretch.duration}′
+            </small>
           </div>
           <p className="tu-small">Barras: cuando estabas en el campo. Puntos: los goles (coral, {stretch.rival}; oro, los nuestros) y las tarjetas.</p>
         </section>
@@ -151,11 +157,17 @@ export function Temporada(p: ScreenProps) {
             La J{jOf.get(one?.id ?? "") ?? 1}, desde fuera
           </h3>
           <p className="tu-blk__d">{watched.line}</p>
-          <div className="tu-tl tu-tl--lg" role="img" aria-label={`Los goles de la J${jOf.get(one?.id ?? "") ?? 1}`}>
-            <span className="tu-tl__half" aria-hidden="true" />
-            <Marks marks={watched.marks} />
-            <small className="tu-tl__a">0′</small>
-            <small className="tu-tl__b">50′</small>
+          <div className="tu-tlw">
+            <div className="tu-tl tu-tl--lg" role="img" aria-label={`Los goles de la J${jOf.get(one?.id ?? "") ?? 1}`}>
+              <span className="tu-tl__half" aria-hidden="true" />
+              <Marks marks={watched.marks} />
+            </div>
+            <small className="tu-tl__a" aria-hidden="true">
+              0′
+            </small>
+            <small className="tu-tl__b" aria-hidden="true">
+              50′
+            </small>
           </div>
         </section>
       )}

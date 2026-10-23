@@ -13,6 +13,11 @@
 .tu-card.run-1 .tu-card__btn{animation:tu-walk .9s var(--vd-spring) both}
 .tu-card.run-1.is-flip .tu-card__btn{animation:none}
 @media (prefers-reduced-motion:reduce){.tu-card.run-1 .tu-card__btn{animation:none}}
+/* a match's line and its «0′ · 50′» under it, in one box (on the board the labels hung outside the line's box) */
+.tu-tlw{position:relative;margin:6px 0 0;padding-bottom:18px}
+.tu-tlw>:is(.tu-tl,.tu-stints){margin:0}
+.tu-tlw>:is(.tu-tl__a,.tu-tl__b){top:auto;bottom:0;line-height:15px}
+.tu-ms .tu-tlw{margin:2px 0 0;padding-bottom:16px}
 /* the carné's QR is a real one (the board drew a pattern): it opens the player's page */
 .tu-qr.tu-qr--real{background:#eaf3fc;padding:calc(var(--cw)*.01);box-sizing:border-box;color:#0c1733}
 .tu-qr--real svg{display:block;width:100%;height:100%}

@@ -203,13 +203,19 @@ export function MatchStack({ x, inbox, a, exp, onToggle }: { x: StackView; inbox
         <DotsMenu items={items} label={label} />
       </div>
       {x.marks.length > 0 && (
-        <div className="tu-tl" role="img" aria-label={x.alt}>
-          <span className="tu-tl__half" aria-hidden="true" />
-          {x.marks.map((m, i) => (
-            <i key={i} className={`k-${m.k}`} style={{ left: `${m.left.toFixed(1)}%` }} />
-          ))}
-          <small className="tu-tl__a">0′</small>
-          <small className="tu-tl__b">{x.dur}′</small>
+        <div className="tu-tlw">
+          <div className="tu-tl" role="img" aria-label={x.alt}>
+            <span className="tu-tl__half" aria-hidden="true" />
+            {x.marks.map((m, i) => (
+              <i key={i} className={`k-${m.k}`} style={{ left: `${m.left.toFixed(1)}%` }} />
+            ))}
+          </div>
+          <small className="tu-tl__a" aria-hidden="true">
+            0′
+          </small>
+          <small className="tu-tl__b" aria-hidden="true">
+            {x.dur}′
+          </small>
         </div>
       )}
       <div className="tu-ms__foot">
