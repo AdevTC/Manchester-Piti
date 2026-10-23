@@ -1,595 +1,430 @@
-// El club (Celeste · "elegida"): the crest in its vitrina, the team photo as a cinema band, the story,
-// the trophy room, the kits' dressing room, the history train, the squad in numbers, the ground on a
-// night map with the next match, the gallery, the classified ads to get in touch and the sponsors.
-// From the Design canvas "El club · elegida"; pure logic in lib/club.ts (+ clubMedals in lib/home.ts).
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { Link } from "@tanstack/react-router";
+// El club (CL- boards, ronda 3): a house — the vitrina at the entrance and four doors, La historia, El equipo, La
+// gente and El vestuario (the fourth, /vestuario, is its own page). Each door shows something alive of its room and
+// grows into the room's head (cb/nav); each room ends in the next one. The screen is the address (cb/nav
+// clubScreenOf); the server paints the public club, what is a member's appears once the viewer is known.
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useLocation, useSearch } from "@tanstack/react-router";
 import { useClubContent } from "../../lib/clubContent";
-import { formatDate, nextFixture, playerForSeason, playerName, useClubData } from "../../lib/clubData";
-import { clubMedals, playerLines, seasonPulse, type SquadMember } from "../../lib/home";
-import { currentSeasonId } from "../../lib/vestuario";
-import { classifieds, extraTrophies, historyTrain, mailto, sponsorWall, squadNumbers } from "../../lib/club";
-import { KIT_LABEL, mapsUrl, siteOrigin, venueName } from "../../lib/derived/venue";
+import { nameFor, nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
+import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
+import { useViewer } from "../../hooks/useViewer";
+import { useAuth } from "../../context/AuthContext";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
-import { Icon, type IconName } from "../../components/celeste/icons";
-import { PlayerLink } from "../../components/celeste/PlayerLink";
-import { ClubDataError } from "../../components/celeste/StatePanel";
-import { AddToCalendar } from "../../components/celeste/AddToCalendar";
-import { Jersey3D, type Jersey3DRef } from "../../components/jersey3d/Jersey3D";
+import { CelesteDock, CelesteHeader } from "../../components/celeste/Chrome";
+import { useLightPointer } from "../../components/vidrio";
 import { useShirtStills } from "../../components/jersey3d/useShirtStills";
-import { Vitrina } from "./Vitrina";
-import { VitrinaVidrio } from "./VitrinaVidrio";
-import { PageSky } from "../../components/paginas/PageSky";
-import { useNightGoal } from "../../components/paginas/nightGoal";
-import { matchdayOf } from "../../lib/derived/matchday";
-import { jornadas } from "../../lib/derived/jornada";
-import { birthdayLine, vitrinaPieces } from "../../lib/derived/vidrio/vitrinaLive";
-import { PlantillaPosiciones } from "./PlantillaPosiciones";
-import { NewBadge } from "../../components/NewBadge";
-import type { NewFeature } from "../../lib/derived/isNew";
-import "../../styles/celeste/page.css";
-import "../../styles/celeste/data.css";
-import "../../styles/partidos.css";
-import "../../styles/stats.css";
-import "../../styles/club-celeste.css";
+import { printNames, type Kit } from "../../components/jersey3d/kitStill";
+import type { StillRequest } from "../../components/jersey3d/scene";
+import { seasonStrip } from "../../lib/derived/vidrio/strip";
+import { useStandings } from "../../lib/useStandings";
+import { mvpVoteOpen } from "../../lib/derived/memberWindows";
+import { mapsUrl, siteOrigin, venueMapsUrl, venueName } from "../../lib/derived/venue";
+import { niceName } from "../../lib/derived/words";
+import { useMvpResults } from "../vestuario/live";
+import { keyEvents } from "../partidos/pa/season";
+import { useVxSummary } from "../vestuario/vx/summary";
+import { Bokeh, RoomEnd, RoomHead, Sky, Sprite, Toast, type ObjCtx } from "./cb/ui";
+import { Hub, type Door } from "./cb/Hub";
+import { Historia } from "./cb/Historia";
+import { Equipo, type Venue } from "./cb/Equipo";
+import { Maker } from "./cb/Maker";
+import { Gente } from "./cb/Gente";
+import { clubScreenOf, roomLeft, ROOM_T, ROOMS, SALA_PATH, useClubNav, type Room } from "./cb/nav";
+import {
+  BDAY_DAYS,
+  bdayWhen,
+  birthdaysOf,
+  dayMonth,
+  defaultPiece,
+  doorLineOf,
+  historiaLive,
+  letterOf,
+  minePieces,
+  nextLine,
+  piecesOf,
+  posText,
+  scoreOfJ,
+  seasonFrom,
+  vasLine,
+  weekdayDay,
+  type PieceId,
+} from "./cb/model";
+import { demoContent, readClubMaqueta, type Quien } from "./cb/maqueta";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
 import "../../styles/vidrio/components.css";
 import "../../styles/vidrio/reading.css";
-import "../../styles/vidrio-paginas.css";
+import "../../styles/vidrio/sky.css";
+import "../../styles/vidrio/field.css";
 import "../../styles/club-vidrio.css";
 
-const KITS = {
-  home: { label: KIT_LABEL.home, note: "Celeste de la casa, con el oro en el cuello y el bajo.", swatches: [["Celeste", "#8AC8F5"], ["Tinta", "#051330"], ["Oro", "#CFA862"]] },
-  away: { label: KIT_LABEL.away, note: "Negra de fuera, con la franja roja en diagonal.", swatches: [["Noche", "#1D1D22"], ["Tiza", "#F5F5F5"], ["Rojo", "#D6161F"]] },
-} as const;
-const MEDAL_ICON: Record<string, IconName> = { debut: "shirt", goal: "ball", win: "trophy", pichichi: "crown", assist: "send", record: "flame", hat: "star", clean: "shield" };
-const CHAPTERS = [
-  ["cl-trophies", "Trofeos"],
-  ["cl-kits", "Equipaciones"],
-  ["cl-history", "Historia"],
-  ["cl-ground", "El campo"],
-  ["cl-contact", "Contacto"],
-] as const;
-const ZONE_LABEL = { POR: "Porteros", DEF: "Defensas", MED: "Medios", DEL: "Delanteros" } as const;
-
-function Head({ kick, title, id, nuevo, children }: { kick: string; title: string; id: string; nuevo?: NewFeature; children?: React.ReactNode }) {
-  return (
-    <div className="cl-hd">
-      <span className="hm-kick" style={{ margin: 0 }}>
-        {kick} {nuevo && <NewBadge feature={nuevo} />}
-      </span>
-      <h2 className="cl-h2" id={id}>
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-}
-
 const subscribeNothing = () => () => {};
-/** «Ponte la del Piti»'s shirt: the name and number the maker starts from, printed by the scene as the real kit. */
-const PONTE = { kit: "home" as const, name: "TU NOMBRE", num: "10", yaw: 0 };
+/** False on the server and while the browser takes over, true after (member data never renders on the server). */
+const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
+const ROOM_SUB: Record<Exclude<Room, "vestuario">, string> = {
+  historia: "De dónde venimos y cada jornada, con la línea del club.",
+  equipo: "Las camisetas por delante y por detrás, el escudo, la plantilla y los campos.",
+  gente: "Quién cumple, quién nos apoya y cómo hablar con el club.",
+};
 
 export function ClubPage() {
-  const c = useClubContent();
-  const { matches, players, loading, error } = useClubData();
-  const { seasons } = useSeason();
-  const now = useClock(15_000);
+  const raw = useClubContent();
+  const club = useClubData();
+  const realSeasons = useSeason().seasons;
+  const clockNow = useClock(30_000);
   const theme = useDocumentTheme();
-  const [kit, setKit] = useState<"home" | "away">("home");
-  const shirt = useRef<Jersey3DRef>(null);
-  const [photo, setPhoto] = useState<number | null>(null);
-  const [notice, setNotice] = useState("");
-  const train = useRef<HTMLOListElement>(null);
-  // (after hydration only: the server and the first render draw the shirt with its number set)
-  const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
-  const ponteReq = { ...PONTE, theme };
-  const ponteStills = useShirtStills(hydrated ? [ponteReq] : [], { offMainThread: true });
-  const ponte = hydrated ? ponteStills(ponteReq) : undefined;
+  const day = theme === "light";
+  const viewer = useViewer();
+  const { profile, user } = useAuth();
+  const hydrated = useHydrated();
+  const location = useLocation();
+  const search = useSearch({ strict: false }) as Record<string, unknown>;
+  const go = useClubNav();
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  useLightPointer(pageRef);
 
-  const next = nextFixture(matches, now);
-  const seasonId = currentSeasonId(next, matches, seasons);
-  const season = seasons.find((s) => s.id === seasonId);
-  const inSeason = players.filter((p) => p.seasons?.includes(seasonId)).map((p) => playerForSeason(p, seasonId, seasons));
-  const squad: SquadMember[] = inSeason.map((p) => ({ id: p.id, name: playerName(p), num: p.number != null ? String(p.number) : "" }));
-  const pulse = seasonPulse(matches, seasonId, now);
-  const lines = playerLines(squad, pulse.played);
-  const nameOf = (id: string) => lines.find((l) => l.id === id)?.name ?? playerName(players.find((p) => p.id === id));
-  const medals = [...clubMedals(pulse, lines, nameOf, (d) => formatDate(d).replace(/^[^,]*,\s*/, "")), ...extraTrophies(pulse.played, nameOf)];
-  const won = medals.filter((m) => m.earned).length;
-  const stops = historyTrain(c.milestones, matches);
-  const nums = squadNumbers(inSeason, new Date(now));
-  const captain = season?.captainPlayerId ? nameOf(season.captainPlayerId) : null;
-  const ads = classifieds(c.email ?? "");
-  const sponsors = sponsorWall(c.sponsors);
-  const gallery = (c.gallery ?? []).filter((g) => g && /^https:\/\//.test(g.url ?? ""));
-  const faq = (c.faq ?? []).filter((f) => f && f.q?.trim() && f.a?.trim());
-  const nextWhen = next ? formatDate(next.date) : "";
-  // the vitrina of the season (tonight's match in its live slot) and the week around the club
-  const day = matchdayOf(matches, seasonId, now);
-  const live = day.phase === "directo1" || day.phase === "descanso" || day.phase === "directo2";
-  const night = useNightGoal(day.match, live);
-  const vit = vitrinaPieces({ day, matches, seasonId, now, founded: c.founded ?? "", location: c.location ?? "", milestones: c.milestones ?? [] });
-  const jn = jornadas(matches, seasonId);
-  const bday = birthdayLine(inSeason.map((p) => ({ name: nameOf(p.id), birthDate: p.birthDate })), matches, (id) => jn.get(id) ?? null, now);
-  const lede = [c.location && c.founded ? `Desde ${c.location} desde ${c.founded}.` : "", "Lo que se gana se queda aquí; lo que se está jugando, también."].filter(Boolean).join(" ");
-
-  const dialog = useRef<HTMLDialogElement>(null);
+  // (DEV: the boards' maqueta strip)
+  const mq = hydrated ? readClubMaqueta(search) : null;
+  const [longDemo, setLongDemo] = useState<null | import("../partidos/pa/demo").Demo>(null);
   useEffect(() => {
-    const d = dialog.current;
-    if (!d) return;
-    if (photo !== null && !d.open) d.showModal();
-    if (photo === null && d.open) d.close();
-  }, [photo]);
+    if (mq?.larga) void import("../partidos/pa/demo").then((m) => setLongDemo(m.demoSeason(null)));
+  }, [mq?.larga]);
+  const demo = mq?.larga ? longDemo : null;
+  const c = mq?.demo ? demoContent(raw) : raw;
+  const matches = demo ? demo.matches : club.matches;
+  const players = demo ? (demo.players as unknown as typeof club.players) : club.players;
+  const seasons = useMemo(() => (demo ? [...realSeasons, demo.season] : realSeasons), [demo, realSeasons]);
+  const now = demo ? demo.now : clockNow;
 
+  // ── who is looking (only after hydration: the server paints the afición's club)
+  const member = hydrated && viewer.member;
+  const quien: Quien = mq?.quien ?? (!member ? "fan" : viewer.admin ? "capitan" : viewer.playerId ? "jugador" : "socio");
+  const fan = quien === "fan";
+  const cap = quien === "capitan";
+
+  // ── the season, the squad, the names
+  const next = nextFixture(matches, now);
+  const seasonId = demo ? demo.season.id : currentSeasonId(next, matches, seasons);
+  const season = seasons.find((s) => s.id === seasonId);
+  const squad = useMemo(
+    () =>
+      players
+        .filter((p) => p.seasons?.includes(seasonId) && p.active !== false)
+        .map((raw) => {
+          const p = playerForSeason(raw, seasonId, seasons);
+          const short = niceName(nameFor(p, seasonId));
+          return { id: p.id, name: short, print: nameFor(p, seasonId).toLocaleUpperCase("es"), num: p.number != null ? String(p.number) : "", full: [p.firstName, p.lastName].filter(Boolean).join(" ") || short, birthDate: p.birthDate };
+        })
+        .sort((a, b) => Number(a.num || 999) - Number(b.num || 999) || a.name.localeCompare(b.name, "es")),
+    [players, seasonId, seasons],
+  );
+  const byId = useMemo(() => new Map(squad.map((s) => [s.id, s])), [squad]);
+  const nameOf = useCallback((id: string) => byId.get(id)?.name ?? niceName(nameFor(players.find((p) => p.id === id), seasonId)), [byId, players, seasonId]);
+  const squadIds = useMemo(() => new Set(squad.map((s) => s.id)), [squad]);
+  // (DEV: the viewer the maqueta asks for, with a ficha of the squad)
+  const byShirt = (n: string) => squad.find((s) => s.print === n)?.id ?? null;
+  const pid = mq?.quien ? (mq.quien === "jugador" ? (viewer.playerId && byId.has(viewer.playerId) && !viewer.admin ? viewer.playerId : byShirt("KEVIN")) : mq.quien === "capitan" ? (viewer.playerId ?? byShirt("JORDI")) : null) : member ? viewer.playerId : null;
+  const meName = pid ? nameOf(pid) : niceName(profile?.nickname ?? "");
+
+  const strip = useMemo(() => seasonStrip(matches, seasonId, now), [matches, seasonId, now]);
+  const { standings } = useStandings(demo ? undefined : seasonId);
+  const table = demo ? demo.standings : standings;
+  const us = table?.rows.findIndex((r) => r.isUs) ?? -1;
+  const S = useMemo(() => seasonFrom(season?.name ?? "La temporada", strip.segments, us >= 0 && table ? { pos: us + 1, of: table.rows.length } : null), [season?.name, strip.segments, us, table]);
+  const pieces = useMemo(() => piecesOf({ season: S, nameOf, squad: squadIds }), [S, nameOf, squadIds]);
+  const nextJ = S.jornadas[S.played] ?? null;
+
+  // ── the screen, the piece in focus
+  const { sala, pieza } = clubScreenOf(location.pathname);
+  const focus: PieceId = pieza && pieces.some((p) => p.id === pieza) ? pieza : defaultPiece(pieces);
+
+  // ── the stills: the kit by the front and the back, the squad's printed shirts (after hydration)
+  const kitReq = (kit: Kit, side: "front" | "back"): StillRequest => ({ kit, theme, name: "", num: "", yaw: side === "front" ? Math.PI : 0 });
+  const prints = printNames(squad.map((s) => ({ name: s.print, num: s.num })));
+  const own = (num: string): StillRequest | null => (num && prints.get(num) ? { kit: "home", theme, name: prints.get(num) ?? "", num } : null);
+  const reqs: StillRequest[] = hydrated ? [kitReq("home", "front"), kitReq("home", "back"), kitReq("away", "front"), kitReq("away", "back"), ...squad.map((s) => own(s.num)).filter((r): r is StillRequest => !!r)] : [];
+  const still = useShirtStills(reqs, { offMainThread: true });
+  const kitStill = (kit: Kit, side: "front" | "back") => (hydrated ? still(kitReq(kit, side)) : undefined);
+  const shirtOf = (id: string) => {
+    const r = own(byId.get(id)?.num ?? "");
+    return hydrated && r ? still(r) : undefined;
+  };
+
+  // ── the toast
+  const [say, setSay] = useState("");
+  const [sayOn, setSayOn] = useState(false);
+  const sayT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toast = useCallback((t: string) => {
+    if (sayT.current) clearTimeout(sayT.current);
+    setSay(t);
+    setSayOn(true);
+    sayT.current = setTimeout(() => setSayOn(false), 2600);
+  }, []);
+  useEffect(() => () => void (sayT.current && clearTimeout(sayT.current)), []);
+
+  // ── the vestuario's door (a member's counts, his pending things; a captain's knocks)
+  const vx = useVxSummary({ on: member, uid: user?.uid ?? "", playerId: pid, admin: viewer.admin, next: nextJ?.match, matches, seasonId, squad: squad.length });
+  const knockN = vx.knocking.length;
+  const vesBadge = fan ? 0 : cap ? knockN : (vx.owes ? 1 : 0) + (vx.mine || !nextJ ? 0 : 1) + (vx.myTurn ? 1 : 0);
+
+  // ── birthdays (30 days, Inicio's rule)
+  const bdays = birthdaysOf(squad, now);
+  const soon = bdays.filter((b) => b.days <= BDAY_DAYS);
+  const b1 = soon[0] ?? null;
+  const b2 = soon[1] ?? null;
+
+  // ── the doors
+  const dl = doorLineOf(S);
+  const vesLive = fan ? "Solo plantilla. ¿Juegas en el Piti? Entra." : cap ? (knockN ? `${knockN} llaman a la puerta` : "Nadie llama a la puerta") : vx.mine ? "Respondido para el domingo".replace("el domingo", nextJ ? `el ${weekdayDay(nextJ.at, now).split(" ")[0]}` : "el partido") : vasLine(nextJ, now);
+  const mkLine = pid ? `La tuya ya está: ${(byId.get(pid)?.print ?? meName.toLocaleUpperCase("es"))} y el ${byId.get(pid)?.num ?? ""}. O hazte otra.` : "Tu nombre y tu dorsal en la espalda, como la de verdad.";
+  const sponsors = (c.sponsors ?? []).filter((s) => s?.name?.trim());
+  const ini = (n: string) =>
+    n
+      .split(/\s+/)
+      .map((w) => w.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toLocaleUpperCase("es");
+  const doors: Door[] = [
+    { id: "historia", t: ROOM_T.historia, k: "Sala 1 · la línea del club", live: historiaLive(S), badge: 0, badgeText: "", ...dl },
+    { id: "equipo", t: ROOM_T.equipo, k: "Sala 2 · camisetas y campos", live: pid ? `Tu ${byId.get(pid)?.num ?? ""} te espera: Ponte la del Piti` : "Ponte la del Piti, con tu nombre", badge: 0, badgeText: "", front: kitStill("home", "front"), shirt: pid ? shirtOf(pid) : kitStill("home", "back") },
+    {
+      id: "gente",
+      t: ROOM_T.gente,
+      k: "Sala 3 · cumpleaños y contacto",
+      live: b1 ? `${b1.name} cumple ${b1.age} ${bdayWhen(b1, now)}` : sponsors.length ? `${sponsors.length} nos apoyan · el hueco se alquila` : "El hueco del patrocinio se alquila",
+      badge: 0,
+      badgeText: "",
+      ...(b1 ? { person: shirtOf(b1.id) ?? kitStill("home", "back"), person2: b2 ? (shirtOf(b2.id) ?? undefined) : undefined, day: String(new Date(b1.at).getUTCDate()), month: dayMonth(b1.at).split(" ")[1] } : {}),
+      cal: nextJ ? { day: String(dayMonth(nextJ.at).split(" ")[0]), month: dayMonth(nextJ.at).split(" ")[1], t: `J${nextJ.j} · ${nextJ.rival}` } : undefined,
+      spons: sponsors.slice(0, 2).map((s) => ini(s.name)),
+    },
+    {
+      id: "vestuario",
+      t: ROOM_T.vestuario,
+      k: fan ? "Sala 4 · solo plantilla" : "Sala 4 · lo del equipo",
+      live: vesLive,
+      badge: vesBadge,
+      badgeText: vesBadge ? (cap ? `${vesBadge} llaman` : `${vesBadge === 1 ? "1 cosa pendiente" : `${vesBadge} cosas pendientes`}`) : "",
+      sign: fan ? "Solo plantilla" : cap && knockN ? `Llaman: ${knockN}` : vx.mine ? "Dentro" : "¿Vas?",
+      chips: fan ? ["Convocatorias", "La porra", "La caja"] : [`${vx.yes} van`, `${vx.maybe} duda`, `${vx.pending} sin responder`],
+    },
+  ];
+
+  // ── moving between screens
+  const openRoom = (id: Room) => go(SALA_PATH[id], { from: null });
+  const toHub = (from: Room | null) => go(SALA_PATH.hub, { out: true, from });
+  const pick = (id: PieceId) => void go(id === defaultPiece(pieces) ? "/club" : `/club/vitrina/${id}`, { replace: true });
   const share = async () => {
     const url = `${siteOrigin()}/club`;
     try {
       if (typeof navigator.share === "function") await navigator.share({ title: "Manchester Piti · El club", url });
       else {
         await navigator.clipboard.writeText(url);
-        setNotice("Enlace copiado. Pásalo al grupo.");
+        toast("Enlace copiado. Pásalo al grupo.");
       }
     } catch {
-      setNotice("");
+      /* the share sheet closed */
     }
   };
-  const slide = (dir: 1 | -1) => train.current?.scrollBy({ left: dir * Math.max(240, (train.current.clientWidth || 300) * 0.8), behavior: "smooth" });
-
-  return (
-    <div className={`vx vd-pg hm st cl${live ? " vd-pg--live" : ""}`} aria-busy={loading}>
-      <PageSky now={now} live={live} moment={night.moment} />
-      <CelesteHeader
-        active="club"
-        sub="El club"
-        actions={<ThemeToggle />}
+  const roomFoot = (room: Exclude<Room, "vestuario">) => {
+    const i = ROOMS.indexOf(room);
+    const nr = ROOMS[i + 1];
+    return (
+      <RoomEnd
+        label="Siguiente sala"
+        title={ROOM_T[nr]}
+        line={doors[i + 1].live}
+        go={(e) => {
+          e.currentTarget.style.viewTransitionName = `cb-room-${nr}`;
+          go(SALA_PATH[nr]);
+        }}
       />
+    );
+  };
 
-      <section className="cl-hero vd-pg-head vd-reg-1" aria-labelledby="cl-t">
-        <h1 className="cl-h1" id="cl-t">
-          El club
-        </h1>
-        <p className="vd-lede">{lede}</p>
-      </section>
+  // ── the head's words
+  const where = [c.location && c.founded ? `En ${c.location} desde ${c.founded}.` : c.location ? `En ${c.location}.` : c.founded ? `Desde ${c.founded}.` : ""].filter(Boolean);
+  const headSub = [...where, "Lo que se gana se queda aquí; lo que se está jugando, también."].join(" ");
+  const ticketJ = S.jornadas[0];
+  const ctx: ObjCtx = {
+    front: kitStill("home", "front"),
+    ticket: { j: ticketJ ? `J1 · ${dayMonth(ticketJ.at)}` : "J1", score: ticketJ && ticketJ.gf !== null ? scoreOfJ(ticketJ) : "J1", rival: ticketJ?.rival ?? "", venue: ticketJ?.venue ? niceVenue(ticketJ.venue) : "" },
+  };
 
-      <div className="cl-now vd-reg-2">
-        <VitrinaVidrio season={season?.name ?? "La temporada"} top={vit.top} bottom={vit.bottom} year={(c.founded ?? "").trim().slice(-2) || "MP"} />
-        <aside className="cl-side" aria-label="Esta semana en el club">
-          {bday && (
-            <div>
-              <h3>Cumpleaños</h3>
-              <p>{bday}</p>
-            </div>
-          )}
-          <div>
-            <h3>Ponte la del Piti</h3>
-            <div className="cl-ponte">
-              <span className={`vd-shirt${ponte ? " vd-shirt--img" : ""}`} style={ponte ? ({ "--vd-shirt-img": `url("${ponte}")` } as CSSProperties) : undefined} aria-hidden="true">
-                {!ponte && <b>{PONTE.num}</b>}
-              </span>
-              <p>Tu nombre y tu dorsal en la primera equipación, para descargar o compartir.</p>
-            </div>
-            <Link className="vd-btn vd-btn--sm vd-glass vd-press" to="/camiseta">
-              Hacerme la mía
-            </Link>
-          </div>
-          <div>
-            <h3>Patrocinadores</h3>
-            {sponsors.length ? (
-              <p className="cl-spons">
-                {sponsors.map((s) => (
-                  <span key={s.name}>{s.name}</span>
-                ))}
-              </p>
-            ) : (
-              <p>
-                Este hueco se alquila. <a className="vd-link" href="#cl-sponsors">Cómo aparecer</a>
-              </p>
-            )}
-          </div>
-        </aside>
-      </div>
+  // ── the member's own pieces
+  const mvpResults = useMvpResults();
+  const mine = (() => {
+    if (!pid || fan) return null;
+    const played = S.jornadas.slice(0, S.played);
+    const wins = played.filter((x) => mvpWinners(x.match, mvpResults.get(x.id), now).includes(pid)).length;
+    const lastM = played[played.length - 1]?.match;
+    return { name: meName, list: minePieces({ playerId: pid, season: S, nameOf, mvpWins: wins, mvpOpen: !!lastM && mvpVoteOpen(lastM, now) }) };
+  })();
 
-      <section className="cl-more" aria-label="El club en breve">
-        <div className="cl-hero-in">
-          <div className="cl-intro pt-rise">
-            <p className="cl-lead">{c.intro}</p>
-            <dl className="cl-placard">
-              <div>
-                <dt>Desde</dt>
-                <dd className={c.founded ? undefined : "gap"}>{c.founded || "año por publicar"}</dd>
-              </div>
-              <div>
-                <dt>Dónde</dt>
-                <dd className={c.location ? undefined : "gap"}>{c.location || "localidad por publicar"}</dd>
-              </div>
-              <div className="sw">
-                <dt>Colores</dt>
-                <dd>
-                  <i style={{ background: "#6CABDD" }} title="Celeste #6CABDD" />
-                  <i style={{ background: "#0C1733" }} title="Marino #0C1733" />
-                  <i style={{ background: "#FFC659" }} title="Oro #FFC659" />
-                  <span className="hm-sr">Celeste, marino y oro</span>
-                </dd>
-              </div>
-            </dl>
-            <div className="cl-acts">
-              <button type="button" className="hm-btn cl-share" onClick={() => void share()}>
-                <Icon name="share" size={16} stroke={2.2} />
-                Compartir el club
-              </button>
-              <Link className="hm-ghostbtn st-sm" to="/partidos">
-                Ver los partidos
-              </Link>
-            </div>
-            <nav className="cl-chapters" aria-label="Capítulos de El club">
-              {CHAPTERS.map(([id, label], i) => (
-                <a key={id} href={`#${id}`}>
-                  <small>{String(i + 1).padStart(2, "0")}</small>
-                  {label}
-                </a>
-              ))}
-            </nav>
-            {notice && (
-              <p className="st-mono" role="status">
-                {notice}
-              </p>
-            )}
-          </div>
-          <Vitrina />
-        </div>
-      </section>
+  // ── La historia's words
+  const lastJ = S.played ? S.jornadas[S.played - 1] : null;
+  const seasonLine = S.played === 0 ? `${S.name} · por estrenar · ${S.jornadas.length} jornadas` : `${S.name} · en curso · ${posText(S)} tras la J${S.played}${demo ? " (demo)" : ""}`;
+  const firstReal = S.jornadas.find((x) => x.gf !== null);
+  const moments = [
+    ...(c.milestones ?? []).filter((m) => m?.title?.trim()).map((m) => ({ y: m.year, t: m.title, d: m.text, cls: "", href: null as string | null })),
+    firstReal
+      ? { y: dayMonth(firstReal.at), t: "El primer partido de nuestro archivo", d: `${firstReal.date} · Manchester Piti ${scoreOfJ(firstReal)} ${firstReal.rival}`, cls: "is-ticket", href: `/partidos/${firstReal.id}` }
+      : S.jornadas[0]
+        ? { y: dayMonth(S.jornadas[0].at), t: "El primer partido", d: `${weekdayDay(S.jornadas[0].at, now)}, contra ${S.jornadas[0].rival}${S.jornadas[0].venue ? `, en el ${niceVenue(S.jornadas[0].venue)}` : ""}. Aquí quedará su resultado.`, cls: "is-ghost", href: null }
+        : { y: "", t: "El primer partido", d: "Aquí quedará su resultado.", cls: "is-ghost", href: null },
+  ];
+  const story = c.story || "";
+  const meta = [c.founded ? `Desde ${c.founded}` : "", c.location].filter(Boolean).join(" · ");
+  const extra = [story, c.founded && c.location ? `Desde ${c.founded}, en ${c.location}.` : "", c.crestStory ? `El escudo: ${c.crestStory.charAt(0).toLocaleLowerCase("es")}${c.crestStory.slice(1)}` : ""].filter(Boolean).join(" ");
+  const last = lastJ ? { k: `J${lastJ.j} · ${lastJ.home ? "en casa" : "fuera"} · ${lastJ.date}`, ...lastStory(lastJ, S, nameOf, mvpResults.get(lastJ.id), now) } : null;
 
-      <main className="cl-main">
-        <section className="cl-band" aria-label="Foto de equipo">
-          {c.photoUrl ? (
-            <img src={c.photoUrl} alt="Foto de equipo del Manchester Piti" loading="lazy" />
-          ) : (
-            <div className="cl-band-empty">
-              <img src="/crest-128.webp" alt="" width="72" height="72" />
-              <span>La próxima foto de equipo va aquí</span>
-            </div>
-          )}
-          <i className="bars" aria-hidden="true" />
-        </section>
+  // ── El equipo's
+  const capPid = season?.captainPlayerId && byId.has(season.captainPlayerId) ? season.captainPlayerId : null;
+  const captain = capPid ? `Capitán: ${nameOf(capPid)}${byId.get(capPid)?.num ? `, el ${byId.get(capPid)?.num}` : ""}. ` : "";
+  const venues: Venue[] = venuesOf(c, S, now);
 
-        <section className="cl-story" aria-labelledby="cl-story">
-          <Head kick="Quiénes somos" title="Manchester Piti" id="cl-story" />
-          <p className="cl-copy">{c.story}</p>
-          <p className="cl-meta">
-            {c.founded && <span>Desde {c.founded}</span>}
-            {c.location && (
-              <span>
-                <Icon name="flag" size={15} /> {c.location}
-              </span>
-            )}
-          </p>
-          {c.crestStory?.trim() && (
-            <aside className="cl-crest-story" aria-labelledby="cl-crest">
-              <img src="/crest-128.webp" alt="" width="56" height="56" />
-              <div>
-                <h3 id="cl-crest">
-                  La historia del escudo <NewBadge feature="clubEscudo" />
-                </h3>
-                <p className="cl-copy sm">{c.crestStory}</p>
-              </div>
-            </aside>
-          )}
-        </section>
-
-        {/* The data did not arrive: the error, not a trophy room and a squad of zeros pretending to be real. */}
-        {error ? (
-          <ClubDataError compact />
-        ) : (
-          <section className="cl-sec" aria-labelledby="cl-trophies">
-            <Head kick={`${season?.name ?? "La temporada"} · ${won} de ${medals.length}`} title="La sala de trofeos" id="cl-trophies" nuevo="clubTrofeos">
-              <p className="st-mono">Se ilumina sola a medida que llegan los primeros goles, victorias y récords.</p>
-            </Head>
-            <ul className="cl-trophies">
-              {medals.map((m, i) => (
-                <li key={m.id} className={`${m.earned ? "on" : "off"} ${m.tone}`} style={{ animationDelay: `${i * 0.08}s` }}>
-                  <span className="cup" aria-hidden="true">
-                    <Icon name={MEDAL_ICON[m.id] ?? "trophy"} size={30} />
-                  </span>
-                  <span className="ped" aria-hidden="true" />
-                  <small>{m.kicker}</small>
-                  <b>{m.title}</b>
-                  <span className="det">{m.detail}</span>
-                  <span className={`state${m.earned ? " won" : ""}`}>
-                    <Icon name={m.earned ? "check" : "lock"} size={13} stroke={2.4} />
-                    {m.earned ? "Conseguido" : "Por conseguir"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
+  // ── the page
+  const scr = sala === "vestuario" ? "hub" : sala;
+  const cls = ["vx", "vd-pg", "cb", `q-${quien}`, `s-${scr === "camiseta" ? "equipo" : scr}`, day ? "is-dia" : ""].filter(Boolean).join(" ");
+  return (
+    <div className={cls} ref={pageRef} style={{ "--vd-sky-h": "1100px" } as CSSProperties} aria-busy={club.loading}>
+      <Sky day={day} />
+      <Bokeh day={day} />
+      <Sprite />
+      <CelesteHeader active="club" actions={<ThemeToggle />} />
+      <main className="cb-main" id="cb-main">
+        {scr === "hub" && (
+          <Hub
+            headSub={headSub}
+            next={{ text: `Lo próximo: ${nextLine(nextJ, now)}`, href: nextJ ? `/partidos/${nextJ.id}` : "/partidos" }}
+            share={() => void share()}
+            pieces={pieces}
+            focus={focus}
+            pick={pick}
+            seasonName={S.name}
+            ctx={ctx}
+            back={kitStill("home", "back")}
+            mine={mine}
+            doors={doors}
+            from={roomLeft()}
+            open={(id) => openRoom(id)}
+          />
         )}
-
-        <section className="cl-sec cl-kits" aria-labelledby="cl-kits">
-          <div className="cl-kit-stage">
-            <i className="floor" aria-hidden="true" />
-            <Jersey3D ref={shirt} className="cl-kit3d" kit={kit} theme={theme} name="PITI" num="1" view="front" zoom={0.95} lift={0.12} label={`${KITS[kit].label} del Manchester Piti. Arrástrala o usa las flechas para girarla.`} />
+        {scr === "historia" && (
+          <div className="cb-room cb-room--historia">
+            <RoomHead vt="cb-room-historia" back={() => toHub("historia")} title={ROOM_T.historia} sub={ROOM_SUB.historia} extra={extra} />
+            <Historia S={S} pieces={pieces} seasonLine={seasonLine} last={last} moments={moments} story={story} meta={meta} crest={c.crestStory ?? ""} gallery={(c.gallery ?? []).filter((g) => /^https:\/\//.test(g?.url ?? ""))} cap={cap} say={toast} />
+            {roomFoot("historia")}
           </div>
-          <div className="cl-kit-copy">
-            <Head kick="El vestidor" title="Las equipaciones" id="cl-kits" nuevo="clubEquipaciones" />
-            <div className="st-seg" role="group" aria-label="Equipación">
-              {(["home", "away"] as const).map((k) => (
-                <button key={k} type="button" aria-pressed={kit === k} onClick={() => setKit(k)}>
-                  {KITS[k].label}
-                </button>
-              ))}
-            </div>
-            <p className="cl-copy sm">{KITS[kit].note}</p>
-            <ul className="cl-swatches" key={kit}>
-              {KITS[kit].swatches.map(([n, hex], i) => (
-                <li key={hex} style={{ animationDelay: `${i * 0.08}s` }}>
-                  <i style={{ background: hex }} />
-                  <b>{n}</b>
-                  <small>{hex}</small>
-                </li>
-              ))}
-            </ul>
-            <button type="button" className="hm-ghostbtn st-sm" onClick={() => shirt.current?.turn()}>
-              <Icon name="turn" size={16} />
-              Darle la vuelta
-            </button>
-          </div>
-        </section>
-
-        <section className="cl-sec" aria-labelledby="cl-history">
-          <Head kick="Del primer balón a hoy" title="Historia del equipo" id="cl-history" />
-          {stops.length ? (
-            <div className="cl-train-wrap">
-              <ol className="cl-train" ref={train} tabIndex={0} aria-label="Momentos del club, desliza para recorrerlos">
-                {stops.map((s, i) => (
-                  <li key={s.key} className={s.match ? "ticket" : undefined} style={{ animationDelay: `${i * 0.07}s` }}>
-                    <span className="yr">{s.year || "—"}</span>
-                    <b>{s.title}</b>
-                    {s.match ? (
-                      <>
-                        <span className="tk">
-                          {formatDate(s.match.date)} · Manchester Piti {s.match.goalsFor}–{s.match.goalsAgainst} {s.match.rival ?? "Rival"}
-                        </span>
-                        <Link to="/partidos/$matchId" params={{ matchId: s.match.id }}>
-                          Ver partido →
-                        </Link>
-                      </>
-                    ) : (
-                      s.text && <p>{s.text}</p>
-                    )}
-                  </li>
-                ))}
-              </ol>
-              {stops.length > 1 && (
-                <div className="cl-train-nav">
-                  <button type="button" className="cl-iconbtn" aria-label="Momento anterior" onClick={() => slide(-1)}>
-                    <Icon name="left" size={18} stroke={2.2} />
-                  </button>
-                  <button type="button" className="cl-iconbtn" aria-label="Momento siguiente" onClick={() => slide(1)}>
-                    <Icon name="right" size={18} stroke={2.2} />
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="st-empty">La historia del equipo se actualizará aquí.</p>
-          )}
-        </section>
-
-        {!error && (
-          <section className="cl-sec" aria-labelledby="cl-nums">
-            <Head kick={season?.name ?? "La plantilla"} title="La plantilla en números" id="cl-nums" nuevo="clubNumeros" />
-            <dl className="cl-nums">
-              <div className="big">
-                <dt>Jugadores</dt>
-                <dd>{nums.size}</dd>
-              </div>
-              {(Object.keys(ZONE_LABEL) as (keyof typeof ZONE_LABEL)[]).map((z) => (
-                <div key={z}>
-                  <dt>{ZONE_LABEL[z]}</dt>
-                  <dd>
-                    {nums.byZone[z]}
-                    <span className="dots" aria-hidden="true">
-                      {Array.from({ length: nums.byZone[z] }, (_, i) => (
-                        <i key={i} style={{ animationDelay: `${i * 0.05}s` }} />
-                      ))}
-                    </span>
-                  </dd>
-                </div>
-              ))}
-              <div>
-                <dt>Edad media</dt>
-                <dd className={nums.averageAge === null ? "gap" : undefined}>{nums.averageAge === null ? "por publicar" : String(nums.averageAge).replace(".", ",")}</dd>
-              </div>
-              <div>
-                <dt>Capitán</dt>
-                <dd className={captain ? "name" : "gap"}>
-                  {captain && season?.captainPlayerId ? (
-                    <PlayerLink id={season.captainPlayerId} seasonId={seasonId}>
-                      {captain}
-                    </PlayerLink>
-                  ) : (
-                    "por elegir"
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt>Temporadas</dt>
-                <dd>{seasons.length}</dd>
-              </div>
-            </dl>
-            {nums.other > 0 && <p className="st-mono">{nums.other === 1 ? "1 jugador" : `${nums.other} jugadores`} aún sin posición en su ficha.</p>}
-          </section>
         )}
-
-        <PlantillaPosiciones squad={inSeason} seasonName={season?.name ?? "La plantilla"} />
-
-        <section className="cl-sec cl-barrio" aria-labelledby="cl-ground">
-          <div className="cl-map" aria-hidden="true">
-            <svg viewBox="0 0 400 280" preserveAspectRatio="xMidYMid slice">
-              <path className="blk" d="M0 40h120v70H0zM150 0h90v90h-90zM270 30h130v60H270zM0 150h90v130H0zM120 140h110v60H120zM260 130h140v150H260zM120 230h110v50H120z" />
-              <path className="st" d="M0 125h400M135 0v280M250 0v280M0 215h250" />
-              <path className="route" pathLength={1} d="M20 260 C 60 220, 90 215, 135 205 S 200 140, 200 125 S 240 118, 300 104" />
-              <rect className="pitch" x="276" y="70" width="70" height="44" rx="4" />
-              <path className="pitch" d="M311 70v44" />
-            </svg>
-            <span className="pin" style={{ left: "75%", top: "37%" }}>
-              <i />
-            </span>
+        {scr === "equipo" && (
+          <div className="cb-room cb-room--equipo">
+            <RoomHead vt="cb-room-equipo" back={() => toHub("equipo")} title={ROOM_T.equipo} sub={ROOM_SUB.equipo} />
+            <Equipo
+              still={kitStill}
+              mk={{ shirt: pid ? shirtOf(pid) : kitStill("home", "back"), line: mkLine, open: () => go(SALA_PATH.camiseta) }}
+              squad={squad.map((s) => ({ id: s.id, src: shirtOf(s.id), alt: `${s.full}, ${s.name}, dorsal ${s.num}` }))}
+              captain={captain}
+              toCrest={() => go("/club/vitrina/escudo", { out: true, from: null })}
+              photo={/^https:\/\//.test(c.photoUrl ?? "") ? c.photoUrl : ""}
+              venues={venues}
+              cap={cap}
+            />
+            {roomFoot("equipo")}
           </div>
-          <div className="cl-ground-copy">
-            <Head kick="El barrio" title="Nuestro campo" id="cl-ground" />
-            <p className={`cl-venue${c.venue ? "" : " gap"}`}>{venueName(c.venue) || "Campo y dirección por publicar"}</p>
-            {c.location && <p className="st-mono">{c.location}</p>}
-            <div className="cl-acts">
-              {c.venue && (
-                <a className="hm-btn cl-go" href={mapsUrl(c.venue)} target="_blank" rel="noopener noreferrer">
-                  Cómo llegar ↗
-                </a>
-              )}
-              <AddToCalendar className="hm-ghostbtn st-sm" label="Calendario del club" feed={`${siteOrigin()}/calendario.ics`} />
-            </div>
-            <div className="cl-next">
-              <span className="st-mono">Próximo partido</span>
-              {next ? (
-                <Link to="/partidos/$matchId" params={{ matchId: next.id }}>
-                  <b>{next.rival ?? "Rival"}</b>
-                  <span>
-                    {nextWhen} · {next.home === false ? "fuera" : "en casa"}
-                  </span>
-                </Link>
-              ) : (
-                <span className="gap">Fecha por publicar</span>
-              )}
-            </div>
+        )}
+        {scr === "camiseta" && <Maker people={squad.filter((s) => s.num && prints.get(s.num)).map((s) => ({ id: s.id, name: s.name, num: s.num, print: prints.get(s.num) ?? s.print }))} mine={pid} day={day} back={() => go(SALA_PATH.equipo, { out: false })} say={toast} />}
+        {scr === "gente" && (
+          <div className="cb-room cb-room--gente">
+            <RoomHead vt="cb-room-gente" back={() => toHub("gente")} title={ROOM_T.gente} sub={ROOM_SUB.gente} />
+            <Gente
+              fan={fan}
+              member={!fan}
+              cap={cap}
+              bday={
+                b1
+                  ? {
+                      id: b1.id,
+                      t: `${b1.name} cumple ${b1.age} ${bdayWhen(b1, now)}`,
+                      d: `${b1.full}${b1.num ? `, el ${b1.num}` : ""}. Que no se te pase felicitarle.`,
+                      shirt: shirtOf(b1.id),
+                      shirtAlt: `La camiseta de ${b1.name}${b1.num ? `, dorsal ${b1.num}` : ""}`,
+                      next2: b2 ? { t: `Y luego ${b2.name}: ${b2.age} ${bdayWhen(b2, now)}.`, shirt: shirtOf(b2.id) } : null,
+                    }
+                  : null
+              }
+              list={bdays.slice(0, 6).map((b) => ({ id: b.id, name: b.name, full: b.full, when: dayMonth(b.at), age: `cumple ${b.age}`, src: shirtOf(b.id), label: `${b.full}, ${b.name}: cumple ${b.age} el ${dayMonth(b.at)}` }))}
+              sponsors={sponsors.map((s) => ({ name: s.name, url: /^https:\/\//.test(s.url ?? "") ? s.url : "", ini: ini(s.name) }))}
+              email={c.email ?? ""}
+              instagram={/^https:\/\//.test(c.instagram ?? "") ? c.instagram : ""}
+              faq={(c.faq ?? []).filter((f) => f?.q?.trim() && f?.a?.trim())}
+              feed={`${siteOrigin()}/calendario.ics`}
+              congrats={() => b1 && go(`/vestuario/tablon?felicitar=${encodeURIComponent(b1.id)}`)}
+              door={() => go("/vestuario")}
+              invite={() => go("/vestuario?invitacion=1")}
+              say={toast}
+            />
+            {roomFoot("gente")}
           </div>
-        </section>
-
-        {gallery.length > 0 && (
-          <section className="cl-sec" aria-labelledby="cl-gallery">
-            <Head kick="Del vestuario al campo" title="Galería" id="cl-gallery" />
-            <ul className="cl-gallery">
-              {gallery.map((g, i) => (
-                <li key={g.url + i}>
-                  <button type="button" onClick={() => setPhoto(i)} aria-label={`Ampliar: ${g.caption || `foto ${i + 1}`}`}>
-                    <img src={g.url} alt={g.caption || ""} loading="lazy" />
-                  </button>
-                  {g.caption && <span>{g.caption}</span>}
-                </li>
-              ))}
-            </ul>
-            <dialog ref={dialog} className="cl-lightbox" onClose={() => setPhoto(null)} aria-label="Foto ampliada">
-              {photo !== null && gallery[photo] && (
-                <figure>
-                  <img src={gallery[photo].url} alt={gallery[photo].caption || ""} />
-                  {gallery[photo].caption && <figcaption>{gallery[photo].caption}</figcaption>}
-                </figure>
-              )}
-              <div className="cl-lb-nav">
-                <button type="button" className="cl-iconbtn" aria-label="Foto anterior" onClick={() => setPhoto(((photo ?? 0) - 1 + gallery.length) % gallery.length)}>
-                  <Icon name="left" size={18} stroke={2.2} />
-                </button>
-                <button type="button" className="hm-ghostbtn st-sm" onClick={() => setPhoto(null)}>
-                  Cerrar
-                </button>
-                <button type="button" className="cl-iconbtn" aria-label="Foto siguiente" onClick={() => setPhoto(((photo ?? 0) + 1) % gallery.length)}>
-                  <Icon name="right" size={18} stroke={2.2} />
-                </button>
-              </div>
-            </dialog>
-          </section>
         )}
-
-        {faq.length > 0 && (
-          <section className="cl-sec" aria-labelledby="cl-faq">
-            <Head kick="Antes de escribirnos" title="Preguntas de vestuario" id="cl-faq" nuevo="clubPreguntas" />
-            <div className="cl-faq">
-              {faq.map((f, i) => (
-                <details key={f.q + i} open={i === 0}>
-                  <summary>
-                    <span className="q">P.</span>
-                    {f.q}
-                    <Icon name="down" size={18} />
-                  </summary>
-                  <p>
-                    <span className="q">R.</span>
-                    {f.a}
-                  </p>
-                </details>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <section className="cl-sec" aria-labelledby="cl-contact">
-          <Head kick="Contacto" title="Clasificados" id="cl-contact">
-            {!c.email && <p className="st-mono">Contacto del club pendiente de publicar.</p>}
-          </Head>
-          <ul className="cl-ads">
-            {ads.map((a, i) => (
-              <li key={a.id} style={{ animationDelay: `${i * 0.08}s` }}>
-                <span className="wanted">{a.wanted}</span>
-                <b>{a.title}</b>
-                <p>{a.text}</p>
-                <span className="fringe">
-                  {a.href ? (
-                    <a href={a.href}>
-                      <Icon name="send" size={14} stroke={2.2} />
-                      Hablemos
-                    </a>
-                  ) : (
-                    <span className="pend">Pendiente</span>
-                  )}
-                  <i aria-hidden="true" />
-                  <i aria-hidden="true" />
-                  <i aria-hidden="true" />
-                </span>
-              </li>
-            ))}
-          </ul>
-          {/^https:\/\//.test(c.instagram ?? "") && (
-            <a className="cl-sticker" href={c.instagram} target="_blank" rel="noopener noreferrer">
-              El Piti en Instagram ↗
-            </a>
-          )}
-        </section>
-
-        <section className="cl-sec" aria-labelledby="cl-sponsors">
-          <Head kick="Nos apoyan" title="Patrocinadores" id="cl-sponsors" />
-          <ul className="cl-sponsors">
-            {sponsors.map((s) => (
-              <li key={s.name}>
-                {s.url ? (
-                  <a href={s.url} target="_blank" rel="noopener noreferrer">
-                    {s.logo && <img src={s.logo} alt="" loading="lazy" />}
-                    <b>{s.name}</b>
-                  </a>
-                ) : (
-                  <span>
-                    {s.logo && <img src={s.logo} alt="" loading="lazy" />}
-                    <b>{s.name}</b>
-                  </span>
-                )}
-              </li>
-            ))}
-            <li className="rent">
-              <NewBadge feature="clubHuecoPatrocinio" />
-              <b>Este hueco se alquila</b>
-              <p>Tu marca en la camiseta, en la web y en el campo.</p>
-              {c.email ? <a href={mailto(c.email, "Patrocinio")}>Escríbenos ↗</a> : <span className="st-mono">Correo por publicar</span>}
-            </li>
-          </ul>
-        </section>
       </main>
-      <CelesteFooter />
       <CelesteDock active="club" />
+      <Toast say={say} on={sayOn} />
     </div>
   );
 }
 
-export default ClubPage;
+/** «CDM PALOMERAS» → «CDM Palomeras». */
+function niceVenue(v: string): string {
+  return v
+    .split(/\s+/)
+    .map((w) => (/^[A-ZÁÉÍÓÚÑ]{2,4}$/.test(w) && /^(CDM|IDM|CD|UD|CF|FC|SAD)$/.test(w) ? w : w.charAt(0) + w.slice(1).toLocaleLowerCase("es")))
+    .join(" ");
+}
+
+/** La historia's last jornada in a line: a title and what happened (the goals, who played, the MVP). */
+function lastStory(x: import("./cb/model").Jor, S: import("./cb/model").ClubSeason, nameOf: (id: string) => string, mvp: import("../../lib/vestuario").MvpResult | undefined, now: number): { t: string; d: string } {
+  if (x.off) return { t: "Aplazado", d: `La J${x.j} contra ${x.rival} se jugará otro día.` };
+  const gf = x.gf ?? 0;
+  const ga = x.ga ?? 0;
+  const L = letterOf(x);
+  const first = S.jornadas.slice(0, S.played).filter((j) => j.gf !== null)[0]?.j === x.j;
+  const t = first ? (L === "G" ? "El primer partido, la primera victoria" : L === "E" ? "Un empate para abrir el archivo" : "Una tarde dura para abrir el archivo") : L === "G" ? (gf - ga === 1 ? "La última, por la mínima" : "La última, ganada") : L === "E" ? "La última, en tablas" : ga - gf === 1 ? "La última, por la mínima" : "La última, cuesta arriba";
+  const goals = keyEvents(x.match).filter((e) => e.k === "g" && e.who);
+  const scorers = [...new Set(goals.map((e) => e.who as string))].map(nameOf);
+  const played = Object.values(x.match.ledger ?? {}).filter((v) => v.played).length;
+  const winners = mvpWinnersOf(x, mvp, now);
+  const goalLine = gf === 0 ? "Sin goles nuestros." : gf === 1 && scorers.length === 1 ? `El gol: ${scorers[0]}${goalMinute(goals[0]?.min)}.` : scorers.length ? `Los goles: ${listY(scorers)}.` : "";
+  const playedLine = played ? ` Jugaron ${NUMW[played] ?? played}${(x.match.events ?? []).some((e) => e.type === "substitution") ? " y se rotó todo el partido" : ""}.` : "";
+  const mvpLine = winners.open ? ` El MVP sigue en votación${winners.votes !== null ? `: ${winners.votes} de ${winners.of}` : ""}.` : winners.names.length ? ` MVP: ${listY(winners.names.map(nameOf))}.` : "";
+  return { t, d: `${goalLine}${playedLine}${mvpLine}`.trim() };
+}
+const NUMW = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis"];
+const listY = (xs: readonly string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
+const goalMinute = (min: number | undefined) => (typeof min === "number" ? `, en el ${min}′` : "");
+function mvpWinnersOf(x: import("./cb/model").Jor, mvp: import("../../lib/vestuario").MvpResult | undefined, now: number): { open: boolean; votes: number | null; of: number | null; names: string[] } {
+  const open = mvpVoteOpen(x.match, now);
+  if (open) return { open, votes: mvp?.total ?? null, of: typeof mvp?.eligible === "number" && mvp.eligible > 0 ? mvp.eligible : null, names: [] };
+  return { open, votes: null, of: null, names: mvpWinners(x.match, mvp, now) };
+}
+
+/** Los campos: the club's published grounds, else the grounds of the season's matches; each with its next match. */
+function venuesOf(c: import("../../lib/clubContentDefaults").ClubContent, S: import("./cb/model").ClubSeason, now: number): Venue[] {
+  const upcoming = S.jornadas.slice(S.played).filter((x) => !x.off && x.at > now);
+  const nextAt = (name: string) => upcoming.find((x) => x.venue && venueName(x.venue).toLocaleLowerCase("es") === venueName(name).toLocaleLowerCase("es"));
+  const nextText = (name: string) => {
+    const x = nextAt(name);
+    return x ? `Próximo allí: J${x.j} contra ${x.rival}, ${weekdayDay(x.at, now)}${x.time ? ` a las ${x.time}` : ""}` : "";
+  };
+  const homeAt = (name: string) => S.jornadas.some((x) => x.home && x.venue && venueName(x.venue).toLocaleLowerCase("es") === venueName(name).toLocaleLowerCase("es"));
+  const list = (c.venues ?? []).filter((v) => v?.name?.trim());
+  if (list.length)
+    return list.map((v) => ({ name: v.name, tag: homeAt(v.name) || list.indexOf(v) === 0 ? "En casa" : "Fuera", address: v.address ?? "", transit: v.transit ?? "", next: nextText(v.name), maps: venueMapsUrl(v) }));
+  const names = [...new Set(S.jornadas.map((x) => x.venue).filter(Boolean))];
+  if (!names.length && c.venue) names.push(venueName(c.venue));
+  return names.map((n) => ({ name: niceVenue(n), tag: homeAt(n) ? "En casa" : "Fuera", address: "", transit: "", next: nextText(n), maps: mapsUrl(n) }));
+}

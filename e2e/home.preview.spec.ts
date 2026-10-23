@@ -60,10 +60,12 @@ test("la portada «Vidrio»: el titular y la lente, las pantallas, la temporada,
   await expect(page).toHaveURL(/\/camiseta$/);
   await expect(page.getByRole("heading", { level: 1, name: "Ponte la del Piti" })).toBeVisible();
 
-  // Club: the old #club is the club's page, with the calendar to subscribe to.
+  // Club: the old #club is the club's page; its calendar lives in La gente (CL- boards).
   await page.goto("/#club");
   await expect(page).toHaveURL(/\/club$/);
-  await page.getByRole("button", { name: /Calendario del club/ }).click();
+  await page.getByRole("button", { name: /^La gente\./ }).click();
+  await expect(page).toHaveURL(/\/club\/gente$/);
+  await page.getByRole("button", { name: "Suscribirme al calendario" }).click();
   await expect(page.getByRole("link", { name: /iPhone o Mac/ })).toHaveAttribute("href", /^webcal:.*calendario\.ics$/);
   await expect(page.getByRole("link", { name: /Google Calendar/ })).toHaveAttribute("href", /calendar\.google\.com\/calendar\/r\?cid=webcal/);
   await page.keyboard.press("Escape");

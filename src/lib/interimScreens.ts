@@ -68,18 +68,6 @@ const PROFILE_TAB_HASH: Record<string, string> = {
 export const profileHashAt = (pathname: string): string => PROFILE_TAB_HASH[trim(pathname)] ?? "";
 
 const ANCHOR: [RegExp, string][] = [
-  [/^\/club\/vitrina\/escudo$/, "cl-crest"],
-  [/^\/club\/vitrina(\/|$)/, "cl-trophies"],
-  [/^\/club\/historia$/, "cl-history"],
-  [/^\/club\/equipo(\/camiseta)?$/, "cl-kits"],
-  [/^\/club\/gente$/, "cl-faq"],
-  [/^\/vestuario\/caja$/, "vx-caja"],
-  [/^\/vestuario\/encuestas(\/|$)/, "encuestas"],
-  [/^\/vestuario\/ausencias$/, "vx-ausencias"],
-  [/^\/vestuario\/entrenos$/, "vx-train"],
-  [/^\/vestuario\/tablon$/, "vx-board"],
-  [/^\/vestuario\/puerta$/, "puerta"],
-  [/^\/vestuario\/ficha$/, "vx-ficha"],
   [/^\/perfil\/nombre$/, "pe-nombre"],
   [/^\/perfil\/posiciones$/, "pe-posiciones"],
 ];

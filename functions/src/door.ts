@@ -153,7 +153,7 @@ export const requestAccess = onCall(async (req) => {
     at: FieldValue.serverTimestamp(),
   });
   const who = input.playerId ? playerLabel(player!) : cleanName(input.name ?? "") || "Alguien";
-  await sendTo({ topic: "door", title: "Llaman a la puerta del vestuario", body: `${who} pide entrar${email ? ` (${email})` : ""}.`, tag: `door-${uid}`, url: "/vestuario#puerta" });
+  await sendTo({ topic: "door", title: "Llaman a la puerta del vestuario", body: `${who} pide entrar${email ? ` (${email})` : ""}.`, tag: `door-${uid}`, url: "/vestuario/puerta" });
   return { status: "pending" as const };
 });
 
