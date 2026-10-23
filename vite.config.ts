@@ -41,8 +41,7 @@ const preloadCriticalFonts = (): Plugin => ({
 // from the HTML, by URL, removes that wait (one round trip less before the first paint with content).
 const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/(hoy\/(campo|jugadas|lo-tuyo)|camiseta)?\/?$/, 'src/pages/Home.tsx'],
-  [/^\/plantilla\/cara-a-cara\/?$/, 'src/pages/stats/StatsPage.tsx'],
-  [/^\/plantilla(\/album)?\/?$/, 'src/pages/squad/SquadPage.tsx'],
+  [/^\/plantilla(\/(album|cara-a-cara))?\/?$/, 'src/pages/squad/SquadPage.tsx'],
   [/^\/partidos(\/(tabla|balance))?\/?$/, 'src/pages/partidos/PartidosPage.tsx'],
   [/^\/partidos\/[^/]+\/mesa\/?$/, 'src/pages/mesa/Mesa.tsx'],
   [/^\/partidos\/[^/]+(\/(siete|numeros|vestuario))?\/?$/, 'src/pages/match/MatchPage.tsx'],

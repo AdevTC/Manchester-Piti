@@ -17,6 +17,7 @@ export const PAGES = [
   /^\/partidos(\/(tabla|balance))?$/,
   /^\/numeros(\/(y-si|jugadores|campo(\/(puestos|sistemas))?|juego(\/(tabla|catalogo))?|rivales|records(\/(marcas|cromos|evolucion))?))?$/,
   /^\/plantilla(\/(album|cara-a-cara))?$/,
+  /^\/jugadores\/[A-Za-z0-9_-]+(\/(temporada|jornadas|juego|analisis|cromo))?$/,
   /^\/club(\/(vitrina(\/[A-Za-z0-9_-]+)?|historia|equipo(\/camiseta)?|gente))?$/,
 ];
 const isPage = (path) => PAGES.some((re) => re.test(path));

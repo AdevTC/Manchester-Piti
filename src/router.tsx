@@ -292,9 +292,12 @@ const plantillaAlbumRoute = createRoute({
   path: "album",
   validateSearch: z.object({ ver: z.enum(["tengo", "faltan"]).optional().catch(undefined) }),
 });
-// The duel is today's Números «Comparar» until Plantilla lands, so it is a route of its own for now (the router
-// loads its page before rendering it, on the server too); Plantilla's page moves it under the layout.
-const caraACaraRoute = createRoute({ getParentRoute: () => rootRoute, path: "/plantilla/cara-a-cara", validateSearch: statsSearchSchema, component: statsPage });
+// The duel: ?a= and ?b= are its two corners (player ids; one nobody in the squad has is left out).
+const caraACaraRoute = createRoute({
+  getParentRoute: () => plantillaRoute,
+  path: "cara-a-cara",
+  validateSearch: z.object({ a: slug, b: slug }),
+});
 
 const playerProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -509,8 +512,7 @@ const routeTree = rootRoute.addChildren([
     numerosCromosRoute,
     numerosEvolucionRoute,
   ]),
-  plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute]),
-  caraACaraRoute,
+  plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute, caraACaraRoute]),
   playerProfileRoute.addChildren([playerIndexRoute, playerTemporadaRoute, playerJornadasRoute, playerJuegoRoute, playerAnalisisRoute, playerCromoRoute]),
   clubRoute.addChildren([clubIndexRoute, clubVitrinaRoute, clubPiezaRoute, clubHistoriaRoute, clubEquipoRoute, clubCamisetaRoute, clubGenteRoute]),
   vestuarioRoute.addChildren([
