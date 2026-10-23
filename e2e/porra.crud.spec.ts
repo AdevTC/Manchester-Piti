@@ -6,25 +6,10 @@ import { enterVestuario } from "./helpers";
 // add matches: the preview seed (idempotent) puts that fixture back as the next one, scheduled and open.
 test.beforeAll(() => execFileSync(process.execPath, ["functions/test/seed-preview.mjs"], { stdio: "inherit" }));
 
-test("la porra conserva goleador y asistencia entre vestuario y partido, también en móvil", async ({ page }) => {
+test("la porra conserva goleador y asistencia al recargar el partido, también en móvil", async ({ page }) => {
   await enterVestuario(page);
-  const form = page.locator(".pr-form");
-  // The form is the seeded fixture's, and editable (its saved porra loaded) before the score is reset.
-  await expect(form.getByRole("group", { name: "Tu porra: Piti contra Atlético Demo" })).toBeVisible();
-  await expect(form.getByText("Cargando tu porra…")).not.toBeVisible();
-  await expect(form.getByRole("button", { name: "Un gol más del Piti" })).toBeEnabled();
-  const minus = form.getByRole("button", { name: "Un gol menos del Piti" });
-  while (await minus.isEnabled()) await minus.click();
-  await form.getByRole("button", { name: "Un gol más del Piti" }).click();
-  await expect(form.getByRole("button", { name: /Guardar mi porra|Cambiar mi porra/ })).toBeDisabled();
-  await form.getByLabel("Goleador del gol 1").selectOption({ index: 1 });
-  const scorer = await form.getByLabel("Goleador del gol 1").inputValue();
-  await form.getByLabel("Asistencia del gol 1").selectOption("none");
-  await form.getByRole("button", { name: /Guardar mi porra|Cambiar mi porra/ }).click();
-  await expect(form.getByRole("button", { name: "Porra guardada" })).toBeVisible();
-  await page.getByRole("link", { name: "La porra, en la ficha del partido" }).click();
-  // Client-side navigation to the match's Vestuario screen: one «Tu goleador» and an optional asistencia.
-  await expect(page).toHaveURL(/\/partidos\/preview-next\/vestuario(\?|$)/);
+  // The porra lives on the match's Vestuario screen (CL- boards: the vestuario keeps «¿Vas?» and its blocks).
+  await page.goto("/partidos/preview-next/vestuario");
   const porra = page.getByRole("region", { name: "Tu porra", exact: true });
   const more = page.locator(".ves-more").getByRole("button", { name: "Ver todo" });
   const unfold = async () => {
@@ -33,10 +18,21 @@ test("la porra conserva goleador y asistencia entre vestuario y partido, tambié
     await expect(porra).toBeVisible();
   };
   await unfold();
-  // The vestuario's porra is the match's: one goal, the same goleador and no asistencia.
+  const steps = porra.getByRole("group", { name: "Tu porra: Piti contra Atlético Demo" });
+  const change = porra.getByRole("button", { name: "Cambiar mi porra" });
+  await expect(steps.or(change).first()).toBeVisible();
+  if (!(await steps.isVisible())) await change.click();
+  await expect(steps).toBeVisible();
+  const minus = steps.getByRole("button", { name: "Un gol menos del Piti" });
+  while (await minus.isEnabled()) await minus.click();
+  await steps.getByRole("button", { name: "Un gol más del Piti" }).click();
+  await porra.getByLabel("Tu goleador").selectOption({ index: 1 });
+  const scorer = await porra.getByLabel("Tu goleador").inputValue();
+  await porra.getByLabel("Asistencia (si quieres)").selectOption("");
+  await porra.getByRole("button", { name: /Guardar mi porra|Cambiar mi porra/ }).click();
+  // Saved: one goal; it opens again with the same goleador and no asistencia.
   await expect(porra.getByRole("img", { name: /^Tu porra: 1 a \d+$/ })).toBeVisible();
   await porra.getByRole("button", { name: "Cambiar mi porra" }).click();
-  const steps = porra.getByRole("group", { name: "Tu porra: Piti contra Atlético Demo" });
   await expect(steps).toBeVisible();
   await expect(porra.getByLabel("Tu goleador")).toHaveValue(scorer);
   await expect(porra.getByLabel("Asistencia (si quieres)")).toHaveValue("");

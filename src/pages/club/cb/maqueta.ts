@@ -1,5 +1,5 @@
 // DEV only: the CL- boards' «Maqueta» strip over production's data. `?quien=fan|socio|jugador|capitan` looks at the
-// club (and the vestuario) as someone else — the reads and writes stay the signed-in test member's —, `?momento=larga`
+// club (and the vestuario) as someone else — the reads and writes stay the signed-in test member's —, `?momento=larga` (or `estreno`, three days before the season's first match)
 // reads the long demo season (Partidos' fixture) and `?contenido=demo` fills the club's content with the boards' DEMO
 // (year, barrio, moments, the crest's story, the grounds, the sponsors, the email) so every section shows full. The
 // production build never reads it.
@@ -9,6 +9,7 @@ export type Quien = "fan" | "socio" | "jugador" | "capitan";
 export interface ClubMaqueta {
   quien: Quien | null;
   larga: boolean;
+  estreno: boolean;
   demo: boolean;
 }
 
@@ -17,8 +18,9 @@ export function readClubMaqueta(search: Record<string, unknown>): ClubMaqueta | 
   const q = typeof search.quien === "string" ? search.quien : "";
   const quien = q === "fan" || q === "socio" || q === "jugador" || q === "capitan" ? q : null;
   const larga = search.momento === "larga";
+  const estreno = search.momento === "estreno";
   const demo = search.contenido === "demo";
-  return quien || larga || demo ? { quien, larga, demo } : null;
+  return quien || larga || estreno || demo ? { quien, larga, estreno, demo } : null;
 }
 
 /** The boards' DEMO content (data.js CONTENT), over what the club has published. */

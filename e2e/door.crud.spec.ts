@@ -16,36 +16,39 @@ test("la puerta: un fichaje elige camiseta, pide acceso y el capitán le abre", 
   await fan.getByRole("button", { name: "Fichaje de prueba · Solo emulador" }).click();
   await expect(fan.getByRole("heading", { name: /Quién/ })).toBeVisible();
 
-  // Pick the first free shirt; the LED marcador engraves it.
-  const shirt = fan.locator(".fc:not([disabled]):not(.otro)").first();
+  // Pick the first free shirt of «Elige tu camiseta» (CL- boards: the vestuario's door).
+  const shirts = fan.getByRole("list", { name: "Elige tu camiseta" });
+  const shirt = shirts.locator("button.cb-shirt:not([disabled])").first();
   const label = (await shirt.locator("b").textContent())!.trim();
   await shirt.click();
   await expect(shirt).toHaveAttribute("aria-pressed", "true");
   await fan.getByRole("button", { name: "Pedir acceso" }).click();
   await expect(fan.getByRole("heading", { name: /En la puerta/i })).toBeVisible();
 
-  // A step already done is a way back: «Tu ficha» reopens the shirts, and asking again keeps waiting.
-  await fan.getByRole("button", { name: /Volver a «Tu ficha»/ }).click();
+  // «Cambiar ficha» reopens the shirts, and asking again keeps waiting.
+  await fan.getByRole("button", { name: "Cambiar ficha" }).click();
   await expect(fan.getByRole("heading", { name: /Quién/ })).toBeVisible();
-  await fan.locator(".fc").filter({ hasText: label }).first().click();
+  await shirts.locator("button.cb-shirt").filter({ hasText: label }).first().click();
   await fan.getByRole("button", { name: "Pedir acceso" }).click();
   await expect(fan.getByRole("heading", { name: /En la puerta/i })).toBeVisible();
 
-  // The captain sees the request on the swipe card and approves it (after the undo window).
+  // The captain sees the request in «La puerta» and opens it (after the undo window).
   const capCtx = await browser.newContext();
   const cap = await capCtx.newPage();
   await enterVestuario(cap);
-  const card = cap.locator(".sw-card");
-  await expect(card).toContainText(label);
-  await cap.locator(".sw-acts .ok").click();
+  await cap.getByRole("button", { name: "Abrir la puerta" }).click();
+  await expect(cap).toHaveURL(/\/vestuario\/puerta$/);
+  const knocking = cap.getByRole("list", { name: "Llamando a la puerta" });
+  await expect(knocking).toContainText(label);
+  await knocking.getByRole("button", { name: /^Abrir a / }).first().click();
   await expect(cap.getByRole("button", { name: "Deshacer" })).toBeVisible();
 
-  // The waiting screen changes by itself: the spot lights up, then the walkout.
+  // The waiting screen changes by itself: the door opens, then the walkout.
   await expect(fan.getByRole("button", { name: "Salir al campo" })).toBeVisible({ timeout: 20_000 });
   await fan.getByRole("button", { name: "Salir al campo" }).click();
-  await expect(fan.getByRole("heading", { name: label })).toBeVisible();
+  await expect(fan.getByRole("heading", { name: new RegExp(`Bienvenido al vestuario, ${label}`, "i") })).toBeVisible();
   await fan.getByRole("button", { name: "Entrar al vestuario" }).click();
-  await expect(fan.getByRole("radiogroup", { name: "Tu respuesta a la convocatoria" })).toBeVisible();
+  await expect(fan.getByRole("radiogroup", { name: "¿Vas al partido?" })).toBeVisible();
 
   await fanCtx.close();
   await capCtx.close();

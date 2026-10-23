@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useLocation, useSearch } from "@tanstack/react-router";
 import { useClubContent } from "../../lib/clubContent";
-import { nameFor, nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
+import { dateMillis, nameFor, nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
 import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { useSeason } from "../../context/SeasonContext";
 import { useClock } from "../../hooks/useClock";
@@ -97,7 +97,19 @@ export function ClubPage() {
   const matches = demo ? demo.matches : club.matches;
   const players = demo ? (demo.players as unknown as typeof club.players) : club.players;
   const seasons = useMemo(() => (demo ? [...realSeasons, demo.season] : realSeasons), [demo, realSeasons]);
-  const now = demo ? demo.now : clockNow;
+  // (estreno: three days before the season's first match, at 10:00)
+  const estrenoNow = useMemo(() => {
+    if (!mq?.estreno) return null;
+    const sid = currentSeasonId(nextFixture(matches, clockNow), matches, seasons);
+    const first = Math.min(...matches.filter((m) => m.seasonId === sid).map((m) => dateMillis(m.date)).filter(Number.isFinite));
+    return Number.isFinite(first) ? first - 3 * 86_400_000 - ((first % 86_400_000) - 8 * 3_600_000) : null;
+  }, [mq?.estreno, matches, clockNow, seasons]);
+  const now = demo ? demo.now : (estrenoNow ?? clockNow);
+  // (and every match from then on is still to be played)
+  const shown = useMemo(
+    () => (estrenoNow === null ? matches : matches.map((m) => (dateMillis(m.date) > estrenoNow ? { ...m, status: "scheduled" as const, events: [], ledger: undefined, goalsFor: undefined, goalsAgainst: undefined, voteClosesAt: undefined, clock: undefined } : m))),
+    [matches, estrenoNow],
+  );
 
   // ── who is looking (only after hydration: the server paints the afición's club)
   const member = hydrated && viewer.member;
@@ -106,8 +118,8 @@ export function ClubPage() {
   const cap = quien === "capitan";
 
   // ── the season, the squad, the names
-  const next = nextFixture(matches, now);
-  const seasonId = demo ? demo.season.id : currentSeasonId(next, matches, seasons);
+  const next = nextFixture(shown, now);
+  const seasonId = demo ? demo.season.id : currentSeasonId(next, shown, seasons);
   const season = seasons.find((s) => s.id === seasonId);
   const squad = useMemo(
     () =>
@@ -129,7 +141,7 @@ export function ClubPage() {
   const pid = mq?.quien ? (mq.quien === "jugador" ? (viewer.playerId && byId.has(viewer.playerId) && !viewer.admin ? viewer.playerId : byShirt("KEVIN")) : mq.quien === "capitan" ? (viewer.playerId ?? byShirt("JORDI")) : null) : member ? viewer.playerId : null;
   const meName = pid ? nameOf(pid) : niceName(profile?.nickname ?? "");
 
-  const strip = useMemo(() => seasonStrip(matches, seasonId, now), [matches, seasonId, now]);
+  const strip = useMemo(() => seasonStrip(shown, seasonId, now), [shown, seasonId, now]);
   const { standings } = useStandings(demo ? undefined : seasonId);
   const table = demo ? demo.standings : standings;
   const us = table?.rows.findIndex((r) => r.isUs) ?? -1;
@@ -166,7 +178,7 @@ export function ClubPage() {
   useEffect(() => () => void (sayT.current && clearTimeout(sayT.current)), []);
 
   // ── the vestuario's door (a member's counts, his pending things; a captain's knocks)
-  const vx = useVxSummary({ on: member, uid: user?.uid ?? "", playerId: pid, admin: viewer.admin, next: nextJ?.match, matches, seasonId, squad: squad.length });
+  const vx = useVxSummary({ on: member, uid: user?.uid ?? "", playerId: pid, admin: viewer.admin, next: nextJ?.match, matches: shown, seasonId, squad: squad.length });
   const knockN = vx.knocking.length;
   const vesBadge = fan ? 0 : cap ? knockN : (vx.owes ? 1 : 0) + (vx.mine || !nextJ ? 0 : 1) + (vx.myTurn ? 1 : 0);
 
