@@ -29,6 +29,10 @@ const CASES: [string, PushClickData | null | undefined, string | null | undefine
   ["the match id and the ticket are escaped", { url: "/", matchId: "a b&c" }, "yes", "x&y", "/vestuario?rsvp=yes&m=a%20b%26c&n=x%26y"],
   ["no data: the home", null, "yes", N, "/"],
   ["a malformed link: the home", { url: 7, matchId: 3 }, "no", N, "/"],
+  ["another site's address: the home", { url: "https://evil.example/x" }, undefined, undefined, "/"],
+  ["a protocol-relative address: the home", { url: "//evil.example/x" }, undefined, undefined, "/"],
+  ["a backslash trick: the home", { url: "/\\evil.example" }, undefined, undefined, "/"],
+  ["a script: the home", { url: "javascript:alert(1)" }, undefined, undefined, "/"],
 ];
 
 describe("where a tap on a notice leads", () => {

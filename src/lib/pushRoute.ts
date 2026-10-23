@@ -21,5 +21,6 @@ export function pushClickUrl(data: PushClickData | null | undefined, action: str
   const d = data ?? {};
   const matchId = typeof d.matchId === "string" ? d.matchId : "";
   if ((action === "yes" || action === "no") && matchId) return `/vestuario?rsvp=${action}&m=${encodeURIComponent(matchId)}${typeof nonce === "string" && nonce ? `&n=${encodeURIComponent(nonce)}` : ""}`;
-  return typeof d.url === "string" && d.url ? d.url : "/";
+  // (only an address of this site: «//host», «/\host» or another scheme would open someone else's page on a tap)
+  return typeof d.url === "string" && d.url.startsWith("/") && !d.url.startsWith("//") && !d.url.startsWith("/\\") ? d.url : "/";
 }
