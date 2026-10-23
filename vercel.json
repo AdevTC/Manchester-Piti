@@ -48,6 +48,10 @@
       "destination": "/api/bundle"
     },
     {
+      "source": "/datos/v",
+      "destination": "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubVitals"
+    },
+    {
       "source": "/calendario.ics",
       "destination": "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubCalendar"
     },

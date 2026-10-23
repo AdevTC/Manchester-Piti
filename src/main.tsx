@@ -41,6 +41,11 @@ const animateFromNextPage = () => {
   })
 }
 
+// How the site feels on the visitors' phones (lib/vitals): loaded once the page is up, never before.
+const measure = () => {
+  if (import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATOR !== '1') void import('./lib/vitals').then((m) => m.startVitals())
+}
+
 if (html.hasAttribute('data-ssr') && inline?.at) {
   // The server sent the page already painted (api/render.js), with the data and the instant it painted it
   // at: React takes the server's markup over as it is (no second copy of the page), rendering it first from
@@ -56,6 +61,7 @@ if (html.hasAttribute('data-ssr') && inline?.at) {
       onRecoverableError: (error) => console.error('hydration', error),
     })
     animateFromNextPage()
+    measure()
   })
 } else if (html.hasAttribute('data-ssr')) {
   // A painted page without its data (an older deploy's): React replaces it once it can paint the same thing.
@@ -63,6 +69,7 @@ if (html.hasAttribute('data-ssr') && inline?.at) {
   void Promise.all([router.load(), primePublicData(queryClient, 4000)]).then(() => {
     createRoot(root).render(<Root router={router} client={queryClient} />)
     animateFromNextPage()
+    measure()
   })
 } else {
   createRoot(root).render(
@@ -71,4 +78,5 @@ if (html.hasAttribute('data-ssr') && inline?.at) {
       {import.meta.env.DEV && new URLSearchParams(location.search).has('debug') && <ReactQueryDevtools client={queryClient} initialIsOpen={false} />}
     </>,
   )
+  measure()
 }

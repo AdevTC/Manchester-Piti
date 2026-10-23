@@ -54,6 +54,13 @@ export function startPageTransition(direction: SwapDirection): void {
 export const pageTransitionActive = (): boolean => typeof document !== "undefined" && "vdPage" in document.documentElement.dataset;
 
 let tapsInstalled = false;
+const watchers = new Set<(t: ViewTransition, page: boolean) => void>();
+/** Told of every View Transition as it starts (`page`: a change of page, not one inside a page): lib/vitals
+ *  measures its frames. Returns the unsubscribe. */
+export function onViewTransition(watch: (t: ViewTransition, page: boolean) => void): () => void {
+  watchers.add(watch);
+  return () => watchers.delete(watch);
+}
 /**
  * A tap during a View Transition finishes it at once and reaches what was tapped (Chrome's guidance): while one
  * runs, its pseudo-elements cover the page and would swallow the tap (a page change is ~380 ms). Every
@@ -71,6 +78,7 @@ export function tapsSkipTransitions(doc: Document = document): void {
       if (running === t) running = null;
     };
     t.finished.then(done, done);
+    for (const watch of watchers) watch(t, pageTransitionActive());
     return t;
   };
   doc.addEventListener("pointerdown", () => running?.skipTransition(), { capture: true, passive: true });
