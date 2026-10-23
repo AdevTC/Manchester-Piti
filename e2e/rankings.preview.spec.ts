@@ -10,16 +10,9 @@ test.beforeAll(async () => {
     if (!SEEDED.has(match.id) && match.status === "finished") await callFunction(token, "deleteMatch", { id: match.id });
 });
 
-test("los goleadores empatados conservan puesto y medalla entre partidos, plantilla y estadísticas", async ({ page }) => {
-  await page.goto("/partidos?season=preview-season");
-  // Números: the shared lead said in words, both names and the figure
-  await page.getByRole("tab", { name: /^Números/ }).click();
-  const pichichi = page.locator(".vp-panel--numeros.is-on").getByText(/^Pichichi compartido:/);
-  await expect(pichichi).toBeVisible();
-  await expect(pichichi).toContainText("1 gol");
-  await expect(pichichi).toContainText("Hugo");
-  await expect(pichichi).toContainText("Mario");
-
+test("los goleadores empatados conservan puesto y medalla entre plantilla y estadísticas", async ({ page }) => {
+  // (Partidos' boards — Jornadas, Tabla, Balance — no longer carry the goleadores: the shared lead is said in
+  // Plantilla's race and in Números' leaders)
   await page.goto("/plantilla?season=preview-season");
   await expect(page.getByRole("heading", { name: "Pichichi compartido: 1 gol." })).toBeVisible();
   await expect(page.locator(".hm-race .hm-pod.gold")).toHaveCount(2);
@@ -29,6 +22,10 @@ test("los goleadores empatados conservan puesto y medalla entre partidos, planti
 
   await page.goto("/numeros?temporada=preview-season");
   const leaders = page.getByRole("list", { name: "Líderes del período" });
-  await expect(leaders.getByRole("link", {name:"Hugo",exact:true})).toBeVisible();
-  await expect(leaders.getByRole("link", {name:"Mario",exact:true})).toBeVisible();
+  // Números: the shared lead said in words, both names and the figure
+  const pichichi = leaders.getByRole("listitem").filter({ hasText: "Pichichi" });
+  await expect(pichichi.getByText("Liderato compartido", { exact: true })).toBeVisible();
+  await expect(pichichi.locator("b")).toHaveText("1");
+  await expect(pichichi.getByRole("link", {name:"Hugo",exact:true})).toBeVisible();
+  await expect(pichichi.getByRole("link", {name:"Mario",exact:true})).toBeVisible();
 });

@@ -30,6 +30,8 @@ const preds = db.collection("matchPrivate").doc(matchId).collection("predictions
 const count = async () => (await db.doc(`matchPrivate/${matchId}`).get()).get("porraCount");
 const porra = (gf, ga) => ({ goalsFor: gf, goalsAgainst: ga, goals: [], name: "Prueba", at: new Date() });
 
+// (the count is kept only for a match that is there: the porras of a deleted one never bring its doc back)
+await db.doc(`matches/${matchId}`).set({ rival: "Prueba", status: "scheduled" });
 await preds.doc("u1").set(porra(2, 1));
 await preds.doc("u2").set(porra(1, 1));
 await until("two porras counted", async () => (await count()) === 2);
@@ -45,7 +47,18 @@ checked++;
 
 await preds.doc("u2").delete();
 await until("none left", async () => (await count()) === 0);
+
+// a deleted match (tombstone first, as deleteMatch does): its porras going don't recreate matchPrivate
+await preds.doc("u3").set(porra(1, 0));
+await until("the last porra counted", async () => (await count()) === 1);
+await db.doc(`matchTombstones/${matchId}`).set({ at: new Date() });
+await db.doc(`matches/${matchId}`).delete();
 await db.doc(`matchPrivate/${matchId}`).delete();
+await preds.doc("u3").delete();
+await sleep(3000);
+assert.equal((await db.doc(`matchPrivate/${matchId}`).get()).exists, false);
+checked++;
+await db.doc(`matchTombstones/${matchId}`).delete();
 
 console.log(`porra-count.integration: ${checked} checks ok`);
 process.exit(0);

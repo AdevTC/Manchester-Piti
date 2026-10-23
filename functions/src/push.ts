@@ -14,7 +14,7 @@ import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, idSchema, memberAs, parse } from "./common.js";
 import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
-import { presetOf, presetTopics, PUSH_PRESETS } from "./pushPresets.js";
+import { LATE_TOPICS, legacyTodoGets, presetOf, presetTopics, PUSH_PRESETS, TOPICS_VERSION } from "./pushPresets.js";
 import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
@@ -37,7 +37,18 @@ const subscription = z.object({
 const subId = (endpoint: string) => createHash("sha256").update(endpoint).digest("hex").slice(0, 40);
 
 export const pushSubscribe = onCall(async (req) => {
-  const input = parse(z.object({ subscription, topics: z.array(z.enum([...TOPICS, ...DOOR_TOPICS, ...PERSONAL_TOPICS])).max(TOPICS.length + DOOR_TOPICS.length + PERSONAL_TOPICS.length), vibrate: z.boolean().optional() }), req.data);
+  // `v`: the version of the topic list the app knows (pushPresets.ts TOPICS_VERSION; absent from apps and
+  // service workers that predate it). `resetMatches`: a preset was chosen, so the per-match choices go.
+  const input = parse(
+    z.object({
+      subscription,
+      topics: z.array(z.enum([...TOPICS, ...DOOR_TOPICS, ...PERSONAL_TOPICS])).max(TOPICS.length + DOOR_TOPICS.length + PERSONAL_TOPICS.length),
+      vibrate: z.boolean().optional(),
+      v: z.number().int().min(1).max(99).optional(),
+      resetMatches: z.boolean().optional(),
+    }),
+    req.data,
+  );
   // Door notices are personal: "access" needs the Google account that asked, "door" an admin.
   let uid: string | undefined;
   if (input.topics.includes("access")) uid = googleUser(req);
@@ -71,7 +82,20 @@ export const pushSubscribe = onCall(async (req) => {
   // «Avisos a medida»: the preset these topics make (sendTo honours it), and «Vibrar con los goles» when the
   // device says (absent: the stored one stays).
   const topics = [...new Set(input.topics)];
-  await ref.set({ endpoint: input.subscription.endpoint, keys: input.subscription.keys, topics, preset: presetOf(topics), ...(input.vibrate === undefined ? {} : { vibrate: input.vibrate }), uid: uid ?? FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  await ref.set(
+    {
+      endpoint: input.subscription.endpoint,
+      keys: input.subscription.keys,
+      topics,
+      preset: presetOf(topics),
+      ...(input.vibrate === undefined ? {} : { vibrate: input.vibrate }),
+      ...(input.v === undefined ? {} : { topicsV: input.v }),
+      ...(input.resetMatches ? { matchTopics: FieldValue.delete(), matchTopicsAt: FieldValue.delete() } : {}),
+      uid: uid ?? FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
   return { topics: input.topics, uid: uid ?? null, known };
 });
 
@@ -79,7 +103,9 @@ export const pushSubscribe = onCall(async (req) => {
  * A device's «Avisos a medida» by its endpoint (the service worker's «Solo goles» button, which has no
  * session; the endpoint is the device's own secret, as for pushUnsubscribe): its topics become the
  * preset's (pushPresets.ts; the door's stay; «Todo» carries the personal ones only when the device has its
- * member's uid), and `vibrate` when given. A device the server doesn't have is not found (nothing is made).
+ * member's uid), and `vibrate` when given. A preset is a choice for every match, so the device's choices
+ * for single matches go (a «Solo goles» tapped during a match means only goals, of that match too). A
+ * device the server doesn't have is not found (nothing is made).
  */
 export const pushSetPreset = onCall(async (req) => {
   const input = parse(z.object({ endpoint: z.url(), preset: z.enum(PUSH_PRESETS), vibrate: z.boolean().optional() }), req.data);
@@ -93,7 +119,15 @@ export const pushSetPreset = onCall(async (req) => {
       tx.delete(ref);
       return { topics: [], preset: "nada" as const };
     }
-    tx.update(ref, { topics, preset: presetOf(topics), ...(input.vibrate === undefined ? {} : { vibrate: input.vibrate }), updatedAt: FieldValue.serverTimestamp() });
+    tx.update(ref, {
+      topics,
+      preset: presetOf(topics),
+      topicsV: TOPICS_VERSION,
+      matchTopics: FieldValue.delete(),
+      matchTopicsAt: FieldValue.delete(),
+      ...(input.vibrate === undefined ? {} : { vibrate: input.vibrate }),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
     return { topics, preset: presetOf(topics) };
   });
 });
@@ -183,9 +217,13 @@ export async function sendTo(notice: Notice, uid?: string) {
   // global topics (merged with the ones on the topic, once each).
   const about = notice.matchId ?? matchId;
   const own = about && who.topic && !who.uid && isMatchTopic(noticeMatchTopic(notice)) ? db.collection("pushSubscriptions").where(new FieldPath("matchTopics", about), "array-contains", noticeMatchTopic(notice)).get() : null;
-  const [subs, chose] = await Promise.all([q.get(), own]);
+  // A public topic added after «Todo» was first saved (pushPresets.ts LATE_TOPICS, e.g. «tabla»): the «Todo»
+  // devices whose app never offered it get it too (legacyTodoGets).
+  const late = who.topic && !who.uid && LATE_TOPICS.includes(who.topic) ? db.collection("pushSubscriptions").where("preset", "==", "todo").get() : null;
+  const [subs, chose, todo] = await Promise.all([q.get(), own, late]);
   const found = new Map(subs.docs.map((d) => [d.id, d]));
   for (const d of chose?.docs ?? []) found.set(d.id, d);
+  for (const d of todo?.docs ?? []) if (legacyTodoGets({ preset: d.get("preset"), topics: d.get("topics"), topicsV: d.get("topicsV") }, who.topic as string)) found.set(d.id, d);
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (!found.size) return;
   // A device's choice for this match decides alone; otherwise «Avisos a medida»: «Solo goles» gets only

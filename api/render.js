@@ -21,12 +21,16 @@ export const PAGES = [
   /^\/club(\/(vitrina(\/[A-Za-z0-9_-]+)?|historia|equipo(\/camiseta)?|gente))?$/,
 ];
 const isPage = (path) => PAGES.some((re) => re.test(path));
+/** What vercel.json's rewrites add to the query: `p`, and Vercel also appends each named segment of the
+ *  source (`/matches/:id`, `/hoy/:screen`, `/numeros/:path*`…). None of them is the visitor's: a redirect that
+ *  kept them would send `/partidos/<id>/siete?id=<id>`. */
+const REWRITE_PARAMS = ["p", "id", "screen", "path"];
 /** The page the rewrite asks for (`p`) and the visitor's own query (the rewrite keeps it next to `p`). The
  *  server renders the path alone: a query is state the browser paints (dist-ssr/shell.js drops the markup). */
 export function pageUrl(searchParams) {
   const path = (searchParams.get("p") || "/").replace(/(.)\/+$/, "$1");
   const query = new URLSearchParams(searchParams);
-  query.delete("p");
+  for (const k of REWRITE_PARAMS) query.delete(k);
   const search = query.toString();
   return { path, url: path, href: path + (search ? `?${search}` : "") };
 }

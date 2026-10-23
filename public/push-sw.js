@@ -63,7 +63,7 @@ const sweepRsvpTickets = async () => {
 // app re-asserts the full set on its next open (reassertPush). The same endpoint the app registered:
 // nothing to do. Anything failing here is left to that boot check.
 const PUSH_KEY = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
-const PUBLIC_TOPICS = ["start", "goals", "cards", "final", "mvp", "dates", "lineup"];
+const PUBLIC_TOPICS = ["start", "goals", "cards", "final", "mvp", "dates", "lineup", "tabla"];
 const pushKeyBytes = (base64) => {
   const pad = "=".repeat((4 - (base64.length % 4)) % 4);
   const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"));

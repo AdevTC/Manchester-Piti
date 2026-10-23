@@ -3,6 +3,7 @@ import { evaluateNarrated, NARRATED_RECIPES, prepareNarrated } from '../../funct
 import { NARRATED_METRICS } from '../../functions/src/narrated/catalog';
 import { DEFAULT_ANALYSIS_PROFILE, type AnalysisFilters, type NarratedMatch, type Observation } from '../../functions/src/narrated/types';
 import { before } from '../../functions/src/narrated/operators';
+import { emptyParticipation } from '../../functions/src/matchEngine';
 
 const obs = (id: string, kind: Observation['kind'], second: number, facts: Observation['facts'] = {}, extra: Partial<Observation> = {}): Observation => ({ id, kind, team: 'us', order: second, time: { from: second, to: second, precision: 'exact' }, facts, ...extra });
 const match = (observations: Observation[] = [], extra: Partial<NarratedMatch> = {}): NarratedMatch => ({ id: 'm1', seasonId: 's1', status: 'finished', durationSeconds: 3000, analysis: { version: 2, revision: 1, profile: structuredClone(DEFAULT_ANALYSIS_PROFILE), coverage: [{ family: '*', team: 'us', state: 'complete' }, { family: '*', team: 'opponent', state: 'complete' }], observations }, ...extra });
@@ -68,6 +69,20 @@ describe('narrated catalogue engine', () => {
     expect(metric('067', [m], { team: 'opponent' })).toMatchObject({ value: 1, status: 'complete' });
     expect(metric('067', [m], { team: 'opponent', playerIds: ['r1'] })).toMatchObject({ value: null, status: 'not_applicable' });
     expect(metric('070', [m], { team: 'opponent', playerIds: ['p1'] })).toMatchObject({ value: null, status: 'not_applicable' });
+  });
+  it('never reuses our lineup for opponent participation or combinations of seven', () => {
+    const m = match([obs('r', 'pass', 100, { outcome: 'complete' }, { team: 'opponent', opponentId: 'r1' })], { starters: ['a','b','c','d','e','f','g'], bench: ['h'] });
+    m.ledger = Object.fromEntries(m.starters!.map(id => [id, { ...emptyParticipation(), started: true, played: true, minutes: 50, stints: [{ from: 0, to: 50 }] }]));
+    const ids = [...Array.from({ length: 14 }, (_, i) => String(i + 1).padStart(3, '0')), '388', '389'];
+    const rival = evaluateNarrated([m], { team: 'opponent' }, ids);
+    for (const result of rival) {
+      expect(result, result.id).toMatchObject({ value: null, status: 'unknown', observed: 0, evidenceEventIds: [] });
+      expect(result.reason).toContain('convocatoria y las tandas del rival');
+    }
+    expect(metric('001', [m])).toMatchObject({ value: 350, status: 'complete' });
+    expect(metric('005', [m])).toMatchObject({ value: 7, status: 'complete' });
+    expect(metric('388', [m])).toMatchObject({ value: 50 });
+    expect(metric('067', [m], { team: 'opponent' })).toMatchObject({ value: 1, status: 'complete' });
   });
   it('preserves declared complete counts even when a historical acta omitted duration', () => {
     expect(metric('067', [match([], { durationSeconds: undefined })])).toMatchObject({ value: 0, status: 'complete' });

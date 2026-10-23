@@ -54,6 +54,17 @@ export const notifyTopic = (fase: Fase): MatchTopic => (fase === "aplazado" ? "d
 /** The match's topics after switching `topic` on or off. */
 export const toggled = (current: readonly MatchTopic[], topic: MatchTopic, on: boolean): MatchTopic[] => (on ? [...new Set([...current, topic])] : current.filter((t) => t !== topic));
 
+/** The switches that are over once the match has kicked off: «Cuando empiece» and «El siete oficial». */
+const OVER_AFTER_KICKOFF: readonly MatchTopic[] = ["start", "lineup"];
+/**
+ * What is saved for this match: once it has kicked off (not an aplazado, which keeps its choice for the new
+ * date), the switches already over leave the choice. The sheet shows them off, so nothing of theirs may
+ * still arrive (a «start» or «lineup» kept would let a kick-off or a late «Cambio en el siete» through; the
+ * descanso and the 2ª parte go with «Descanso y final»).
+ */
+export const withoutOver = (fase: Fase, topics: readonly MatchTopic[]): MatchTopic[] =>
+  isPre(fase) || fase === "aplazado" ? [...topics] : topics.filter((t) => !OVER_AFTER_KICKOFF.includes(t));
+
 export interface AvisosInput {
   fase: Fase;
   rival: string;
@@ -154,7 +165,7 @@ export function useAvisos(matchId: string | null, fase: Fase, _member: boolean, 
     off: r.off,
     toggle: () => {
       if (r.off) return;
-      choose(toggled(topics, r.topic, !r.on), !r.on ? `Te avisamos de ${r.w}.` : `Ya no te avisamos de ${r.w}.`);
+      choose(withoutOver(fase, toggled(topics, r.topic, !r.on)), !r.on ? `Te avisamos de ${r.w}.` : `Ya no te avisamos de ${r.w}.`);
     },
   }));
   const nt = notifyTopic(fase);
@@ -175,7 +186,7 @@ export function useAvisos(matchId: string | null, fase: Fase, _member: boolean, 
         }
         const on = !v.notifyOn;
         const what = nt === "dates" ? "cuando haya fecha" : "cuando esté el acta";
-        choose(toggled(topics, nt, on), on ? `Te avisamos ${what}.` : `Ya no te avisamos ${what}.`);
+        choose(withoutOver(fase, toggled(topics, nt, on)), on ? `Te avisamos ${what}.` : `Ya no te avisamos ${what}.`);
       },
     },
   };

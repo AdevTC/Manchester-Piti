@@ -19,6 +19,13 @@ import {
 // Normal dev (`pnpm dev`) and production builds leave this unset, so they are
 // completely unaffected — no emulator connection is ever attempted.
 const USE_EMULATOR = import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1";
+/** The emulators' ports: firebase.json's, unless a spare set runs beside them (piti-diseno/tools/e2e-alt.mjs). */
+const emulatorPort = (value: string | undefined, fallback: number): number => (value && /^\d+$/.test(value) ? Number(value) : fallback);
+export const EMULATOR_PORTS = {
+  functions: emulatorPort(import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT, 5001),
+  auth: emulatorPort(import.meta.env.VITE_EMULATOR_AUTH_PORT, 9099),
+  firestore: emulatorPort(import.meta.env.VITE_EMULATOR_FIRESTORE_PORT, 8080),
+};
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -34,7 +41,7 @@ const app = initializeApp(firebaseConfig);
 /** Where the callables live (src/lib/push.ts also builds their plain URLs for the service worker). */
 export const FUNCTIONS_REGION = "europe-southwest1";
 export const functions = getFunctions(app, FUNCTIONS_REGION);
-if (USE_EMULATOR) connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+if (USE_EMULATOR) connectFunctionsEmulator(functions, "127.0.0.1", EMULATOR_PORTS.functions);
 
 // No popup/redirect resolver at start-up: getAuth() would load Google's gapi + the
 // firebaseapp.com auth iframe (~135 KB) on every page for every visitor. The resolver is
@@ -57,9 +64,9 @@ export const db = USE_EMULATOR
     });
 
 if (USE_EMULATOR) {
-  // Ports must match firebase.json `emulators`. Connect BEFORE any read/write.
-  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  // Ports must match firebase.json `emulators` (or the spare set's). Connect BEFORE any read/write.
+  connectAuthEmulator(auth, `http://127.0.0.1:${EMULATOR_PORTS.auth}`, { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", EMULATOR_PORTS.firestore);
 }
 
 googleProvider.setCustomParameters({ prompt: "select_account" });
