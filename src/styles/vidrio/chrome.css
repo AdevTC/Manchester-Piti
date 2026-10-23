@@ -91,6 +91,9 @@ nav.vx-dock.vd-glass .vx-dock-in a svg{width:22px;height:22px;flex:none}
 nav.vx-dock.vd-glass .vx-dock-in a.on svg{color:var(--vd-celeste)}
 :root[data-theme="light"] nav.vx-dock.vd-glass .vx-dock-in a.on svg{color:#2C6A9E}
 nav.vx-dock.vd-glass .vx-dock-in a .lbl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity .25s,max-height .35s var(--vd-spring);max-height:16px}
+/* (the current tab keeps its label at every width, as the boards draw it: the Celeste dock's narrow rule in
+   vestuario.css hid it off-screen) */
+nav.vx-dock.vd-glass .vx-dock-in a.on .lbl{position:static;width:auto;height:auto;clip:auto}
 nav.vx-dock.vd-glass .vx-dock-in a .vd-livedot{position:absolute;top:-2px;right:-5px;margin:0}
 nav.vx-dock.vd-glass .vx-dock-in a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
 /* scrolling down: icons only, a little lower */
