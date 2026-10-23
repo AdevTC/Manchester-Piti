@@ -281,8 +281,10 @@ export function NumerosPage() {
     if (merged.place !== cur.place) {
       saveScroll(cur.place);
       const dir = PLACES.indexOf(merged.place) > PLACES.indexOf(cur.place) ? "down" : "up";
-      transition(dir, reduced, () => flushSync(() => setSt(merged)));
-      restoreScroll(merged.place);
+      transition(dir, reduced, () => {
+        flushSync(() => setSt(merged));
+        restoreScroll(merged.place);
+      });
     } else setSt(merged);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the address is the only trigger
   }, [location.pathname, location.searchStr]);
@@ -313,18 +315,19 @@ export function NumerosPage() {
   function saveScroll(place: Place) {
     scrollMem.current[place] = { y: window.scrollY, r: regions().map((el) => el.scrollTop) };
   }
+  /** Puts the new screen where it was left (or its top under the rail): inside the transition's update, right after
+   *  the swap, so the old screen is captured where it was and the new one where it goes (restored a frame later, the
+   *  screen jumped before or after the animation). */
   function restoreScroll(place: Place) {
     const m = scrollMem.current[place];
-    requestAnimationFrame(() => {
-      regions().forEach((el, i) => (el.scrollTop = m?.r[i] ?? 0));
-      const rail = pageRef.current?.querySelector<HTMLElement>(".nu-rail");
-      const scr = pageRef.current?.querySelector<HTMLElement>(".nu-screen");
-      if (m) window.scrollTo(0, m.y);
-      else if (scr && rail) {
-        const under = getComputedStyle(rail).position === "sticky" ? rail.getBoundingClientRect().bottom : 0;
-        if (scr.getBoundingClientRect().top < under) window.scrollTo(0, window.scrollY + scr.getBoundingClientRect().top - under - 8);
-      }
-    });
+    regions().forEach((el, i) => (el.scrollTop = m?.r[i] ?? 0));
+    const rail = pageRef.current?.querySelector<HTMLElement>(".nu-rail");
+    const scr = pageRef.current?.querySelector<HTMLElement>(".nu-screen");
+    if (m) window.scrollTo(0, m.y);
+    else if (scr && rail) {
+      const under = getComputedStyle(rail).position === "sticky" ? rail.getBoundingClientRect().bottom : 0;
+      if (scr.getBoundingClientRect().top < under) window.scrollTo(0, window.scrollY + scr.getBoundingClientRect().top - under - 8);
+    }
   }
 
   // ── the toast
@@ -414,9 +417,11 @@ export function NumerosPage() {
     }
     saveScroll(cur.place);
     const dir = PLACES.indexOf(place) > PLACES.indexOf(cur.place) ? "down" : "up";
-    transition(dir, reduced, () => flushSync(() => setSt(next)));
+    transition(dir, reduced, () => {
+      flushSync(() => setSt(next));
+      restoreScroll(place);
+    });
     commit(next, false);
-    restoreScroll(place);
   };
 
   // ── the moviola
@@ -752,7 +757,7 @@ export function NumerosPage() {
             {time.offNote && <p className="nu-time__note">{time.offNote}</p>}
           </div>
 
-          <nav className="vd-glass nu-rail" aria-label="Secciones de Números">
+          <nav className={`vd-glass nu-rail${slim ? " is-slim" : ""}`} aria-label="Secciones de Números">
             {slim && (
               <button type="button" className="nu-slim" onClick={() => window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" })}>
                 <I name="cal" />
