@@ -588,7 +588,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     kick: `Jugadores · ${porra ? "la porra" : MD.g.toLowerCase()}`,
     title: locked
       ? "La porra es del vestuario"
-      : MD.low
+      : porra && !rankRows.length
+        ? "La porra, aún sin puntos"
+        : MD.low
         ? nzRank
           ? `${nzRank} con ${MD.t.toLowerCase()}`
           : `Nadie con ${MD.t.toLowerCase()} todavía`
@@ -606,6 +608,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     otherT: !quickKeys.includes(rkK) ? `Viendo: ${MD.t}` : `Todas las estadísticas (${NU_METRICS.length})`,
     allOpen: st.allStats, toggleAll: () => act.set({ allStats: !st.allStats }), groups,
     locked, podium, rest: locked ? [] : rankRows.slice(restFrom, restFrom + (MD.low ? 8 : 5)),
+    /** (not on the boards: a season whose porra has no points yet) */
+    porraEmpty: porra && !locked && !rankRows.length ? "Aún no hay puntos de porra esta temporada: llegan al cerrar la primera jornada con apuestas." : "",
     more: locked || porra ? 0 : Math.max(0, rankRows.length - restFrom - 5), moreT: `Todos los jugadores (${rankRows.length})`,
     onlyOne: !locked && !MD.low && podium.length === 1 && rankRows.length > 1 ? `Solo ${podium[0].name} tiene ${MD.t.toLowerCase()} de momento; el resto, a cero.` : "",
     meLine: meRow && rankRows.indexOf(meRow) >= restFrom + 5 ? `Tú, ${meRow.rank}º con ${meRow.val} ${unitWord}` : "",
