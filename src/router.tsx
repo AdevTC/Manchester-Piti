@@ -66,29 +66,31 @@ export const homeSearchSchema = z.object({
 });
 export const hoyCampoSearchSchema = homeSearchSchema.extend({ jugador: slug });
 
-// Números: the time bar's parameters (every screen) and each screen's own. Today's page still reads the
-// /stats ones (statsShape) until Números lands.
+// Números: the boards' parameters — the time bar's (every screen) and each screen's own (NU-Main «La dirección»).
+// The old /stats ones redirect here renamed (legacyUrls); the page reads only these.
 export const numerosSearchSchema = z.object({
-  ...statsShape,
   temporada: z.string().max(400).optional().catch(undefined),
-  hasta: z.string().regex(/^j\d{1,2}$/).optional().catch(undefined),
+  hasta: z.string().regex(/^jd{1,2}$/).optional().catch(undefined),
   campo: z.enum(["casa", "fuera"]).optional().catch(undefined),
   partidos: idList,
   jugadores: idList,
   buscar: z.string().max(160).optional().catch(undefined),
   ver: z.enum(["todo"]).optional().catch(undefined),
-  ranking: z.enum(["goles", "asistencias", "minutos", "mvp", "porra"]).optional().catch(undefined),
+  /** goles · asistencias · minutos · mvp · porra, or any other of the 38 by its label («amarillas»). */
+  ranking: slug,
   jugador: slug,
   estrella: slug,
   puesto: slug,
   equipo: z.enum(["rival"]).optional().catch(undefined),
   parte: z.coerce.number().int().min(1).max(8).optional().catch(undefined),
   familia: z.string().max(160).optional().catch(undefined),
-  metrica: z.string().regex(/^(\d{3}|A\d{2})$/).optional().catch(undefined),
+  metrica: z.string().regex(/^(d{3}|Ad{2})$/).optional().catch(undefined),
   "fuera-del-audio": z.coerce.number().int().min(1).max(1).optional().catch(undefined),
+  /** The catalogue's search. */
+  q: z.string().max(160).optional().catch(undefined),
   rival: slug,
   hoja: slug,
-}).transform(({ tab, ...rest }) => (rest.view || tab !== "compare" ? rest : { ...rest, view: "compare" as const }));
+});
 
 // /vestuario?rsvp=yes|no&m=<matchId>&n=<nonce>: a notice's «Voy» / «No puedo» button (public/push-sw.js,
 // `n` its one-time ticket). The vestuario writes the answer once with a valid ticket (only asks without
@@ -251,13 +253,14 @@ const mesaRoute = createRoute({
   component: lazyRouteComponent(() => import("./pages/mesa/Mesa"), "Mesa"),
 });
 
-// ── Números: one address per screen, under the time bar
+// ── Números: one address per screen, under the time bar (the screens only name themselves: NumerosPage reads
+// the address). Today's StatsPage stays for Plantilla's «Cara a cara» until that page lands.
 const statsPage = lazyRouteComponent(() => import("./pages/stats/StatsPage"), "StatsPage");
 const statsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/numeros",
   validateSearch: numerosSearchSchema,
-  component: statsPage,
+  component: lazyRouteComponent(() => import("./pages/stats/NumerosPage"), "NumerosPage"),
 });
 const numerosIndexRoute = createRoute({ getParentRoute: () => statsRoute, path: "/" });
 const numerosYSiRoute = createRoute({ getParentRoute: () => statsRoute, path: "y-si" });

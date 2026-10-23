@@ -1,0 +1,9 @@
+/* «Números»: what the page adds to the boards' CSS (numeros.css) — the shirt's box while its still renders,
+   the second sky as a layer of the page, the several systems of «Sistemas», and the board faults fixed. */
+.nu-shirt-wait{display:block;aspect-ratio:413/560;height:auto}
+.nu>.vd-sky.nu-sky-b{z-index:0}
+.nu-sys__row+.nu-sys__row{margin-top:6px}
+/* board fault: the «Viva» tag of a team streak stretched across the row (li>span{flex:1} caught it too) */
+.nu-streaks li>.vd-provtag{flex:none}
+/* the scorers of a rival game keep the row's ink (a link's colour reached them) */
+.nu-rvg__t small{color:var(--vd-ink)}

@@ -30,6 +30,7 @@ vi.mock("./pages/match/MatchPage", async () => {
 });
 vi.mock("./pages/mesa/Mesa", () => ({ Mesa: () => <h1>la mesa</h1> }));
 vi.mock("./pages/stats/StatsPage", () => ({ StatsPage: () => <h1>números</h1> }));
+vi.mock("./pages/stats/NumerosPage", () => ({ NumerosPage: () => <h1>números</h1> }));
 vi.mock("./pages/squad/SquadPage", () => ({ SquadPage: () => <h1>la percha</h1> }));
 vi.mock("./pages/jugador/JugadorPage", () => ({ JugadorPage: () => <h1>el jugador</h1> }));
 vi.mock("./pages/club/ClubPage", () => ({ ClubPage: () => <h1>el club</h1> }));
