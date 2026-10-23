@@ -93,7 +93,11 @@ test("Números: doce indicadores, tabla configurable, muestras y móvil sin desb
   if (readOnlyDemo) expect(new URL(baseURL!).port).toBe("3102");
   const f = await fixture();
   try {
+    // The full analysis lives in Números: the match's Números screen opens it with this match selected.
     await page.goto(`/partidos/${f.id}/numeros`);
+    await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
+    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
+    expect(JSON.parse(new URL(page.url()).searchParams.get("partidos") ?? "[]")).toEqual([f.id]);
     const panel = page.getByRole("region", { name: "Análisis de las jugadas" });
     const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
     const cards = page.getByLabel("Indicadores de la selección");
@@ -151,11 +155,6 @@ test("Números: doce indicadores, tabla configurable, muestras y móvil sin desb
     await checkTotal(workspace, f.observations);
     await workspace.getByRole("searchbox", { name: "Buscar jugador o dorsal" }).fill("");
 
-    await panel.getByRole("link", { name: "Abrir esta selección en Números ↗" }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego(\/catalogo)?\?/);
-    expect(new URL(page.url()).searchParams.get("partidos")).toBe(f.id);
-    await workspace.getByRole("group", { name: "Columnas habituales" }).getByRole("button", { name: "Pases y creación", exact: true }).click();
-    await checkTotal(workspace, f.observations);
     if (f.other) {
       await page.locator("summary[aria-label='Filtrar partidos']").click();
       await page.getByRole("checkbox", { name: new RegExp(f.other.rival) }).check();
@@ -175,17 +174,20 @@ test("Números: doce indicadores, tabla configurable, muestras y móvil sin desb
     await checkTotal(workspace, f.observations, f.player.id, 2);
     await checkLayout(page, cards);
     await workspace.screenshot({ path: testInfo.outputPath("analysis-filtered-mobile.png") });
+    // The second half only, in the bars by tramos, here in Números where the analysis lives.
+    await expect(insights.getByRole("region", { name: "Barras de 2.ª parte" })).toBeVisible();
+    await expect(insights.getByRole("region", { name: "Barras de 1.ª parte" })).toHaveCount(0);
     await insights.getByRole("button", { name: "Quién conecta con quién" }).click();
     await expect(matrix.locator("tbody tr")).toHaveCount(1);
     expect(await matrix.locator("thead th").count()).toBeGreaterThan(2);
     await matrix.getByRole("button", { name: /\. [1-9]\d* completados,/ }).first().click();
     await expect(connection.locator(".ai-evidence li").first()).toContainText("2.ª");
+    // A play opens its match (its Números screen), carrying the selection in the address.
     await connection.getByRole("link", { name: /^Abrir partido/ }).first().click();
     await expect(page).toHaveURL(new RegExp(`/partidos/${f.id}/numeros\\?`));
     expect(new URL(page.url()).searchParams.get("period")).toBe("2");
     expect(JSON.parse(new URL(page.url()).searchParams.get("players") ?? "[]")).toEqual([f.player.id]);
-    await expect(insights.getByRole("region", { name: "Barras de 2.ª parte" })).toBeVisible();
-    await expect(insights.getByRole("region", { name: "Barras de 1.ª parte" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Abrir el análisis en Números" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   } finally { await f.cleanup(); }
 });
