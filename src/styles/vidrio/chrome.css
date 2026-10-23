@@ -30,10 +30,18 @@ header.vx-top .vx-nav .vx-nav-in a{position:relative;z-index:2;display:inline-fl
 header.vx-top .vx-nav .vx-nav-in a:hover{color:var(--vd-g-ink)}
 header.vx-top .vx-nav .vx-nav-in a.on{color:var(--vd-g-ink);font-weight:650;background:none;box-shadow:none}
 header.vx-top .vx-nav .vx-nav-in a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
-:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-bead{position:absolute;z-index:1;top:6px;bottom:6px;left:var(--vd-bx,6px);width:var(--vd-bw,0);border-radius:999px;pointer-events:none;
-  background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);transition:left .62s var(--vd-spring),width .62s var(--vd-spring)}
+/* (the bead slides with a transform from the capsule's padding edge, the same place `left` put it, so the slide
+   runs on the compositor instead of laying the bead out every frame) */
+:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-bead{position:absolute;z-index:1;top:6px;bottom:6px;left:0;width:var(--vd-bw,0);border-radius:999px;pointer-events:none;transform:translateX(var(--vd-bx,6px));
+  background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);transition:transform .62s var(--vd-spring),width .62s var(--vd-spring)}
 nav.vx-dock .vx-dock-in .vd-bead{top:5px;bottom:5px}
 :is(.vx-nav-in,.vx-dock-in)[data-vd-bead-still] .vd-bead{transition:none}
+/* the chrome's live dot: its ring is the glass.css vd-live-ring7 layer (scale and fade, no repaint each frame);
+   nothing in the capsule or on the tab bar's icon paints after the dot, so it reads as the box-shadow ring did */
+:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-livedot{animation:none}
+header.vx-top .vx-nav-in .vd-livedot{position:relative}
+:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-livedot::before{content:"";position:absolute;inset:0;border-radius:50%;background:rgba(255,93,93,.55);opacity:0;pointer-events:none;
+  animation:vd-live-ring7 1.8s ease-out infinite}
 /* the score kept beside «Partidos» while the floating score is hidden until the next goal */
 .vd-capchip{position:relative;z-index:2;display:inline-flex;align-items:center;height:30px;min-width:44px;margin:0 4px 0 -4px;padding:0 10px;border:0;border-radius:999px;cursor:pointer;
   font-family:var(--vd-sans);font-weight:760;font-size:13.5px;font-variation-settings:'wdth' 108;font-feature-settings:'tnum' 1;color:var(--vd-g-ink);
@@ -114,11 +122,18 @@ nav.vx-dock.vd-glass{left:14px;right:14px;bottom:calc(10px + env(safe-area-inset
 
 /* moving between pages (components/celeste/pageTransition): the page leaves (160 ms), the shared objects
    (the bead, the floating score, the top bar, the tab bar) stay or morph, the next page comes in from the
-   direction of travel (220 ms). The regions a page marks (vd-reg-n) keep their own order (transitions.css). */
-html[data-vd-page][data-vd-dir]::view-transition-old(root){animation:vd-x-out-l var(--vd-d-exit) var(--vd-ease) both}
-html[data-vd-page][data-vd-dir]::view-transition-new(root){animation:vd-x-in-r var(--vd-d-enter) var(--vd-d-exit) var(--vd-ease) both}
-html[data-vd-page][data-vd-dir="left"]::view-transition-old(root){animation-name:vd-x-out-r}
-html[data-vd-page][data-vd-dir="left"]::view-transition-new(root){animation-name:vd-x-in-l}
+   direction of travel (220 ms). The regions a page marks (vd-reg-n) keep their own order (transitions.css).
+   Only the page's content (its main) leaves and comes in; the sky, the ground and the footer swap at once under
+   it, so the gap between the two never shows the bare html ground (it was a flash of another colour). */
+html[data-vd-page] .vx > :is(main,.nu-main){view-transition-name:vd-page}
+html[data-vd-page]::view-transition-old(root){animation:none;opacity:0}
+html[data-vd-page]::view-transition-new(root){animation:none}
+html[data-vd-page]::view-transition-group(vd-page){animation:none}
+html[data-vd-page]::view-transition-old(vd-page),html[data-vd-page]::view-transition-new(vd-page){height:100%;width:100%;object-fit:none;object-position:50% 0}
+html[data-vd-page][data-vd-dir]::view-transition-old(vd-page){animation:vd-x-out-l var(--vd-d-exit) var(--vd-ease) both}
+html[data-vd-page][data-vd-dir]::view-transition-new(vd-page){animation:vd-x-in-r var(--vd-d-enter) var(--vd-d-exit) var(--vd-ease) both}
+html[data-vd-page][data-vd-dir="left"]::view-transition-old(vd-page){animation-name:vd-x-out-r}
+html[data-vd-page][data-vd-dir="left"]::view-transition-new(vd-page){animation-name:vd-x-in-l}
 html[data-vd-page]::view-transition-group(vd-top),html[data-vd-page]::view-transition-group(vd-dock){animation-duration:.3s}
 html[data-vd-page]::view-transition-old(vd-top),html[data-vd-page]::view-transition-old(vd-dock){animation:vd-x-fade-out .3s linear both}
 html[data-vd-page]::view-transition-new(vd-top),html[data-vd-page]::view-transition-new(vd-dock){animation:vd-x-fade-in .3s linear both}
@@ -127,6 +142,6 @@ html[data-vd-page]::view-transition-new(vd-top),html[data-vd-page]::view-transit
   header.vx-top .vx-nav .vx-nav-in,nav.vx-dock.vd-glass,header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell),.vd-acct{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}
 }
 @media (prefers-reduced-motion:reduce){
-  .vd-livedot{animation:none}
+  .vd-livedot,:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-livedot::before{animation:none}
   header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell,.vd-acct),.vd-bead,nav.vx-dock.vd-glass,nav.vx-dock.vd-glass .lbl{transition:none}
 }

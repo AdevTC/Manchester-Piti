@@ -43,4 +43,15 @@ describe("useClock", () => {
     act(() => { vi.advanceTimersByTime(72_010); });
     expect(result.current).toBeGreaterThanOrEqual(kickoff + 60_000);
   });
+
+  it("a match days away joins the boundaries once it is within a day, and its kickoff still ticks on time", () => {
+    const kickoff = Date.now() + 2 * 86_400_000 + 12_000;
+    const matches = [{ date: kickoff, duration: 60 }];
+    const { result } = renderHook(() => useMatchClock(matches));
+    act(() => { vi.setSystemTime(kickoff - 20_000); window.dispatchEvent(new Event("focus")); });
+    expect(result.current).toBe(kickoff - 20_000);
+    act(() => { vi.advanceTimersByTime(20_010); });
+    expect(result.current).toBeGreaterThanOrEqual(kickoff);
+    expect(result.current).toBeLessThan(kickoff + 1_000);
+  });
 });

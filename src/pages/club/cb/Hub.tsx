@@ -58,17 +58,34 @@ const pad = (i: number) => `${i + 1 < 10 ? "0" : ""}${i + 1}`;
 export function Hub({ headSub, next, share, pieces, focus, pick, seasonName, ctx, back, mine, doors, from, open }: HubProps) {
   const [ry, setRy] = useState(-32);
   const cab = useRef<HTMLDivElement | null>(null);
-  // (the case's light follows the pointer, as the board's cabRef)
+  // (the case's light follows a mouse or a pen, as the board's cabRef, once a frame; a finger leaves it at rest)
   useEffect(() => {
     const el = cab.current;
     if (!el || prefersReducedMotion()) return;
-    const move = (e: PointerEvent) => {
+    let raf = 0;
+    let px = 0;
+    let py = 0;
+    let wx = "";
+    let wy = "";
+    const set = () => {
+      raf = 0;
       const b = el.getBoundingClientRect();
-      el.style.setProperty("--mx", `${(((e.clientX - b.left) / b.width) * 100).toFixed(1)}%`);
-      el.style.setProperty("--my", `${(((e.clientY - b.top) / b.height) * 100).toFixed(1)}%`);
+      const x = `${(((px - b.left) / b.width) * 100).toFixed(1)}%`;
+      const y = `${(((py - b.top) / b.height) * 100).toFixed(1)}%`;
+      if (x !== wx) el.style.setProperty("--mx", (wx = x));
+      if (y !== wy) el.style.setProperty("--my", (wy = y));
+    };
+    const move = (e: PointerEvent) => {
+      if (e.pointerType === "touch" || document.hidden) return;
+      px = e.clientX;
+      py = e.clientY;
+      if (!raf) raf = requestAnimationFrame(set);
     };
     el.addEventListener("pointermove", move);
-    return () => el.removeEventListener("pointermove", move);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      el.removeEventListener("pointermove", move);
+    };
   }, []);
   const choose = useCallback(
     (id: PieceId) => {

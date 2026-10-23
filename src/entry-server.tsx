@@ -5,7 +5,6 @@ import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory } from "@tanstack/react-router";
-import { MotionConfig } from "motion/react";
 import App from "./App";
 import { createAppRouter } from "./router";
 import { mapMatch, mapMvp, mapPlayer, mapSeason, mvpPrivateWhileOpen } from "./lib/firestoreMappers";
@@ -56,9 +55,7 @@ export async function renderPage(url: string, bundle: Uint8Array): Promise<strin
   return renderToString(
     <StrictMode>
       <QueryClientProvider client={qc}>
-        <MotionConfig reducedMotion="user">
-          <App router={router} />
-        </MotionConfig>
+        <App router={router} />
       </QueryClientProvider>
     </StrictMode>,
   );

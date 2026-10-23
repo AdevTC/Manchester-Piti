@@ -17,18 +17,38 @@ export function pageDirection(from: string, to: string): SwapDirection {
   return (b < 0 ? ORDER.length : b) >= (a < 0 ? ORDER.length : a) ? "right" : "left";
 }
 
-let clear = 0;
-/** Marks the direction for the router's View Transition about to run (cleared once it is over). */
+/** Whether a View Transition is animating now (its pseudo-elements have running animations). */
+const transitionRunning = (): boolean =>
+  typeof document.getAnimations === "function" && document.getAnimations().some((x) => (x.effect as KeyframeEffect | null)?.pseudoElement?.startsWith("::view-transition") ?? false);
+
+let watch = 0;
+/** Marks the direction for the router's View Transition about to run, and clears it once that transition is over:
+ *  a page whose code is still downloading starts its transition late, so a fixed timer would clear it too soon. */
 export function startPageTransition(direction: SwapDirection): void {
   if (typeof document === "undefined" || !supportsViewTransitions()) return;
   const root = document.documentElement;
   root.dataset.vdDir = direction;
   root.dataset.vdPage = "";
   if (prefersReducedMotion()) root.dataset.vdCalm = "";
-  window.clearTimeout(clear);
-  clear = window.setTimeout(() => {
+  const mine = ++watch;
+  const started = performance.now();
+  let seen = false;
+  const clear = () => {
+    if (mine !== watch) return;
     delete root.dataset.vdDir;
     delete root.dataset.vdPage;
     delete root.dataset.vdCalm;
-  }, 900);
+  };
+  const tick = () => {
+    if (mine !== watch) return;
+    const running = transitionRunning();
+    if (running) seen = true;
+    // over once it ran and stopped; never later than 4 s (a page that never transitions)
+    if ((seen && !running) || performance.now() - started > 4000) return clear();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
+
+/** Whether a page change (not an in-page one) owns the transition attributes right now. */
+export const pageTransitionActive = (): boolean => typeof document !== "undefined" && "vdPage" in document.documentElement.dataset;

@@ -34,6 +34,8 @@
 .vd-sky__vig{bottom:0;background:linear-gradient(180deg,var(--scrim,rgba(4,8,22,.42)),transparent 140px),radial-gradient(130% 90% at 50% 30%,transparent 55%,var(--vig) 100%),
   linear-gradient(180deg,transparent calc(var(--h)*.08),var(--veil,transparent) calc(var(--h)*.3),var(--veil,transparent) calc(var(--h)*.88),transparent calc(var(--h)*1.12))}
 .vd-sky--drift .vd-sky__drift{animation:vd-drift 46s ease-in-out infinite alternate}
+/* off screen or in a hidden tab the drift holds where it is (VidrioSky sets [data-vd-off]) */
+.vd-sky--drift .vd-sky__drift[data-vd-off]{animation-play-state:paused}
 @keyframes vd-drift{from{transform:translate3d(-1.2%,0,0) scale(1.02)}to{transform:translate3d(1.2%,-.8%,0) scale(1.04)}}
 .vd-sky--cloud{--haze-y:40%;--sun-a:.25;--grain-a:.2}
 .vd-sky--cloud .vd-sky__haze{background:radial-gradient(140% 40% at 50% var(--haze-y),var(--haze) 0,transparent 75%)}

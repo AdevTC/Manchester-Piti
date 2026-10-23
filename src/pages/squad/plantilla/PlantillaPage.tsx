@@ -9,6 +9,7 @@ import { Link, useLocation, useNavigate, useSearch } from "@tanstack/react-route
 import { VidrioSky, useReducedMotion } from "../../../components/vidrio";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../../components/celeste/Chrome";
 import { ThemeToggle } from "../../../components/ThemeToggle";
+import { pageTransitionActive } from "../../../components/celeste/pageTransition";
 import { usePageKitStills } from "../../../components/jersey3d/usePageKitStills";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { KitStillContext } from "../../../components/jersey3d/kitStill";
@@ -25,8 +26,9 @@ import { useDocumentTheme } from "../../../hooks/useDocumentTheme";
 import { shareClubPage } from "../../../lib/share";
 import { siteOrigin } from "../../../lib/derived/venue";
 import { useAvailability, useMatchScorers, useMvpResults } from "../../vestuario/live";
+import { votesClosedAt } from "../../../lib/derived/mvpOf";
 import { applyMaqueta, readMaqueta } from "../../home/portada/maqueta";
-import { lastMatch, leaders, nextMatch, periodCtx, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
+import { lastMatch, leaders, nextMatch, periodBase, periodCtx, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
 import { addrOf, hrefOf, type Addr } from "./address";
 import { SECS, SEC_LABEL, albumView, duelView, homeView, ledeView, matchLines, playerView, railView, type AnCat, type DayInput, type Quien, type Screen, type Sec, type Squad, type ViewState, type Who } from "./views";
 import { Hook, Ic, Shirt } from "./bits";
@@ -43,20 +45,24 @@ const subscribeNothing = () => () => {};
 const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
 const isShot = () => typeof window !== "undefined" && !!(window as { __SHOT?: unknown }).__SHOT;
 
-/** What crosses from one route's page to the other's (/plantilla ↔ /jugadores remount the page): the shirt that
- *  flies home, the kit on, the corner being picked. */
-const carry: { flyHome: string | null; kit: "home" | "away" | null } = { flyHome: null, kit: null };
+/** The kit on, remembered for the player screens (their address carries no ?kit=). */
+const carry: { kit: "home" | "away" | null } = { kit: null };
 
 /** The boards' choreography: html[data-vd-dir] + a View Transition around the update (plain without support or with
  *  reduced motion: data-vd-calm keeps only a fade). */
+let moves = 0;
 function transition(dir: Dir, reduced: boolean, update: () => Promise<void> | void, done?: () => void) {
   const d = document.documentElement;
+  const mine = ++moves;
   d.setAttribute("data-vd-dir", dir);
   if (reduced) d.setAttribute("data-vd-calm", "");
   else d.removeAttribute("data-vd-calm");
+  // (a later move, or a change of page from the dock, owns the attributes now: leave them to it)
   const clean = () => {
-    d.removeAttribute("data-vd-dir");
-    d.removeAttribute("data-vd-calm");
+    if (mine === moves && !pageTransitionActive()) {
+      d.removeAttribute("data-vd-dir");
+      d.removeAttribute("data-vd-calm");
+    }
     done?.();
   };
   const start = (document as Document & { startViewTransition?: (cb: () => Promise<void> | void) => { finished: Promise<void>; ready: Promise<void>; updateCallbackDone: Promise<void> } }).startViewTransition;
@@ -79,15 +85,6 @@ function transition(dir: Dir, reduced: boolean, update: () => Promise<void> | vo
     .then(update)
     .finally(clean);
 }
-/** Waits (a few frames at most) until `selector` is on the page: the other route's page has rendered. */
-function rendered(selector: string, ms = 1200): Promise<void> {
-  const t0 = performance.now();
-  return new Promise((ok) => {
-    const tick = () => (document.querySelector(selector) || performance.now() - t0 > ms ? ok() : requestAnimationFrame(tick));
-    tick();
-  });
-}
-
 interface Ui {
   pick: "a" | "b";
   bdayOpen: boolean;
@@ -136,11 +133,14 @@ export function PlantillaPage() {
   const visibleSeasons = useMemo(() => seasons.map((s) => ({ id: s.id, name: s.name })), [seasons]);
   const squadDocs = useMemo(() => players.filter((p) => p.seasons?.includes(seasonId)), [players, seasonId]);
   const roster = useMemo(() => squadDocs.map((p) => toPlayer(p, seasonId, visibleSeasons)).sort((a, b) => (a.n ?? 999) - (b.n ?? 999) || a.name.localeCompare(b.name, "es")), [squadDocs, seasonId, visibleSeasons]);
-  const settledAt = Math.floor(now / 60_000);
-  const cur = useMemo(() => periodCtx(players, matches, seasonId, visibleSeasons, results, settledAt * 60_000), [players, matches, seasonId, visibleSeasons, results, settledAt]);
-  const all = useMemo(() => periodCtx(players, matches, "all", visibleSeasons, results, settledAt * 60_000), [players, matches, visibleSeasons, results, settledAt]);
-  // (another season's period, built when Temporada a temporada asks for it)
-  const ctxCache = useMemo(() => ({ of: [players, matches, results], map: new Map<string, Ctx>() }), [players, matches, results]).map;
+  // The heavy part of a period (every player over every acta) changes only with the data; its MVPs only when a
+  // vote closes (votesClosedAt), read on the hour so a medal's «hoy» stays right. The clock never rebuilds it.
+  const minuteNow = Math.floor(now / 60_000) * 60_000;
+  const mvpAt = Math.max(Math.floor(now / 3_600_000) * 3_600_000, votesClosedAt(matches, now));
+  const curBase = useMemo(() => periodBase(players, matches, seasonId, visibleSeasons), [players, matches, seasonId, visibleSeasons]);
+  const cur = useMemo(() => periodCtx(players, matches, seasonId, visibleSeasons, results, mvpAt, curBase), [players, matches, seasonId, visibleSeasons, results, mvpAt, curBase]);
+  // (every season's period and the other seasons' ones are built only when a screen asks for them)
+  const ctxCache = useMemo(() => ({ of: [players, matches, results, mvpAt], map: new Map<string, Ctx>() }), [players, matches, results, mvpAt]).map;
   const S: Squad = useMemo(() => {
     const by = new Map<string, PPlayer>(roster.map((p) => [p.id, p]));
     return {
@@ -148,23 +148,22 @@ export function PlantillaPage() {
       by,
       seasonId,
       seasonName,
-      now,
+      now: minuteNow,
       captain: seasons.find((s) => s.id === seasonId)?.captainPlayerId ?? null,
       matches,
       seasons: visibleSeasons,
       cur,
-      all,
       jornadaOf: (id: string) => cur.jornada.get(id),
       seasonCtx: (id: string) => {
         let c = ctxCache.get(id);
         if (!c) {
-          c = periodCtx(players, matches, id, visibleSeasons, results, now);
+          c = periodCtx(players, matches, id, visibleSeasons, results, mvpAt);
           ctxCache.set(id, c);
         }
         return c;
       },
     };
-  }, [roster, seasonId, seasonName, now, seasons, matches, visibleSeasons, cur, all, players, results, ctxCache]);
+  }, [roster, seasonId, seasonName, minuteNow, seasons, matches, visibleSeasons, cur, players, results, ctxCache, mvpAt]);
 
   // ── who looks
   const who: Who = useMemo(() => {
@@ -210,7 +209,7 @@ export function PlantillaPage() {
   // ── the address and what the page shows (it trails the address so «atrás» runs the choreography too)
   const addr = useMemo(() => addrOf(pathname, search), [pathname, search]);
   const [shown, setShown] = useState<Addr>(addr);
-  const [ui, setUi] = useState<Ui>(() => ({ pick: "b", bdayOpen: false, numOpen: false, anCat: "pases", anNotes: false, adnSel: null, radarVs: "media", turned: false, flip: false, run: 0, flyHome: carry.flyHome, said: "", q: addr.q }));
+  const [ui, setUi] = useState<Ui>(() => ({ pick: "b", bdayOpen: false, numOpen: false, anCat: "pases", anNotes: false, adnSel: null, radarVs: "media", turned: false, flip: false, run: 0, flyHome: null, said: "", q: addr.q }));
   const kit = shown.screen === "player" ? (carry.kit ?? "home") : shown.kit;
   useEffect(() => {
     if (shown.screen !== "player") carry.kit = shown.kit;
@@ -232,18 +231,18 @@ export function PlantillaPage() {
   // the flight home is over once the transition into the vestuario is done
   useEffect(() => {
     if (!ui.flyHome) return;
-    carry.flyHome = null;
     const t = window.setTimeout(() => setUi((u) => ({ ...u, flyHome: null })), 900);
     return () => window.clearTimeout(t);
   }, [ui.flyHome]);
 
   // ── the screen
   const known = (id: string | null) => !!id && S.by.has(id);
-  const duelA = known(shown.a) ? shown.a! : defaultDuel(S)[0];
-  const duelB = known(shown.b) && shown.b !== duelA ? shown.b! : defaultDuel(S, duelA)[1];
+  const fallbackDuel = useMemo(() => defaultDuel(S), [S]);
+  const duelA = known(shown.a) ? shown.a! : fallbackDuel[0];
+  const duelB = known(shown.b) && shown.b !== duelA ? shown.b! : fallbackDuel[0] === duelA ? fallbackDuel[1] : defaultDuel(S, duelA)[1];
   const screen: Screen = error && !roster.length ? "error" : loading || (!hydrated && !roster.length) ? "cargando" : shown.screen === "player" && !known(shown.focus) ? "noexiste" : shown.screen === "cara" && S.ids.length < 2 ? "home" : shown.screen;
   useNoIndex(screen === "noexiste");
-  const st: ViewState = {
+  const st: ViewState = useMemo(() => ({
     screen,
     focus: shown.focus,
     sec: shown.sec,
@@ -266,18 +265,21 @@ export function PlantillaPage() {
     run: ui.run,
     flyHome: ui.flyHome,
     said: ui.said,
-  };
+  }), [screen, shown.focus, shown.sec, shown.all, duelA, duelB, ui, shown.ver, kit, shown.orden]);
   const isHome = screen === "home";
   const ghostIds = useMemo(() => (S.ids.length ? S.ids : Array.from({ length: 16 }, (_, i) => `ghost-${i}`)), [S.ids]);
-  const rv = useMemo(() => (screen === "cargando" ? null : railView(S, st, who, lines, stage)), [S, st.screen, st.focus, st.duelA, st.duelB, st.pick, st.orden, st.q, st.flyHome, who, lines, stage]); // eslint-disable-line react-hooks/exhaustive-deps
-  const lede = ledeView(S, D, screen === "cargando", screen === "error");
-  const home = isHome && S.ids.length ? homeView(S, st, who, D, lines) : null;
-  const du = screen === "cara" ? duelView(S, st) : null;
-  const al = screen === "album" ? albumView(S, st, who) : null;
-  const pv = screen === "player" ? playerView(S, st, who, lines, { mvpVote }) : null;
+  // (each screen's words are rebuilt only when what they read changes: not on a tick, a toast or a still)
+  const rv = useMemo(() => (screen === "cargando" ? null : railView(S, st, who, lines, stage)), [S, st, who, lines, stage, screen]);
+  const lede = useMemo(() => ledeView(S, D, screen === "cargando", screen === "error"), [S, D, screen]);
+  const home = useMemo(() => (isHome && S.ids.length ? homeView(S, st, who, D, lines) : null), [isHome, S, st, who, D, lines]);
+  const du = useMemo(() => (screen === "cara" ? duelView(S, st) : null), [screen, S, st]);
+  const al = useMemo(() => (screen === "album" ? albumView(S, st, who) : null), [screen, S, st, who]);
+  const pv = useMemo(() => (screen === "player" ? playerView(S, st, who, lines, { mvpVote }) : null), [screen, S, st, who, lines, mvpVote]);
 
   // ── the stills: every printed shirt of the season in the kit on, the blank front for the turn
-  const stillOf = usePageKitStills({ on: hydrated, theme, kits: [kit], players: roster.map((p) => ({ name: p.name, num: p.num })) });
+  const printed = useMemo(() => roster.map((p) => ({ name: p.name, num: p.num })), [roster]);
+  const kits = useMemo(() => [kit], [kit]);
+  const stillOf = usePageKitStills({ on: hydrated, theme, kits, players: printed });
   const front = useShirtStills(hydrated ? [{ kit, theme, name: "", num: "", yaw: Math.PI }] : [], { offMainThread: true });
   const frontSrc = front({ kit, theme, name: "", num: "", yaw: Math.PI });
 
@@ -286,25 +288,22 @@ export function PlantillaPage() {
   const go = useCallback(
     (next: Addr, opts: { dir: Dir; replace?: boolean; el?: HTMLElement | null; home?: string | null; ui?: Partial<Ui> }) => {
       const href = hrefOf(next);
-      const key = JSON.stringify(addrOf(href.to, { ...href.search, ...(next.screen === "player" ? {} : {}) }));
-      lastGo.current = key;
-      const crossing = (next.screen === "player") !== (shown.screen === "player");
+      lastGo.current = JSON.stringify(addrOf(href.to, href.search));
       const img = opts.el?.querySelector<HTMLElement>(".pl-shirt__img") ?? null;
       if (img) img.style.viewTransitionName = "pl-flight";
-      if (opts.home) carry.flyHome = opts.home;
       if (next.screen === "player") carry.kit = kit;
+      // (one page for la percha and its players: the new screen is painted in the same update, so the shirt
+      // flies to the hero, or home to its hanger, inside one transition)
       transition(opts.dir, reduced, async () => {
         if (img) img.style.viewTransitionName = "none";
-        if (!crossing)
-          flushSync(() => {
-            setShown(addrOf(href.to, href.search));
-            if (opts.ui) setUi((u) => ({ ...u, ...opts.ui }));
-          });
-        await navigate({ to: href.to, search: href.search, replace: !!opts.replace, resetScroll: !crossing } as never);
-        if (crossing) await rendered(next.screen === "player" ? ".pl-hero" : ".pl-screen:not([data-screen='player'])");
+        flushSync(() => {
+          setShown(addrOf(href.to, href.search));
+          setUi((u) => ({ ...u, ...opts.ui, ...(opts.home ? { flyHome: opts.home } : {}) }));
+        });
+        await navigate({ to: href.to, search: href.search, replace: !!opts.replace, resetScroll: !opts.replace } as never);
       });
     },
-    [shown, kit, reduced, navigate],
+    [kit, reduced, navigate],
   );
   const openPlayer = (id: string, el?: HTMLElement | null, sec?: Sec) => {
     if (screen === "player" && shown.focus === id) return;
@@ -989,7 +988,7 @@ function PlayerScreen(props: {
   const { pv, st, kit } = props;
   const { hero, fi, te, jo, po, ra, cl, co, an, cr, tabs, secNav, per } = pv;
   const still = useContext(KitStillContext)(kit, hero.n || undefined);
-  const back = still && (still.printed || !hero.n) ? still.src : undefined;
+  const back = still?.src;
   const sec = st.sec;
   return (
     <div className="pl-player">

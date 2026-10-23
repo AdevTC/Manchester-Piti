@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
 }));
 vi.mock("./writes", () => ({ setAvailability: state.setAvailability }));
-vi.mock("sonner", () => ({ toast: state.toast }));
+vi.mock("../../lib/toast", () => ({ toast: state.toast }));
 
 const { useRsvpFromNotice, rsvpToastText, rsvpAskText } = await import("./useRsvpFromNotice");
 

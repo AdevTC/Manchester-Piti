@@ -3,7 +3,7 @@ import { createElement, type ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react";
 import type { QuerySnapshot, Query } from "firebase/firestore";
 import { QueryClient as RealQueryClient, QueryClientProvider, type QueryClient } from "@tanstack/react-query";
-import { mapSnapshotDocs, handleSnapshotError, subscribeShared, useFirestoreCollection, _resetSharedSubsForTesting, KEEP_WARM_MS } from "./useFirestoreCollection";
+import { mapSnapshotDocs, incrementalMapper, handleSnapshotError, subscribeShared, useFirestoreCollection, _resetSharedSubsForTesting, KEEP_WARM_MS } from "./useFirestoreCollection";
 import { LISTENER_RETRY_MS, REOPEN_MIN_MS, _resetSnapshotMetaForTesting, getSnapshotMeta, useSyncStatus } from "./syncStatus";
 
 // onSnapshot is mocked so subscribeShared can be exercised without a live
@@ -33,6 +33,81 @@ describe("mapSnapshotDocs", () => {
       (_id, data) => ((data as { valid: boolean }).valid ? data : null),
     );
     expect(out).toEqual([{ valid: true }, { valid: true }]);
+  });
+});
+
+describe("incrementalMapper", () => {
+  type Change = { type: "added" | "modified" | "removed"; doc: { id: string; data: () => unknown } };
+  const doc = (id: string, n: number) => ({ id, data: () => ({ n }) });
+  const snap = (docs: ReturnType<typeof doc>[], changes: Change[]) =>
+    ({ docs, docChanges: () => changes }) as unknown as QuerySnapshot;
+  const setup = () => {
+    const calls: string[] = [];
+    const map = (id: string, data: unknown) => {
+      calls.push(id);
+      const n = (data as { n: number }).n;
+      return n < 0 ? null : { id, n };
+    };
+    return { calls, next: incrementalMapper(map) };
+  };
+
+  it("la primera instantánea mapea todos los documentos", () => {
+    const { calls, next } = setup();
+    expect(next(snap([doc("a", 1), doc("b", 2)], []))).toEqual([{ id: "a", n: 1 }, { id: "b", n: 2 }]);
+    expect(calls).toEqual(["a", "b"]);
+  });
+
+  it("después solo remapea los cambiados y conserva la identidad de los demás, en el orden de snap.docs", () => {
+    const { calls, next } = setup();
+    const first = next(snap([doc("a", 1), doc("b", 2), doc("c", 3)], []))!;
+    calls.length = 0;
+    const b2 = doc("b", 20);
+    const second = next(snap([doc("c", 3), b2, doc("a", 1)], [{ type: "modified", doc: b2 }]))!;
+    expect(calls).toEqual(["b"]);
+    expect(second).not.toBe(first);
+    expect(second).toEqual([{ id: "c", n: 3 }, { id: "b", n: 20 }, { id: "a", n: 1 }]);
+    expect(second[0]).toBe(first[2]);
+    expect(second[2]).toBe(first[0]);
+    expect(second[1]).not.toBe(first[1]);
+  });
+
+  it("añade los nuevos y quita los borrados", () => {
+    const { calls, next } = setup();
+    const first = next(snap([doc("a", 1), doc("b", 2)], []))!;
+    calls.length = 0;
+    const c = doc("c", 3);
+    const out = next(snap([doc("b", 2), c], [{ type: "removed", doc: doc("a", 1) }, { type: "added", doc: c }]))!;
+    expect(calls).toEqual(["c"]);
+    expect(out).toEqual([{ id: "b", n: 2 }, { id: "c", n: 3 }]);
+    expect(out[0]).toBe(first[1]);
+  });
+
+  it("sin cambios de documentos (solo metadatos) devuelve null y no mapea nada", () => {
+    const { calls, next } = setup();
+    next(snap([doc("a", 1)], []));
+    calls.length = 0;
+    expect(next(snap([doc("a", 1)], []))).toBeNull();
+    expect(calls).toEqual([]);
+  });
+
+  it("un cambio que no nombra su documento remapea todos", () => {
+    const { calls, next } = setup();
+    next(snap([doc("a", 1), doc("b", 2)], []));
+    calls.length = 0;
+    const out = next(snap([doc("a", 1), doc("b", 3)], [{} as Change]));
+    expect(calls).toEqual(["a", "b"]);
+    expect(out).toEqual([{ id: "a", n: 1 }, { id: "b", n: 3 }]);
+  });
+
+  it("si los cambios no alteran la lista mapeada (documentos descartados), devuelve null", () => {
+    const { next } = setup();
+    const first = next(snap([doc("a", 1), doc("x", -1)], []))!;
+    expect(first).toEqual([{ id: "a", n: 1 }]);
+    const x2 = doc("x", -2);
+    expect(next(snap([doc("a", 1), x2], [{ type: "modified", doc: x2 }]))).toBeNull();
+    // a discarded document that becomes valid does show up
+    const x3 = doc("x", 3);
+    expect(next(snap([doc("a", 1), x3], [{ type: "modified", doc: x3 }]))).toEqual([{ id: "a", n: 1 }, { id: "x", n: 3 }]);
   });
 });
 
@@ -138,7 +213,8 @@ interface FakeDoc { id: string; data: () => unknown }
 /** A query snapshot as the registry reads it: docs, document changes and metadata. */
 const snapOf = (docs: FakeDoc[], opts: { changes?: number; fromCache?: boolean; pending?: boolean } = {}) => ({
   docs,
-  docChanges: () => Array.from({ length: opts.changes ?? docs.length }),
+  // (the first `changes` documents, as modified)
+  docChanges: () => docs.slice(0, opts.changes ?? docs.length).map((doc) => ({ type: "modified", doc })),
   metadata: { fromCache: opts.fromCache ?? false, hasPendingWrites: opts.pending ?? false },
 });
 const docOf = (id: string, n: number): FakeDoc => ({ id, data: () => ({ n }) });
@@ -193,6 +269,17 @@ describe("subscribeShared · metadatos y recuperación", () => {
     act(() => next(snapOf([docOf("m1", 2)], { changes: 0 })));
     expect(qc.getQueryData(["matches"])).toBe(afterWrite);
     expect(getSnapshotMeta(MATCHES_META)?.hasPendingWrites).toBe(false);
+    release();
+  });
+
+  it("un cambio en un documento conserva la identidad de los demás en la caché", () => {
+    const release = subscribeShared(qc, ["matches"], q, map);
+    act(() => listenerAt().next(snapOf([docOf("m1", 1), docOf("m2", 2)])));
+    const first = qc.getQueryData<{ id: string }[]>(["matches"]) ?? [];
+    act(() => listenerAt().next(snapOf([docOf("m1", 5), docOf("m2", 2)], { changes: 1 })));
+    const second = qc.getQueryData<{ id: string }[]>(["matches"]) ?? [];
+    expect(second).toEqual([{ id: "m1", n: 5 }, { id: "m2", n: 2 }]);
+    expect(second[1]).toBe(first[1]);
     release();
   });
 

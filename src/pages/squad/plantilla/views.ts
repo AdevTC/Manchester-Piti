@@ -82,9 +82,8 @@ export interface Squad {
   matches: ClubMatch[];
   seasons: { id: string; name: string }[];
   cur: Ctx;
-  all: Ctx;
   jornadaOf: (matchId: string) => number | undefined;
-  /** Another season's period (Temporada a temporada). */
+  /** Another season's period, or every season's («all»), built when a screen asks for it. */
   seasonCtx: (seasonId: string) => Ctx;
 }
 export const numOf = (S: Squad) => (id: string) => S.by.get(id)?.n ?? 999;
@@ -646,7 +645,7 @@ export function playerView(S: Squad, st: ViewState, who: Who, lines: Map<string,
   const idx = S.ids.indexOf(focus);
   const prev = S.by.get(S.ids[(idx + count - 1) % count])!;
   const next = S.by.get(S.ids[(idx + 1) % count])!;
-  const ctx = st.period === "all" ? S.all : S.cur;
+  const ctx = st.period === "all" ? S.seasonCtx("all") : S.cur;
   const mL = lines.get(focus);
   const ps = stats(focus, ctx);
   const pos = posOf(fp);
@@ -972,7 +971,7 @@ function stintOf(d0: AdnDay | undefined) {
   };
 }
 function changesOf(S: Squad, id: string, d0: AdnDay): string {
-  const m = S.all.games.find((g) => g.id === d0.id) ?? S.cur.games.find((g) => g.id === d0.id);
+  const m = S.matches.find((g) => g.id === d0.id);
   const j = d0.j ? `la J${d0.j}` : "ese partido";
   if (!d0.on) return m?.ledger?.[id]?.notCalled || !m?.ledger?.[id] ? `No fue convocado para ${j}.` : "No salió del banquillo.";
   if (!m?.ledger?.[id]) return "El acta de ese partido no registra los cambios.";

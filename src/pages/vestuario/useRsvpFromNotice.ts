@@ -5,7 +5,7 @@
 // member, it asks («¿Apuntarte como No puedo · J5 vs Rival?» with «Apuntarme»). The params always leave
 // the URL (replace), so a reload never answers twice. A closed convocatoria writes nothing; a fan gets nothing.
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { toast } from "../../lib/toast";
 import type { ClubMatch } from "../../lib/clubData";
 import { kickoffWindow } from "../../lib/derived/memberWindows";
 import { jornadaOf } from "../../lib/derived/jornada";

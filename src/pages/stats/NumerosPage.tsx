@@ -5,7 +5,7 @@
 // todo» grows in place and the sheets open over it, both with their address too. On a desktop the page is an app
 // frame: it never scrolls, each region scrolls inside. Every number is the boards' arithmetic (numeros/view.ts) on
 // production's data (numeros/adapt.ts). Server-rendered for fans; the viewer's own pieces once hydrated.
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type TouchEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type TouchEvent } from "react";
 import { flushSync } from "react-dom";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { VidrioSky, useLightPointer, useReducedMotion } from "../../components/vidrio";
@@ -22,7 +22,9 @@ import { nameFor, nextFixture, playerForSeason, useClubData, type ClubMatch } fr
 import { useStandings } from "../../lib/useStandings";
 import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { useMvpResults, usePorraStandings } from "../vestuario/live";
-import { seasonStrip } from "../../lib/derived/vidrio/strip";
+import { seasonStrip, stripStateOf } from "../../lib/derived/vidrio/strip";
+import { votesClosedAt } from "../../lib/derived/mvpOf";
+import { matchPhase } from "../../../functions/src/matchEngine";
 import { niceName } from "../../lib/derived/words";
 import { leaguePhrase } from "../partidos/vidrio/model";
 import type { Demo } from "../partidos/pa/demo";
@@ -68,6 +70,22 @@ function demoMvp(m: NSeasonData["matches"][number]): string | null {
   });
   return Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] ?? m.starters[0] ?? null;
 }
+/**
+ * What the season's numbers read of the clock: each match's place on the strip and its phase (whether its score is
+ * still the plays'), and the last MVP vote closed. Two moments with the same key build the same numbers, so the
+ * seasons rebuild when one of these moves, not on every tick of the clock.
+ */
+const momentKeyOf = (matches: readonly ClubMatch[], now: number): string =>
+  `${matches.map((m) => `${m.id}:${stripStateOf(m, now)}:${matchPhase(m, now)}`).join("|")}|${votesClosedAt(matches, now)}`;
+/** `now` as it was when `key` last changed: any moment with the same key reads the same, so it can stand for them all. */
+function useHeldNow(now: number, key: string): number {
+  const [held, setHeld] = useState({ key, now });
+  if (held.key !== key) setHeld({ key, now });
+  return held.key === key ? held.now : now;
+}
+const TODAY = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" });
+const SEP = "\u001f";
+
 const DEMO_PORRA: [string, number][] = [["kevin", 61], ["jordi", 54], ["huberoski", 49], ["marta", 47], ["adrian", 44], ["brawan", 38], ["alcides", 35], ["fer", 31], ["evans", 27], ["erik", 22]];
 
 const BASE: NuState = {
@@ -146,7 +164,8 @@ export function NumerosPage() {
     return { kind, playerId: pid, name: "", porraKey };
   }, [quien, member, realViewer.playerId, useDemo, jordi, user]);
 
-  // ── the data, as the boards read it
+  // ── the data, as the boards read it (at the moment the clock last moved a match or a vote: see momentKeyOf)
+  const dataNow = useHeldNow(now, momentKeyOf(matches, now));
   const sq = useMemo(() => {
     const inSeason = (sid: string) =>
       players
@@ -159,12 +178,12 @@ export function NumerosPage() {
           };
         });
     const build = (sid: string, name: string, rows: typeof standings) => {
-      const segments = seasonStrip(matches, sid, now).segments;
+      const segments = seasonStrip(matches, sid, dataNow).segments;
       const porraRows = sid === seasonId ? (useDemo ? DEMO_PORRA : porraLive.length ? porraLive.map((r): [string, number] => [r.playerId ?? `u:${r.uid}`, r.points]) : null) : null;
       const S = seasonData({
         segments, seasonId: sid, seasonName: name,
         league: leagueOf(rows?.competition || matches.find((m) => m.seasonId === sid && m.competition)?.competition),
-        standings: rows?.rows ?? [], mvpOf: (m) => mvpWinners(m, mvpResults.get(m.id), now), mvpResults, real: !useDemo, mvpDemo: useDemo,
+        standings: rows?.rows ?? [], mvpOf: (m) => mvpWinners(m, mvpResults.get(m.id), dataNow), mvpResults, real: !useDemo, mvpDemo: useDemo,
         porra: porraRows ? { rows: porraRows, demo: useDemo, names: useDemo ? { marta: "Marta" } : Object.fromEntries(porraLive.map((r) => [r.playerId ?? `u:${r.uid}`, niceName(r.name)])) } : null,
       });
       if (useDemo)
@@ -189,11 +208,13 @@ export function NumerosPage() {
     const names: Record<string, string> = { ...(S.porra?.names ?? {}) };
     matches.forEach((m) => (m.guests ?? []).forEach((g) => (names[`guest:${g.id}`] = g.name)));
     return { S, others, squad, names };
-  }, [players, seasons, matches, now, seasonId, season?.name, standings, mvpResults, porraLive, useDemo, askedT]);
+  }, [players, seasons, matches, dataNow, seasonId, season?.name, standings, mvpResults, porraLive, useDemo, askedT]);
 
   const nd = useMemo(() => makeND(sq.squad, sq.names), [sq.squad, sq.names]);
   const moment = useMemo((): Moment => (maqueta === "cerrada" ? { edge: 16, live: false, closed: true } : momentOf(sq.S)), [sq.S, maqueta]);
-  const people = useMemo(() => peopleIndex(sq.squad), [sq.squad]);
+  // (keyed on who is in it: a live event rebuilds the squad, and the address's players are read again only when it changes)
+  const peopleKey = sq.squad.map((p) => `${p.id}${SEP}${p.name}`).join("\n");
+  const people = useMemo(() => peopleIndex(peopleKey ? peopleKey.split("\n").map((l) => ({ id: l.split(SEP)[0], name: l.split(SEP)[1] })) : []), [peopleKey]);
 
   // ── the catalogue: loaded when a screen or a sheet needs it
   const [catalog, setCatalog] = useState<CatRow[] | null>(null);
@@ -462,11 +483,28 @@ export function NumerosPage() {
     },
   };
 
-  const env: Env = {
-    nd, S: sq.S, moment, others: sq.others.map((S) => ({ S, moment: momentOf(S) })), viewer, catalog, demo: useDemo,
-    today: new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(now),
-  };
-  const v = numerosView(st, env, act);
+  const othersAt = useMemo(() => sq.others.map((S) => ({ S, moment: momentOf(S) })), [sq.others]);
+  const today = TODAY.format(now);
+  const env: Env = useMemo(() => ({ nd, S: sq.S, moment, others: othersAt, viewer, catalog, demo: useDemo, today }), [nd, sq.S, moment, othersAt, viewer, catalog, useDemo, today]);
+  // the view's handlers call the latest actions (they close over this render's state), so the view itself is rebuilt
+  // only when the state or the data change, not on every render of the page
+  const actRef = useRef(act);
+  actRef.current = act;
+  const [stableAct] = useState((): Act => ({
+    set: (p) => actRef.current.set(p),
+    open: (sheet, id) => actRef.current.open(sheet, id),
+    closeSheet: () => actRef.current.closeSheet(),
+    go: (place, patch) => actRef.current.go(place, patch),
+    grow: (g) => actRef.current.grow(g),
+    say: (t) => actRef.current.say(t),
+    stop: () => actRef.current.stop(),
+    seek: (j) => actRef.current.seek(j),
+    narrow: () => actRef.current.narrow(),
+    ask: (place, patch, sheet, id) => actRef.current.ask(place, patch, sheet, id),
+    csv: (kind) => actRef.current.csv(kind),
+    json: () => actRef.current.json(),
+  }));
+  const v = useMemo(() => numerosView(st, env, stableAct), [st, env, stableAct]);
   const numOf = (id: string) => nd.num(id);
 
   // the catalogue arrives with the screen that shows it (an address that opens the catalogue or a metric)
@@ -520,24 +558,53 @@ export function NumerosPage() {
   // ── the phone's slim time line: once the time bar scrolls away, a one-line summary sticks with the tabs
   const [slim, setSlim] = useState(false);
   useEffect(() => {
-    const onScroll = () => {
+    // (once a frame, with the bar and the rail found once, and --nu-railh written only when it moves)
+    let raf = 0;
+    let t: HTMLElement | null = null;
+    let rail: HTMLElement | null = null;
+    const measure = () => {
       const page = pageRef.current;
-      const t = page?.querySelector<HTMLElement>(".nu-time");
-      if (!page || !t) return;
+      if (!page) return;
+      if (!t?.isConnected) t = page.querySelector<HTMLElement>(".nu-time");
+      if (!t) return;
+      if (!rail?.isConnected) rail = page.querySelector<HTMLElement>(".nu-rail");
       const w = page.clientWidth;
       const narrow = w < 700;
-      const rail = page.querySelector<HTMLElement>(".nu-rail");
-      page.style.setProperty("--nu-railh", `${narrow ? (rail?.offsetHeight ?? 0) : w < 1100 ? Math.max(0, Math.round(t.getBoundingClientRect().bottom)) : 0}px`);
-      setSlim(narrow && t.getBoundingClientRect().bottom < 60);
+      const bottom = t.getBoundingClientRect().bottom;
+      const h = `${narrow ? (rail?.offsetHeight ?? 0) : w < 1100 ? Math.max(0, Math.round(bottom)) : 0}px`;
+      if (page.style.getPropertyValue("--nu-railh") !== h) page.style.setProperty("--nu-railh", h);
+      setSlim(narrow && bottom < 60);
     };
-    onScroll();
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        measure();
+      });
+    };
+    measure();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, []);
+
+  // the floodlit sky over the golden one: at opacity 0 (the day theme, an early jornada) it is hidden once its fade
+  // has run, and shown again before any fade starts (a layout effect: before the frame that changes its opacity)
+  const skyFlood = theme === "light" ? 0 : v.flood;
+  useLayoutEffect(() => {
+    const b = pageRef.current?.querySelector<HTMLElement>(":scope > .nu-sky-b");
+    if (!b) return;
+    if (skyFlood !== 0) {
+      b.style.visibility = "";
+      return;
+    }
+    const tm = window.setTimeout(() => (b.style.visibility = "hidden"), 1000);
+    return () => window.clearTimeout(tm);
+  }, [skyFlood]);
 
   // board fault: on the phone the tab strip scrolls sideways and kept showing the first tabs; the open one comes into view
   useEffect(() => {

@@ -31,6 +31,7 @@ export function VidrioSky({ light, floodlit, weather, reduced, gold, cold, heigh
   const calm = useReducedMotion();
   const still = reduced ?? calm;
   const canvas = useRef<HTMLCanvasElement | null>(null);
+  const drift = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const cv = canvas.current;
@@ -58,6 +59,32 @@ export function VidrioSky({ light, floodlit, weather, reduced, gold, cold, heigh
     return () => ro.disconnect();
   }, [sky, height]);
 
+  // The drift only runs while its layer is on screen and the tab is shown ([data-vd-off] pauses it where it is).
+  useEffect(() => {
+    const el = drift.current;
+    if (!el || still || isShot()) return;
+    let seen = true;
+    const sync = () => {
+      if (seen && !document.hidden) el.removeAttribute("data-vd-off");
+      else el.setAttribute("data-vd-off", "");
+    };
+    const io =
+      typeof IntersectionObserver === "function"
+        ? new IntersectionObserver((entries) => {
+            seen = entries[entries.length - 1].isIntersecting;
+            sync();
+          })
+        : null;
+    io?.observe(el);
+    document.addEventListener("visibilitychange", sync);
+    sync();
+    return () => {
+      io?.disconnect();
+      document.removeEventListener("visibilitychange", sync);
+      el.removeAttribute("data-vd-off");
+    };
+  }, [still]);
+
   const cls = ["vd-sky", `vd-l-${sky}`, !still && "vd-sky--drift", weather && weather !== "despejado" && "vd-sky--cloud", gold && "vd-sky--gold", cold && "vd-sky--cold", className]
     .filter(Boolean)
     .join(" ");
@@ -66,7 +93,7 @@ export function VidrioSky({ light, floodlit, weather, reduced, gold, cold, heigh
     <div className={cls} style={style} aria-hidden="true" data-light={sky}>
       <div className="vd-sky__base" />
       <div className="vd-sky__sun" />
-      <div className="vd-sky__drift">
+      <div className="vd-sky__drift" ref={drift}>
         <div className="vd-sky__banks" />
         <canvas className="vd-sky__bokeh" ref={canvas} />
       </div>

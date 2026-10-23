@@ -61,7 +61,10 @@
 .vd-ribbon__mark--red{background:var(--vd-roja)}
 .vd-ribbon__mark--gold{background:var(--vd-oro);color:#3a2600;box-shadow:0 0 0 3px rgba(255,198,89,.3),0 0 16px rgba(255,198,89,.6)}
 .vd-ribbon__now{position:absolute;top:4px;bottom:4px;width:2px;margin-left:-1px;border-radius:2px;background:var(--vd-hielo);box-shadow:0 0 10px rgba(234,243,252,.8)}
-.vd-ribbon__now::after{content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--vd-hielo);animation:vd-live 1.8s ease-out infinite}
+.vd-ribbon__now::after{content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--vd-hielo)}
+/* its live ring: a layer under the dot that only scales and fades (glass.css vd-live-ring10, the vd-live box-shadow
+   ring drawn without a repaint each frame; in «día» too, as the animated shadow was) */
+.vd-ribbon__now::before{content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:rgba(255,93,93,.55);opacity:0;pointer-events:none;animation:vd-live-ring10 1.8s ease-out infinite}
 /* «día»: the now line and the marks in ink, the rival's mark readable on its darker coral */
 :root[data-theme="light"] .vd-ribbon__now,:root[data-theme="light"] .vd-ribbon__now::after{background:var(--vd-marino);box-shadow:none}
 :root[data-theme="light"] .vd-ribbon__mark{background:#fff;box-shadow:0 0 0 2px rgba(12,23,51,.16)}
@@ -175,7 +178,7 @@
 /* ---------------------------------------------------------------- reduced motion */
 @media (prefers-reduced-motion:reduce){
   .vd-shelf__bead,.vd-float,.vd-pip,.vd-lens,.vd-drop,.vd-press,.vd-stepback{transition-duration:.001ms!important}
-  .vd-goal-lens,.vd-digit--roll,.vd-scorer--set,.vd-peak--rise,.vd-glint::before,.vd-livedot,.vd-ribbon__now::after{animation:none!important}
+  .vd-goal-lens,.vd-digit--roll,.vd-scorer--set,.vd-peak--rise,.vd-glint::before,.vd-livedot,.vd-livedot::before,.vd-ribbon__now::before,.vd-ribbon__now::after{animation:none!important}
 }
 
 /* ---------------------------------------------------------------- the floating score, round 4.1 (V-Vivo, V-Sistema)

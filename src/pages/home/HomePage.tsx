@@ -4,9 +4,10 @@
 // section you choose is a screen with its own address (/hoy/campo, /hoy/jugadas, /hoy/lo-tuyo, /camiseta) that
 // replaces the content through a View Transition, the lens morphing into the screen's score capsule. The server
 // paints the public match; what is a member's appears once the viewer is known (useHydrated + useViewer).
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { useSeason } from "../../context/SeasonContext";
 import { dateMillis, nameFor, nextFixture, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
+import { matchPhase } from "../../../functions/src/matchEngine";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { useViewer } from "../../hooks/useViewer";
@@ -29,7 +30,7 @@ import { madridDate, madridTime } from "../../lib/derived/madrid";
 import { sunTimes } from "../../lib/derived/sun";
 import { scoreOf } from "../../lib/partidos";
 import { mesaOf } from "../../lib/derived/mesa";
-import { seasonStrip } from "../../lib/derived/vidrio/strip";
+import { seasonStrip, stripStateOf } from "../../lib/derived/vidrio/strip";
 import { seasonLeaders } from "../../lib/derived/vidrio/leaders";
 import { viewerKind } from "../../lib/derived/vidrio/viewer";
 import { albumLine, albumOf } from "../../lib/derived/album";
@@ -116,6 +117,18 @@ function momentOf(day: MatchdayModel): { fase: Fase; p: ClubMatch | null; n: Clu
 }
 
 /** A bokeh canvas over the two skies (the light field's out-of-focus lights, drawn once per light and width). */
+/**
+ * What the season's pulse, strip and leaders read of the clock: each match's phase and its place on the strip. Two
+ * moments with the same key build the same ones, so they rebuild when a match moves, not on every tick.
+ */
+const momentKeyOf = (matches: readonly ClubMatch[], now: number): string => matches.map((m) => `${m.id}:${matchPhase(m, now)}:${stripStateOf(m, now)}`).join("|");
+/** `now` as it was when `key` last changed: any moment with the same key reads the same, so it can stand for them all. */
+function useHeldNow(now: number, key: string): number {
+  const [held, setHeld] = useState({ key, now });
+  if (held.key !== key) setHeld({ key, now });
+  return held.key === key ? held.now : now;
+}
+
 function Bokeh({ light }: { light: "golden" | "flood" | "late" | "day" }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
@@ -197,7 +210,7 @@ export function HomePage() {
   );
   const byId = useMemo(() => new Map(squad.map((s) => [s.id, s])), [squad]);
   const shortOf = (id: string) => (byId.get(id)?.name ?? nameFor(players.find((p) => p.id === id), seasonId)).toLocaleUpperCase("es");
-  const niceOf = (id: string) => niceName(byId.get(id)?.name ?? nameFor(players.find((p) => p.id === id), seasonId));
+  const niceOf = useCallback((id: string) => niceName(byId.get(id)?.name ?? nameFor(players.find((p) => p.id === id), seasonId)), [byId, players, seasonId]);
   const numOf = (id: string) => byId.get(id)?.num ?? "";
   const names = { name: niceOf, short: shortOf, num: numOf };
 
@@ -206,6 +219,8 @@ export function HomePage() {
   const maqueta = readMaqueta();
   const { day, now } = applyMaqueta(maqueta, matchdayOf(matches, seasonId, clockNow), clockNow);
   const { fase, p: pm, n: nm } = momentOf(day);
+  // (the season's pulse, strip and leaders, at the moment a match last moved: see momentKeyOf)
+  const seasonNow = useHeldNow(now, momentKeyOf(matches, now));
   const live = isLiveF(fase);
   const duration = pm?.duration && pm.duration > 0 ? Math.round(pm.duration) : 50;
   const liveMinute = live ? Math.max(1, Math.min(duration, fase === "descanso" ? Math.round(duration / 2) : (day.minute ?? 1))) : null;
@@ -334,7 +349,7 @@ export function HomePage() {
   const mvpResults = useMvpResults();
   const mvpResult = pm ? mvpResults.get(pm.id) : undefined;
   const closesAt = typeof pm?.voteClosesAt === "number" ? pm.voteClosesAt : null;
-  const pulse = seasonPulse(matches, seasonId, now);
+  const pulse = useMemo(() => seasonPulse(matches, seasonId, seasonNow), [matches, seasonId, seasonNow]);
   const estreno = !!pm && (pulse.played.length === 0 || pulse.played[0]?.id === pm.id);
 
   // ── the light: the kick-off's sunset and floodlights, the weather
@@ -465,12 +480,12 @@ export function HomePage() {
   const night = nightOf(ctx, { venue: venueWords, published: lineup ? `Publicado ${publishedWhen(lineup.setAt, now)} desde la pizarra` : null, meet, mesaName: pm ? (mesaOf(pm)?.name ?? null) : null, system, kit: pm?.kit === "away" ? "away" : "home", evening: ko !== null && Number(madridTime(ko).slice(0, 2)) >= 16 });
 
   // the doors
-  const strip = useMemo(() => seasonStrip(matches, seasonId, now), [matches, seasonId, now]);
-  const leaders = useMemo(() => seasonLeaders(matches, seasonId, squad, now), [matches, seasonId, squad, now]);
+  const strip = useMemo(() => seasonStrip(matches, seasonId, seasonNow), [matches, seasonId, seasonNow]);
+  const leaders = useMemo(() => seasonLeaders(matches, seasonId, squad, seasonNow), [matches, seasonId, squad, seasonNow]);
   const { standings } = useStandings(seasonId);
   const usRow = standings?.rows.findIndex((r) => r.isUs) ?? -1;
-  const lines = playerLines(squad, pulse.played);
-  const medals = clubMedals(pulse, lines, niceOf, (d) => formatDate(d));
+  const lines = useMemo(() => playerLines(squad, pulse.played), [squad, pulse.played]);
+  const medals = useMemo(() => clubMedals(pulse, lines, niceOf, (d) => formatDate(d)), [pulse, lines, niceOf]);
   const medal = medals.filter((x) => x.earned).at(-1);
   const bd = upcomingBirthdays(squad, now, 1).find((b) => b.days <= 30);
   const skyOf = (at: number | null): "day" | "golden" | "flood" => {
@@ -507,7 +522,7 @@ export function HomePage() {
   const [jf, setJf] = useState<JugFilter>(0);
   const campo = campoOf(ctx, { open: nav.jugador, captain: (pm as ClubMatch & { captainId?: string } | null)?.captainId ?? season?.captainPlayerId ?? null, system, meet, coverage: pm?.analysisCoverage === "partial" ? "Minutos de la narración, con cobertura parcial: el acta los da por buenos mientras no se corrijan." : null });
   const jugadas = jugadasOf(ctx, jf);
-  const album = kind === "jugador" && meId ? albumOf(meId, matches, squad.map((s) => s.id), seasonId) : null;
+  const album = useMemo(() => (kind === "jugador" && meId ? albumOf(meId, matches, squad.map((s) => s.id), seasonId) : null), [kind, meId, matches, squad, seasonId]);
   const mineSlot = meId ? P?.lineup.find((s) => s.id === meId) : undefined;
   const tuyo = tuyoOf(ctx, {
     tasks,

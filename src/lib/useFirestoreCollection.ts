@@ -14,6 +14,52 @@ export function mapSnapshotDocs<T>(snap: QuerySnapshot, map: (id: string, data: 
 }
 
 /**
+ * A listener's incremental mapper. The first snapshot maps every document; later ones remap only
+ * the documents in `docChanges()` (added/modified; removed ones are dropped) and reuse the previous
+ * mapped object for every other document, in `snap.docs` order. Unchanged documents keep their
+ * identity, so memos keyed on a list (or on one of its items) skip a live event that touched
+ * another document. Returns null when nothing changed: a metadata-only snapshot, or changes whose
+ * mapped list is item for item the last one. Exported for unit testing.
+ */
+export function incrementalMapper<T>(map: (id: string, data: unknown) => T | null): (snap: QuerySnapshot) => T[] | null {
+  const mapped = new Map<string, T | null>();
+  let last: T[] | null = null;
+  return (snap) => {
+    if (last === null) {
+      for (const d of snap.docs) mapped.set(d.id, map(d.id, d.data()));
+    } else {
+      const changes = snap.docChanges();
+      if (changes.length === 0) return null;
+      // (a change that doesn't name its document — a test double — remaps them all, as before)
+      if (!changes.every((c) => typeof (c as { doc?: { id?: unknown } } | undefined)?.doc?.id === "string")) mapped.clear();
+      else
+        for (const c of changes) {
+          if (c.type === "removed") mapped.delete(c.doc.id);
+          else mapped.set(c.doc.id, map(c.doc.id, c.doc.data()));
+        }
+    }
+    const out: T[] = [];
+    for (const d of snap.docs) {
+      let item = mapped.get(d.id);
+      if (item === undefined) {
+        // (not seen yet: can't happen with Firestore's changes, kept as a safety net)
+        item = map(d.id, d.data());
+        mapped.set(d.id, item);
+      }
+      if (item !== null) out.push(item);
+    }
+    if (mapped.size > snap.docs.length) {
+      const ids = new Set(snap.docs.map((d) => d.id));
+      for (const id of mapped.keys()) if (!ids.has(id)) mapped.delete(id);
+    }
+    const prev = last;
+    if (prev !== null && prev.length === out.length && out.every((item, i) => item === prev[i])) return null;
+    last = out;
+    return out;
+  };
+}
+
+/**
  * Logs the error and keeps the last good data. Only when the key never had data
  * does it set an empty array, so that `isPending` becomes false (an error must
  * not wipe a list that was already on screen: that reads as «no data»; the error
@@ -121,6 +167,8 @@ export function subscribeShared<T>(
       // Each listener's first snapshot always writes the data, even an empty list, and clears an
       // error left by an earlier listener of this key (this entry's or a dropped one's).
       let first = true;
+      // Later snapshots remap only the documents that changed (see incrementalMapper).
+      const mapSnap = incrementalMapper(map);
       // (after the data bundle: see bundleGate)
       sub.unsub = afterBundle(() => onSnapshot(
         q,
@@ -128,7 +176,8 @@ export function subscribeShared<T>(
         (snap) => {
           if (sharedSubs.get(hash) !== sub) return;
           if (first) qc.setQueryData(errorKey, null);
-          if (first || snap.docChanges().length > 0) qc.setQueryData(key, mapSnapshotDocs(snap, map));
+          const data = mapSnap(snap);
+          if (data !== null) qc.setQueryData(key, data);
           first = false;
           recordSnapshotMeta(hash, snap.metadata);
         },
