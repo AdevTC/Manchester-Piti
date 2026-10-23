@@ -1223,3 +1223,8 @@ html[data-cb-vt]::view-transition-old(*),html[data-cb-vt]::view-transition-new(*
 .cb .cb-room--vestuario>.cb-door{height:auto!important;min-height:0!important;align-items:start;cursor:auto}
 .cb .cb-room--vestuario>.cb-door>.cb-door__txt{align-content:start;padding:4px 8px 8px 0}
 }
+/* between the 820 and 1440 boards (a tablet at ~1024) the kits' text column is narrow: the segment's labels
+   wrap instead of running into each other; a season card's score keeps inside its card at 1280 */
+@media (max-width:1099px){.cb .cb-kits__txt{min-width:0}.cb .cb-kits__seg .vd-seg__b{min-width:0;white-space:normal;line-height:1.1;padding-inline:4px}}
+.cb .cb-res__i a{padding-inline:7px}
+.cb .cb-res__s{white-space:nowrap}
