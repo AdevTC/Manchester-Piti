@@ -31,7 +31,9 @@ export function Historia({ S, pieces, seasonLine, last, moments, story, meta, cr
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const freshT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hRef = useRef(h);
-  hRef.current = h;
+  useEffect(() => {
+    hRef.current = h;
+  }, [h]);
   // (a season that arrives after the first paint starts at today)
   const seen = useRef(S.played);
   useEffect(() => {

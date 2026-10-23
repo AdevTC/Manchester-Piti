@@ -88,15 +88,15 @@ export function ClubPage() {
 
   // (DEV: the boards' maqueta strip)
   const mq = hydrated ? readClubMaqueta(search) : null;
-  const [demo, setDemo] = useState<null | import("../partidos/pa/demo").Demo>(null);
+  const [longDemo, setLongDemo] = useState<null | import("../partidos/pa/demo").Demo>(null);
   useEffect(() => {
-    if (mq?.larga) void import("../partidos/pa/demo").then((m) => setDemo(m.demoSeason(null)));
-    else setDemo(null);
+    if (mq?.larga) void import("../partidos/pa/demo").then((m) => setLongDemo(m.demoSeason(null)));
   }, [mq?.larga]);
+  const demo = mq?.larga ? longDemo : null;
   const c = mq?.demo ? demoContent(raw) : raw;
   const matches = demo ? demo.matches : club.matches;
   const players = demo ? (demo.players as unknown as typeof club.players) : club.players;
-  const seasons = demo ? [...realSeasons, demo.season] : realSeasons;
+  const seasons = useMemo(() => (demo ? [...realSeasons, demo.season] : realSeasons), [demo, realSeasons]);
   const now = demo ? demo.now : clockNow;
 
   // ── who is looking (only after hydration: the server paints the afición's club)
@@ -257,13 +257,13 @@ export function ClubPage() {
 
   // ── the member's own pieces
   const mvpResults = useMvpResults();
-  const mine = useMemo(() => {
+  const mine = (() => {
     if (!pid || fan) return null;
     const played = S.jornadas.slice(0, S.played);
     const wins = played.filter((x) => mvpWinners(x.match, mvpResults.get(x.id), now).includes(pid)).length;
     const lastM = played[played.length - 1]?.match;
     return { name: meName, list: minePieces({ playerId: pid, season: S, nameOf, mvpWins: wins, mvpOpen: !!lastM && mvpVoteOpen(lastM, now) }) };
-  }, [pid, fan, S, mvpResults, now, meName, nameOf]);
+  })();
 
   // ── La historia's words
   const lastJ = S.played ? S.jornadas[S.played - 1] : null;

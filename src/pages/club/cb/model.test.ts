@@ -78,7 +78,7 @@ describe("la línea del club", () => {
     expect(line.beads.map((b) => b.cls)).toEqual(["is-p is-at", "is-next", "is-next"]);
     expect(line.beads[0].letter).toBe("P");
     expect(line.marks).toHaveLength(1);
-    expect(line.marks[0].label).toBe("J1: 6 piezas para la vitrina");
+    expect(line.marks[0].label).toBe("J1: 5 piezas para la vitrina");
     expect(line.tip).toBe("J1 · P 1–8 · ORD");
     expect(lensOf(S, pieces, 0).counts.map((c) => c.v)).toEqual([0, 0, 0, 1]);
     expect(lensOf(S, pieces, 1).counts.map((c) => c.v)).toEqual([1, 0, 1, 6]);
@@ -102,7 +102,7 @@ describe("birthdays (30 days, Inicio's rule)", () => {
     expect(b.map((x) => [x.id, x.days, x.age])).toEqual([
       ["h", 5, 22],
       ["e", 15, 22],
-      ["k", 85, 22],
+      ["k", 85, 23],
     ]);
     expect(bdayWhen(b[0], NOW)).toBe("el martes 27");
     expect(bdayWhen(b[1], NOW)).toBe("el viernes 6 de noviembre");

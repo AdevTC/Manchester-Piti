@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import type { Kit } from "../../../components/jersey3d/kitStill";
-import { drawPrint } from "../../home/portada/Camiseta";
+import { drawPrint } from "../../home/portada/print";
 import { I, CREST } from "./ui";
 
 export interface MakerPerson {
