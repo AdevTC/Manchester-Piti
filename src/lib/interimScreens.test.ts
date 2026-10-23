@@ -61,13 +61,9 @@ describe("the profile's tab and the blocks", () => {
   });
   it("the block an address points at", () => {
     expect(anchorAt("/vestuario")).toBeNull();
-    expect(anchorAt("/vestuario/caja")).toBe("vx-caja");
-    expect(anchorAt("/vestuario/encuestas/p1")).toBe("encuestas");
-    expect(anchorAt("/vestuario/puerta")).toBe("puerta");
-    expect(anchorAt("/club/vitrina/escudo")).toBe("cl-crest");
-    expect(anchorAt("/club/vitrina/primera-victoria")).toBe("cl-trophies");
-    expect(anchorAt("/club/historia")).toBe("cl-history");
-    expect(anchorAt("/club/equipo/camiseta")).toBe("cl-kits");
+    // (El club and the vestuario read their own address: no anchor)
+    expect(anchorAt("/vestuario/caja")).toBeNull();
+    expect(anchorAt("/club/historia")).toBeNull();
     expect(anchorAt("/perfil/nombre")).toBe("pe-nombre");
     expect(anchorAt("/club")).toBeNull();
   });

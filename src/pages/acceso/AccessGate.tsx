@@ -2,7 +2,8 @@
 // LED tunnel that every step reprograms. Puerta → (invitación) → ¿Quién eres? → en la puerta /
 // dentro → the walkout to the pitch. No team key: Google + your shirt, and a captain opens.
 import { useEffect, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { VestuarioDoor } from "../vestuario/vx/Door";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { auth } from "../../firebase";
 import { CelesteBackdrop, CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
@@ -124,7 +125,7 @@ function Avisos({ door }: { door: Door }) {
 }
 /** Emulator only (DEV + emulator, never in a build for production): sign in as the seeded captain, as the
  *  seeded anotador, or as a socio (a member with no player of his own), without Google. */
-function DevSignIn() {
+export function DevSignIn() {
   if (!import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATOR !== "1" || auth.currentUser) return null;
   const go = (sub: string, email: string, name: string) => {
     const enc = (v: object) => btoa(JSON.stringify(v)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -919,7 +920,13 @@ function ledFor(door: Door, k: LedKey, picked: Pick): LedTexts {
   return { a: l[0], a2: l[2], b: l[1], end: l[3], ceil: ceil.length ? ceil : ["MANCHESTER PITI"] };
 }
 
+/** The door of a private page. The vestuario's own addresses (/vestuario…, /invitacion/…) show the club's fourth
+ *  room with its door (CL- boards); the others keep the LED tunnel. */
 export function AccessGate() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  return /^\/(vestuario|invitacion)(\/|$)/.test(pathname) ? <VestuarioDoor /> : <TunnelGate />;
+}
+function TunnelGate() {
   const door = useDoor();
   const picked = usePicked();
   const [take, setTake] = useState(0);

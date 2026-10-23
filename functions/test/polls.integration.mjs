@@ -14,7 +14,7 @@ process.env.GOOGLE_CLOUD_PROJECT = "demo-manchester-piti";
 process.env.FUNCTIONS_EMULATOR = "true";
 const { db } = await import("../lib/common.js");
 const { deliver } = await import("../lib/push.js");
-const { pollNotice, POLL_URL } = await import("../lib/pollsLogic.js");
+const { pollNotice, pollUrl } = await import("../lib/pollsLogic.js");
 const { deletePollVotes } = await import("../lib/polls.js");
 const { Timestamp } = await import("firebase-admin/firestore");
 
@@ -49,7 +49,7 @@ const poll = {
 const ref = await db.collection("polls").add(poll);
 const id = ref.id;
 const logRef = db.doc(`pushLog/poll-${id}`);
-const kept = async () => (await db.collection("notices").where("url", "==", POLL_URL).get()).docs.filter((d) => d.get("body") === `nico: ${question}`);
+const kept = async () => (await db.collection("notices").where("url", "==", pollUrl(id)).get()).docs.filter((d) => d.get("body") === `nico: ${question}`);
 
 // ---------- created: one claim, one notice for the team
 await until("pushLog/poll-<id> claimed", async () => (await logRef.get()).exists);

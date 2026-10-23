@@ -3,8 +3,9 @@
 // avisos). The closing result is not pushed (docs/superpowers/specs/2026-10-16-encuestas-design.md).
 import type { Notice } from "./pushLogic.js";
 
-/** Where the vestuario shows the polls. */
-export const POLL_URL = "/vestuario#encuestas";
+/** Where the vestuario shows the polls; a poll's own notice opens that poll (/vestuario/encuestas/<id>). */
+export const POLL_URL = "/vestuario/encuestas";
+export const pollUrl = (id: string) => `${POLL_URL}/${encodeURIComponent(id)}`;
 
 /** The fields of polls/{id} the notice reads. */
 export interface PollLike {
@@ -22,5 +23,5 @@ export function pollNotice(id: string, poll: PollLike | undefined): Notice | nul
   if (!question) return null;
   const author = typeof poll?.authorName === "string" ? poll.authorName.trim() : "";
   const tag = `poll-${id}`;
-  return { topic: "lineup", title: "Nueva encuesta", body: author ? `${author}: ${question}` : question, tag, url: POLL_URL, log: tag };
+  return { topic: "lineup", title: "Nueva encuesta", body: author ? `${author}: ${question}` : question, tag, url: pollUrl(id), log: tag };
 }

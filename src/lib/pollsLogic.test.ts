@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pollNotice, POLL_URL } from "../../functions/src/pollsLogic";
+import { pollNotice, pollUrl, POLL_URL } from "../../functions/src/pollsLogic";
 import { noticeRecord } from "../../functions/src/noticesLogic";
 
 describe("«Nueva encuesta» (onPollCreated)", () => {
@@ -9,10 +9,11 @@ describe("«Nueva encuesta» (onPollCreated)", () => {
       title: "Nueva encuesta",
       body: "nico: ¿Cena el viernes?",
       tag: "poll-abc",
-      url: "/vestuario#encuestas",
+      url: "/vestuario/encuestas/abc",
       log: "poll-abc",
     });
-    expect(POLL_URL).toBe("/vestuario#encuestas");
+    expect(POLL_URL).toBe("/vestuario/encuestas");
+    expect(pollUrl("a b")).toBe("/vestuario/encuestas/a%20b");
   });
 
   it("is kept in the centro de avisos for the team", () => {
