@@ -190,7 +190,8 @@ export function CelesteDock({ active, live }: { active?: CelestePage; live?: boo
   const cap = useRef<HTMLDivElement | null>(null);
   const min = useScrollShrink();
   useBead(cap, "dock", active, `${isLive}:${min}`);
-  useRefraction(cap, { bezel: 18, strength: 1.1, blur: 16 });
+  // (no refraction here: the dock is the glass, and a lens on its inner capsule nests a second backdrop-filter that
+  // only sees the dock's own tint — grey in Día; the boards draw the dock with its blur glass alone)
   useLightPointer(cap);
   return (
     <nav className={`vx-dock vd-glass${min ? " is-min" : ""}`} aria-label="Navegación móvil">
