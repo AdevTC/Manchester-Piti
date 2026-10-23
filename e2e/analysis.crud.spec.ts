@@ -36,7 +36,11 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await expect(editor.getByText("Análisis incorporado al borrador. Revisa y publica el acta para actualizar la web.")).toBeVisible();
   await page.locator(".det .df").getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByText(/Acta .* corregida · web al día/)).toBeVisible();
+  // The full analysis lives in Números now: the match's Números screen opens it for this match.
   await page.goto("/partidos/preview-finished/numeros");
+  await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
+  await expect(page).toHaveURL(/\/numeros\/juego\?/);
+  expect(JSON.parse(new URL(page.url()).searchParams.get("partidos") ?? "[]")).toEqual(["preview-finished"]);
   const stats = page.getByRole("region", { name: "Estadísticas detalladas" });
   await stats.getByRole("button", { name: "Ver 1 pases de Marcos a Pablo" }).click();
   const evidence = stats.getByRole("region", { name: "Pases completados · Marcos" });

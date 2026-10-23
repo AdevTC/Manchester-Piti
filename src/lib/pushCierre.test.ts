@@ -18,6 +18,10 @@ describe("a device's payload", () => {
   it("«Solo goles» is left out on a device already there", () => {
     expect(devicePayload(goal, { preset: "goles" }).actions).toEqual([{ action: "open", title: "Abrir el partido" }]);
   });
+  it("and on one that only chose this match's avisos (its worker has nothing to call)", () => {
+    expect(devicePayload(goal, { preset: "nada" }).actions).toEqual([{ action: "open", title: "Abrir el partido" }]);
+    expect(devicePayload(goal, { preset: "custom" }).actions).toEqual(GOAL_ACTIONS);
+  });
 });
 
 describe("aplazado and its new date (topic dates)", () => {

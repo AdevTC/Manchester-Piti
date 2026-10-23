@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 test("web pública, navegación y detalle sin iniciar sesión", async ({
   page,
 }) => {
+  // (it walks several pages, the first of them compiled cold by the dev server: triple time)
+  test.slow();
   await page.goto("/");
   // the headline follows the match day (the seed's date decides the phase): it is there, with the lens of the match
   await expect(page.getByRole("heading", { level: 1 })).not.toBeEmpty();
@@ -9,17 +11,45 @@ test("web pública, navegación y detalle sin iniciar sesión", async ({
   const nav = page.getByRole("navigation", { name: "Navegación principal" });
   await nav.getByRole("link", { name: "Partidos", exact: true }).click();
   await expect(page).toHaveURL(/\/partidos/);
-  await expect(page.getByRole("heading", { level: 1, name: "Partidos" })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Temporada" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Partidos" })).toBeAttached();
+  // the season is a menu: it names the season shown, and choosing one marks it
+  const season = page.getByRole("button", { name: /Temporada 2026\/27 · Prueba/ });
+  await expect(season).toHaveAttribute("aria-haspopup", "menu");
+  await season.click();
+  const seasons = page.getByRole("menu", { name: "Temporadas" });
+  await expect(seasons.getByRole("menuitemradio", { name: /Temporada 2026\/27 · Prueba/ })).toHaveAttribute("aria-checked", "true");
+  await seasons.getByRole("menuitemradio", { name: /Temporada 2026\/27 · Prueba/ }).click();
+  await expect(page).toHaveURL(/\/partidos$/);
   await expect(page.getByRole("searchbox", { name: "Buscar rival" })).toBeVisible();
-  // the season as a ribbon of light, and the three ways of looking at it
+  // the season as a ribbon of light, and the three screens of looking at it (each its own address)
   await expect(page.getByRole("slider", { name: /^La temporada entera/ })).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Qué ver" })).toBeVisible();
+  const screens = page.getByRole("tablist", { name: "Pantallas de Partidos" });
+  await expect(screens.getByRole("tab")).toHaveCount(3);
+  await screens.getByRole("tab", { name: /Tabla/ }).click();
+  await expect(page).toHaveURL(/\/partidos\/tabla$/);
   await page.goto("/partidos/preview-finished");
-  await expect(page.getByRole("status", { name: "Resultado: 2 a 1" })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Cartel cuadrado" }),
-  ).toBeVisible();
+  // the detail: the score in the lens, and the cartel to share it (square or story)
+  const lens = page.getByRole("region", { name: "El partido", exact: true });
+  await expect(lens.getByRole("img", { name: /^Manchester Piti 2, Atlético Demo 1/ }).first()).toBeVisible();
+  await page.getByRole("button", { name: "El cartel", exact: true }).first().click();
+  await expect(page.getByRole("dialog").getByRole("radio", { name: "Cuadrado" })).toBeVisible();
+});
+
+test("las direcciones viejas llegan a las nuevas", async ({ page }) => {
+  // (permanent redirects, ROUTES.md: the parameters move with them)
+  for (const [from, to] of [
+    ["/partidos?view=tabla", /\/partidos\/tabla$/],
+    ["/partidos?view=numeros", /\/partidos\/balance$/],
+    ["/matches/preview-finished", /\/partidos\/preview-finished$/],
+    ["/matches/preview-finished?tab=campo", /\/partidos\/preview-finished\/siete$/],
+    ["/matches", /\/partidos$/],
+    ["/#club", /\/club$/],
+    ["/#temporada", /\/numeros$/],
+  ] as const) {
+    await page.goto("/plantilla");
+    await page.goto(from);
+    await expect(page).toHaveURL(to);
+  }
 });
 
 test("cabecera sin accesos duplicados ni etiquetas partidas en escritorio compacto y ambas paletas", async ({ page }) => {

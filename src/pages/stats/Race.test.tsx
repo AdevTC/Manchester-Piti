@@ -56,3 +56,11 @@ it("shows everyone tied for most jornadas in the lead", () => {
   expect(within(most).getAllByRole("link").map(a => a.textContent)).toEqual(["ERIK", "PABLO"]);
   expect(most).toHaveTextContent("1 · compartido");
 });
+
+it("rows that arrive after the first render open the board on the last jornada", () => {
+  vi.stubGlobal("matchMedia", () => ({ matches: true }));
+  const jornada = new Map([["j1", 1], ["j2", 2]]);
+  const { rerender } = render(<RaceBoard rows={[]} nameOf={(p) => nameFor(p)} jornada={jornada} seasonId="t1" />);
+  rerender(<RaceBoard rows={squad.map((p) => analysePlayer(p, games))} nameOf={(p) => nameFor(p)} jornada={jornada} seasonId="t1" />);
+  expect(screen.getByRole("button", { name: "J2, R" })).toHaveAttribute("aria-pressed", "true");
+});
