@@ -4,22 +4,29 @@ test("Google permite votar una vez por cuenta y cambiar el voto", async ({
   page,
 }) => {
   await enterVestuario(page);
-  // The MVP block votes on the last finished match, whoever played it (the functions suites add their own
-  // matches to the same emulator): two of its candidates, whichever they are.
-  const mvp = page.locator("section", { has: page.getByRole("heading", { name: "El MVP" }) });
-  const radios = mvp.getByRole("radio");
+  // The MVP is voted on the match's own Vestuario: the seeded finished match, its vote open for 48 hours. Two of
+  // the players who played, whichever they are.
+  await page.goto("/partidos/preview-finished/vestuario");
+  const ballot = page.getByRole("radiogroup", { name: "Vota al MVP" });
+  const change = page.getByRole("button", { name: "Cambiar tu voto" });
+  // (a vote from an earlier run folds the ballot into «La carrera del MVP»: open it again)
+  await expect(ballot.or(change).first()).toBeVisible();
+  if (await change.isVisible()) await change.click();
+  const radios = ballot.getByRole("radio");
   await expect(radios.nth(1)).toBeVisible();
-  // A vote from an earlier run arrives after the radios: wait for it (the button says «Voto guardado» once
-  // the saved vote is loaded), so «first» is never the one already saved.
-  await mvp.getByRole("button", { name: "Voto guardado" }).waitFor({ timeout: 4000 }).catch(() => {});
-  const [first, second] = (await radios.nth(0).isChecked()) ? [radios.nth(1), radios.nth(0)] : [radios.nth(0), radios.nth(1)];
-  await first.check();
-  await mvp.getByRole("button", { name: /Votar al MVP|Cambiar mi voto/ }).click();
-  await expect(mvp.getByText("Voto guardado")).toBeVisible();
-  await second.check();
-  await mvp.getByRole("button", { name: "Cambiar mi voto" }).click();
-  await expect(mvp.getByText("Voto guardado")).toBeVisible();
-  await expect(mvp.getByText("1 voto del equipo", { exact: true })).toBeVisible();
+  const [first, second] = (await radios.nth(0).getAttribute("aria-checked")) === "true" ? [radios.nth(1), radios.nth(0)] : [radios.nth(0), radios.nth(1)];
+  await first.click();
+  await page.getByRole("button", { name: /Votar al MVP|Cambiar mi voto/ }).click();
+  await expect(page.getByText(/^Voto guardado: /).first()).toBeVisible();
+  // one vote per account: changing it moves the same vote, the team still has one
+  await change.click();
+  await second.click();
+  await page.getByRole("button", { name: "Cambiar mi voto" }).click();
+  await expect(page.getByText(/^Voto guardado: /).first()).toBeVisible();
+  await change.click();
+  // (while the vote is open the race stays hidden: «1 de N ya han votado»)
+  await expect(page.getByText(/^1( de \d+)? ya han votado/).first()).toBeVisible();
+  await expect(second).toHaveAttribute("aria-checked", "true");
 });
 
 // ── /admin/partidos (admin v2 «Sala de control»): «Nuevo partido» (modal) → the match workspace (Encuentro ·
