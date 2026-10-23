@@ -40,7 +40,7 @@ vi.mock("./pages/perfil/ProfilePage", async () => {
 });
 vi.mock("./components/celeste/BuscarPage", () => ({ BuscarPage: () => <h1>buscar</h1> }));
 
-const { createAppRouter } = await import("./router");
+const { createAppRouter, plantillaSearchSchema } = await import("./router");
 
 const leaf = (path: string) => createAppRouter(createMemoryHistory({ initialEntries: ["/"] })).matchRoutes(path, {}).at(-1)?.routeId;
 
@@ -206,5 +206,16 @@ describe("Plantilla's screens keep one page mounted", () => {
     expect(router.state.location.search).toEqual({ a: "alcides" });
     await act(() => router.navigate({ href: "/plantilla/album" }));
     expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
+  });
+});
+
+describe("Plantilla's search keeps a dorsal", () => {
+  it("?q=11 stays the text «11» (the router parses it as a number)", async () => {
+    expect(plantillaSearchSchema.parse({ q: 11 }).q).toBe("11");
+    expect(plantillaSearchSchema.parse({ q: "jo" }).q).toBe("jo");
+    expect(plantillaSearchSchema.parse({ q: { x: 1 } }).q).toBeUndefined();
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/plantilla?q=11"] }));
+    await router.load();
+    expect(router.state.matches.at(-1)?.search).toMatchObject({ q: "11" });
   });
 });

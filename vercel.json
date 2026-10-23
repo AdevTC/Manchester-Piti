@@ -107,8 +107,8 @@
       "destination": "/api/render?p=/jugadores/:id"
     },
     {
-      "source": "/jugadores/:id/:sec(temporada|jornadas|juego|analisis|cromo)",
-      "destination": "/api/render?p=/jugadores/:id/:sec"
+      "source": "/jugadores/:id/:screen(temporada|jornadas|juego|analisis|cromo)",
+      "destination": "/api/render?p=/jugadores/:id/:screen"
     },
     {
       "source": "/club",

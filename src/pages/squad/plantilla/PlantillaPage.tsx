@@ -26,7 +26,7 @@ import { shareClubPage } from "../../../lib/share";
 import { siteOrigin } from "../../../lib/derived/venue";
 import { useAvailability, useMatchScorers, useMvpResults } from "../../vestuario/live";
 import { applyMaqueta, readMaqueta } from "../../home/portada/maqueta";
-import { lastMatch, nextMatch, periodCtx, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
+import { lastMatch, leaders, nextMatch, periodCtx, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
 import { addrOf, hrefOf, type Addr } from "./address";
 import { SECS, SEC_LABEL, albumView, duelView, homeView, ledeView, matchLines, playerView, railView, type AnCat, type DayInput, type Quien, type Screen, type Sec, type Squad, type ViewState, type Who } from "./views";
 import { Hook, Ic, Shirt } from "./bits";
@@ -59,12 +59,15 @@ function transition(dir: Dir, reduced: boolean, update: () => Promise<void> | vo
     d.removeAttribute("data-vd-calm");
     done?.();
   };
-  const start = (document as Document & { startViewTransition?: (cb: () => Promise<void> | void) => { finished: Promise<void> } }).startViewTransition;
+  const start = (document as Document & { startViewTransition?: (cb: () => Promise<void> | void) => { finished: Promise<void>; ready: Promise<void>; updateCallbackDone: Promise<void> } }).startViewTransition;
   if (typeof start === "function" && !isShot()) {
     try {
       const vt = start.call(document, async () => {
         await update();
       });
+      // (a move that starts while another runs skips the first: its ready/update promises reject, nothing to report)
+      vt.ready.catch(() => {});
+      vt.updateCallbackDone.catch(() => {});
       vt.finished.then(clean, clean);
       return;
     } catch {
@@ -426,8 +429,9 @@ export function PlantillaPage() {
   useLayoutEffect(() => {
     const el = railRef.current;
     if (!el || el.scrollWidth <= el.clientWidth + 1) return;
+    // (only when the chosen shirt is out of sight: the rail otherwise stays where it is, as on the boards)
     const s = el.querySelector<HTMLElement>(".pl-hang.is-sel");
-    if (s) el.scrollLeft = Math.max(0, s.offsetLeft - el.clientWidth / 2 + s.offsetWidth / 2);
+    if (s && (s.offsetLeft < el.scrollLeft || s.offsetLeft + s.offsetWidth > el.scrollLeft + el.clientWidth)) el.scrollLeft = Math.max(0, s.offsetLeft - el.clientWidth / 2 + s.offsetWidth / 2);
   }, [shown.focus, screen]);
 
   const matchday = !!stage;
@@ -699,7 +703,18 @@ export function PlantillaPage() {
                   <p className="pl-sub">{du.sub}</p>
                 </header>
                 <div className="pl-ring">
-                  {(["a", "b"] as const).map((k) => {
+                  {(["a", "mid", "b"] as const).map((k) => {
+                    if (k === "mid")
+                      return (
+                      <div key="mid" className="pl-ring__mid">
+                        <button type="button" className="vd-glass vd-press pl-vs" onClick={() => go(toAddr({ a: duelB, b: duelA }), { dir: "up", replace: true })} aria-label="Intercambiar las esquinas">
+                          <span aria-hidden="true">VS</span>
+                        </button>
+                        <p className="pl-tally" aria-live="polite">
+                          {du.tally}
+                        </p>
+                      </div>
+                      );
                     const c = du[k];
                     return (
                       <div key={k} className={`pl-corner pl-corner--${k} ${c.cls}`}>
@@ -718,14 +733,6 @@ export function PlantillaPage() {
                       </div>
                     );
                   })}
-                  <div className="pl-ring__mid">
-                    <button type="button" className="vd-glass vd-press pl-vs" onClick={() => go(toAddr({ a: duelB, b: duelA }), { dir: "up", replace: true })} aria-label="Intercambiar las esquinas">
-                      <span aria-hidden="true">VS</span>
-                    </button>
-                    <p className="pl-tally" aria-live="polite">
-                      {du.tally}
-                    </p>
-                  </div>
                 </div>
                 <div className="pl-duelbody">
                   <table className="pl-duel">
@@ -918,7 +925,8 @@ function defaultDuel(S: Squad, a?: string): [string, string] {
     const p = S.by.get(id)!;
     return !!(p.birth && p.h && p.w);
   });
-  const pool = [...complete, ...S.ids.filter((id) => !complete.includes(id))];
+  const lead = leaders(S.ids, S.cur, "g").ids[0];
+  const pool = [...new Set([lead, S.captain, ...complete, ...S.ids].filter((id): id is string => !!id && S.by.has(id)))];
   const first = a ?? pool[0] ?? "";
   const second = pool.find((id) => id !== first) ?? "";
   return [first, second];

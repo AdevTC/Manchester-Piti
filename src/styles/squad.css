@@ -683,3 +683,5 @@ html[data-theme="light"]:has(.vx.pl),html[data-theme="light"]:has(.vx.pl) body{b
 /* the medals' progress reads «40 de 1000» on one line */
 .pl .pl-chase li{grid-template-columns:110px minmax(0,1fr) auto}
 .pl .pl-chase li b{white-space:nowrap}
+/* a link drawn as a glass button keeps the button's ink (a global link colour reached «Editar ficha» in Día) */
+.pl a.vd-btn:not(.vd-btn--pri){color:var(--vd-g-ink)}

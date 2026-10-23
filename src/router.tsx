@@ -278,7 +278,8 @@ const numerosEvolucionRoute = createRoute({ getParentRoute: () => statsRoute, pa
 export const plantillaSearchSchema = z.object({
   kit: z.coerce.number().int().min(1).max(2).optional().catch(undefined),
   orden: z.enum(["posicion"]).optional().catch(undefined),
-  q: z.string().max(80).optional().catch(undefined),
+  // (the router parses «?q=11» as a number: a dorsal searched stays text)
+  q: z.union([z.string(), z.number()]).transform(String).pipe(z.string().max(80)).optional().catch(undefined),
 });
 const plantillaRoute = createRoute({
   getParentRoute: () => rootRoute,
