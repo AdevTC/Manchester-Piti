@@ -9,7 +9,7 @@ import { useOpenTrainings, useTrainingVotes, type Training } from "../live";
 import { useWrite } from "../shared/useWrite";
 import { voteTraining } from "../writes";
 import type { VxCtx } from "./ctx";
-import { confirmable, EMPTY_RANGE, firstRange, hoursPlace, localDay, proposal, rangeProblem, slotDay, slotDayMonth, trainRows, type Range } from "./entrenosModel";
+import { confirmable, EMPTY_RANGE, firstRange, hoursPlace, localDay, proposal, rangeProblem, slotDayMonth, trainRows, type Range } from "./entrenosModel";
 
 const BTN = "vd-glass vd-press vd-btn vd-btn--sm";
 

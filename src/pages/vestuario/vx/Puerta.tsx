@@ -103,8 +103,8 @@ function Llamando({ cap, byId, squad }: PanelProps & { squad: readonly SquadShir
                     {ficha === "Sin ficha" ? "Sin ficha" : `Quiere entrar como ${ficha}`}
                     {r.email ? <span className="vd-vh"> · {r.email}</span> : null}
                   </span>
-                  <button type="button" className="vd-link" aria-expanded={chg === r.uid} onClick={() => setChg(chg === r.uid ? null : r.uid)}>
-                    Cambiar ficha<span className="vd-vh"> de {nick}</span>
+                  <button type="button" className="vd-link" aria-expanded={chg === r.uid} aria-label={`Cambiar ficha de ${nick}`} onClick={() => setChg(chg === r.uid ? null : r.uid)}>
+                    Cambiar ficha
                   </button>
                   {chg === r.uid && (
                     <label>
@@ -238,8 +238,8 @@ function Invitar({ cap, byId, squad, now, say }: PanelProps & { squad: readonly 
                   <b>{title}</b>
                   <span>{passLine(v, now)}</span>
                 </div>
-                <button type="button" className="vd-link" onClick={() => void cap.revokeInvite(v.code).then((ok) => ok && say("Enlace revocado: deja de funcionar al momento."))} disabled={cap.busy === `inv:${v.code}`}>
-                  Revocar<span className="vd-vh"> el pase {title}</span>
+                <button type="button" className="vd-link" onClick={() => void cap.revokeInvite(v.code).then((ok) => ok && say("Enlace revocado: deja de funcionar al momento."))} disabled={cap.busy === `inv:${v.code}`} aria-label={`Revocar el pase ${title}`}>
+                  Revocar
                 </button>
               </li>
             );
@@ -293,8 +293,8 @@ function Dentro({ cap, byId, say }: PanelProps & { say: (t: string) => void }) {
                   </button>
                 </>
               ) : (
-                <button type="button" className="vd-link" onClick={() => setConfirm(m.uid)} disabled={cap.busy === `mem:${m.uid}`}>
-                  Quitar acceso<span className="vd-vh"> a {name}</span>
+                <button type="button" className="vd-link" onClick={() => setConfirm(m.uid)} disabled={cap.busy === `mem:${m.uid}`} aria-label={`Quitar acceso a ${name}`}>
+                  Quitar acceso
                 </button>
               )}
             </li>

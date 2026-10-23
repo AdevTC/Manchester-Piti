@@ -69,7 +69,7 @@ function blockOf(pathname: string): { bloque: Bloque | null; pollId: string | nu
 }
 
 export function VestuarioPage() {
-  const { user, profile, logout } = useAuth();
+  const { user, logout } = useAuth();
   const viewer = useViewer();
   const hydrated = useHydrated();
   const { matches, players } = useClubData();

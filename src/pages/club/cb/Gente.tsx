@@ -47,7 +47,16 @@ function Calendar({ id, feed, say }: { id: string; feed: string; say: (t: string
     }
   };
   return (
-    <section className="cb-cal" aria-labelledby={id}>
+    <section
+      className="cb-cal"
+      aria-labelledby={id}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && open) {
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
       <h2 id={id} className="cb-h2">
         El calendario del club
       </h2>

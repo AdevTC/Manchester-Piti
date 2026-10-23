@@ -70,8 +70,8 @@ export function TablonBlock({ c }: { c: VxCtx }) {
                 <span>{ago(m.at, c.now)}</span>
                 <p>{m.text}</p>
                 {(mine || c.admin) && (
-                  <button type="button" className="vd-link" onClick={() => remove(m.id)}>
-                    Borrar<span className="vd-vh">{mine ? " tu mensaje" : ` el mensaje de ${m.name}`}</span>
+                  <button type="button" className="vd-link" aria-label={mine ? "Borrar tu mensaje" : `Borrar el mensaje de ${m.name}`} onClick={() => remove(m.id)}>
+                    Borrar
                   </button>
                 )}
               </li>

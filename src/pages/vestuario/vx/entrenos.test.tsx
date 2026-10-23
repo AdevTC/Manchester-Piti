@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { Training, TrainingVote } from "../live";
 import type { VxCtx } from "./ctx";
@@ -98,14 +98,16 @@ it("an open proposal: who proposed it, each slot with «Me viene», and a vote w
   expect(screen.queryByRole("button", { name: "Retirar propuesta" })).toBeNull();
 });
 
-it("my slot reads «Me viene bien»; the proposer confirms and withdraws", () => {
+it("my slot reads «Me viene bien»; the proposer confirms and withdraws", async () => {
   live.trainings = [training({ proposedBy: "u1" })];
   live.votes = [{ uid: "u1", slotIds: ["b"], name: "YO" }];
   render(<EntrenosBlock c={ctx()} />);
   expect(screen.getByRole("button", { pressed: true })).toHaveTextContent("Me viene bien");
   fireEvent.click(within(screen.getByRole("group", { name: "Confirmar el entreno" })).getByRole("button", { name: "Jueves 22 · 20:00–21:30" }));
   expect(api.confirmTraining).toHaveBeenCalledWith({ trainingId: "t1", slotId: "b" });
-  fireEvent.click(screen.getByRole("button", { name: "Retirar propuesta" }));
+  const withdraw = screen.getByRole("button", { name: "Retirar propuesta" });
+  await waitFor(() => expect(withdraw).toBeEnabled());
+  fireEvent.click(withdraw);
   expect(api.deleteTraining).toHaveBeenCalledWith({ trainingId: "t1" });
 });
 

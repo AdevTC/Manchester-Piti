@@ -56,7 +56,7 @@ it("«Añadir» checks the dates, then saves and says how many matches", async (
   fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-10-31" } });
   fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-11-09" } });
   fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: "boda" } });
-  expect(screen.getByText("La ve todo el equipo · 4/80")).toBeTruthy();
+  expect(screen.getByText("La ve todo el equipo · 4/140")).toBeTruthy();
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Añadir" })));
   expect(state.addAbsence).toHaveBeenCalledWith(expect.objectContaining({ uid: "u1" }), "2026-10-31", "2026-11-09", "boda");
   expect(say).toHaveBeenCalledWith("Del 31 oct al 9 nov. Guardada. Contestamos «No puedo» en 1 partido.");
