@@ -13,13 +13,6 @@
       ]
     },
     {
-      "source": "/datos/club.bundle",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store" },
-        { "key": "CDN-Cache-Control", "value": "no-store" }
-      ]
-    },
-    {
       "source": "/(sw.js|registerSW.js)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     },
@@ -52,7 +45,7 @@
   "rewrites": [
     {
       "source": "/datos/club.bundle",
-      "destination": "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubBundle"
+      "destination": "/api/bundle"
     },
     {
       "source": "/calendario.ics",
