@@ -17,6 +17,7 @@ export { clubShare } from "./social.js";
 export { setSeasonArchived } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
+export { htmlCacheMatches, htmlCachePlayers, htmlCacheSeasons, htmlCacheMvp, htmlCacheStandings, htmlCacheContent } from "./htmlCache.js";
 export { liveEvent } from "./live.js";
 export { publishLive } from "./publishLive.js";
 export { savePrediction } from "./savePrediction.js";

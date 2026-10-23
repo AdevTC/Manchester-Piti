@@ -14,6 +14,7 @@ import { under } from "./lib/paths";
 import { viewerOf } from "./hooks/useViewer";
 import { publishViewer } from "./hooks/viewerSignal";
 import { publishAccount } from "./components/celeste/accountSignal";
+import { useTakingOver } from "./hooks/useClock";
 import "./styles/club.css";
 // Only private pages (and invitation links) show the door: keep it out of the entry chunk.
 const AccessGate = lazy(() => import("./pages/acceso/AccessGate").then((m) => ({ default: m.AccessGate })));
@@ -41,6 +42,7 @@ export function RootLayout() {
   const mesaPath = /^\/partidos\/[^/]+\/mesa\/?$/.test(pathname);
   // (the pizarra has its own live plate and the mesa's pitch: the score would cover its header)
   const pizarraPath = /^\/pizarra\/?$/.test(pathname);
+  const takingOver = useTakingOver();
   const invitation = pathname.startsWith("/invitacion/");
   // The door stays up through the walkout after being let in.
   const welcome = useWelcome();
@@ -69,7 +71,8 @@ export function RootLayout() {
       {!immersive && <Navbar />}
       <SeasonUrlSync />
       <InterimLanding />
-      {!adminPath && !mesaPath && !pizarraPath && (
+      {/* (not while React takes over a server-rendered page: the server has no copy of it to match) */}
+      {!takingOver && !adminPath && !mesaPath && !pizarraPath && (
         <Suspense fallback={null}>
           <LiveScore />
         </Suspense>

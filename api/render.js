@@ -2,8 +2,9 @@
 // addresses whose parameters move too (/stats?view=…, /partidos?view=…, /matches/<id>?tab=…: the router's
 // own table, src/lib/legacyUrls, built into dist-ssr). Renders the page with the public
 // data bundle and the same React code as the browser (dist-ssr, built by `pnpm build`), so the first
-// paint has the real content without waiting for the JavaScript. Read fresh public data on every
-// request so archived or deleted matches cannot reappear in a cached page.
+// paint has the real content without waiting for the JavaScript. The rendered pages stay a minute in Vercel's
+// CDN cache, and every write to the public data deletes them from it (functions/src/htmlCache.ts), so archived
+// or deleted matches cannot reappear in a cached page.
 // Any failure answers with the plain app shell: the page then boots exactly as without this.
 
 // The bundle function directly (Madrid, next to Firestore).
@@ -40,6 +41,19 @@ async function bundle() {
   return new Uint8Array(await response.arrayBuffer());
 }
 
+/** A server-rendered page: cached on Vercel's CDN for a minute (tag «club-html», deleted when the public data
+ *  changes: functions/src/htmlCache.ts), then served for a few minutes more while a fresh one renders behind it.
+ *  The browser always asks again (the service worker serves returning visitors the shell anyway). */
+const page = (body) =>
+  new Response(body, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "vercel-cdn-cache-control": "max-age=60, stale-while-revalidate=300, stale-if-error=86400",
+      "vercel-cache-tag": "club-html",
+    },
+  });
+
 const html = (body) =>
   new Response(body, {
     headers: {
@@ -61,12 +75,19 @@ export async function GET(request) {
     if (!isPage(path)) throw new Error(`not a server-rendered page: ${path}`);
     const [{ template, routes }, bytes] = await Promise.all([import("../dist-ssr/shell.js"), bundle()]);
     const { renderPage } = server;
-    const markup = await renderPage(url, bytes);
+    // (one instant for the whole page: its clocks read it, and the browser takes the page over at it too)
+    const now = Date.now();
+    const markup = await renderPage(url, bytes, now);
     const css = (routes.find(([re]) => new RegExp(re).test(path))?.[1] ?? []).filter((f) => f.endsWith(".css"));
     const head = css.map((file) => `<link rel="stylesheet" crossorigin href="${file}">`).join("");
+    // The data and the instant the page was painted with go in it too: the browser takes the page over from
+    // them (src/main.tsx) and primes its cache with the bundle instead of downloading it again (src/lib/bundle.ts).
+    const data = `<script type="application/json" id="club-bundle" data-at="${now}">${server.inlineBundle(bytes)}</script>`;
     // Function replacers: `$` in the markup must not be read as a replacement pattern.
-    const page = template.replace("<!--ssr-head-->", () => head).replace("<!--ssr-root-->", () => markup);
-    return html(page);
+    const body = template
+      .replace("<!--ssr-head-->", () => head)
+      .replace("<!--ssr-root--></div>", () => `${markup}</div>${data}`);
+    return page(body);
   } catch (error) {
     console.error("render", path, error);
     try {

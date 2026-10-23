@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
-/** Follows <html data-theme> (the global theme switch), so 3D lighting can flip with it. */
-export function useDocumentTheme() {
-  const read = () => (typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
-  const [theme, setTheme] = useState<"dark" | "light">(read);
-  useEffect(() => {
-    const mo = new MutationObserver(() => setTheme(read()));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => mo.disconnect();
-  }, []);
-  return theme;
+const read = () => (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+function subscribe(onChange: () => void) {
+  const mo = new MutationObserver(onChange);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => mo.disconnect();
+}
+
+/** Follows <html data-theme> (the global theme switch), so 3D lighting can flip with it. «Día» on the server and
+ *  while React takes a server-rendered page over (the server can't know the theme), then the page's own. */
+export function useDocumentTheme(): "dark" | "light" {
+  return useSyncExternalStore(subscribe, read, () => "light");
 }

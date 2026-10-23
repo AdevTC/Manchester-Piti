@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { dateMillis } from "../../functions/src/matchEngine";
-import { serverNow } from "../lib/serverTime";
-import { useClock } from "./useClock";
+import { renderNow } from "../lib/serverTime";
+import { useClock, useTakingOver } from "./useClock";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -12,7 +12,8 @@ export function useMatchClock(matches: readonly { date?: unknown; duration?: num
   // the rest of the season's matches (~61 boundaries each) stay out. The window moves on the hour the clock reads
   // (state, not a render-time read: the compiler would keep the first one), at the latest a minute late, which a
   // day's margin covers; a jump (a tab woken after days) moves it at once and the clock re-reads its boundaries.
-  const [hour, setHour] = useState(() => Math.floor(serverNow() / HOUR));
+  const takingOver = useTakingOver();
+  const [hour, setHour] = useState(() => Math.floor(renderNow(takingOver) / HOUR));
   const boundaries = useMemo(() => {
     const from = hour * HOUR - DAY;
     const to = (hour + 1) * HOUR + DAY;

@@ -139,6 +139,19 @@ export function serverNow(): number {
   return Date.now() + serverOffset();
 }
 
+let paintedAt: number | null = null;
+/** The instant a server-rendered page was painted for (entry-server.tsx per request; main.tsx reads it from the
+ *  page): the time the clocks show while React takes that page over, so its first render is the server's and
+ *  nothing differs from the markup. Then they move to the real time like any re-render. */
+export function setPaintedAt(t: number | null): void {
+  paintedAt = t;
+}
+/** The real time (serverNow), or the page's painted instant while React takes a server-rendered page over
+ *  (`takingOver`: hooks/useClock useTakingOver). */
+export function renderNow(takingOver: boolean): number {
+  return takingOver && paintedAt !== null ? paintedAt : serverNow();
+}
+
 /** Records the `serverNow` of a callable's answer (ignored when missing: an older server). */
 export function recordServerTime(serverNow: unknown, sentAt: number, receivedAt: number, rtt?: number): void {
   const s = roundTripSample(serverNow, sentAt, receivedAt, rtt);

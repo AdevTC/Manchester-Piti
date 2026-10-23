@@ -1,6 +1,8 @@
 // First paint with data: the public collections arrive as one Firestore bundle from Vercel's CDN
 // (functions/src/bundle.ts). index.html already started the download (<link rel=preload>), so this
 // fetch reuses it; loading it into the local cache makes the listeners' first snapshot immediate.
+// A server-rendered page carries the same bundle inside it (<script id="club-bundle">, api/render.js): then
+// nothing is downloaded at all.
 // Purely an accelerator: if anything fails, the listeners fetch the same data as always. The shared
 // listeners open only once it has settled (bundleGate: opened during the load, they start empty).
 // Its `Date` header also gives a first estimate of the server's clock (lib/serverTime), but only for
@@ -36,7 +38,23 @@ export function noteServerDate(r: Response) {
 /** The longest the public listeners wait for the bundle before opening anyway (see bundleGate). */
 export const BUNDLE_WAIT_MS = 4000;
 
-export function primeFromBundle() {
+/** The bundle the server put in the page and the instant it painted the page at, taken out of the page (its
+ *  text is the page's largest node). */
+export function takeInlineBundle(doc: Document = document): { text: string; at: number | null } | null {
+  const el = doc.getElementById("club-bundle");
+  if (!el) return null;
+  const text = el.textContent;
+  const at = Number(el.getAttribute("data-at"));
+  el.remove();
+  return text ? { text, at: Number.isFinite(at) && at > 0 ? at : null } : null;
+}
+
+/** Into the local cache: the bundle the page brought (`inline`), or the one downloading since the HTML. */
+export function primeFromBundle(inline?: string | null) {
+  if (inline) {
+    holdListenersFor(loadBundle(db, inline).then(() => undefined, () => undefined), BUNDLE_WAIT_MS);
+    return;
+  }
   const load = fetch(BUNDLE_URL)
     .then((r) => {
       // The SPA fallback answers unknown paths with index.html: only take a real bundle.

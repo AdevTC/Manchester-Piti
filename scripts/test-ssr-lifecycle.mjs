@@ -47,10 +47,20 @@ await test("public HTML follows archive, deletion and restoration without servin
       const response = await GET(new Request("https://piti.test/api/render?p=/partidos"));
       const html = await response.text();
       assert.equal(response.status, 200);
-      assert.equal(response.headers.get("cache-control"), "no-store");
-      assert.equal(response.headers.get("cdn-cache-control"), "no-store");
-      assert.equal(html.includes(rival), visible);
+      // (each render reads the bundle afresh; Vercel's CDN keeps the page a minute under «club-html», which every
+      // write to the public data deletes: functions/src/htmlCache.ts)
+      assert.equal(response.headers.get("cache-control"), "public, max-age=0, must-revalidate");
+      assert.match(response.headers.get("vercel-cdn-cache-control") ?? "", /^max-age=60\b/);
+      assert.equal(response.headers.get("vercel-cache-tag"), "club-html");
+      const [markup, rest] = html.split('<script type="application/json" id="club-bundle"');
+      assert.equal(markup.includes(rival), visible);
       assert.ok(html.includes("data-ssr"), "must render actual page, not fallback shell");
+      // The page carries the data it was painted with (no «<» inside it) and that instant, for the browser to take over.
+      const inline = rest?.match(/^ data-at="(\d+)">([^<]*)<\/script>/);
+      assert.ok(inline, "must carry its bundle");
+      // (the same bundle /datos/club.bundle serves: an archived match is still a document, which the app's mappers drop)
+      assert.equal(inline[2].includes(rival), match !== null);
+      assert.ok(!html.includes('rel="preload" href="/datos/club.bundle"'), "no second download of the bundle");
     }
     assert.equal(requests, 4);
   } finally {

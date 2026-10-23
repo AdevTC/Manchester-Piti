@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { serverNow, subscribeServerTime } from "../lib/serverTime";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { renderNow, serverNow, subscribeServerTime } from "../lib/serverTime";
 const NO_BOUNDARIES: readonly number[] = [];
+const noop = () => () => {};
+
+/** True on the server and while React takes over a server-rendered page (this component's first render
+ *  there); false from then on, and always in a page the browser rendered itself. */
+export const useTakingOver = () => !useSyncExternalStore(noop, () => true, () => false);
 /**
  * The current time on the server's clock (lib/serverTime: the phone's time plus its estimated offset,
  * so every phone reads the same live minute), re-rendering every `step` ms (aligned to the step
@@ -8,7 +13,9 @@ const NO_BOUNDARIES: readonly number[] = [];
  * of re-rendering their whole tree every second. A new offset estimate re-reads it at once.
  */
 export function useClock(step = 1000, boundaries: readonly number[] = NO_BOUNDARIES) {
-  const [now, setNow] = useState(() => serverNow());
+  // (the server-rendered page's own instant while React takes it over: lib/serverTime renderNow)
+  const takingOver = useTakingOver();
+  const [now, setNow] = useState(() => renderNow(takingOver));
   // (serialized once per boundaries array, not on every render)
   const boundaryKey = useMemo(() => JSON.stringify(boundaries), [boundaries]);
   useEffect(() => {

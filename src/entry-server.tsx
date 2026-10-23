@@ -1,26 +1,18 @@
-// Server render of the public pages (built with `vite build --ssr`, run by api/render.js). Same
-// providers as main.tsx, a fresh router and cache per request, seeded from the public data bundle so
-// the HTML matches what the browser paints once its listeners deliver the same documents.
-import { StrictMode } from "react";
+// Server render of the public pages (built with `vite build --ssr`, run by api/render.js). The same tree as
+// main.tsx (Root), a fresh router and cache per request, seeded from the public data bundle at one instant: the
+// page carries both (api/render.js) and the browser takes it over seeding the same cache from them (main.tsx),
+// so its first render is exactly this markup.
 import { renderToString } from "react-dom/server";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory } from "@tanstack/react-router";
-import App from "./App";
+import { Root } from "./Root";
 import { createAppRouter } from "./router";
-import { mapMatch, mapMvp, mapPlayer, mapSeason, mvpPrivateWhileOpen } from "./lib/firestoreMappers";
-import { CONTENT_KEY, MATCHES_KEY, MVP_RESULTS_KEY, PLAYERS_KEY, SEASONS_KEY, STANDINGS_KEY, withDefaults } from "./lib/publicData";
-import { mapStandings } from "./lib/standings";
-import type { ClubContent } from "./lib/clubContentDefaults";
-import { inQueryOrder, parseBundle, type BundleDoc } from "./ssr/bundleData";
+import { seedPublicData } from "./lib/publicSeed";
+import { setPaintedAt } from "./lib/serverTime";
 
 // The old addresses the server answers with a permanent redirect (api/render.js), from the router's own table.
 export { legacyHref } from "./lib/legacyUrls";
-
-const mapAll = <T,>(docs: BundleDoc[], map: (id: string, data: unknown) => T | null) =>
-  docs.flatMap((d) => {
-    const v = map(d.id, d.data);
-    return v === null ? [] : [v];
-  });
+export { inlineBundle } from "./lib/inlineBundle";
 
 // On the server the router answers a URL whose search it normalises (a search default, a route that
 // rewrites its own search) with a redirect instead of a page. No public route does that today (/stats and
@@ -38,25 +30,17 @@ async function loadRouter(url: string) {
   return again;
 }
 
-/** The markup of `url` (a path, with the search the server forwards: «/partidos?view=tabla») with the bundle's data, for the inside of `<div id="root">`. */
-export async function renderPage(url: string, bundle: Uint8Array): Promise<string> {
-  const data = inQueryOrder(parseBundle(bundle));
+/** The markup of `url` (a path, with the search the server forwards: «/partidos?view=tabla») with the bundle's
+ *  data at `now` (what the page's clocks read), for the inside of `<div id="root">`. */
+export async function renderPage(url: string, bundle: Uint8Array, now: number = Date.now()): Promise<string> {
   const qc = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
-  const matches = mapAll(data.matches, mapMatch);
-  const visibleIds = new Set(matches.map(m => m.id));
-  qc.setQueryData(MATCHES_KEY, matches);
-  qc.setQueryData(PLAYERS_KEY, mapAll(data.players, mapPlayer));
-  qc.setQueryData(SEASONS_KEY, mapAll(data.seasons, mapSeason));
-  qc.setQueryData(MVP_RESULTS_KEY, mvpPrivateWhileOpen(mapAll(data.mvpResults.filter(d => visibleIds.has(d.id)), mapMvp), matches, Date.now()));
-  qc.setQueryData(STANDINGS_KEY, mapAll(data.standings, mapStandings));
-  qc.setQueryData(CONTENT_KEY, withDefaults(data.content?.data as Partial<ClubContent> | undefined));
-
+  seedPublicData(qc, bundle, now);
   const router = await loadRouter(url);
-  return renderToString(
-    <StrictMode>
-      <QueryClientProvider client={qc}>
-        <App router={router} />
-      </QueryClientProvider>
-    </StrictMode>,
-  );
+  // (renderToString is synchronous: no other request's render runs in between)
+  setPaintedAt(now);
+  try {
+    return renderToString(<Root router={router} client={qc} />);
+  } finally {
+    setPaintedAt(null);
+  }
 }

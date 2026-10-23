@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Helper to toggle admin role in local storage for development/testing
   const [localAdminOverride, setLocalAdminOverride] = useState<boolean>(() => {
-    return import.meta.env.DEV && localStorage.getItem("dev_admin_override") === "true";
+    return import.meta.env.DEV && typeof window !== "undefined" && localStorage.getItem("dev_admin_override") === "true";
   });
 
   const setLocalAdminRole = (isAdmin: boolean) => {
