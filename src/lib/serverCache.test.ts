@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { inlineBundle } from "./inlineBundle";
-import { PURGE_GAP_MS, purgeDue, purgeRequest } from "../../functions/src/htmlCacheLogic";
+import { identityTokenUrl, PURGE_GAP_MS, PURGE_URL, purgeDue, purgeRequest } from "../../functions/src/htmlCacheLogic";
 import { takeInlineBundle } from "./bundle";
 
 vi.mock("../firebase", () => ({ db: {} }));
@@ -52,16 +52,15 @@ describe("the bundle inside the page", () => {
 });
 
 describe("deleting the cached pages when the data changes", () => {
-  it("asks Vercel to delete the «club-html» pages of production", () => {
-    const { url, init } = purgeRequest("manchester-piti", "team_1", "tok");
-    expect(url).toBe("https://api.vercel.com/v1/edge-cache/dangerously-delete-by-tags?projectIdOrName=manchester-piti&teamId=team_1");
+  it("asks the site's own endpoint, signed with the functions' identity token for that same address", () => {
+    const { url, init } = purgeRequest("id-token");
+    expect(url).toBe(PURGE_URL);
+    expect(url).toBe("https://manchester-piti.vercel.app/api/purge");
     expect(init.method).toBe("POST");
-    expect(init.headers).toEqual({ authorization: "Bearer tok", "content-type": "application/json" });
-    expect(JSON.parse(String(init.body))).toEqual({ tags: ["club-html"], target: "production" });
-  });
-
-  it("leaves the team out when there is none", () => {
-    expect(purgeRequest("p", "", "t").url).not.toContain("teamId");
+    expect(init.headers).toEqual({ authorization: "Bearer id-token" });
+    expect(identityTokenUrl(PURGE_URL)).toBe(
+      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https%3A%2F%2Fmanchester-piti.vercel.app%2Fapi%2Fpurge&format=full",
+    );
   });
 
   it("deletes at most once per gap, the first write always", () => {
