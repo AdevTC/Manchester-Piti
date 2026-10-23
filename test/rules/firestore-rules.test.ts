@@ -1416,6 +1416,37 @@ describe("Centro de avisos (notices) y users.noticesSeenAt", () => {
     // (the captains' role rule is untouched)
     await assertSucceeds(updateDoc(doc(db("admin"), "users", "other"), { role: "admin" }));
   });
+
+  it("lo leído de cada aviso (users/{uid}/private/notices): solo su socio, true o false, como mucho 200", async () => {
+    const reads = (who: string | undefined, uid = "member") => doc(db(who), "users", uid, "private", "notices");
+    const many = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`n${i}`, i % 2 === 0]));
+    await assertSucceeds(setDoc(reads("member"), { read: { "final-m1": true, "mvp-open-m1": false } }));
+    await assertSucceeds(getDoc(reads("member")));
+    // «Marcar como no leído» keeps a false; «Marcar todo como leído» empties it (beside noticesSeenAt, in one batch)
+    await assertSucceeds(setDoc(reads("member"), { read: { "final-m1": false } }));
+    const mine = db("member");
+    const batch = writeBatch(mine);
+    batch.update(doc(mine, "users", "member"), { noticesSeenAt: serverTimestamp() });
+    batch.set(doc(mine, "users", "member", "private", "notices"), { read: {} });
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(setDoc(reads("member"), { read: many(200) }));
+    await assertFails(setDoc(reads("member"), { read: many(201) }));
+    // only booleans, only `read`
+    await assertFails(setDoc(reads("member"), { read: { "final-m1": "sí" } }));
+    await assertFails(setDoc(reads("member"), { read: { "final-m1": 1 } }));
+    await assertFails(setDoc(reads("member"), { read: { "final-m1": true }, extra: 1 }));
+    await assertFails(setDoc(reads("member"), { read: ["final-m1"] }));
+    await assertFails(setDoc(reads("member"), {}));
+    // nobody else reads or writes it, a captain neither
+    await assertFails(getDoc(reads("admin")));
+    await assertFails(getDoc(reads(undefined)));
+    await assertFails(setDoc(reads("admin"), { read: {} }));
+    await assertFails(setDoc(reads("other"), { read: { x: true } }));
+    await assertFails(deleteDoc(reads("admin")));
+    // the member's own other private docs stay closed
+    await assertFails(setDoc(doc(db("member"), "users", "member", "private", "otro"), { read: {} }));
+    await assertSucceeds(deleteDoc(reads("member")));
+  });
 });
 
 describe("Encuestas del vestuario (polls, polls/{id}/votes)", () => {

@@ -226,6 +226,22 @@ const after = (await db.collection("pushSubscriptions").where("endpoint", "==", 
 assert.equal(after.get("uid"), undefined);
 assert.deepEqual(after.get("topics"), ["goals"]);
 checked += 4;
+// «Pausar»: by the endpoint, a week at most (clamped), never in the past; null resumes; an unknown device is not found
+const pausedDoc = async () => (await db.collection("pushSubscriptions").where("endpoint", "==", sub("socio").endpoint).get()).docs[0];
+const inHour = Date.now() + 3600_000;
+const paused = await call("pushSetPause", null, { endpoint: sub("socio").endpoint, until: inHour });
+assert.equal(paused.result?.pausedUntil, inHour, JSON.stringify(paused));
+assert.equal((await pausedDoc()).get("pausedUntil"), inHour);
+const week = 7 * 24 * 3600_000;
+const clamped = await call("pushSetPause", null, { endpoint: sub("socio").endpoint, until: Date.now() + week + 60_000 });
+assert.ok(clamped.result?.pausedUntil <= Date.now() + week, JSON.stringify(clamped));
+assert.equal((await call("pushSetPause", null, { endpoint: sub("socio").endpoint, until: Date.now() - 1000 })).error?.status, "INVALID_ARGUMENT");
+assert.equal((await call("pushSetPause", null, { endpoint: sub("socio").endpoint, until: Date.now() + 2 * week })).error?.status, "INVALID_ARGUMENT");
+assert.equal((await call("pushSetPause", null, { endpoint: sub("nadie").endpoint, until: inHour })).error?.status, "NOT_FOUND");
+const resumed = await call("pushSetPause", null, { endpoint: sub("socio").endpoint, until: null });
+assert.equal(resumed.result?.pausedUntil, null);
+assert.equal((await pausedDoc()).get("pausedUntil"), undefined);
+checked += 8;
 // (cleanup: nobody stays subscribed in the emulator)
 for (const n of ["socio", "fan"]) assert.ok(!(await call("pushSubscribe", n === "socio" ? socio : null, { subscription: sub(n), topics: [] })).error);
 assert.equal((await db.collection("pushSubscriptions").where("endpoint", "in", [sub("socio").endpoint, sub("fan").endpoint]).get()).size, 0);
@@ -248,5 +264,5 @@ for (const kind of ["first", "changes"]) {
 }
 checked++;
 
-console.log(checked + " comprobaciones de avisos correctas: pitidos, gol anulado, final provisional, MVP, tu ficha, tus posiciones, suscripciones y botones del recordatorio.");
+console.log(checked + " comprobaciones de avisos correctas: pitidos, gol anulado, final provisional, MVP, tu ficha, tus posiciones, suscripciones, la pausa y botones del recordatorio.");
 await db.terminate();

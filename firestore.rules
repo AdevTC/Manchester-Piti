@@ -338,6 +338,17 @@ service cloud.firestore {
           && request.resource.data.noticesSeenAt == request.time);
       allow delete: if false;
     }
+    // The bandeja's read state per notice (src/lib/noticeReads.ts): only its member reads and writes it. `read`
+    // maps a notice id to true (read) or false (marked unread again, even when older than noticesSeenAt); at most
+    // 200 ids, the client keeps the newest. «Marcar todo como leído» empties it beside noticesSeenAt.
+    match /users/{uid}/private/notices {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['read'])
+        && request.resource.data.read is map
+        && request.resource.data.read.size() <= 200
+        && request.resource.data.read.values().hasOnly([true, false]);
+    }
     // ---- El centro de avisos: every push notice kept (functions/src/push.ts sendTo, noticesLogic.ts), read
     // by audience: the team's by members, the captains' by admins, a personal one only by its member. Every
     // read filters by audience (the client's three queries). Only the backend writes; a TTL policy on

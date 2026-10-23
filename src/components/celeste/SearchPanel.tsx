@@ -1,112 +1,143 @@
-// «Buscar, con ⌘K» (V-Integracion): a glass window over the dimmed page. The field (a combobox: it keeps the focus;
-// ↑ ↓ move the active option, Intro opens it, Esc empties it and, empty, closes) and the results grouped in the
-// boards' order — «Ahora» first (the match of the moment), then Jugadores, Jornadas, Equipos, Acciones, Páginas —
-// three per group (two for «Ahora») with «N más» on the group's head (which shows the rest of that group), rows
-// with an icon chip or the player's shirt and dorsal, «Intro» on the active one. Below: «↑ ↓ para moverte · Intro
-// para abrir · Ver los N resultados · N resultados»; «Ver los N resultados» grows the same window to almost the
-// whole screen with its own scroll («Ver menos» brings it back). Empty, it offers «Ahora», «Acciones» and the last
-// searches (lib/recentSearches). Portalled to the body. The data and the navigation come from SearchDialog, so
-// this is testable bare.
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
-import { readRecent, rememberSearch } from "../../lib/recentSearches";
-import { VIcon } from "../vidrio/VIcon";
-import { countText, groupCap, groupResults, type PanelEntry, type PanelKind } from "./searchModel";
-import "../../styles/vidrio/reading.css";
-
-type Option = { key: string; type: "entry"; entry: PanelEntry } | { key: string; type: "recent"; query: string };
-interface Section {
-  key: string;
-  title: string;
-  options: Option[];
-  /** Hits of the group not shown (its «N más»). */
-  more: number;
-  kind?: PanelKind;
-}
+// «Buscar» as the TU boards draw it (shell.html `tu-sr`, component.js searchModel): a glass window over the dimmed
+// page — on a desktop under the top bar with a preview beside the results (the printed shirt, the score and its
+// goal line, the rival's initials), on a phone the whole screen. The field is a combobox that keeps the focus:
+// ↑ ↓ move the active result, Intro opens it, Tab changes where to search (Todo · Jugadores · Partidos · Rivales ·
+// Tu página · Acciones), Backspace on an empty field drops the scope, Esc empties the field, then drops the scope,
+// then closes. Empty, it offers «Lo próximo», four «Acciones» and the recent searches (each one removable,
+// «Borrar» all). The model is pure (searchModel searchView); the data and where a choice leads come from
+// SearchDialog, so this is testable bare. It floats in the boards' layer (TuLayer, `o-buscar`).
+import { useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { readRecent, rememberSearch, RECENT_KEY } from "../../lib/recentSearches";
+import { KitStillContext } from "../jersey3d/kitStill";
+import { TuIcon, TuLayer } from "../vidrio/tu/ui";
+import { countText, fold, goLabel, nextScope, SCOPES, searchView, type SrEntry, type SrScope, type SrViewerKind } from "./searchModel";
+import "./search.css";
 
 export interface SearchPanelProps {
-  entries: readonly PanelEntry[];
+  entries: readonly SrEntry[];
+  viewer: SrViewerKind;
   /** A result was chosen (the query that found it is already remembered). */
-  onGo: (entry: PanelEntry) => void;
-  onClose: (refocus?: boolean) => void;
+  onChoose: (entry: SrEntry) => void;
+  /** Close (the scrim, the Esc button, Esc on an empty field). */
+  onClose: () => void;
+  /** Where it starts (the address's ?q=, or what the last opening left). */
+  initial?: { q: string; scope: SrScope };
+  /** Every change of the field or the scope (the address keeps ?q=; the next opening starts there). */
+  onState?: (s: { q: string; scope: SrScope }) => void;
+  /** /buscar: an address of its own (no page under it, so no scrim). */
+  page?: boolean;
+}
+
+/** Storage may be missing or blocked: the list then lives only in this visit. */
+function storeRecent(list: string[]): string[] {
+  try {
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+  } catch {
+    // (blocked or full: this visit keeps it)
+  }
+  return list;
 }
 
 const FOCUSABLE = 'input,button:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function SearchPanel({ entries, onGo, onClose }: SearchPanelProps) {
-  const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
+/** The printed shirt still (his name and number printed by the 3D scene); nothing until it is ready. */
+function ShirtStill({ num, className }: { num?: string; className?: string }) {
+  const still = useContext(KitStillContext)("home", num);
+  if (!still) return null;
+  return <img className={className} src={still.src} alt="" width={540} height={600} />;
+}
+
+export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onState, page }: SearchPanelProps) {
+  const [q, setQ] = useState(initial?.q ?? "");
+  const [scope, setScopeRaw] = useState<SrScope>(initial?.scope ?? "todo");
+  const [act, setAct] = useState(0);
+  const [more, setMore] = useState<Partial<Record<string, boolean>>>({});
   const [recent, setRecent] = useState<string[]>(() => readRecent());
-  const [all, setAll] = useState(false);
-  const [opened, setOpened] = useState<ReadonlySet<PanelKind>>(() => new Set());
   const input = useRef<HTMLInputElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const listId = useId();
+  const oid = (i: number) => `${listId}-o${i}`;
 
-  const groups = useMemo(() => groupResults(entries, query), [entries, query]);
-  const total = groups.reduce((n, g) => n + g.items.length, 0);
-  const sections: Section[] = useMemo(() => {
-    const out: Section[] = groups.map((g) => {
-      const cap = all || opened.has(g.kind) ? g.items.length : groupCap(g.kind);
-      const items = g.items.slice(0, cap);
-      return { key: g.kind, kind: g.kind, title: g.title, more: g.items.length - items.length, options: items.map((entry) => ({ key: entry.id, type: "entry" as const, entry })) };
-    });
-    if (!query.trim() && recent.length) out.push({ key: "recent", title: "Búsquedas recientes", more: 0, options: recent.map((q) => ({ key: `r-${q}`, type: "recent" as const, query: q })) });
-    return out;
-  }, [groups, all, opened, query, recent]);
-  const options = useMemo(() => sections.flatMap((s) => s.options), [sections]);
-  const shownCount = options.filter((o) => o.type === "entry").length;
-  const at = options.length ? Math.min(active, options.length - 1) : -1;
-  const optionId = (i: number) => `${listId}-o${i}`;
+  const view = useMemo(() => searchView(entries, { q, scope, more }, viewer), [entries, q, scope, more, viewer]);
+  const n = view.flat.length;
+  const at = n ? Math.min(act, n - 1) : -1;
+  const active = at >= 0 ? view.flat[at] : null;
 
+  const onStateRef = useRef(onState);
   useEffect(() => {
-    input.current?.focus();
+    onStateRef.current = onState;
+  });
+  useEffect(() => {
+    onStateRef.current?.({ q, scope });
+  }, [q, scope]);
+  useEffect(() => {
+    input.current?.focus({ preventScroll: true });
   }, []);
   useEffect(() => {
     if (at < 0) return;
     document.getElementById(`${listId}-o${at}`)?.scrollIntoView?.({ block: "nearest" });
   }, [at, listId]);
 
-  const choose = (o: Option) => {
-    if (o.type === "recent") {
-      setQuery(o.query);
-      setActive(0);
-      input.current?.focus();
+  const type = (v: string) => {
+    setQ(v);
+    setAct(0);
+    setMore({});
+  };
+  const setScope = (v: SrScope) => {
+    setScopeRaw(v);
+    setAct(0);
+    setMore({});
+    // (a chosen scope replaces the prefix that set one)
+    setQ((x) => (/^[@#>]/.test(x) ? x.slice(1) : x));
+    input.current?.focus({ preventScroll: true });
+  };
+  const choose = (e: SrEntry) => {
+    const t = q.trim();
+    if (t) setRecent(rememberSearch(t));
+    onChoose(e);
+  };
+  const back = () => {
+    if (q) type("");
+    else if (scope !== "todo") setScope("todo");
+    else onClose();
+  };
+
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Tab" && !e.altKey) {
+      e.preventDefault();
+      setScope(nextScope(scope, e.shiftKey));
       return;
     }
-    if (query.trim()) setRecent(rememberSearch(query));
-    onGo(o.entry);
-  };
-
-  const onFieldKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      if (!options.length) return;
-      const step = e.key === "ArrowDown" ? 1 : -1;
-      setActive((Math.max(at, 0) + step + options.length) % options.length);
+      if (!n) return;
+      setAct((Math.max(at, 0) + (e.key === "ArrowDown" ? 1 : -1) + n) % n);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (at >= 0) choose(options[at]);
-    } else if (e.key === "Escape" && query) {
-      // (Esc empties the field first; empty, it closes)
+      if (active) choose(active);
+    } else if (e.key === "Backspace" && !q && scope !== "todo") {
+      e.preventDefault();
+      setScope("todo");
+    } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
-      setQuery("");
-      setActive(0);
-      setAll(false);
+      back();
     }
   };
-
-  const onPanelKey = (e: KeyboardEvent<HTMLDivElement>) => {
+  // (outside the field: Esc does what it does in the field; Tab stays inside the dialog)
+  const onDialogKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.target === input.current) return;
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
-      onClose();
+      if (q || scope !== "todo") {
+        back();
+        input.current?.focus({ preventScroll: true });
+      } else onClose();
       return;
     }
-    if (e.key !== "Tab" || !panel.current) return;
-    const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+    if (e.key !== "Tab") return;
+    const items = [...e.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.offsetParent !== null || x === input.current);
     if (!items.length) return;
     const first = items[0];
     const last = items[items.length - 1];
@@ -119,136 +150,272 @@ export function SearchPanel({ entries, onGo, onClose }: SearchPanelProps) {
     }
   };
 
-  const typed = !!query.trim();
-  const status = typed ? (total ? countText(total) : "Sin resultados") : "";
-  const showAll = !all && total > shownCount;
+  const typed = !!view.q;
+  const showRecent = !view.q && view.scope === "todo" && recent.length > 0;
+  const pv = active;
+  let i = -1;
 
-  let index = -1;
-  return createPortal(
-    <div className="sr-portal vd-sr">
-      <div className="sr-scrim vd-sr__scrim" aria-hidden="true" onPointerDown={() => onClose()} />
-      <div ref={panel} className={`vd-glass vd-glass--deep vd-sr__win${all ? " is-all" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={onPanelKey} style={{ viewTransitionName: "vd-search" } as CSSProperties}>
+  return (
+    <TuLayer cls="o-buscar">
+      {!page && <div className="tu-scrim" aria-hidden="true" onClick={onClose} />}
+      <div className="vd-glass vd-glass--deep tu-sr" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={onDialogKey}>
         <h2 className="vd-vh" id={titleId}>
           Buscar en la web
         </h2>
-        <div className="vd-sr__field">
-          <VIcon name="search" size={22} />
+        <div className="tu-sr__field">
+          <TuIcon name="search" />
+          {view.chip && (
+            <button type="button" className="tu-sr__scope" onClick={() => setScope("todo")} aria-label={`Quitar el filtro ${view.chip}`}>
+              {view.chip}
+              <TuIcon name="close" />
+            </button>
+          )}
           <input
             ref={input}
             type="text"
             role="combobox"
-            aria-label="Busca jugadores, jornadas, equipos y cosas que hacer"
+            aria-label="Busca jugadores, partidos, rivales y cosas que hacer"
             aria-autocomplete="list"
-            aria-expanded={options.length > 0}
+            aria-expanded={n > 0}
             aria-controls={listId}
-            aria-activedescendant={at >= 0 ? optionId(at) : undefined}
-            placeholder="Un jugador, una jornada o algo que hacer"
+            aria-activedescendant={at >= 0 ? oid(at) : undefined}
+            placeholder={view.hint}
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
             enterKeyHint="go"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setActive(0);
-              setOpened(new Set());
-            }}
-            onKeyDown={onFieldKey}
+            value={q}
+            onChange={(e) => type(e.target.value)}
+            onKeyDown={onKey}
           />
-          <button type="button" className="vd-sr__esc" aria-label="Cerrar la búsqueda" onClick={() => onClose()}>
+          {typed && (
+            <button
+              type="button"
+              className="tu-sr__clear"
+              aria-label="Vaciar la búsqueda"
+              onClick={() => {
+                type("");
+                input.current?.focus({ preventScroll: true });
+              }}
+            >
+              <TuIcon name="close" />
+            </button>
+          )}
+          <button type="button" className="tu-sr__esc" aria-label="Cerrar la búsqueda" onClick={onClose}>
             <kbd aria-hidden="true">Esc</kbd>
+            <span className="tu-sr__escp">Cerrar</span>
           </button>
         </div>
-        <div className="vd-sr__hits">
-          <div role="listbox" id={listId} aria-label={typed ? "Resultados" : "Ahora y cosas que hacer"}>
-            {sections.map((s, si) => (
-              <div key={s.key} role="group" aria-labelledby={`${listId}-g${si}`} className="vd-sr__group">
-                <div className="vd-sr__gh" role="presentation">
-                  <span id={`${listId}-g${si}`}>{s.title}</span>
-                  {s.more > 0 && s.kind && (
-                    <button
-                      type="button"
-                      className="vd-sr__more"
-                      onClick={() => {
-                        const kind = s.kind as PanelKind;
-                        setOpened((o) => new Set([...o, kind]));
-                        input.current?.focus();
-                      }}
-                      aria-label={`Ver ${s.more} más en ${s.title}`}
-                    >
-                      {s.more} más
-                    </button>
-                  )}
-                </div>
-                {s.options.map((o) => {
-                  index++;
-                  const i = index;
-                  const on = i === at;
-                  const e = o.type === "entry" ? o.entry : null;
-                  return (
-                    <div
-                      key={o.key}
-                      id={optionId(i)}
-                      role="option"
-                      aria-selected={on}
-                      className={`vd-sr__hit${on ? " is-sel" : ""}${e?.live ? " is-live" : ""}`}
-                      onPointerDown={(ev) => ev.preventDefault()}
-                      onPointerMove={() => i !== at && setActive(i)}
-                      onClick={() => choose(o)}
-                    >
-                      {e?.shirt ? (
-                        <span className="vd-shirt vd-sr__shirt" aria-hidden="true">
-                          <b>{e.shirt}</b>
-                        </span>
-                      ) : (
-                        <span className="vd-sr__i" aria-hidden="true">
-                          <VIcon name={e?.icon ?? "search"} size={20} />
-                        </span>
-                      )}
-                      <span className="vd-sr__t">
-                        <b>{e ? e.title : o.type === "recent" ? o.query : ""}</b>
-                        {e?.detail ? <span>{e.detail}</span> : o.type === "recent" ? <span>Búsqueda reciente</span> : null}
-                      </span>
-                      <kbd className="vd-sr__go" aria-hidden="true">
-                        Intro
-                      </kbd>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          {typed && !groups.some((g) => g.kind !== "ahora") && <p className="vd-sr__empty">Nada con «{query.trim()}». Prueba con un dorsal, un rival o «calendario».</p>}
+        <div className="tu-sr__scopes" data-scroll-x="1" role="group" aria-label="Dónde buscar (Tab para cambiar)">
+          {SCOPES.map(([id, t]) => {
+            const on = view.scope === id;
+            return (
+              <button key={id} type="button" className={`tu-sr__sc${on ? " is-on" : ""}`} aria-pressed={on} onClick={() => setScope(id)}>
+                {t}
+                {typed && id !== "todo" && <span>{view.counts[id]}</span>}
+              </button>
+            );
+          })}
         </div>
-        <div className="vd-sr__foot">
+        <div className="tu-sr__body">
+          <div className="tu-sr__list">
+            <div role="listbox" id={listId} aria-label="Resultados">
+              {view.groups.map((g) => (
+                <div key={g.key} role="group" aria-label={g.title} className={`tu-sr__g${g.best ? " is-best" : ""}`}>
+                  <div className="tu-sr__gh" role="presentation">
+                    <span>{g.title}</span>
+                    {g.more > 0 && (
+                      <button
+                        type="button"
+                        className="tu-sr__more"
+                        aria-label={`Ver ${g.more} más en ${g.title}`}
+                        onClick={() => {
+                          setMore((m) => ({ ...m, [g.key]: true }));
+                          input.current?.focus({ preventScroll: true });
+                        }}
+                      >
+                        {g.more} más
+                      </button>
+                    )}
+                  </div>
+                  {g.items.map((e) => {
+                    i++;
+                    const k = i;
+                    const on = k === at;
+                    return (
+                      <div
+                        key={e.id}
+                        id={oid(k)}
+                        role="option"
+                        aria-selected={on}
+                        className={`tu-sr__hit k-${e.kind}${on ? " is-sel" : ""}`}
+                        onPointerDown={(ev) => ev.preventDefault()}
+                        onPointerMove={() => k !== at && setAct(k)}
+                        onClick={() => choose(e)}
+                      >
+                        {e.kind === "jugador" ? (
+                          <span className="tu-sr__shirt" aria-hidden="true">
+                            <ShirtStill num={e.num} />
+                          </span>
+                        ) : e.kind === "rival" ? (
+                          <span className="tu-sr__rv" aria-hidden="true">
+                            {e.ini}
+                          </span>
+                        ) : (
+                          <span className="tu-sr__ic" aria-hidden="true">
+                            <TuIcon name={e.icon ?? "arrow"} />
+                          </span>
+                        )}
+                        <span className="tu-sr__t">
+                          <b>{e.title}</b>
+                          <span>{e.detail}</span>
+                        </span>
+                        {e.res && (
+                          <span className={`tu-res is-${e.res}`} aria-hidden="true">
+                            {e.res}
+                          </span>
+                        )}
+                        <kbd className="tu-sr__go" aria-hidden="true">
+                          Intro
+                        </kbd>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            {view.none && (
+              <div className="tu-sr__none">
+                <b>{view.noneText}</b>
+                {view.sugg && (
+                  <span>
+                    ¿Querías decir{" "}
+                    <button type="button" className="vd-link" onClick={() => type(view.sugg)}>
+                      {view.sugg}
+                    </button>
+                    ?
+                  </span>
+                )}
+                {view.scope !== "todo" && (
+                  <span>
+                    <button type="button" className="vd-link" onClick={() => setScope("todo")}>
+                      Buscar en todo
+                    </button>
+                  </span>
+                )}
+                <span>Prueba con un dorsal (11), una jornada (#1), un jugador (@kevin) o algo que hacer (&gt;tema).</span>
+              </div>
+            )}
+            {showRecent && (
+              <div className="tu-sr__g">
+                <div className="tu-sr__gh">
+                  <span>Búsquedas recientes</span>
+                  <button
+                    type="button"
+                    className="tu-sr__more"
+                    onClick={() => {
+                      setRecent(storeRecent([]));
+                      input.current?.focus({ preventScroll: true });
+                    }}
+                  >
+                    Borrar
+                  </button>
+                </div>
+                <ul className="tu-sr__recent">
+                  {recent.map((r) => (
+                    <li key={r}>
+                      <button
+                        type="button"
+                        className="tu-sr__rq"
+                        onClick={() => {
+                          type(r);
+                          input.current?.focus({ preventScroll: true });
+                        }}
+                      >
+                        <TuIcon name="clock" />
+                        {r}
+                      </button>
+                      <button
+                        type="button"
+                        className="tu-sr__rx"
+                        aria-label={`Quitar «${r}» de las recientes`}
+                        onClick={() => {
+                          setRecent((list) => storeRecent(list.filter((x) => fold(x) !== fold(r))));
+                          input.current?.focus({ preventScroll: true });
+                        }}
+                      >
+                        <TuIcon name="close" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="tu-sr__tips">
+                  <kbd>@</kbd> jugadores · <kbd>#</kbd> jornadas · <kbd>&gt;</kbd> acciones
+                </p>
+              </div>
+            )}
+          </div>
+          {pv && (
+            <aside className="tu-sr__pv" aria-label="Vista previa">
+              {pv.kind === "jugador" && <ShirtStill num={pv.num} className="tu-sr__pvimg" />}
+              {pv.kind === "partido" && (
+                <>
+                  <p className={`tu-sr__score r-${pv.res ?? "x"}`}>
+                    <b>{pv.pv.score}</b>
+                    <span>{pv.pv.word}</span>
+                  </p>
+                  {!!pv.pv.marks?.length && (
+                    <div className="tu-tl" aria-hidden="true">
+                      <span className="tu-tl__half" />
+                      {pv.pv.marks.map((m, j) => (
+                        <i key={j} className={`k-${m.k}`} style={{ left: `${m.left.toFixed(1)}%` }} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              {pv.kind === "rival" && (
+                <span className="tu-sr__rv tu-sr__rv--big" aria-hidden="true">
+                  {pv.ini}
+                </span>
+              )}
+              {pv.kind !== "jugador" && pv.kind !== "partido" && pv.kind !== "rival" && (
+                <span className="tu-sr__ic tu-sr__ic--big" aria-hidden="true">
+                  <TuIcon name={pv.icon ?? "arrow"} />
+                </span>
+              )}
+              <b className="tu-sr__pvt">{pv.title}</b>
+              <span className="tu-sr__pvd">{pv.detail}</span>
+              {pv.pv.line && <p className="tu-sr__pvl">{pv.pv.line}</p>}
+              {pv.pv.list && <p className="tu-small">{pv.pv.list}</p>}
+              {pv.pv.url && <code className="tu-code">{pv.pv.url}</code>}
+              <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm" onClick={() => choose(pv)}>
+                {goLabel(pv.kind)}
+                <TuIcon name="arrow" />
+              </button>
+            </aside>
+          )}
+        </div>
+        <div className="tu-sr__foot">
           <span aria-hidden="true">
             <kbd>↑</kbd>
-            <kbd>↓</kbd>
-            para moverte
+            <kbd>↓</kbd> moverte
           </span>
           <span aria-hidden="true">
-            <kbd>Intro</kbd>
-            para abrir
+            <kbd>Intro</kbd> abrir
           </span>
-          {showAll && (
-            <button type="button" className="vd-more__btn vd-sr__all" onClick={() => setAll(true)}>
-              Ver los {total} resultados
-              <VIcon name="expand" size={16} />
-            </button>
-          )}
-          {all && (
-            <button type="button" className="vd-more__btn vd-sr__all" onClick={() => setAll(false)}>
-              Ver menos
-              <VIcon name="collapse" size={16} />
-            </button>
-          )}
-          {typed && <span className="vd-sr__count">{countText(total)}</span>}
+          <span aria-hidden="true">
+            <kbd>Tab</kbd> dónde buscar
+          </span>
+          <span aria-hidden="true">
+            <kbd>Esc</kbd> vaciar y cerrar
+          </span>
+          {typed && <span className="tu-sr__count">{countText(view.total)}</span>}
         </div>
         <p className="vd-vh" role="status">
-          {status}
+          {typed ? countText(view.total) : ""}
         </p>
       </div>
-    </div>,
-    document.body,
+    </TuLayer>
   );
 }

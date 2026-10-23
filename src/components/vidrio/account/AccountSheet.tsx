@@ -1,289 +1,300 @@
-// The sheet the top bar's account control opens (V-Integracion «El club y la cuenta», «La cuenta en el móvil»):
-// desktop, a glass window under the avatar; phone/tablet, a sheet rising above the tab bar. A jugador gets «Tú»
-// (his shirt and line, then «Esta noche», the convocatoria to answer in place, his porra, his turno, the open
-// poll with its votes, the next logro and the caja); a socio his account (his porra, «Avisos a medida» in the
-// bell, the MVP vote, «Cerrar sesión»); a fan the door («Entrar · Para la porra, los avisos y el MVP», «Pedir
-// entrar al vestuario»). Everyone gets the theme switch here (it left the top bar). A dialog: focus goes in,
-// Escape and a tap outside close it, focus goes back to the avatar.
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { Link } from "@tanstack/react-router";
+// «Tú» (TU boards, shell.html `tu-tu`, component.js menuModel): the avatar's sheet. A member: who you are (your
+// printed shirt, your name and line, your card's chip), the one thing that waits on you now (answered right there,
+// «N cosas más te tocan» to the bandeja), your places as a menu (↑ ↓ Intro, Esc closes), the theme (Día · Noche ·
+// Sistema) and «Salir en este dispositivo» (Cuenta with its confirmation open). A fan: «Entrar con Google» and «¿Juegas
+// en el Piti? Pide entrar al vestuario», «Avisos sin cuenta» and the search. A dialog that grows out of the avatar
+// (desktop: under it; phone: over the tab bar); the focus goes back to the avatar.
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { flushSync } from "react-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../../context/AuthContext";
-import { useTheme } from "../../../hooks/useTheme";
-import { useDesktop } from "../env";
-import { VIcon, type VIconName } from "../VIcon";
+import { useTheme, type ThemePref } from "../../../hooks/useTheme";
+import { usePageKitStills } from "../../jersey3d/usePageKitStills";
+import { readTuMaqueta } from "../tu/maqueta";
+import { rove, Seg, TuIcon, TuLayer, tuGo, tuSurface, useToast, type TuIconName } from "../tu/ui";
+import { useInbox, type Inbox } from "../../../pages/perfil/bandeja/useInbox";
+import { PendList, useAvisoActions } from "../../../pages/perfil/bandeja/parts";
+import { useThisDevice } from "../../../pages/perfil/bandeja/device";
+import { pl, tocaMore } from "../../../pages/perfil/bandeja/model";
+import { useProfileData } from "../../../pages/perfil/useProfileData";
+import { wantedNumber } from "../../../pages/perfil/tu/view";
 import { initialOf } from "../../celeste/accountSignal";
-import { useAccount, type Answer } from "./useAccount";
-import "../../../styles/vidrio/reading.css";
-import "./account.css";
+import "../../../styles/tu-avisos.css";
 
-export type AccountKind = "jugador" | "socio" | "aficion";
+/** «Jordi Alejandro Sumba Rodríguez» → «Jordi Sumba» (the first name and the first surname). */
+export function shortName(full: string): string {
+  const p = full.trim().split(/\s+/).filter(Boolean);
+  return p.length > 2 ? `${p[0]} ${p[p.length - 2]}` : p.join(" ");
+}
 
-const ANSWERS: { a: Answer; label: string }[] = [
-  { a: "yes", label: "Voy" },
-  { a: "maybe", label: "Duda" },
-  { a: "no", label: "No voy" },
+interface Item {
+  t: string;
+  hint: string;
+  icon: TuIconName;
+  badge: number;
+  go: () => void;
+}
+
+/** Opens and closes a sheet out of its button (the board's openSurface / closeSurface). */
+function useSurface(name: string) {
+  const [open, setOpen] = useState(false);
+  const btn = useRef<HTMLElement | null>(null);
+  const show = () => tuSurface(true, btn.current, name, () => flushSync(() => setOpen(true)));
+  const close = (refocus = true) => {
+    tuSurface(false, btn.current, name, () => flushSync(() => setOpen(false)));
+    if (refocus) window.setTimeout(() => btn.current?.focus({ preventScroll: true }), 60);
+  };
+  return { open, show, close, btn };
+}
+
+function useSheetKeys(close: () => void) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const t = window.setTimeout(() => ref.current?.querySelector<HTMLElement>("[data-nav]")?.focus({ preventScroll: true }), 40);
+    return () => window.clearTimeout(t);
+  }, []);
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+      return;
+    }
+    rove(e, "[data-nav]");
+  };
+  return { ref, onKey };
+}
+
+const THEMES: { v: ThemePref; t: string; icon: TuIconName }[] = [
+  { v: "light", t: "Día", icon: "sun" },
+  { v: "dark", t: "Noche", icon: "moon" },
+  { v: "system", t: "Sistema", icon: "phone" },
 ];
-
-function Row({ icon, title, live, children }: { icon: VIconName; title: ReactNode; live?: boolean; children?: ReactNode }) {
+function Theme() {
+  const { pref, setPref } = useTheme();
   return (
-    <li className={`vd-arow${live ? " is-live" : ""}`}>
-      <span className="vd-arow__i" aria-hidden="true">
-        <VIcon name={icon} size={18} />
+    <div className="tu-tu__theme">
+      <span className="tu-label" id="tu-th-t">
+        Tema
       </span>
-      <div>
-        <b>{title}</b>
-        {children}
-      </div>
-    </li>
-  );
-}
-
-function ThemeRow() {
-  const { theme, toggle } = useTheme();
-  return (
-    <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" onClick={toggle} aria-label={`Cambiar a tema ${theme === "dark" ? "claro" : "oscuro"}`}>
-      <VIcon name={theme === "dark" ? "sun" : "moon"} size={16} />
-      {theme === "dark" ? "Tema claro" : "Tema oscuro"}
-    </button>
-  );
-}
-
-function Foot({ member, onClose }: { member: boolean; onClose: () => void }) {
-  const { logout } = useAuth();
-  return (
-    <div className="vd-acct-foot">
-      {member && (
-        <>
-          <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/vestuario" onClick={onClose}>
-            <VIcon name="lock" size={16} />
-            El vestuario
-          </Link>
-          <Link className="vd-glass vd-btn vd-btn--sm vd-press" to="/perfil" onClick={onClose}>
-            Tu perfil
-          </Link>
-        </>
-      )}
-      <ThemeRow />
-      {member && (
-        <button
-          type="button"
-          className="vd-link vd-acct-out"
-          onClick={() => {
-            onClose();
-            void logout();
-          }}
-        >
-          Cerrar sesión
-        </button>
-      )}
+      <Seg nav labelledBy="tu-th-t" value={pref} onPick={setPref} opts={THEMES.map((o) => ({ v: o.v, t: o.t, icon: o.icon }))} />
     </div>
   );
 }
 
-function JugadorBody({ phone, onClose }: { phone: boolean; onClose: () => void }) {
-  const t = useAccount(true);
-  const pick = t.rsvp ? ANSWERS.findIndex((x) => x.a === t.rsvp?.value) : -1;
+function MenuList({ items }: { items: Item[] }) {
   return (
-    <>
-      <header className="vd-acct-head">
-        <span className="vd-shirt" style={{ "--s": phone ? "44px" : "54px" } as CSSProperties} aria-hidden="true">
-          <b>{t.number ?? initialOf(t.name)}</b>
-          {t.captain && <i className="vd-arm">C</i>}
-        </span>
-        <div>
-          <h2 id="vd-acct-t">Tú, {t.name}</h2>
-          {t.line && <span>{t.line}</span>}
-        </div>
-      </header>
-      <ul className="vd-arows">
-        {t.tonight && (
-          <Row icon="ball" title="Esta noche" live>
-            <p>{t.tonight.text}</p>
-          </Row>
-        )}
-        {t.rsvp && (
-          <Row icon="check" title={t.rsvp.question}>
-            <p>{t.rsvp.sub}</p>
-            <div className="vd-glass vd-seg" style={{ "--n": 3, "--i": Math.max(0, pick) } as CSSProperties} role="group" aria-label={t.rsvp.question}>
-              {pick >= 0 && <span className="vd-shelf__bead" aria-hidden="true" />}
-              {ANSWERS.map(({ a, label }) => (
-                <button key={a} type="button" className="vd-seg__b" aria-pressed={t.rsvp?.value === a} disabled={t.rsvp?.busy} onClick={() => t.rsvp?.pick(a)}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {t.rsvp.error && (
-              <p className="vd-acct-err" role="alert">
-                {t.rsvp.error}
-              </p>
-            )}
-          </Row>
-        )}
-        {t.porra && (
-          <Row icon="star" title="La porra">
-            <p>{t.porra}</p>
-          </Row>
-        )}
-        {!phone && t.turno && (
-          <Row icon="wash" title={t.turno.title}>
-            <p>{t.turno.text}</p>
-            {t.turno.mine && (
-              <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" aria-pressed={t.turno.done} disabled={t.turno.busy} onClick={t.turno.mark}>
-                <VIcon name="check" size={16} />
-                {t.turno.done ? "Hecho" : "Marcar como hecho"}
-              </button>
-            )}
-            {t.turno.error && (
-              <p className="vd-acct-err" role="alert">
-                {t.turno.error}
-              </p>
-            )}
-          </Row>
-        )}
-        {!phone && t.poll && (
-          <Row icon="poll" title={t.poll.title}>
-            <div className="vd-bars" role="group" aria-label={t.poll.title}>
-              {t.poll.options.map((o) => (
-                <button key={o.id} type="button" className="vd-bar" aria-pressed={o.mine} onClick={() => t.poll?.pick(o.id)} aria-label={`${o.label}: ${o.n} ${o.n === 1 ? "voto" : "votos"}`}>
-                  <i style={{ width: `${o.pct}%` }} aria-hidden="true" />
-                  <span>{o.label}</span>
-                  <span>{o.n}</span>
-                </button>
-              ))}
-            </div>
-            {t.poll.error && (
-              <p className="vd-acct-err" role="alert">
-                {t.poll.error}
-              </p>
-            )}
-          </Row>
-        )}
-        {t.logro && (
-          <Row icon="bolt" title="Logros y cromos">
-            <p>{t.logro}</p>
-          </Row>
-        )}
-        {!phone && t.caja && (
-          <Row icon="euro" title="La caja">
-            <p>{t.caja.text}</p>
-            {t.caja.claim && <p>{t.caja.claim}</p>}
-            {t.caja.paid && (
-              <button type="button" className="vd-glass vd-btn vd-btn--sm vd-press" disabled={t.caja.busy} onClick={t.caja.paid}>
-                Ya la he pagado
-              </button>
-            )}
-            {t.caja.error && (
-              <p className="vd-acct-err" role="alert">
-                {t.caja.error}
-              </p>
-            )}
-          </Row>
-        )}
-      </ul>
-      <Foot member onClose={onClose} />
-    </>
+    <nav className="tu-mlist" aria-label="Tu sitio">
+      {items.map((d) => (
+        <button key={d.t} type="button" className="tu-mi" data-nav="1" onClick={d.go}>
+          <TuIcon name={d.icon} />
+          <span className="tu-mi__t">{d.t}</span>
+          {d.badge > 0 && <span className="tu-badge">{d.badge}</span>}
+          {d.hint && <small className="tu-mi__h">{d.hint}</small>}
+          <TuIcon name="chev-r" className="tu-mi__c" />
+        </button>
+      ))}
+    </nav>
   );
 }
 
-function SocioBody({ phone, onClose }: { phone: boolean; onClose: () => void }) {
-  const t = useAccount(false);
+/** The member's avatar («J Jordi», a dot while something waits on him) and his «Tú». */
+export function MemberAccount({ name, here }: { name: string; here?: boolean }) {
+  const inbox = useInbox();
+  const s = useSurface("tu-acct");
+  const toast = useToast();
+  const jugador = inbox.viewer.who === "jugador";
+  const shown = name || "Tú";
+  const waits = inbox.openPend;
+  const label = `${jugador ? "Tú, " : "Tu cuenta, "}${shown}${waits ? `, ${pl(waits, "cosa pendiente", "cosas pendientes")}` : ""}`;
   return (
     <>
-      <header className="vd-acct-head">
-        <span className="vd-ava" aria-hidden="true">
-          {initialOf(t.name)}
-        </span>
-        <div>
-          <h2 id="vd-acct-t">{t.name}</h2>
-          <span>{t.line}</span>
-        </div>
-      </header>
-      <ul className="vd-arows">
-        <Row icon="star" title="Tu porra">
-          <p>{t.porra ?? "Se abre antes del pitido de cada jornada."}</p>
-        </Row>
-        {!phone && (
+      <button
+        ref={(el) => {
+          s.btn.current = el;
+        }}
+        type="button"
+        className={`vd-glass vd-press tu-acct${here ? " on" : ""}`}
+        aria-label={label}
+        aria-haspopup="dialog"
+        aria-expanded={s.open}
+        onClick={() => (s.open ? s.close() : s.show())}
+      >
+        <i aria-hidden="true">
+          {name ? initialOf(name) : "·"}
+          {waits > 0 && <span className="tu-acct__dot" />}
+        </i>
+        <span className="tu-acct__name">{shown}</span>
+      </button>
+      <TuLayer cls={s.open ? "o-tu" : undefined}>
+        {s.open && (
           <>
-            <Row icon="bell" title="Avisos a medida">
-              <p>Solo goles, todo o nada; lo eliges en la campana.</p>
-            </Row>
-            <Row icon="poll" title="Votas al MVP">
-              <p>Cuando acaba cada partido, durante 48 horas.</p>
-            </Row>
-            <Row icon="lock" title="Tu cuenta">
-              <p>«Tú», la convocatoria y los turnos son de los jugadores; tu cuenta no los tiene, y no se enseñan huecos vacíos.</p>
-            </Row>
+            <div className="tu-scrim" aria-hidden="true" onClick={() => s.close()} />
+            {inbox.member ? <MemberSheet inbox={inbox} say={toast.say} close={s.close} /> : <FanSheet close={s.close} />}
           </>
         )}
-      </ul>
-      <Foot member onClose={onClose} />
+        {toast.node}
+      </TuLayer>
     </>
   );
 }
 
-function FanBody({ onClose }: { onClose: () => void }) {
+function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => void; close: (refocus?: boolean) => void }) {
+  const d = useProfileData(readTuMaqueta());
+  const { theme } = useTheme();
+  const navigate = useNavigate();
+  const a = useAvisoActions(inbox, say, () => close(false));
+  const { ref, onKey } = useSheetKeys(() => close());
+  const who = inbox.viewer.who;
+  const jugador = who === "jugador";
+  const card = d.card;
+  const num = card.number || d.shirt.number;
+  const still = usePageKitStills({ on: jugador && !!num, theme, kits: ["home"], players: jugador && num ? [{ name: d.shirt.current, num }] : [] });
+  const img = jugador && num ? still("home", num) : undefined;
+  const go = (path: string) => () => a.go(path);
+  const nick = d.nickname ? `@${d.nickname}` : "";
+  const pending = d.ficha.state === "pendiente";
+  const rated = card.showNumbers && card.rating !== null;
+  const title = shortName(jugador && d.shirt.fullName ? d.shirt.fullName : d.google.name || d.nickname) || "Tú";
+  const line = jugador
+    ? [nick, num, card.posLong].filter(Boolean).join(" · ")
+    : who === "socio"
+      ? [nick, "socio sin ficha"].filter(Boolean).join(" · ")
+      : [nick, pending ? `ficha del ${wantedNumber(d)} pendiente` : "sin ficha todavía"].filter(Boolean).join(" · ");
+  const chip = jugador ? (rated ? `${card.tierName} · ${card.rating}` : "Carta nueva") : who === "socio" ? "Socio" : pending ? "Pendiente" : "Por revelar";
+  const first = inbox.pends.find((p) => !p.done) ?? null;
+  const doors = d.captain?.doorRequests.length ?? 0;
+  const items: Item[] = [
+    { t: who === "socio" ? "Tu carné" : "Tu carta", hint: jugador ? (rated ? `${card.tierName} · ${card.rating}` : "Nueva") : who === "socio" ? `Desde ${d.access.sinceText}` : pending ? "Pendiente" : "Por revelar", icon: who === "socio" ? "user" : "cardi", badge: 0, go: go("/perfil") },
+    ...(jugador ? [{ t: "Temporada", hint: card.totals.played ? pl(card.totals.played, "partido", "partidos") : "Sin partidos", icon: "chart" as const, badge: 0, go: go("/perfil/temporada") }] : []),
+    { t: "Avisos", hint: inbox.unread ? "" : "Al día", icon: "bell", badge: inbox.unread, go: go("/avisos") },
+    { t: "Ajustes", hint: "", icon: "gear", badge: 0, go: go("/perfil/ajustes") },
+    { t: "Cuenta", hint: "", icon: "user", badge: 0, go: go("/perfil/cuenta") },
+    ...(inbox.viewer.captain ? [{ t: "Capitanía", hint: doors ? `${doors} en la puerta` : "Nadie en la puerta", icon: "door" as const, badge: doors, go: go("/perfil/capitania") }] : []),
+  ];
+  const salir = () => {
+    close(false);
+    tuGo("right", async () => {
+      await navigate({ to: "/perfil/cuenta", search: { salir: "1" } } as never);
+    });
+  };
   return (
-    <>
-      <header className="vd-acct-head">
-        <div>
-          <h2 id="vd-acct-t">Entrar</h2>
-          <span>Para la porra, los avisos y el MVP</span>
+    <div ref={ref} className="vd-glass vd-glass--deep tu-sheet tu-tu" role="dialog" aria-modal="true" aria-labelledby="tu-tu-t" onKeyDown={onKey}>
+      <span className="tu-grab" aria-hidden="true" />
+      <header className="tu-tu__head">
+        {jugador ? img ? <img className="tu-tu__shirt" src={img.src} alt="" /> : <span className="tu-tu__shirt" aria-hidden="true" /> : <span className="tu-ava" aria-hidden="true">{initialOf(d.nickname || title)}</span>}
+        <div className="tu-tu__who">
+          <h2 id="tu-tu-t">{title}</h2>
+          <p>{line}</p>
         </div>
+        <span className="tu-pill tu-tu__chip">{chip}</span>
+        <button type="button" className="tu-x2" aria-label="Cerrar" onClick={() => close()}>
+          <TuIcon name="close" />
+        </button>
       </header>
-      <ul className="vd-arows">
-        <Row icon="lock" title="¿Juegas en el Piti?">
-          <p>Un compañero te deja pasar al vestuario y ya ves la convocatoria, tus turnos y «Tú».</p>
-          <Link className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press" to="/vestuario" onClick={onClose}>
-            Pedir entrar al vestuario
-          </Link>
-        </Row>
-      </ul>
-      <Foot member={false} onClose={onClose} />
-    </>
+      {first && (
+        <section className="tu-tu__toca" aria-label="Te toca">
+          <p className="tu-label">Te toca</p>
+          <PendList pends={[first]} a={a} say={say} sm />
+          {inbox.openPend > 1 && (
+            <button type="button" className="vd-link" data-nav="1" onClick={() => a.goAv("bandeja", "toca")}>
+              {tocaMore(inbox.openPend)}
+            </button>
+          )}
+        </section>
+      )}
+      <MenuList items={items} />
+      <Theme />
+      <footer className="tu-tu__foot">
+        <button type="button" className="tu-mi tu-mi--quiet" data-nav="1" onClick={salir}>
+          <TuIcon name="logout" />
+          <span className="tu-mi__t">Salir en este dispositivo</span>
+        </button>
+        <span className="tu-small tu-tu__keys" aria-hidden="true">
+          <kbd>↑</kbd>
+          <kbd>↓</kbd> moverte · <kbd>Esc</kbd> cerrar
+        </span>
+      </footer>
+    </div>
   );
 }
 
-export function AccountSheet({ kind, onClose }: { kind: AccountKind; onClose: () => void }) {
-  const desktop = useDesktop();
-  const ref = useRef<HTMLDivElement | null>(null);
-  const closeNow = useRef(onClose);
-  useEffect(() => {
-    closeNow.current = onClose;
-  }, [onClose]);
-  useEffect(() => {
-    ref.current?.focus({ preventScroll: true });
-    const outside = (e: PointerEvent) => {
-      const t = e.target as Node | null;
-      if (!t || ref.current?.contains(t)) return;
-      if (t instanceof Element && t.closest(".vd-acct")) return;
-      closeNow.current();
-    };
-    document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
-  }, []);
-  const phone = !desktop;
-  // (on the page's body, over the floating score and the page: the header is its own stacking layer)
-  return createPortal(
-    <div
-      ref={ref}
-      tabIndex={-1}
-      className={`vd-glass vd-glass--deep vd-acctsheet${phone ? " vd-acctsheet--phone" : ""}`}
-      role="dialog"
-      aria-labelledby="vd-acct-t"
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.stopPropagation();
-          onClose();
-        }
-      }}
-    >
-      {phone && <div className="vd-sheet__grab" aria-hidden="true" />}
-      <button type="button" className="vd-glass vd-press vd-acct-x" aria-label="Cerrar" onClick={onClose}>
-        <VIcon name="close" size={16} />
-      </button>
-      {kind === "jugador" ? <JugadorBody phone={phone} onClose={onClose} /> : kind === "socio" ? <SocioBody phone={phone} onClose={onClose} /> : <FanBody onClose={onClose} />}
-    </div>,
-    document.body,
+/** A fan's «Entrar» sheet. */
+export function FanSheet({ close }: { close: (refocus?: boolean) => void }) {
+  const { loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
+  const dev = useThisDevice();
+  const { ref, onKey } = useSheetKeys(() => close());
+  const [err, setErr] = useState("");
+  const go = (path: string) => () => {
+    close(false);
+    tuGo("right", async () => {
+      await navigate({ href: path });
+    });
+  };
+  const items: Item[] = [
+    { t: "Avisos sin cuenta", hint: dev.line, icon: "bell", badge: 0, go: go("/avisos/a-medida") },
+    {
+      t: "Buscar en la web",
+      hint: "Ctrl K",
+      icon: "search",
+      badge: 0,
+      go: () => {
+        close(false);
+        window.setTimeout(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true })), 80);
+      },
+    },
+  ];
+  return (
+    <div ref={ref} className="vd-glass vd-glass--deep tu-sheet tu-tu" role="dialog" aria-modal="true" aria-labelledby="tu-tu-t" onKeyDown={onKey}>
+      <span className="tu-grab" aria-hidden="true" />
+      <header className="tu-tu__head">
+        <div className="tu-tu__who">
+          <h2 id="tu-tu-t">Entra en el vestuario</h2>
+          <p>La porra, el MVP, tus avisos y tu carta</p>
+        </div>
+        <button type="button" className="tu-x2" aria-label="Cerrar" onClick={() => close()}>
+          <TuIcon name="close" />
+        </button>
+      </header>
+      <div className="tu-tu__fan">
+        <button
+          type="button"
+          className="vd-glass vd-press vd-btn vd-btn--pri tu-wide"
+          data-nav="1"
+          onClick={() => {
+            setErr("");
+            loginWithGoogle().then(
+              () => close(false),
+              () => setErr("No se ha podido entrar con Google. Inténtalo otra vez."),
+            );
+          }}
+        >
+          <TuIcon name="google" />
+          Entrar con Google
+        </button>
+        {err && (
+          <p className="tu-small" role="alert">
+            {err}
+          </p>
+        )}
+        <button type="button" className="vd-link" data-nav="1" onClick={go("/vestuario")}>
+          ¿Juegas en el Piti? Pide entrar al vestuario
+        </button>
+      </div>
+      <MenuList items={items} />
+      <Theme />
+    </div>
   );
 }
+
+/** The fan's «Entrar» sheet in its layer (AccountGate opens it from the server-rendered link). */
+export function FanAccountLayer({ close }: { close: (refocus?: boolean) => void }) {
+  return (
+    <TuLayer cls="o-tu">
+      <div className="tu-scrim" aria-hidden="true" onClick={() => close()} />
+      <FanSheet close={close} />
+    </TuLayer>
+  );
+}
+

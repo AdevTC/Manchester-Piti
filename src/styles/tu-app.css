@@ -1,0 +1,12 @@
+/* Tú in the app: what the boards' CSS (tu.css, ported as it is) needs around it here. The boards draw the page under
+   a 52 px mock-up strip and the surfaces inside the page; the app has no strip and floats the surfaces in a layer of
+   their own (TuLayer: a viewport-sized .vx.tu, the same container «tupg», so the boards' rules place them). */
+.tu{min-height:100vh;min-height:100dvh}
+.tu.tu-ovl{position:fixed;inset:0;z-index:60;min-height:0;overflow:visible;pointer-events:none;background:none;isolation:auto}
+.tu.tu-ovl>*{pointer-events:auto}
+.tu.tu-ovl>.tu-toast{pointer-events:none}
+/* the carné's QR is a real one (the board drew a pattern): it opens the player's page */
+.tu-qr.tu-qr--real{background:#eaf3fc;padding:calc(var(--cw)*.01);box-sizing:border-box;color:#0c1733}
+.tu-qr--real svg{display:block;width:100%;height:100%}
+/* (the board's light scrim only scoped its first selector) */
+:root[data-theme="light"] .tu.o-buscar .tu-scrim{background:rgba(12,23,51,.22)}

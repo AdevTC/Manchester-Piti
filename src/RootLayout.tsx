@@ -34,7 +34,8 @@ export function RootLayout() {
   const lost = useRouterState({ select: (s) => s.matches.some((m) => m.routeId === "/$" || m.status === "notFound") });
   // Every page the app shows, by history entry: «Volver» knows whether the one behind is ours.
   useRecordTrail();
-  const privatePage = ["/admin", "/perfil", "/avisos", "/pizarra", "/vestuario"].some((p) => under(pathname, p));
+  // (Tú, /perfil and /avisos, draws its own door: the page's link works as soon as you are in, and «A medida» is a fan's too)
+  const privatePage = ["/admin", "/pizarra", "/vestuario"].some((p) => under(pathname, p));
   const adminPath = under(pathname, "/admin");
   // La mesa is the live match itself: the floating score would sit on its scoreboard.
   const mesaPath = /^\/partidos\/[^/]+\/mesa\/?$/.test(pathname);
@@ -54,7 +55,7 @@ export function RootLayout() {
   const adminApp = adminPath && (checking || (!door && admin));
   // A member who is not a captain, on /admin: a Celeste page that sends him back to the vestuario.
   const adminDoor = adminPath && !checking && !door && !admin;
-  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/numeros", "/club", "/jugadores", "/buscar"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra", "/perfil", "/avisos"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/numeros", "/club", "/jugadores", "/buscar", "/perfil", "/avisos"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (

@@ -10,6 +10,7 @@ import { httpsCallable } from "firebase/functions";
 import { auth, functions, FUNCTIONS_REGION } from "../firebase";
 import { presetOf, presetTopics, TOPICS_VERSION, type PushChoice, type PushPreset } from "../../functions/src/pushPresets";
 import { isMatchTopic, type MatchTopic } from "../../functions/src/pushMatchTopics";
+import type { PauseKind } from "../../functions/src/pushPauseLogic";
 
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
 export type Topic = "start" | "goals" | "cards" | "final" | "mvp" | "dates" | "lineup" | "tabla" | DoorTopic | "convocatoria";
@@ -404,6 +405,15 @@ export async function setPushPreset(preset: PushPreset, vibrate: boolean): Promi
   return setTopics(topics, { resetMatches: true });
 }
 
+/** «Vibrar con los goles» alone, whatever the topics (A medida's switch: «Solo goles», «Todo» or topics one by
+ *  one): kept here and told to the server with this device's topics. */
+export async function setPushVibrate(vibrate: boolean): Promise<void> {
+  write(VIBRATE_KEY, vibrate ? "1" : "0");
+  const topics = savedTopics();
+  if (topics.length) await setTopics(topics);
+  else notifyPreset();
+}
+
 export interface PushPresetState {
   /** The device's choice: a preset, or «A medida» (custom) for topics picked one by one. */
   choice: PushChoice;
@@ -502,4 +512,72 @@ export async function setMatchTopics(matchId: string, topics: MatchTopic[] | nul
   const { data } = await matchCall({ endpoint: sub.endpoint, ...(keys?.p256dh && keys.auth ? { keys: { p256dh: keys.p256dh, auth: keys.auth } } : {}), matchId, topics });
   setMatchMirror(data.matchTopics);
   return data.matchTopics[matchId] ?? null;
+}
+
+// ---------- «Pausar»: this device stops ringing for a while (functions/src/pushPause.ts; the bell keeps everything)
+
+export type { PauseKind } from "../../functions/src/pushPauseLogic";
+export { matchEndAt, MAX_PAUSE_MS, tomorrowAtNine } from "../../functions/src/pushPauseLogic";
+
+/** This device's pause as it was chosen: until when (ms) and which of the three («1h», «manana», «partido»). */
+export interface PushPause {
+  until: number;
+  kind: PauseKind;
+}
+const PAUSE_KEY = "piti-push-pause";
+const PAUSE_KINDS: readonly string[] = ["1h", "manana", "partido"];
+
+/** The pause saved on this device (null: none; an expired one reads as none). */
+export function savedPause(now: number = Date.now()): PushPause | null {
+  return pauseOf(read(PAUSE_KEY), now);
+}
+function pauseOf(stored: string | null, now: number): PushPause | null {
+  try {
+    const raw: unknown = JSON.parse(stored ?? "null");
+    if (!raw || typeof raw !== "object") return null;
+    const { until, kind } = raw as { until?: unknown; kind?: unknown };
+    if (typeof until !== "number" || !Number.isFinite(until) || until <= now || typeof kind !== "string" || !PAUSE_KINDS.includes(kind)) return null;
+    return { until, kind: kind as PauseKind };
+  } catch {
+    return null;
+  }
+}
+
+const pauseCall = httpsCallable<{ endpoint: string; until: number | null }, { pausedUntil: number | null }>(functions, "pushSetPause");
+
+/**
+ * Pauses this device until `pause.until` (null: resume now). The server keeps it on the device's subscription (a
+ * week at most, clamped there) and sendTo skips the device meanwhile; a device the server doesn't have gets
+ * nothing anyway, so the choice is only kept here. Resolves to the pause kept.
+ */
+export async function setPushPause(pause: PushPause | null): Promise<PushPause | null> {
+  let kept = pause;
+  const reg = typeof navigator !== "undefined" && "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : undefined;
+  const sub = reg && "pushManager" in reg ? await reg.pushManager.getSubscription() : null;
+  if (sub) {
+    try {
+      const { data } = await pauseCall({ endpoint: sub.endpoint, until: pause?.until ?? null });
+      kept = pause && data.pausedUntil !== null ? { until: data.pausedUntil, kind: pause.kind } : null;
+    } catch (e) {
+      // (the server forgot this device: nothing reaches it, so the pause is only this device's word)
+      if (code(e) !== "functions/not-found") throw e;
+    }
+  }
+  write(PAUSE_KEY, kept ? JSON.stringify(kept) : null);
+  notifyPreset();
+  return kept;
+}
+
+const pauseSnapshot = (): string => read(PAUSE_KEY) ?? "";
+
+/** This device's pause, live across the app (null: none, or over at `now`), and its setter. */
+export function usePushPause(now: number = Date.now()): { pause: PushPause | null; set: (p: PushPause | null) => Promise<PushPause | null> } {
+  const subscribe = useCallback((cb: () => void) => {
+    presetListeners.add(cb);
+    return () => {
+      presetListeners.delete(cb);
+    };
+  }, []);
+  const key = useSyncExternalStore(subscribe, pauseSnapshot, () => "");
+  return { pause: pauseOf(key || null, now), set: setPushPause };
 }

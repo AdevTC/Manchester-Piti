@@ -47,6 +47,7 @@ import {
 import type { SquadShirt } from "./rules";
 import { upcomingRows, type UpcomingRow } from "./avisos";
 import { closedRecapSeason, recapOffer, type RecapOffer } from "./recapView";
+import type { TuMaqueta } from "../../components/vidrio/tu/maqueta";
 
 export type Role = "superadmin" | "admin" | "user";
 /** A ficha the member can still ask for (the claim picker): this season's, nobody linked to it. */
@@ -129,7 +130,9 @@ function useSeasonAnswers(uid: string, matchIds: string[]) {
   });
 }
 
-export function useProfileData(): ProfileData {
+/** `maq` (DEV only, components/vidrio/tu/maqueta): look at the page as another viewer with production's data —
+ *  a player (`jugador`: his ficha linked), a socio without a ficha, a new account (a pending request), a captain. */
+export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
   const { user, profile, loading: authLoading } = useAuth();
   const { seasons, loadingSeasons } = useSeason();
   const { matches, players, loading: clubLoading, error: clubError } = useClubData();
@@ -137,9 +140,12 @@ export function useProfileData(): ProfileData {
   const now = useClock(60_000);
   const minute = Math.floor(now / 60_000) * 60_000;
   const uid = user?.uid ?? "";
-  const role: Role = profile?.role ?? "user";
+  const q = maq?.quien ?? null;
+  const role: Role = q === "admin" ? "superadmin" : q === "capitan" ? "admin" : q ? "user" : (profile?.role ?? "user");
   const isCaptain = role === "admin" || role === "superadmin";
-  const linkedId = profile?.playerId ?? null;
+  const named = (p: { shirtName?: string; firstName?: string }) => (p.shirtName || p.firstName || "").toLowerCase();
+  const maqPlayer = q === "jugador" ? (players.find((p) => p.id === maq?.jugador || named(p) === (maq?.jugador ?? "kevin").toLowerCase()) ?? players.find((p) => p.id !== profile?.playerId)) : undefined;
+  const linkedId = q === "jugador" ? (maqPlayer?.id ?? null) : q === "socio" || q === "nuevo" || q === "pendiente" ? null : (profile?.playerId ?? null);
 
   const next = nextFixture(matches, now);
   const seasonId = currentSeasonId(next, matches, seasons);
@@ -147,7 +153,8 @@ export function useProfileData(): ProfileData {
   const seasonName = season?.name ?? "Temporada";
 
   const claim = useMyClaim(linkedId ? undefined : uid || undefined);
-  const info = fichaInfo(linkedId, claim.data);
+  const maqClaim = q === "pendiente" ? { playerId: players.find((p) => p.id !== profile?.playerId)?.id ?? "", status: "pending" as const } : null;
+  const info = fichaInfo(linkedId, q ? maqClaim : claim.data);
   const membership = useMembership(uid || undefined);
   const openedBy = membership.data && membership.data.by && membership.data.by !== uid ? membership.data.by : undefined;
   const opener = useNicknameOf(openedBy);

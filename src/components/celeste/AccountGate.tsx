@@ -1,15 +1,19 @@
-// The top bar's account control (V-Integracion «El club y la cuenta», V-Vivo top bar): a member gets his avatar
-// pill («J Jordi»: the initial in a celeste disc and his first name) that opens «Tú» (a jugador) or his account
-// (a socio); a fan gets «Entrar», which opens the door's sheet (the porra, the avisos and the MVP are a member's;
-// «Pedir entrar al vestuario»). The server and the hydrating browser render the fan's link to /vestuario (the
-// public pages' HTML stays the fan's, and without JavaScript it is still the way in); the member arrives right
-// after (RootLayout publishes him: hooks/viewerSignal, accountSignal). The sheet's chunk loads on first use.
-import { lazy, Suspense, useCallback, useRef, useState, useSyncExternalStore } from "react";
+// The top bar's account control (TU boards, `tu-acct`): a member gets his avatar pill («J Jordi»: the initial on a
+// celeste disc and his first name, with a dot while something waits on him) that opens «Tú»; a fan gets «Entrar»,
+// which opens the door's sheet («Entrar con Google», «¿Juegas en el Piti? Pide entrar al vestuario»). The server
+// and the hydrating browser render the fan's link to /vestuario (the public pages' HTML stays the fan's, and without
+// JavaScript it is still the way in); the member arrives right after (RootLayout publishes him: hooks/viewerSignal,
+// accountSignal), first as the bare pill, then with «Tú» and its dot once their chunk is in.
+import { lazy, Suspense, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { usePublishedViewer } from "../../hooks/viewerSignal";
+import { readTuMaqueta } from "../vidrio/tu/maqueta";
+import { tuSurface } from "../vidrio/tu/ui";
 import { firstName, initialOf, usePublishedAccount } from "./accountSignal";
 
-const AccountSheet = lazy(() => import("../vidrio/account/AccountSheet").then((m) => ({ default: m.AccountSheet })));
+const MemberAccount = lazy(() => import("../vidrio/account/AccountSheet").then((m) => ({ default: m.MemberAccount })));
+const FanAccountLayer = lazy(() => import("../vidrio/account/AccountSheet").then((m) => ({ default: m.FanAccountLayer })));
 
 const noop = () => () => undefined;
 const useHydrated = () => useSyncExternalStore(noop, () => true, () => false);
@@ -18,65 +22,54 @@ export function AccountGate({ here }: { here?: boolean }) {
   const hydrated = useHydrated();
   const viewer = usePublishedViewer();
   const account = usePublishedAccount();
-  const [open, setOpen] = useState(false);
-  const button = useRef<HTMLElement | null>(null);
-  const close = useCallback(() => {
-    setOpen(false);
-    button.current?.focus({ preventScroll: true });
-  }, []);
-  const member = hydrated && viewer.member;
+  const maqFan = hydrated && readTuMaqueta()?.quien === "fan";
+  const member = hydrated && viewer.member && !maqFan;
   const name = account?.name ? firstName(account.name) : "";
-  const jugador = member && !!viewer.playerId;
+  if (!member) return <FanEntrar here={here} hydrated={hydrated} />;
+  return (
+    <Suspense
+      fallback={
+        <button type="button" className={`vd-glass vd-press tu-acct${here ? " on" : ""}`} aria-label={viewer.playerId ? `Tú, ${name || "tu cuenta"}` : `Tu cuenta${name ? `, ${name}` : ""}`} aria-haspopup="dialog" aria-expanded={false}>
+          <i aria-hidden="true">{name ? initialOf(name) : "·"}</i>
+          <span className="tu-acct__name">{name || "Tú"}</span>
+        </button>
+      }
+    >
+      <MemberAccount name={name} here={here} />
+    </Suspense>
+  );
+}
 
-  if (!member) {
-    return (
-      <>
-        <Link
-          ref={(el) => {
-            button.current = el;
-          }}
-          className={`vd-glass vd-press vd-acct vd-acct--in${here ? " on" : ""}`}
-          to="/vestuario"
-          aria-label="Entrar al vestuario"
-          aria-current={here ? "page" : undefined}
-          aria-haspopup={hydrated ? "dialog" : undefined}
-          aria-expanded={hydrated ? open : undefined}
-          onClick={(e) => {
-            // (with the page alive the door's sheet opens here; its «Pedir entrar al vestuario» leads in)
-            if (!hydrated || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-            e.preventDefault();
-            setOpen((o) => !o);
-          }}
-        >
-          Entrar
-        </Link>
-        {open && (
-          <Suspense fallback={null}>
-            <AccountSheet kind="aficion" onClose={close} />
-          </Suspense>
-        )}
-      </>
-    );
-  }
+function FanEntrar({ here, hydrated }: { here?: boolean; hydrated: boolean }) {
+  const [open, setOpen] = useState(false);
+  const btn = useRef<HTMLAnchorElement | null>(null);
+  const close = (refocus = true) => {
+    tuSurface(false, btn.current, "tu-acct", () => flushSync(() => setOpen(false)));
+    if (refocus) window.setTimeout(() => btn.current?.focus({ preventScroll: true }), 60);
+  };
   return (
     <>
-      <button
-        ref={(el) => {
-          button.current = el;
+      <Link
+        ref={btn}
+        className={`vd-glass vd-press tu-acct tu-acct--in${here ? " on" : ""}`}
+        to="/vestuario"
+        aria-label="Entrar al vestuario"
+        aria-current={here ? "page" : undefined}
+        aria-haspopup={hydrated ? "dialog" : undefined}
+        aria-expanded={hydrated ? open : undefined}
+        onClick={(e) => {
+          // (with the page alive the door's sheet opens here; its «Pide entrar al vestuario» leads in)
+          if (!hydrated || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+          e.preventDefault();
+          if (open) close();
+          else tuSurface(true, btn.current, "tu-acct", () => flushSync(() => setOpen(true)));
         }}
-        type="button"
-        className={`vd-glass vd-press vd-acct${here ? " on" : ""}`}
-        aria-label={jugador ? `Tú, ${name || "tu cuenta"}` : `Tu cuenta${name ? `, ${name}` : ""}`}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
       >
-        <i aria-hidden="true">{name ? initialOf(name) : "·"}</i>
-        <span className="vd-acct__name">{name || "Tú"}</span>
-      </button>
+        Entrar
+      </Link>
       {open && (
         <Suspense fallback={null}>
-          <AccountSheet kind={jugador ? "jugador" : "socio"} onClose={close} />
+          <FanAccountLayer close={close} />
         </Suspense>
       )}
     </>

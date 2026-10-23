@@ -361,7 +361,14 @@ const perfilCompartirRoute = createRoute({ getParentRoute: () => profileRoute, p
 const avisosRoute = createRoute({
   getParentRoute: () => tuRoute,
   path: "avisos",
-  validateSearch: z.object({ ver: z.enum(["sin-leer", "partido", "vestuario", "tuyos"]).optional().catch(undefined) }),
+  // (the TU board's filters: «Te toca», «Sin leer», «Partidos», «Del vestuario», «Tuyos» and one match)
+  validateSearch: z.object({
+    ver: z
+      .string()
+      .regex(/^(te-toca|sin-leer|partidos|vestuario|tuyos|partido-[A-Za-z0-9_-]{1,64})$/)
+      .optional()
+      .catch(undefined),
+  }),
 });
 const avisosIndexRoute = createRoute({ getParentRoute: () => avisosRoute, path: "/" });
 const avisosAMedidaRoute = createRoute({ getParentRoute: () => avisosRoute, path: "a-medida" });
