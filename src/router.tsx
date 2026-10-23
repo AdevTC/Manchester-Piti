@@ -260,8 +260,7 @@ const mesaRoute = createRoute({
 });
 
 // ── Números: one address per screen, under the time bar (the screens only name themselves: NumerosPage reads
-// the address). Today's StatsPage stays for Plantilla's «Cara a cara» until that page lands.
-const statsPage = lazyRouteComponent(() => import("./pages/stats/StatsPage"), "StatsPage");
+// the address).
 const statsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/numeros",
