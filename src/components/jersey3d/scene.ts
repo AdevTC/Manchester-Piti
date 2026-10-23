@@ -104,9 +104,9 @@ function assets() {
   shared ??= (async () => {
     const faces = loadFaces();
     const [home, away, crest, normal, layout, gltf] = await Promise.all([
-      image(BASE + "kit-home.png"),
-      image(BASE + "kit-away.png"),
-      image("/crest.png"),
+      image(BASE + "kit-home.webp"),
+      image(BASE + "kit-away.webp"),
+      image("/crest.webp"),
       image(BASE + "jersey-normal.webp"),
       fetch(BASE + "kit-layout.json").then((r) => r.json() as Promise<Layouts>),
       new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(BASE + "jersey.glb"),

@@ -19,8 +19,8 @@ export interface Assets {
 export const DEFAULT_ASSETS: AssetUrls = {
   glb: "/models/jersey.glb",
   layout: "/models/kit-layout.json",
-  kitHome: "/models/kit-home.png",
-  kitAway: "/models/kit-away.png",
+  kitHome: "/models/kit-home.webp",
+  kitAway: "/models/kit-away.webp",
   normal: "/models/jersey-normal.webp",
   crest: "/crest-256.webp",
 };
