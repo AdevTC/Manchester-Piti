@@ -165,8 +165,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         : scrubbed
           ? `Estás viendo la temporada tal como estaba tras la J${upto}.`
           : !gsDone.length
-            ? `${se.S.name}. Aún no se ha jugado ninguna jornada: todos a cero${pendingN ? `; quedan ${pendingN} por jugar.` : "."}`
-            : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; quedan ${pendingN} por jugar.` : "."}`;
+            ? `${se.S.name}. Aún no se ha jugado ninguna jornada: todos a cero${pendingN ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`
+            : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
   let maxG = 1;
   se.matches.forEach((m) => {
     if (m.gf != null) maxG = Math.max(maxG, m.gf, m.ga ?? 0);
@@ -193,7 +193,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       },
     };
   });
-  const tip = atM ? `J${atM.j} · ${atM.gf == null ? "aplazado" : fmtRes(atM) + (atM.st === "live" ? ", en directo" : "")} · ${atM.rival}` : "";
+  const tip = atM ? `J${atM.j} · ${atM.gf == null ? (atM.st === "apl" ? "aplazado" : "por jugar") : fmtRes(atM) + (atM.st === "live" ? ", en directo" : "")} · ${atM.rival}` : "";
   const nPart = st.partidos.length;
   const scopeBits = [
     all ? "Todas las temporadas" : se.S.name,
@@ -209,7 +209,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     headPct: (((upto - 0.5) / Math.max(1, se.jornadas)) * 100).toFixed(2),
     edgePct: ((edge / Math.max(1, se.jornadas)) * 100).toFixed(2),
     tip,
-    valueText: atM ? `J${atM.j}, ${atM.gf == null ? `aplazado ${vs(atM)}` : `${verb(atM)} ${vs(atM)}`}` : "",
+    valueText: atM ? `J${atM.j}, ${atM.gf == null ? `${atM.st === "apl" ? "aplazado" : "por jugar"} ${vs(atM)}` : `${verb(atM)} ${vs(atM)}`}` : "",
     playing: st.playing, playIcon: st.playing ? ("pause" as const) : ("play" as const), playLabel: st.playing ? "Pausa" : "Repasar",
     back: scrubbed && !all, backLabel: se.live ? "Volver al directo" : "Volver a hoy", off,
     cls: [st.playing ? "is-playing" : "", off ? "is-off" : "", scrubbed ? "is-scrubbed" : ""].join(" ").trim(),
@@ -528,7 +528,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     }
     const LL = lastL as { m: NMatch; l: NonNullable<NMatch["ledger"]>[string] } | null;
     return {
-      id, name: R.name, full: P ? `${P.first} ${P.last}`.trim() : "", n: R.n, pos: P ? (POSW[P.pos] ?? "") : "", you: you(id), img: id, alt: `La camiseta de ${R.name}, dorsal ${R.n}`,
+      id, name: R.name, full: P && `${P.first} ${P.last}`.trim().toLocaleLowerCase("es") !== R.name.toLocaleLowerCase("es") ? `${P.first} ${P.last}`.trim() : "", n: R.n, pos: P ? (POSW[P.pos] ?? "") : "", you: you(id), img: id, alt: `La camiseta de ${R.name}, dorsal ${R.n}`,
       tiles: [
         { t: R.pj === 1 ? "partido" : "partidos", v: R.pj, gold: "" },
         { t: R.minKnown ? "minutos" : "de titular", v: R.minKnown ? Math.round(R.min) : R.tit, gold: "" },

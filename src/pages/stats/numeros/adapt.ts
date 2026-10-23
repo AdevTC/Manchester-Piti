@@ -184,15 +184,13 @@ export function seasonData(inp: AdaptInput): NSeasonData {
   return { id: inp.seasonId, slug: slug(inp.seasonName), name: inp.seasonName, league: inp.league, real: inp.real, matches, standings, mvpDemo: !!inp.mvpDemo, porra: inp.porra };
 }
 
-/** Where each spot sits in «El cielo de la temporada»: a horizontal pitch, our goal on the left (x, y in %). */
-const SKY_SPOT: Record<string, [number, number]> = {
-  POR: [6, 50], LIB: [14, 50], DFC: [22, 50], LI: [22, 16], LD: [22, 84], MCD: [39, 50], MI: [55, 22], MC: [55, 50], MD: [52, 86],
-  MCO: [71, 36], EI: [88, 14], ED: [88, 86], DC: [88, 50],
-};
-const LINE_SPOT: Record<string, string> = { POR: "POR", DEF: "DFC", MED: "MC", DEL: "DC" };
+/** The side of the pitch each spot is on in «El cielo de la temporada» (0 the left wing, our goal on the left). */
+const SIDE: Record<string, number> = { POR: 50, LIB: 50, DFC: 50, LI: 16, LD: 84, MCD: 50, MI: 22, MC: 50, MD: 84, MCO: 40, EI: 14, ED: 86, DC: 50 };
 const LINE_OF: Record<string, SquadP["pos"]> = {
   POR: "POR", LIB: "DEF", DFC: "DEF", LI: "DEF", LD: "DEF", MCD: "MED", MI: "MED", MC: "MED", MD: "MED", MCO: "MED", EI: "DEL", ED: "DEL", DC: "DEL",
 };
+/** Each line's column(s) across the pitch (x in %): a crowded line takes two. */
+const COLS: Record<Exclude<SquadP["pos"], "">, number[]> = { POR: [6, 14], DEF: [22, 39], MED: [55, 71], DEL: [88, 80] };
 
 export interface SquadInput {
   id: string;
@@ -206,8 +204,9 @@ export interface SquadInput {
   spots: string[];
 }
 
-/** The squad as the boards place it: each one at the spot he has played most (the actas' positions), else his own
- *  main position, else his line; two on one spot step apart so every star shows. */
+/** The squad as the boards place it in «El cielo»: each one in his line (the spot he has played most in the actas,
+ *  else his own positions, else his natural line), the line's players spread from one wing to the other by the side
+ *  they play on, a crowded line in two columns. Nobody shares a point. */
 export function squadOf(people: readonly SquadInput[], matches: readonly NMatch[]): SquadP[] {
   const played: Record<string, Record<string, number>> = {};
   matches.forEach((m) =>
@@ -218,19 +217,26 @@ export function squadOf(people: readonly SquadInput[], matches: readonly NMatch[
       }),
     ),
   );
-  const taken: Record<string, number> = {};
   const sorted = [...people].sort((a, b) => (Number(a.num) || 999) - (Number(b.num) || 999));
-  return sorted.map((p): SquadP => {
+  const placed = sorted.map((p) => {
     const own = Object.entries(played[p.id] ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0];
-    const code = [own, ...p.spots, LINE_SPOT[p.line]].find((c): c is string => !!c && !!SKY_SPOT[c]) ?? "MC";
-    const k = taken[code] ?? 0;
-    taken[code] = k + 1;
-    const [x0, y0] = SKY_SPOT[code];
-    // the second on a spot sits a little back and to one side, the third to the other
-    const step = k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2);
-    const y = Math.max(8, Math.min(92, y0 + step * 16 * (y0 > 60 ? -1 : 1)));
-    const x = Math.max(4, Math.min(92, x0 - (k ? 6 : 0)));
-    const pos = (["POR", "DEF", "MED", "DEL"].includes(p.line) ? p.line : LINE_OF[code] ?? "") as SquadP["pos"];
-    return { id: p.id, n: Number(p.num) || "", name: p.name, pos, x, y, first: p.first, last: p.last };
+    const code = [own, ...p.spots].find((c): c is string => !!c && !!LINE_OF[c]) ?? null;
+    const known = ["POR", "DEF", "MED", "DEL"].includes(p.line) ? (p.line as SquadP["pos"]) : "";
+    return { p, line: (code ? LINE_OF[code] : known) as SquadP["pos"], side: code ? SIDE[code] : 50 };
   });
+  // without any position, a player fills the outfield line with fewest
+  const count = (l: SquadP["pos"]) => placed.filter((x) => x.line === l).length;
+  placed.filter((x) => !x.line).forEach((x) => (x.line = (["DEF", "MED", "DEL"] as const).reduce((a, b) => (count(b) < count(a) ? b : a))));
+  const out = new Map<string, SquadP>();
+  (["POR", "DEF", "MED", "DEL"] as const).forEach((line) => {
+    const inLine = placed.filter((x) => x.line === line).sort((a, b) => a.side - b.side);
+    // a crowded line takes two columns, its players still one height each (staggered, so no two labels meet)
+    const cols = inLine.length > 4 ? 2 : 1;
+    inLine.forEach((x, i) => {
+      const y = inLine.length === 1 ? x.side : Math.round(14 + (i * 72) / (inLine.length - 1));
+      const known = ["POR", "DEF", "MED", "DEL"].includes(x.p.line) ? (x.p.line as SquadP["pos"]) : "";
+      out.set(x.p.id, { id: x.p.id, n: Number(x.p.num) || "", name: x.p.name, pos: known, x: COLS[line][i % cols], y, first: x.p.first, last: x.p.last });
+    });
+  });
+  return sorted.map((p) => out.get(p.id) as SquadP);
 }

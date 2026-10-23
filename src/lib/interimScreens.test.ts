@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorAt, interimStatsSearch, statsSearchToWrite, profileHashAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
+import { anchorAt, profileHashAt, statsViewAt, statsViewPath, type StatsView } from "./interimScreens";
 
 // Until each redesign lands, a new address opens today's page on what its old ?view=, ?tab= or #hash opened.
 describe("Números: the view of each screen", () => {
@@ -22,32 +22,6 @@ describe("Números: the view of each screen", () => {
     expect(statsViewAt(statsViewPath("minutes"), { ranking: "minutos" }).view).toBe("minutes");
     expect(statsViewAt(statsViewPath("explore", "evolution"), {}).section).toBe("evolution");
     expect(statsViewAt(statsViewPath("explore", "streaks"), {}).section).toBe("streaks");
-  });
-  it("reads Números' Spanish parameters as today's page's English ones; its own win", () => {
-    expect(interimStatsSearch({ partidos: ["m1"], jugadores: "a,b", familia: "pase", metrica: "070", equipo: "rival", parte: 2, "fuera-del-audio": 1, temporada: "todas" }, "/numeros/juego/catalogo")).toMatchObject({
-      matches: ["m1"],
-      players: ["a", "b"],
-      family: "pase",
-      metric: "070",
-      team: "opponent",
-      period: 2,
-      excluded: true,
-      seasons: [],
-      analysis: "catalog",
-    });
-    expect(interimStatsSearch({ temporada: "t1,t2" }, "/numeros").seasons).toEqual(["t1", "t2"]);
-    expect(interimStatsSearch({ temporada: "t1", seasons: ["t0"], family: "tiro", familia: "pase" }, "/numeros")).toMatchObject({ seasons: ["t0"], family: "tiro" });
-    expect(interimStatsSearch({}, "/numeros")).toEqual({});
-  });
-  it("what the page writes back has no Spanish twin left, so a filter that arrived in Spanish can be removed", () => {
-    const arrived = { temporada: "todas", partidos: ["j1"], jugadores: ["p1"], equipo: "rival", parte: 2, familia: "pase", q: "x" };
-    const own = statsSearchToWrite(arrived, "/numeros/juego");
-    expect(own).toEqual({ matches: ["j1"], players: ["p1"], team: "opponent", period: 2, family: "pase", seasons: [], q: "x" });
-    // «Quitar filtros»: the page's own clearing wins, nothing comes back from the Spanish params
-    const cleared = { ...own, season: "all", seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined };
-    expect(interimStatsSearch(cleared, "/numeros/juego")).toMatchObject({ seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined });
-    // (the catalogue screen says so itself: never written)
-    expect(statsSearchToWrite({}, "/numeros/juego/catalogo")).toEqual({});
   });
 });
 

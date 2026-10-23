@@ -123,7 +123,7 @@ export function NumerosPage() {
   const useDemo = demoOn && !!demo;
   const matches: ClubMatch[] = useDemo && demo ? demo.matches : club.matches;
   const players = useDemo && demo ? (demo.players as unknown as typeof club.players) : club.players;
-  const seasons = useDemo && demo ? [demo.season] : realSeasons;
+  const seasons = useMemo(() => (useDemo && demo ? [demo.season] : realSeasons), [useDemo, demo, realSeasons]);
   const now = useDemo && demo ? demo.now : clockNow;
 
   // ── the season: the one being played, or ?temporada=<slug|id>; «todas» adds the others
@@ -167,7 +167,11 @@ export function NumerosPage() {
         standings: rows?.rows ?? [], mvpOf: (m) => mvpWinners(m, mvpResults.get(m.id), now), mvpResults, real: !useDemo, mvpDemo: useDemo,
         porra: porraRows ? { rows: porraRows, demo: useDemo, names: useDemo ? { marta: "Marta" } : Object.fromEntries(porraLive.map((r) => [r.playerId ?? `u:${r.uid}`, niceName(r.name)])) } : null,
       });
-      if (useDemo) S.matches.forEach((m) => (m.mvp = demoMvp(m)));
+      if (useDemo)
+        S.matches.forEach((m) => {
+          m.mvp = demoMvp(m);
+          m.mvps = m.mvp ? [m.mvp] : [];
+        });
       return S;
     };
     const S = build(seasonId, season?.name ?? "La temporada", standings);
@@ -243,6 +247,13 @@ export function NumerosPage() {
     } else setSt(merged);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the address is the only trigger
   }, [location.pathname, location.searchStr]);
+
+  // the players an address names (?jugador=, ?estrella=, ?jugadores=) are known once the squad has arrived
+  useEffect(() => {
+    const u = fromUrl(location.pathname, raw);
+    setSt((s) => ({ ...s, pick: u.pick, star: u.star, jug: u.jug, ...(u.sheet === "player" ? { sheet: u.sheet, sheetId: u.sheetId } : {}) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the squad changes
+  }, [people]);
 
   // the address the page writes itself: no transition again
   const commit = (next: NuState, replace: boolean) => {

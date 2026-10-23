@@ -191,17 +191,6 @@ describe("StatsPage · shareable scopes", () => {
     expect(call.search({ season: "saved", matches: ["j1"], view: "game" })).toMatchObject({ season: "all", seasons: ["t1"], matches: undefined, view: "game" });
   });
 
-  it("«Quitar filtros» clears a selection that arrived in Números' Spanish params («Abrir esta selección en Números»)", () => {
-    const arrived = { view: "game", temporada: "todas", partidos: "j1", jugadores: "dc", equipo: "rival", parte: 2 };
-    search.value = arrived;
-    render(<StatsPage/>);
-    navigate.mockClear();
-    fireEvent.click(screen.getAllByRole("button", { name: "Quitar filtros" })[0]);
-    const call = navigate.mock.lastCall?.[0] as { search: (previous: Record<string, unknown>) => Record<string, unknown> };
-    const next = call.search(arrived);
-    for (const key of ["temporada", "partidos", "jugadores", "equipo", "parte"]) expect(next).not.toHaveProperty(key);
-    expect(next).toMatchObject({ season: "all", seasons: undefined, matches: undefined, players: undefined, team: undefined, period: undefined });
-  });
 });
 
 describe("StatsPage · navigation before the board", () => {

@@ -10,7 +10,9 @@ const trim = (pathname: string) => (pathname.length > 1 ? pathname.replace(/\/+$
 export type StatsView = "summary" | "players" | "game" | "minutes" | "positions" | "rivals" | "compare" | "explore";
 export type ExploreSectionId = "individual" | "streaks" | "team" | "evolution";
 
-/** Today's Números view (and its Explorar section) at a /numeros screen, or /plantilla/cara-a-cara. */
+/** Today's StatsPage view (and its Explorar section) at an old Números screen, or /plantilla/cara-a-cara: Plantilla's
+ *  «Cara a cara» still renders it, and the search maps its results through statsViewPath. Números reads its own
+ *  address (pages/stats/numeros/url.ts). */
 export function statsViewAt(pathname: string, search: Search): { view: StatsView; section?: ExploreSectionId } {
   const p = trim(pathname);
   if (p === "/plantilla/cara-a-cara") return { view: "compare" };
@@ -22,41 +24,6 @@ export function statsViewAt(pathname: string, search: Search): { view: StatsView
   if (p === "/numeros/records/evolucion") return { view: "explore", section: "evolution" };
   if (p.startsWith("/numeros/records")) return { view: "explore", section: "individual" };
   return { view: "summary" };
-}
-
-/** Today's Números page reads /stats' English parameters; the new addresses carry Números' Spanish ones (the
- *  redirects and the links write those). The English one wins when both are there (the page writes its own). */
-export function interimStatsSearch(search: Search, pathname: string): Search {
-  const ids = (v: unknown): string[] | undefined =>
-    Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? v.split(",").map((x) => x.trim()).filter(Boolean) : undefined;
-  const temporada = typeof search.temporada === "string" ? search.temporada : undefined;
-  const out: Search = { ...search };
-  const fill = (key: string, value: unknown) => {
-    if (out[key] === undefined && value !== undefined) out[key] = value;
-  };
-  fill("matches", ids(search.partidos));
-  fill("players", ids(search.jugadores));
-  fill("family", search.familia);
-  fill("metric", search.metrica);
-  fill("team", search.equipo === "rival" ? "opponent" : undefined);
-  fill("period", search.parte);
-  fill("excluded", search["fuera-del-audio"] ? true : undefined);
-  // «todas»: every season (an empty scope); one or several by id
-  fill("seasons", temporada === "todas" ? [] : ids(temporada));
-  fill("analysis", trim(pathname) === "/numeros/juego/catalogo" ? "catalog" : undefined);
-  return out;
-}
-
-/** Números' Spanish params that today's page reads as its English ones. */
-const STATS_SPANISH = ["partidos", "jugadores", "temporada", "equipo", "parte", "familia", "metrica", "fuera-del-audio"];
-/** What today's Números page writes back over: its English fields, with the Spanish ones read into them and
- *  dropped, so a filter that arrived in Spanish («Abrir esta selección en Números») can be changed or removed. */
-export function statsSearchToWrite(search: Search, pathname: string): Search {
-  const out = interimStatsSearch(search, pathname);
-  for (const key of STATS_SPANISH) delete out[key];
-  // (the catalogue screen says it already: not written into the address)
-  if (search.analysis === undefined) delete out.analysis;
-  return out;
 }
 
 /** The address of today's Números view (the page's own tabs move between screens). */
