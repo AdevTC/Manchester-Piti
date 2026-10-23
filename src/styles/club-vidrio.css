@@ -1070,8 +1070,8 @@ html[data-cb-vt]::view-transition-old(*),html[data-cb-vt]::view-transition-new(*
 .cb .cb-vit__spot{background:radial-gradient(360px 300px at var(--mx) var(--my),rgba(180,215,250,.18),rgba(180,215,250,0) 70%)!important}
 .cb .cb-roomhead__x{display:none}
 @media (min-width:1100px) and (min-height:760px){
-.vx.cb{height:calc(100vh - 55px)!important;min-height:0!important}
-.cb .cb-main{height:calc(100vh - 55px)!important}
+.vx.cb{height:100vh!important;min-height:0!important}
+.cb .cb-main{height:100vh!important}
 .cb .cb-roomhead__x{display:block;grid-column:2;font-size:13px;line-height:1.45;color:var(--vd-ink2);max-width:110ch;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .cb .cb-room--historia{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:auto auto minmax(0,1fr) auto!important}
 .cb .cb-room--historia>.cb-hnow{display:contents!important}
@@ -1216,3 +1216,10 @@ html[data-cb-vt]::view-transition-old(*),html[data-cb-vt]::view-transition-new(*
 .cb .cal-menu a:hover,.cb .cal-menu button:hover,.cb .cal-menu a:focus-visible,.cb .cal-menu button:focus-visible{background:rgba(108,171,221,.14)}
 .cb .cal-menu b{font-size:14px;font-weight:700}
 .cb .cal-menu span{font-size:12px;color:var(--vd-ink2)}
+/* board fault: the vestuario's door reuses .cb-door, so on a screen that fits the viewport the hub doors' fixed
+   height (184 / 228 px) and centred text clipped it (its kicker, title and lead scrolled out of sight); it takes
+   its row and starts at the top */
+@media (min-width:1100px) and (min-height:760px){
+.cb .cb-room--vestuario>.cb-door{height:auto!important;min-height:0!important;align-items:start;cursor:auto}
+.cb .cb-room--vestuario>.cb-door>.cb-door__txt{align-content:start;padding:4px 8px 8px 0}
+}
