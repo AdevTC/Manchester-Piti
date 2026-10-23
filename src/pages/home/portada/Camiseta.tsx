@@ -16,7 +16,7 @@ const cleanNum = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
 /** The print over a 540 × 600 blank still: the name's cap height 45 (rows 113–157), condensed past 220 px wide but
  *  never shrunk in height; the number 188 tall (rows 191–380), a 34 px gap under the name. */
-function drawPrint(g: CanvasRenderingContext2D, img: CanvasImageSource, name: string, num: string, kit: Kit) {
+export function drawPrint(g: CanvasRenderingContext2D, img: CanvasImageSource, name: string, num: string, kit: Kit) {
   g.clearRect(0, 0, 540, 600);
   g.drawImage(img, 0, 0, 540, 600);
   g.fillStyle = kit === "away" ? "#F5F5F5" : "#051330";
