@@ -75,11 +75,14 @@ test("cabecera sin accesos duplicados ni etiquetas partidas en escritorio compac
 test("jugador, datos de temporada y reparto real de minutos", async ({
   page,
 }) => {
-  await page.goto("/jugadores/preview-player-7?season=preview-season");
+  // (the season's minutes are the player's Temporada section: the four big figures and «Sus números»)
+  await page.goto("/jugadores/preview-player-7/temporada?season=preview-season");
   await expect(
     page.getByRole("heading", { name: "Hugo", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("40′", { exact: true }).first()).toBeVisible();
+  const four = page.locator(".pl-four li").filter({ hasText: "Minutos" });
+  await expect(four.locator("b")).toHaveText("40′");
+  await expect(page.locator(".pl-nums").getByText("40′", { exact: true })).toBeVisible();
   await page.goto("/numeros?temporada=preview-season");
   await page.getByRole("button", { name: "Minutos", exact: true }).click();
   const row = page
