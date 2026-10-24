@@ -10,6 +10,8 @@ import { useAdoptSeason, useSeason } from "../context/SeasonContext";
  * (no mount-count/which-changed ref, which a deep-link race would defeat).
  * SeasonProvider is above the router, so this lives inside the router instead.
  * This is the only writer of the context (`useAdoptSeason`); pages navigate with `useSetSeason()`.
+ * Writing the param back never scrolls: a page that rewrote its own address (the match's ?min=) without the
+ * season was thrown back to the top.
  */
 export const SeasonUrlSync = (): null => {
   const navigate = useNavigate();
@@ -22,7 +24,7 @@ export const SeasonUrlSync = (): null => {
     // shareable (keep the URL clean for the "all" default).
     if (urlSeason === undefined) {
       if (selectedSeasonId !== "all") {
-        void navigate({ to: ".", search: (prev) => ({ ...prev, season: selectedSeasonId }), replace: true });
+        void navigate({ to: ".", search: (prev) => ({ ...prev, season: selectedSeasonId }), replace: true, resetScroll: false });
       }
       return;
     }
@@ -32,7 +34,7 @@ export const SeasonUrlSync = (): null => {
     if (!known) {
       // Unknown season in the URL -> fall back to "all".
       if (selectedSeasonId !== "all") adoptSeasonId("all");
-      void navigate({ to: ".", search: (prev) => ({ ...prev, season: "all" }), replace: true });
+      void navigate({ to: ".", search: (prev) => ({ ...prev, season: "all" }), replace: true, resetScroll: false });
       return;
     }
     // Adopt the URL's season (deep-link, back/forward, selector navigation).
