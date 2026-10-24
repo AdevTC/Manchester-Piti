@@ -39,6 +39,7 @@ import { toBePlayed } from "../../lib/derived/kickoff";
 import { lineupOf, edgeOf, faseOf, floodAtMs, isDone, isLive, isPlayed, isPre, numHitsOf, parseMin, playsOf, pulseOf, resultWords, scoreAt, SCREENS, timelineOf, type Play, type Screen } from "./partido/model";
 import type { PageCtx, Person, Sheet, Viewer } from "./partido/ctx";
 import { Head } from "./partido/Head";
+import { Tira } from "./partido/Tira";
 import { Go, Icon, RivalCrest } from "./partido/bits";
 import { scoreLabelOf, statusOf, tabHints, titleOf } from "./partido/words";
 import { Sheets } from "./partido/Sheets";
@@ -671,7 +672,7 @@ export function MatchPage() {
       ? `${reason ? `${reason.replace(/\.?$/, ".")} ` : ""}${postponedTo ? "La porra y la convocatoria se abren otra vez para la nueva fecha." : "La liga pondrá la fecha; te avisamos en cuanto la haya."}`
       : "No hubo marcador en directo: el resultado llegará con el acta.";
 
-  const ppCls = [`f-${fase}`, `s-${shown}`, dia ? "is-dia" : "", compact ? "is-compact" : "", sheet ? "has-sheet" : ""].filter(Boolean).join(" ");
+  const ppCls = [`f-${fase}`, `s-${shown}`, dia ? "is-dia" : "", compact ? "is-compact" : "", played ? "has-tira" : "", sheet ? "has-sheet" : ""].filter(Boolean).join(" ");
   return chrome(
     <>
       <main className="pp-stage" id="pp-main">
@@ -769,6 +770,7 @@ export function MatchPage() {
                 </Go>
               ))}
             </div>
+            {played && <Tira c={c} on={compact} playing={playing} onPlay={play} onJump={jump} onSeek={onSeek} />}
             {played && <span className="pp-tabs__prog" style={{ width: `${mini.prog}%` }} aria-hidden="true" />}
           </div>
         </nav>

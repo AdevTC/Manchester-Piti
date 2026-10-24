@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
 import { autoCronica, chapters, edgeOf, faseOf, lineupOf, numHitsOf, numbersAt, parseMin, playsOf, resultWords, scoreAt, timelineOf } from "./model";
 import { DEFAULT_ANALYSIS_PROFILE } from "../../../../functions/src/narrated/types";
-import { ribbonMarks } from "./moviola";
+import { playheadTip, ribbonMarks } from "./moviola";
 import { statusOf, titleOf } from "./words";
 
 const names: Record<string, string> = { a: "Alcides", j: "Jordi", p: "Pellete", e: "Evans", f: "Fer", i: "Illescas", k: "Kevin", g: "Eguzquiza", b: "Brawan" };
@@ -129,5 +129,21 @@ describe("narrated match figures", () => {
     ] } };
     const corners = numbersAt(numHitsOf(match), [], 50).find(row => row.k === "corner");
     expect(corners).toMatchObject({ us: 1, them: 1 });
+  });
+});
+
+describe("playheadTip", () => {
+  const plays = playsOf(J1, nameOf, "Orduña fc");
+  it("names the play at the minute, gold for ours and the rival's colour for theirs", () => {
+    expect(playheadTip(plays, 43, 50, null)).toMatchObject({ tip: "Gol de Alcides", cls: "is-gold" });
+    expect(playheadTip(plays, 2, 50, null)).toMatchObject({ tip: "Golpe de Orduña fc", cls: "is-start is-them" });
+    expect(playheadTip(plays, 18, 50, null).tip).toBe("2 cambios");
+  });
+  it("else the whistle, the break, the end, or now when live", () => {
+    expect(playheadTip(plays, 0, 50, null).tip).toBe("Pitido inicial");
+    expect(playheadTip(plays, 25, 50, null).tip).toBe("Descanso");
+    expect(playheadTip(plays, 50, 50, null)).toMatchObject({ tip: "Final", cls: "is-end" });
+    expect(playheadTip(plays, 33, 50, 33).tip).toBe("Ahora");
+    expect(playheadTip(plays, 33, 50, null).tip).toBe("");
   });
 });
