@@ -5,18 +5,24 @@ import type { AnalysisFilters, MetricResult } from "../../../../functions/src/na
 import type { ClubMatch } from "../../../lib/clubData";
 import type { NMatch, Tramo } from "./nd";
 import { periodInterval } from "../../../../functions/src/narrated/operators";
+import { NARRATED_METRIC_BY_ID } from "../../../../functions/src/narrated/catalogIndex";
 
 const cache = new WeakMap<ClubMatch, Map<string, { matches: readonly ClubMatch[]; results: Map<string, MetricResult> }>>();
-/** The catalogue is evaluated once per immutable set of actas and scope, not on each search keystroke. */
-export function numerosMetrics(matches: readonly ClubMatch[], filters: AnalysisFilters): Map<string, MetricResult> {
+/** Results accumulate on demand for each immutable sample and scope. Opening another
+ * catalogue page only evaluates its missing IDs; filters and new actas never share results. */
+export function numerosMetrics(matches: readonly ClubMatch[], filters: AnalysisFilters, metricIds?: readonly string[]): Map<string, MetricResult> {
   const first = matches[0];
   if (!first) return new Map();
   const key = JSON.stringify(filters);
   const bucket = cache.get(first) ?? new Map();
   const previous = bucket.get(key);
-  if (previous && matches.length === previous.matches.length && matches.every((m, i) => m === previous.matches[i])) return previous.results;
-  const results = new Map(evaluateNarrated(matches, filters).map(result => [result.id, result]));
-  if (bucket.size >= 12) bucket.delete(bucket.keys().next().value!);
+  const valid = previous && matches.length === previous.matches.length && matches.every((m, i) => m === previous.matches[i]);
+  const results = valid ? previous.results : new Map<string, MetricResult>();
+  const wanted = metricIds ?? [...NARRATED_METRIC_BY_ID.keys()];
+  const missing = [...new Set(wanted)].filter(id => NARRATED_METRIC_BY_ID.has(id) && !results.has(id));
+  if (!missing.length && valid) return results;
+  for (const result of missing.length ? evaluateNarrated(matches, filters, missing) : []) results.set(result.id, result);
+  if (!valid && bucket.size >= 12) bucket.delete(bucket.keys().next().value!);
   bucket.set(key, { matches: [...matches], results }); cache.set(first, bucket);
   return results;
 }

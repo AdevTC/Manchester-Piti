@@ -1,5 +1,5 @@
 import { dateMillis } from "../../functions/src/matchEngine";
-import { NARRATED_CATALOG_SOURCE_SHA256, NARRATED_METRIC_BY_ID } from "../../functions/src/narrated/catalog";
+import { NARRATED_CATALOG_SOURCE_SHA256, NARRATED_METRIC_BY_ID } from "../../functions/src/narrated/catalogIndex";
 import { evaluateNarrated } from "../../functions/src/narrated/engine";
 import type { AnalysisFilters, NarratedMatch } from "../../functions/src/narrated/types";
 import type { ClubMatch } from "./clubData";

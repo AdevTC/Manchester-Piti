@@ -1,11 +1,11 @@
-import { NARRATED_METRICS, NARRATED_METRIC_BY_ID, type NarratedMetricDefinition } from "../../functions/src/narrated/catalog";
+import { NARRATED_METRICS, NARRATED_METRIC_BY_ID, type NarratedMetricSummary } from "../../functions/src/narrated/catalogIndex";
 import { evaluateNarrated, prepareNarrated } from "../../functions/src/narrated/engine";
 import { clipIntervals, hasKnownParticipation, isKind, periodInterval, playerIntervals, type MetricContext } from "../../functions/src/narrated/operators";
 import type { AnalysisFilters, MetricResult, NarratedMatch } from "../../functions/src/narrated/types";
 
 export interface WorkspacePerson { id: string; name: string; number?: number | string | null }
 export interface AnalysisWorkspaceRow { person: WorkspacePerson; results: Map<string, MetricResult> }
-export interface AnalysisWorkspace { rows: AnalysisWorkspaceRow[]; total: Map<string, MetricResult>; metrics: NarratedMetricDefinition[]; matchIds: string[] }
+export interface AnalysisWorkspace { rows: AnalysisWorkspaceRow[]; total: Map<string, MetricResult>; metrics: NarratedMetricSummary[]; matchIds: string[] }
 export interface WorkspacePreset { id: string; label: string; metricIds: readonly string[] }
 export type AnalysisSortDirection = "asc" | "desc";
 export const ANALYSIS_WORKSPACE_METRICS = NARRATED_METRICS.filter(metric => metric.audio.viability !== "excluded");
@@ -21,13 +21,13 @@ export const ANALYSIS_WORKSPACE_PRESETS = [
 
 /** Pair and seven-player-combination metrics remain available in the contextual total.
  * Their group values must never be repeated as if each person had earned them. */
-export function analysisMetricSupportsPlayer(metric: NarratedMetricDefinition): boolean {
+export function analysisMetricSupportsPlayer(metric: NarratedMetricSummary): boolean {
   return !["384", "385", "388", "389"].includes(metric.id) && (/jugador|portero/i.test(metric.scope) || /^A\d{2}$/.test(metric.id));
 }
 export function workspaceMetricIds(metricIds: readonly string[]): string[] {
   return [...new Set(metricIds)].filter(id => { const metric = NARRATED_METRIC_BY_ID.get(id); return metric && metric.audio.viability !== "excluded"; });
 }
-function contextualOnly(metric: NarratedMetricDefinition): MetricResult {
+function contextualOnly(metric: NarratedMetricSummary): MetricResult {
   return { id: metric.id, value: null, unit: "", status: "not_applicable", observed: 0, pending: 0, evidenceEventIds: [], ruleId: `piti.${metric.id}`, ruleVersion: 1, parameters: {}, reason: "Esta estadística describe al equipo, una pareja o una alineación. Consulta el total contextual; no se atribuye a cada jugador." };
 }
 function visible(match: NarratedMatch): boolean {

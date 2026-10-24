@@ -2,7 +2,7 @@ import { NARRATION_ENUMS, NARRATION_SUBTYPES, NARRATION_PARAMETERS } from '../..
 import { NARRATED_FACT_TYPES } from '../../functions/src/narrated/facts';
 import type { MatchSheet } from '../../functions/src/matchEngine';
 import { DEFAULT_ANALYSIS_PROFILE, OBSERVATION_KINDS } from '../../functions/src/narrated/types';
-import { NARRATED_METRICS, NARRATED_CATALOG_SOURCE_SHA256 } from '../../functions/src/narrated/catalog';
+import { NARRATED_METRICS, NARRATED_CATALOG_SOURCE_SHA256 } from '../../functions/src/narrated/catalogIndex';
 
 /** Portable instructions + the real match. Audio stays in the user's external assistant conversation. */
 export function narrationPrompt(matchId: string, sheet: MatchSheet, roster: { id: string; name: string; number: number | null }[]) {

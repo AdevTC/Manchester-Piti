@@ -1,6 +1,6 @@
 import { mergedObservations, rawObservations, unsafeAggregateIds } from './observations.js';
 export { legacyObservations } from './observations.js';
-import { NARRATED_METRICS, NARRATED_METRIC_BY_ID } from './catalog.js';
+import { NARRATED_METRICS, NARRATED_METRIC_BY_ID } from './catalogIndex.js';
 import { DEFAULT_ANALYSIS_PROFILE, type AnalysisFilters, type MetricResult, type NarratedMatch } from './types.js';
 import { type MetricContext, type PreparedMatch, type MetricCalculation, type MetricRecipe, type ScopedObservation, kindOf, periodInterval, intervalUnion, missing } from './operators.js';
 import { RECIPES_001_200 } from './recipes001_200.js';

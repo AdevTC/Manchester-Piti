@@ -1,3 +1,5 @@
+import { CatalogView } from "./CatalogView";
+import type { CatalogLoadStatus } from "./CatalogLoadState";
 // «Números»: the six screens and what grows in place on them, the NU- boards' shell.html markup in JSX (same
 // classes, same words); every value comes from view.ts.
 import type { CSSProperties, ReactNode } from "react";
@@ -848,77 +850,12 @@ export function Campo({ v, numOf }: { v: V; numOf: NumOf }) {
 }
 
 // ===================== El juego =====================
-export function Juego({ v, grow, onClose, onInspect }: { v: V; grow: "mesa" | "catalogo" | "graficas" | null; onClose: () => void; onInspect?: (metricId: string, playerId?: string) => void }) {
+export function Juego({ v, grow, onClose, onInspect, catalogLoad = { error: false, retry: () => {} }, catalogPaused = false }: { catalogLoad?: CatalogLoadStatus; catalogPaused?: boolean; v: V; grow: "mesa" | "catalogo" | "graficas" | null; onClose: () => void; onInspect?: (metricId: string, playerId?: string) => void }) {
   const g = v.juego;
   const context = <div className="nu-ctx" role="group" aria-label="Contexto de las jugadas"><Seg label="Equipo" opts={g.teamOpts} i={g.teamI} n={2} /><Seg label="Parte" opts={g.parteOpts} i={g.parteI} n={3} /></div>;
   if (grow === "mesa") return <GrowWin id="nu-g-mesa" title="Todos los números, a tu medida" onClose={onClose} table>{context}<WorkspaceTable w={v.ws} /></GrowWin>;
   if (grow === "graficas") return <GrowWin id="nu-g-graficas" title="Gráficas del juego" onClose={onClose}>{context}<StatsChartsPanel matches={v.analysis.matches} filters={v.analysis.filters} people={v.scope.people.map(p => ({id:p.key, name:p.t, number:p.n}))} onInspect={onInspect} /></GrowWin>;
-  if (grow === "catalogo") {
-    const c = v.cat;
-    return (
-      <GrowWin id="nu-g-cat" title="Una ficha para cada estadística" onClose={onClose}>
-          {context}
-        <p className="nu-grow__note">412 definiciones para el fútbol 7. Las que necesitan vídeo, seguimiento u otra fuente se ven aparte.</p>
-        <div className="nu-tools">
-          <label className="nu-field">
-            <span>Buscar estadística</span>
-            <input className="vd-input" type="search" value={c.q} onChange={(e) => c.setQ(e.target.value)} placeholder="Pases, recuperaciones, minutos…" />
-          </label>
-          <button type="button" className="nu-switchbtn" role="switch" aria-checked={c.xOn} onClick={c.toggleX}>
-            <span className="nu-switchbtn__t" aria-hidden="true">
-              <i />
-            </span>
-            {c.xT}
-          </button>
-        </div>
-        <p className="nu-regsub">Familia</p>
-        <ul className="nu-chips nu-chips--fams" aria-label="Familias del catálogo">
-          {c.fams.map((f) => (
-            <li key={f.key}>
-              <button type="button" className="nu-chip nu-chip--stat" aria-pressed={f.on} onClick={f.pick}>
-                {f.t}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <p className="nu-legend2">
-          <span>
-            <i className="nu-dot nu-dot--ok" />
-            Completo
-          </span>
-          <span>
-            <i className="nu-dot nu-dot--part" />
-            Parcial
-          </span>
-          <span>
-            <i className="nu-dot" />
-            Sin información para la selección
-          </span>
-        </p>
-        <p className="nu-regsub" aria-live="polite">
-          {c.count}
-        </p>
-        <ul className="nu-cat">
-          {c.items.map((x) => (
-            <li key={x.key}>
-              <button type="button" className={`nu-cat__b ${x.cls}`} onClick={x.pick} aria-haspopup="dialog">
-                <i>{x.id}</i>
-                <b>{x.t}</b>
-                <span>{x.fam}</span>
-                <em>{x.st}</em>
-              </button>
-            </li>
-          ))}
-        </ul>
-        {c.empty && <p className="nu-empty">Ninguna estadística coincide. Prueba con otra palabra o quita la familia.</p>}
-        {c.more && (
-          <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm" onClick={c.showMore}>
-            {c.moreT}
-          </button>
-        )}
-      </GrowWin>
-    );
-  }
+  if (grow === "catalogo") return <GrowWin id="nu-g-cat" title="Una ficha para cada estadística" onClose={onClose}>{context}<CatalogView c={v.cat} load={catalogLoad} paused={catalogPaused} /></GrowWin>;
   return (
     <>
       <div className="nu-ctx" role="group" aria-label="Contexto de las jugadas">

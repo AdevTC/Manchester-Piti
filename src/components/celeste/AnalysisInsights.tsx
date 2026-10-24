@@ -4,7 +4,7 @@ import type { AnalysisFilters, MetricResult } from "../../../functions/src/narra
 import { buildInsightTimeline, buildPassMatrix, insightEvidence, INSIGHT_METRICS, type InsightSegment } from "../../lib/analysisInsights";
 import { formatWorkspaceMetric, workspaceMetricValue, type WorkspacePerson } from "../../lib/analysisWorkspace";
 import { formatDate, type ClubMatch } from "../../lib/clubData";
-import { MetricState } from "./AnalysisCatalog";
+import { MetricState } from "./MetricState";
 import "./analysis-insights.css";
 
 export interface AnalysisInsightsProps {

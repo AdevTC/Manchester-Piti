@@ -20,6 +20,9 @@ let loaded: Promise<CatRow[]> | null = null;
 export function loadCatalog(): Promise<CatRow[]> {
   loaded ??= import("../../../../functions/src/narrated/catalog").then(({ NARRATED_METRICS }) =>
     NARRATED_METRICS.map((m): CatRow => [m.id, m.category, m.name, cut(m.definition, 170), cut(m.audio?.whatToNarrate, 150), m.audio?.viability === "excluded" ? 1 : 0, m.scope]),
-  );
+  ).catch((error: unknown) => {
+    loaded = null;
+    throw error;
+  });
   return loaded;
 }

@@ -4,7 +4,7 @@
 // address and passes the actions in `act`.
 import { numerosActions, numerosMatches, numerosMetrics } from "./analysis";
 import { buildAnalysisWorkspace, formatWorkspaceMetric, selectAnalysisMatches, sortAnalysisRows, workspaceMetricValue, ANALYSIS_WORKSPACE_PRESETS } from "../../../lib/analysisWorkspace";
-import { NARRATED_METRICS } from "../../../../functions/src/narrated/catalog";
+import { NARRATED_METRICS } from "../../../../functions/src/narrated/catalogIndex";
 import type { AnalysisFilters, MetricResult } from "../../../../functions/src/narrated/types";
 import { NU_GLOSS, NU_MET, NU_METRICS } from "./glossary";
 import type { CatRow } from "./catalog";
@@ -109,6 +109,7 @@ const ONE_STREAK: Record<string, string> = { "Victorias seguidas": "Victoria seg
 const NO_ROW = (id: string, name: string): PRow =>
   ({ id, name, n: "", pj: 0, tit: 0, g: 0, a: 0, yc: 0, rc: 0, saves: 0, min: 0, mvp: 0, minKnown: false, ban: 0, nc: 0, sin: 0, sout: 0, partner: null, partnerN: 0,
     gStreak: { best: 0, cur: 0, from: null, to: null }, next: 1, per50: "0,0", winPct: 0, tech: false, pok: 0, pko: 0, passPct: null, rec: 0, tov: 0, pos: {}, ga: 0 }) as unknown as PRow;
+const SUMMARY_METRICS = ["015", "105", "067", "070", "029", "030", "106", "114", "206", "201", "169", "173", "151", "135", "272", "300"];
 
 export function numerosView(st: NuState, env: Env, act: Act) {
   const { nd: ND, viewer } = env;
@@ -133,7 +134,19 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const analysisFilters = { team: st.team === "them" ? "opponent" : "us", ...(st.parte !== "all" ? { period: Number(st.parte) } : {}), ...(st.jug.length ? { playerIds: st.jug } : {}) } satisfies AnalysisFilters;
   const analysisMatchIds = new Set(selectAnalysisMatches(sourceMatches, analysisFilters).map(match => match.id));
   const analysis = { matches: sourceMatches.filter(match => analysisMatchIds.has(match.id)), filters: analysisFilters };
-  const metrics = numerosMetrics(analysis.matches, analysis.filters);
+  // Filter metadata before calculating: only the displayed page and an explicitly opened
+  // detail need values. The custom table is the one view that needs every availability.
+  const CAT = env.catalog ?? [];
+  const FAMS = [...new Set(CAT.map(c => c[1]))];
+  const famSel = st.catFam ? (FAMS.find(f => slug(f) === slug(st.catFam)) ?? "") : "";
+  const cq = st.catQ.toLowerCase();
+  const catAll = CAT.filter(c => (st.catX || !c[5]) && (!famSel || c[1] === famSel) && (!cq || c[2].toLowerCase().includes(cq) || c[0].toLowerCase().includes(cq) || c[3].toLowerCase().includes(cq)));
+  const tableOpen = st.grow === "mesa";
+  const requestedMetrics = tableOpen ? NARRATED_METRICS.map(m => m.id) : [...SUMMARY_METRICS,
+    ...(st.grow === "catalogo" ? catAll.slice(0, st.catN).map(c => c[0]) : []),
+    ...(st.sheet === "metric" && st.sheetId ? [st.sheetId] : []),
+  ];
+  const metrics = numerosMetrics(analysis.matches, analysis.filters, requestedMetrics);
   const actions = numerosActions(analysis.matches, analysis.filters);
   const gsDone = gs.filter((m) => m.st === "fin");
   const T = ND.team(gs);
@@ -954,7 +967,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const presetNames = ["resumen", "pases", "remates", "defensa", "porteria", "rotaciones", "disciplina"];
   const preset = ANALYSIS_WORKSPACE_PRESETS[Math.max(0, presetNames.indexOf(st.wsSet || "resumen"))];
   const wsKeys = [...new Set(st.wsColumns ?? preset.metricIds)].filter(id => NARRATED_METRICS.some(m => m.id === id));
-  const workspace = buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, wsKeys);
+  const workspace = tableOpen ? buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, wsKeys)
+    : { rows: [], total: new Map<string, MetricResult>() };
   const sortKey = wsKeys.includes(st.wsSort ?? "") ? st.wsSort! : wsKeys[0] ?? "001";
   const sortDirection = st.wsDirection ?? "desc";
   const wsRows = sortAnalysisRows(workspace.rows, sortKey, sortDirection).map(r => ({
@@ -991,12 +1005,6 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const TILE_V: Record<string, ReturnType<typeof tile>> = {};
   vistazo.forEach((t) => (TILE_V[t.id] = t));
   for (const definition of NARRATED_METRICS) if (metrics.has(definition.id)) TILE_V[definition.id] = metricTile(definition.id, definition.name);
-  const CAT = env.catalog ?? [];
-  const FAMS: string[] = [];
-  CAT.forEach((c) => !FAMS.includes(c[1]) && FAMS.push(c[1]));
-  const famSel = st.catFam ? (FAMS.find((f) => slug(f) === slug(st.catFam)) ?? "") : "";
-  const cq = st.catQ.toLowerCase();
-  const catAll = CAT.filter((c) => (st.catX || !c[5]) && (!famSel || c[1] === famSel) && (!cq || c[2].toLowerCase().includes(cq) || c[0].toLowerCase().includes(cq) || c[3].toLowerCase().includes(cq)));
   const cat = {
     loading: !env.catalog,
     q: st.catQ, setQ: (v: string) => act.set({ catQ: v, catN: 24 }),

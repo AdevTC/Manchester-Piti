@@ -131,11 +131,11 @@ describe("StatsPage · Análisis del juego", () => {
 });
 
 describe("StatsPage · shareable scopes", () => {
-  it("keeps an explicit unknown match empty instead of displaying all matches", () => {
+  it("keeps an explicit unknown match empty instead of displaying all matches", async () => {
     search.value = { view: "game", analysis: "catalog", matches: ["removed"] };
     render(<StatsPage/>);
     expect(screen.getByText("0 partidos en la selección")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Estadísticas del catálogo" })).toBeInTheDocument();
+    expect(await screen.findByRole("list", { name: "Estadísticas del catálogo" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Carrera del Pichichi" })).not.toBeInTheDocument();
   });
   it("projects selected players while retaining the full match for passing recipients", () => {

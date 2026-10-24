@@ -1,3 +1,4 @@
+import { CatalogLoadState, type CatalogLoadStatus } from "./CatalogLoadState";
 // «Números»: the sheets over the open screen (NU- boards) — «Busca o pregunta», each «?», «Qué números ver»,
 // «¿Y si…?», a player's numbers, a rival's dossier and a statistic's card. The scrim and Esc close them; the page
 // gives the focus back.
@@ -37,7 +38,7 @@ function SegRow({ label, opts, i }: { label: string; opts: { t: string; on: bool
   );
 }
 
-export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef }: { v: V; st: NuState; onClose: () => void; openSearch: () => void; infoScope: () => void; numOf: (id: string) => number | ""; sheetRef: Ref<HTMLElement> }) {
+export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef, catalogLoad = { error: false, retry: () => {} } }: { catalogLoad?: CatalogLoadStatus; v: V; st: NuState; onClose: () => void; openSearch: () => void; infoScope: () => void; numOf: (id: string) => number | ""; sheetRef: Ref<HTMLElement> }) {
   if (!st.sheet) return null;
   let body: ReactNode = null;
   if (st.sheet === "search") {
@@ -54,6 +55,7 @@ export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef 
             <input className="vd-input nu-find__in" type="search" value={s.q} onChange={(e) => s.setQ(e.target.value)} placeholder="Alcides, Orduña, pases, minutos, racha…" />
           </label>
         </div>
+        {v.cat.loading && <CatalogLoadState {...catalogLoad} />}
         {s.has && (
           <ul className="nu-res">
             {s.res.map((r) => (
@@ -67,7 +69,7 @@ export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef 
             ))}
           </ul>
         )}
-        {s.none && <p className="nu-sheet__p">{s.noneT}</p>}
+        {s.none && !v.cat.loading && <p className="nu-sheet__p">{s.noneT}</p>}
         {s.empty && (
           <>
             <h3 className="nu-h4">Lo que más se pregunta</h3>
@@ -282,10 +284,11 @@ export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef 
         <header className="nu-sheet__head">
           <div className="nu-sheet__who">
             <p>{m ? `${m.fam} · ${m.id}` : st.sheetId}</p>
-            <h2 id="nu-s-mt">{m ? m.t : "Cargando la ficha…"}</h2>
+            <h2 id="nu-s-mt">{m ? m.t : v.cat.loading ? "Cargando la ficha…" : "Estadística no encontrada"}</h2>
           </div>
           <Close onClose={onClose} />
         </header>
+        {!m && (v.cat.loading ? <CatalogLoadState {...catalogLoad} /> : <p className="nu-empty">Esta estadística no está en el catálogo. Cierra la ficha y busca otra por su nombre.</p>)}
         {m && (
           <>
             <p className="nu-mt__v">

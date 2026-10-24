@@ -1,17 +1,19 @@
+import { useProgressiveLoad } from "../../hooks/useProgressiveLoad";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { NARRATED_METRICS, NARRATED_METRIC_BY_ID } from "../../../functions/src/narrated/catalog";
-import type { MetricResult, MetricStatus, NarratedMatch, ObservationKind } from "../../../functions/src/narrated/types";
+import type { MetricResult, NarratedMatch, ObservationKind } from "../../../functions/src/narrated/types";
 import { EVENT_LABELS, formatDate, type ClubMatch } from "../../lib/clubData";
 import type { AnalysisSearch } from "../../lib/analysisSearch";
 import type { Person } from "./TechnicalStats";
 import { eventSide, OUTCOME_LABELS } from "../../../functions/src/matchAnalysis";
 import { metricValue } from "../../lib/metricDisplay";
+import { METRIC_STATUS_LABELS as STATUS } from "../../lib/metricStatus";
+import { MetricState } from "./MetricState";
+export { MetricState } from "./MetricState";
 
-const STATUS: Record<MetricStatus, string> = { complete: "Completo", partial: "Parcial", unknown: "Sin información", not_configured: "Sin configurar", not_applicable: "No aplicable", no_sample: "Sin muestra" };
 const KIND: Record<ObservationKind, string> = { context: "Contexto", lineup: "Alineación", substitution: "Cambio", control: "Control", pass: "Pase", reception: "Recepción", dribble: "Regate", carry: "Conducción", duel: "Duelo", tackle: "Entrada", interception: "Intercepción", clearance: "Despeje", shot: "Remate", goal: "Gol", block: "Bloqueo", save: "Parada", keeper: "Acción del portero", distribution: "Distribución", pressure: "Presión", loss: "Pérdida", recovery: "Recuperación", attack: "Ataque", restart: "Reanudación", discipline: "Disciplina", tactical: "Acción táctica", run: "Desmarque", judgement: "Valoración", measurement: "Medición", gap: "Tramo sin información", aggregate: "Registro agregado" };
 const number = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
-export function MetricState({ status }: { status: MetricStatus }) { return <span className={`an-status an-status--${status}`}>{STATUS[status]}</span>; }
 const norm = (text: string) => text.toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const FAMILIES = [...new Set(NARRATED_METRICS.map(metric => metric.category))];
 
@@ -26,13 +28,14 @@ export function AnalysisCatalog({ matches, people, results, search, onChange }: 
   const filtered = useMemo(() => NARRATED_METRICS.filter(metric => (search.excluded || metric.audio.viability !== "excluded") && (!search.family || metric.category === search.family) && (!search.q || norm(`${metric.id} ${metric.name} ${metric.category} ${metric.definition}`).includes(norm(search.q)))), [search.excluded, search.family, search.q]);
   useEffect(() => { if (selected) focusRef.current?.focus(); }, [selected]);
   const changeFilter = (patch: Partial<AnalysisSearch>) => { setLimit(24); onChange({ ...patch, metric: undefined }); };
+  const sentinel = useProgressiveLoad(filtered.length > limit && !selected, [search.q, search.family, search.excluded, limit].join(":"), () => setLimit((value) => value + 24));
   const close = () => { onChange({ metric: undefined }); lastTrigger.current?.focus(); };
   return <div className="an-catalog">
     <header className="an-catalog__head"><div><h3>Una ficha para cada estadística</h3><p>{NARRATED_METRICS.length} definiciones. Las que necesitan vídeo, seguimiento u otra fuente se pueden consultar por separado.</p></div><details className="an-legend"><summary>Cómo leer los estados</summary><dl>{Object.entries(STATUS).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{{ complete: "La información necesaria está completa para esta muestra.", partial: "Se cuenta lo registrado; faltan acciones o detalles.", unknown: "La narración no permite obtener un valor.", not_configured: "Falta fijar un criterio o un parámetro de cálculo.", not_applicable: "No corresponde a esta selección o requiere otra fuente.", no_sample: "No hay casos válidos para calcularlo; no equivale a cero." }[key]}</dd></div>)}</dl></details></header>
     <div className="an-catalog__filters"><label>Buscar estadística<input type="search" value={search.q ?? ""} onChange={event => changeFilter({ q: event.target.value || undefined })} placeholder="Pases, recuperaciones, minutos…"/></label><label>Familia<select value={search.family ?? ""} onChange={event => changeFilter({ family: event.target.value || undefined })}><option value="">Todas las familias</option>{FAMILIES.map(family => <option key={family}>{family}</option>)}</select></label><label className="an-toggle"><input type="checkbox" checked={!!search.excluded} onChange={event => changeFilter({ excluded: event.target.checked || undefined })}/>Incluir las {NARRATED_METRICS.filter(metric => metric.audio.viability === "excluded").length} fuera del audio</label></div>
     <p className="an-results" role="status">{filtered.length} estadísticas{search.family ? ` · ${search.family}` : ""}</p>
     <div className={`an-catalog__layout${selected ? " has-detail" : ""}`}>
-      <div className="an-catalog__list"><ul aria-label="Estadísticas del catálogo">{filtered.slice(0, limit).map(metric => { const result = byId.get(metric.id); return <li key={metric.id}><button type="button" aria-pressed={selected?.id === metric.id} onClick={event => { lastTrigger.current = event.currentTarget; onChange({ metric: metric.id }); }}><span className="an-metric__text"><small>{metric.category}{metric.audio.viability === "excluded" ? " · Fuera del audio" : ""}</small><b>{metric.name}</b></span><span className="an-metric__value"><strong>{result ? metricValue(result) : "—"}</strong>{result && <MetricState status={result.status}/>}</span><span aria-hidden="true">↗</span></button></li>; })}</ul>{!filtered.length && <p className="an-empty">No hay estadísticas con estos filtros. Prueba otra búsqueda o familia.</p>}{filtered.length > limit && <button type="button" className="an-more" onClick={() => setLimit(value => value + 24)}>Mostrar más ({Math.min(limit, filtered.length)} de {filtered.length})</button>}</div>
+      <div className="an-catalog__list"><ul aria-label="Estadísticas del catálogo">{filtered.slice(0, limit).map(metric => { const result = byId.get(metric.id); return <li key={metric.id}><button type="button" aria-pressed={selected?.id === metric.id} onClick={event => { lastTrigger.current = event.currentTarget; onChange({ metric: metric.id }); }}><span className="an-metric__text"><small>{metric.category}{metric.audio.viability === "excluded" ? " · Fuera del audio" : ""}</small><b>{metric.name}</b></span><span className="an-metric__value"><strong>{result ? metricValue(result) : "—"}</strong>{result && <MetricState status={result.status}/>}</span><span aria-hidden="true">↗</span></button></li>; })}</ul>{!filtered.length && <p className="an-empty">No hay estadísticas con estos filtros. Prueba otra búsqueda o familia.</p>}<div ref={sentinel}>{filtered.length > limit && <button type="button" className="an-more" onClick={() => setLimit(value => value + 24)}>Mostrar más ({Math.min(limit, filtered.length)} de {filtered.length})</button>}</div></div>
       {selected && selectedResult && <section className="an-detail" aria-labelledby={`${uid}-detail`} onKeyDown={event => { if (event.key === "Escape") close(); }}>
         <header><span className="an-eyebrow">{selected.category} · {selected.id}</span><button type="button" aria-label="Cerrar detalle de la estadística" onClick={close}>Cerrar ×</button></header>
         <h3 id={`${uid}-detail`} tabIndex={-1} ref={focusRef}>{selected.name}</h3>

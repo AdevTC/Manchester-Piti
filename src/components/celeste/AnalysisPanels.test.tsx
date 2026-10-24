@@ -17,7 +17,7 @@ function Harness({ initial = {}, games = [match] }: { initial?: AnalysisSearch; 
   return <><output aria-label="Estado del análisis">{JSON.stringify(search)}</output><AnalysisPanels matches={games} people={[{ id: "pepe", name: "Pepe" }, { id: "luis", name: "Luis" }]} matchId="j1" search={search} onSearchChange={patch => setSearch(previous => ({ ...previous, ...patch }))}/></>;
 }
 describe("shared analysis contexts", () => {
-  it("selects team and period together and retains them when opening evidence", () => {
+  it("selects team and period together and retains them when opening evidence", async () => {
     render(<Harness/>);
     fireEvent.change(screen.getByRole("combobox", { name: "Parte" }), { target: { value: "2" } });
     expect(screen.queryByText("Gráficas del partido completo")).not.toBeInTheDocument();
@@ -26,7 +26,7 @@ describe("shared analysis contexts", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Equipo" }), { target: { value: "opponent" } });
     expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"team":"opponent"');
     fireEvent.click(within(highlights).getByRole("button", { name: /Pases intentados/ }));
-    expect(screen.getByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
     expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"period":2');
     expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"metric":"067"');
   });
@@ -41,12 +41,12 @@ describe("shared analysis contexts", () => {
     expect(table).toHaveTextContent("Luis");
     expect(table).not.toHaveTextContent("Pepe");
   });
-  it("shows the expanded overview and opens a player's evidence without losing the comparison scope on return", () => {
+  it("shows the expanded overview and opens a player's evidence without losing the comparison scope on return", async () => {
     render(<Harness/>);
     expect(within(screen.getByLabelText("Indicadores de la selección")).getAllByRole("button")).toHaveLength(12);
     const table = screen.getByRole("table", { name: /^Estadísticas por jugador/ });
     fireEvent.click(within(table).getByRole("button", { name: /^Pepe: Pases intentados,/ }));
-    expect(screen.getByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Pases intentados" })).toBeInTheDocument();
     expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"players":["pepe"]');
     fireEvent.click(screen.getByRole("button", { name: "Resumen del juego" }));
     expect(screen.getByLabelText("Estado del análisis")).not.toHaveTextContent('"players"');
@@ -83,12 +83,12 @@ describe("shared analysis contexts", () => {
     expect(screen.getByLabelText("Estado del análisis")).toHaveTextContent('"team":"opponent"');
     expect(screen.getByRole("table", { name: /^Estadísticas por jugador/ })).toHaveTextContent("Total del rival");
   });
-  it("uses the participation sample consistently in cards, table and catalogue", () => {
+  it("uses the participation sample consistently in cards, table and catalogue", async () => {
     render(<Harness initial={{ players: ["pepe"] }} games={[{ ...match, analysisCoverage: "complete" }, { id: "absent", seasonId: "t1", status: "finished", duration: 50, notCalled: ["pepe"], events: [] }]}/>);
     const passCard = within(screen.getByLabelText("Indicadores de la selección")).getByRole("button", { name: /Pases intentados/ });
     expect(passCard).toHaveTextContent("Completo");
     expect(screen.getByRole("button", { name: /^Pepe: Pases intentados,/ })).toHaveAccessibleName(/Completo/);
     fireEvent.click(passCard);
-    expect(screen.getByRole("region", { name: "Pases intentados" }).querySelector(".an-detail__value")).toHaveTextContent("Completo");
+    expect((await screen.findByRole("region", { name: "Pases intentados" })).querySelector(".an-detail__value")).toHaveTextContent("Completo");
   });
 });

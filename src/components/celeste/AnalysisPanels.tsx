@@ -1,13 +1,13 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { evaluateNarrated } from "../../../functions/src/narrated/engine";
-import { NARRATED_METRIC_BY_ID } from "../../../functions/src/narrated/catalog";
+import { NARRATED_METRIC_BY_ID } from "../../../functions/src/narrated/catalogIndex";
 import type { AnalysisFilters, MetricResult, NarratedMatch } from "../../../functions/src/narrated/types";
 import type { AnalysisSearch } from "../../lib/analysisSearch";
 import { hasAnalysisActions } from "../../lib/technicalAnalysis";
 import type { ClubMatch } from "../../lib/clubData";
 import { TechnicalStatsPanel, type Person } from "./TechnicalStats";
-import { AnalysisCatalog, MetricState } from "./AnalysisCatalog";
+import { MetricState } from "./MetricState";
 import { metricValue } from "../../lib/metricDisplay";
 import { createAnalysisExport } from "../../lib/analysisExport";
 import { selectAnalysisMatches, workspaceMetricValue } from "../../lib/analysisWorkspace";
@@ -15,6 +15,8 @@ import { ScopePicker } from "./AnalysisScope";
 import { AnalysisWorkspace } from "./AnalysisWorkspace";
 import { AnalysisInsights } from "./AnalysisInsights";
 import "./analysis-panels.css";
+
+const AnalysisCatalog = lazy(() => import("./AnalysisCatalog").then(module => ({ default: module.AnalysisCatalog })));
 
 const HIGHLIGHTS = ["015", "105", "067", "070", "029", "030", "106", "114", "201", "206", "151", "173"];
 const GROUPS = [
@@ -88,7 +90,7 @@ export function AnalysisPanels({ matches, people, seasonId, filters = {}, search
       <button type="button" aria-pressed={view === "summary"} onClick={showSummary}>Resumen del juego</button>
       <button type="button" aria-pressed={view === "catalog"} onClick={() => update({ analysis: "catalog" })}>Catálogo de estadísticas</button>
     </nav>
-    {view === "catalog" ? <AnalysisCatalog matches={sample} people={people} results={results} search={search} onChange={update}/> : <>
+    {view === "catalog" ? <Suspense fallback={<p className="an-note" role="status">Cargando catálogo de estadísticas…</p>}><AnalysisCatalog matches={sample} people={people} results={results} search={search} onChange={update}/></Suspense> : <>
       <div className="an-overview-heading"><div><h3>De un vistazo</h3><p>Los indicadores principales de la selección. Abre cualquiera para consultar sus jugadas.</p></div><nav className="an-overview-links" aria-label="Accesos al análisis"><a href="#analysis-workspace">Ir a la tabla de jugadores ↓</a><a href="#analysis-insights">Explorar gráficas ↓</a></nav></div>
       <div className="an-highlights" aria-label="Indicadores de la selección">{HIGHLIGHTS.map(id => {
         const result = byId.get(id); const definition = NARRATED_METRIC_BY_ID.get(id); const value = workspaceMetricValue(result);

@@ -7,6 +7,7 @@ import { seasonStrip } from "../../../lib/derived/vidrio/strip";
 import { makeND } from "./nd";
 import { numerosView, type Act, type NuState } from "./view";
 import { loadCatalog } from "./catalog";
+import * as narratedEngine from "../../../../functions/src/narrated/engine";
 
 const observation = (id: string, period: number, facts: Observation["facts"], patch: Partial<Observation> = {}): Observation => ({
   id, order: Number(id.replace(/\D/g, "")) || 0, kind: "pass", team: "us", actorId: "a", period,
@@ -71,6 +72,23 @@ describe("Números · shared acta calculations", () => {
     expect(numerosMetrics([m], filters)).toBe(metrics);
     const next = structuredClone(m); next.analysis!.observations.push(observation("p12", 2, { outcome: "complete" }));
     expect(numerosMetrics([next], filters).get("067")?.value).toBe(5);
+  });
+  it("calculates only missing requested IDs and keeps cache entries isolated by scope and acta", () => {
+    const m = match(), filters = { team: "us" as const, period: 2 };
+    const evaluate = vi.spyOn(narratedEngine, "evaluateNarrated");
+    try {
+      const first = numerosMetrics([m], filters, ["067"]);
+      expect([...first.keys()]).toEqual(["067"]);
+      const extended = numerosMetrics([m], filters, ["067", "068", "068"]);
+      expect(extended).toBe(first);
+      expect(evaluate.mock.calls.map(call => call[2])).toEqual([["067"], ["068"]]);
+      expect(numerosMetrics([m], filters, ["068"])).toBe(first);
+      expect(evaluate).toHaveBeenCalledTimes(2);
+      expect(numerosMetrics([m], { ...filters, period: 1 }, ["067"]).get("067")?.value).toBe(3);
+      const next = structuredClone(m); next.analysis!.observations.push(observation("extra", 2, { outcome: "complete" }));
+      expect(numerosMetrics([next], filters, ["067"]).get("067")?.value).toBe(5);
+      expect(first.get("067")?.value).toBe(4);
+    } finally { evaluate.mockRestore(); }
   });
 });
 
@@ -160,5 +178,30 @@ describe("Números · period-aware table, catalogue and detail", () => {
   it("finds the pass accuracy column with or without Spanish accents", async () => {
     const v = await view({ wsQuery: "precision de pase" });
     expect(v.ws.columns.map(c => c.key)).toContain("070");
+  });
+  it("loads metric values for the visible catalogue page and detail while the closed table stays idle", async () => {
+    const evaluate = vi.spyOn(narratedEngine, "evaluateNarrated");
+    try {
+      await view({ grow: null });
+      expect(evaluate).toHaveBeenCalledTimes(1);
+      expect(evaluate.mock.calls[0][2]).toHaveLength(16);
+      expect(evaluate.mock.calls[0][2]).not.toContain("378");
+      evaluate.mockClear();
+      const catalog = await loadCatalog();
+      const visible = catalog.filter(row => !row[5]).slice(0, 24).map(row => row[0]);
+      await view({ grow: "catalogo", catN: 24 });
+      expect(evaluate).toHaveBeenCalledTimes(1);
+      expect(evaluate.mock.calls[0][2]).toEqual(expect.arrayContaining(visible));
+      expect(evaluate.mock.calls[0][2]!.length).toBeLessThanOrEqual(40);
+      evaluate.mockClear();
+      await view({ grow: "catalogo", catQ: "Recuperaciones", catN: 24, sheet: "metric", sheetId: "378" });
+      expect(evaluate.mock.calls[0][2]).toContain("378");
+      expect(evaluate.mock.calls[0][2]!.length).toBeLessThan(40);
+      evaluate.mockClear();
+      const table = await view({ grow: "mesa" });
+      expect(evaluate.mock.calls[0][2]).toHaveLength(412);
+      expect(table.ws.columns).toHaveLength(412);
+      expect(table.ws.columns.find(c => c.key === "272")?.available).toBe(true);
+    } finally { evaluate.mockRestore(); }
   });
 });

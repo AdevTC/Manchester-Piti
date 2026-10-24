@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { renderCatalogIndex } from './catalog-index-source.mjs';
 
 const input = resolve(process.argv[2] ?? '.emulator-data/audio-catalog.json');
 const raw = readFileSync(input, 'utf8');
@@ -84,6 +85,7 @@ const declarations = [
 const text = `${header}\n${declarations}\n\nexport const NARRATED_METRIC_BY_ID: ReadonlyMap<NarratedMetricId, NarratedMetricDefinition> = new Map(NARRATED_METRICS.map((metric) => [metric.id, metric]));\n`;
 const write = (path, value) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, value.replace(/\r?\n/g, '\r\n'), 'utf8'); };
 write('functions/src/narrated/catalog.ts', text);
+write('functions/src/narrated/catalogIndex.ts', renderCatalogIndex(metrics, createHash('sha256').update(raw).digest('hex')));
 const esc = (value) => String(value ?? '').replaceAll('|', '\\|').replace(/\r?\n/g, '<br>');
 const md = [
   '# Matriz de estadísticas de narración', '',

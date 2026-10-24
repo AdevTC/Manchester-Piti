@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import type { AnalysisFilters, MetricResult } from "../../../functions/src/narrated/types";
-import type { NarratedMetricDefinition } from "../../../functions/src/narrated/catalog";
+import type { NarratedMetricSummary } from "../../../functions/src/narrated/catalogIndex";
 import type { ClubMatch } from "../../lib/clubData";
 import {
   ANALYSIS_WORKSPACE_METRICS, ANALYSIS_WORKSPACE_PRESETS, analysisMetricSupportsPlayer,
@@ -109,7 +109,7 @@ function PlayerName({ person }: { person: WorkspacePerson }) {
   return <span className="aw-person">{person.number != null && person.number !== "" && <span className="aw-shirt" aria-label={`Dorsal ${person.number}`}>{person.number}</span>}<span>{person.name}</span></span>;
 }
 
-function Cell({ metric, result, label, playerId, onInspect, includeUnit = false }: { metric: NarratedMetricDefinition; result?: MetricResult; label: string; playerId?: string; onInspect: Inspect; includeUnit?: boolean }) {
+function Cell({ metric, result, label, playerId, onInspect, includeUnit = false }: { metric: NarratedMetricSummary; result?: MetricResult; label: string; playerId?: string; onInspect: Inspect; includeUnit?: boolean }) {
   const contextOnly = !!playerId && !analysisMetricSupportsPlayer(metric);
   const status = contextOnly ? "Solo contexto" : result ? STATUS[result.status] : "Sin información";
   const sample = result?.numerator != null && result.denominator != null && result.denominator > 0 ? `${result.numerator}/${result.denominator}` : null;
@@ -134,7 +134,7 @@ function Bar({ result, min, max, series = "a" }: { result?: MetricResult; min: n
   return <span className={`aw-bar aw-bar--${series}`} aria-hidden="true" style={{ "--aw-zero": `${zero}%`, "--aw-left": `${left}%`, "--aw-width": `${Math.abs(value) / extent * 100}%` } as CSSProperties}><i/></span>;
 }
 
-function Ranking({ rows, total, metric, direction, limit, totalLabel, opponent, onInspect }: { rows: AnalysisWorkspaceRow[]; total: Map<string, MetricResult>; metric: NarratedMetricDefinition; direction: AnalysisSortDirection; limit: number; totalLabel: string; opponent: boolean; onInspect: Inspect }) {
+function Ranking({ rows, total, metric, direction, limit, totalLabel, opponent, onInspect }: { rows: AnalysisWorkspaceRow[]; total: Map<string, MetricResult>; metric: NarratedMetricSummary; direction: AnalysisSortDirection; limit: number; totalLabel: string; opponent: boolean; onInspect: Inspect }) {
   const contextual = opponent || !analysisMetricSupportsPlayer(metric);
   const ranked = rankAnalysisRows(rows, metric.id, direction);
   const known = ranked.filter(row => row.rank != null), unknown = ranked.filter(row => row.rank == null);
@@ -144,7 +144,7 @@ function Ranking({ rows, total, metric, direction, limit, totalLabel, opponent, 
   return <section className="aw-chart" aria-label={`Ranking de ${metric.name}`}><header><div><h4>{metric.name}</h4><p>{contextual ? "Esta cifra describe al equipo; no se reparte entre jugadores." : `${known.length} jugadores con cifra · ${direction === "desc" ? "de mayor a menor" : "de menor a mayor"}. Los empates comparten puesto.`}</p></div><button type="button" className="aw-action" onClick={() => onInspect(metric.id)}>Ver cálculo</button></header>{contextual ? <div className="aw-context-number"><span>{totalLabel}</span><Cell metric={metric} result={total.get(metric.id)} label={totalLabel} onInspect={onInspect} includeUnit/></div> : !known.length ? <div className="aw-empty"><h4>Aún no hay cifras comparables</h4><p>Prueba otra estadística o amplía la selección. No se asignan puestos a datos desconocidos.</p></div> : <ol className="aw-ranking">{visible.map(row => <li key={row.person.id}><button type="button" onClick={() => onInspect(metric.id, row.person.id)} aria-label={`Puesto ${row.rank}, ${row.person.name}: ${formatWorkspaceMetric(row.results.get(metric.id), true)}. Ver ${metric.name}`}><span className="aw-rank">{row.rank}</span><span className="aw-ranking-body"><span><PlayerName person={row.person}/><b>{formatWorkspaceMetric(row.results.get(metric.id), true)}</b></span><Bar result={row.results.get(metric.id)} min={min} max={max}/><small>{STATUS[row.results.get(metric.id)!.status]}{row.results.get(metric.id)?.denominator != null ? ` · ${row.results.get(metric.id)?.numerator ?? 0} de ${row.results.get(metric.id)?.denominator}` : ""}</small></span></button></li>)}</ol>}{!contextual && unknown.length > 0 && <p className="aw-note">Sin cifra, fuera del ranking: {unknown.map(row => row.person.name).join(", ")}.</p>}{!contextual && visible.length < known.length && <p className="aw-note">Mostrando {visible.length} de {known.length}. Selecciona «Todos» para ver el ranking completo.</p>}</section>;
 }
 
-function Comparison({ rows, total, first, second, totalLabel, opponent, onInspect }: { rows: AnalysisWorkspaceRow[]; total: Map<string, MetricResult>; first: NarratedMetricDefinition; second: NarratedMetricDefinition; totalLabel: string; opponent: boolean; onInspect: Inspect }) {
+function Comparison({ rows, total, first, second, totalLabel, opponent, onInspect }: { rows: AnalysisWorkspaceRow[]; total: Map<string, MetricResult>; first: NarratedMetricSummary; second: NarratedMetricSummary; totalLabel: string; opponent: boolean; onInspect: Inspect }) {
   const contextual = opponent || !analysisMetricSupportsPlayer(first) || !analysisMetricSupportsPlayer(second);
   const ordered = sortAnalysisRows(rows, first.id);
   const comparison = contextual ? [{ person: { id: "", name: totalLabel }, results: total }] : ordered;

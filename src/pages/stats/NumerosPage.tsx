@@ -30,7 +30,7 @@ import { leaguePhrase } from "../partidos/vidrio/model";
 import type { Demo } from "../partidos/pa/demo";
 import { makeND, slug, type Moment, type NSeasonData } from "./numeros/nd";
 import { seasonData, squadOf, type SquadInput } from "./numeros/adapt";
-import { loadCatalog, type CatRow } from "./numeros/catalog";
+import { useCatalog } from "./numeros/useCatalog";
 import { addressKey, peopleIndex, stateFromUrl, urlOf, type Search } from "./numeros/url";
 import { numerosView, PLACES, type Act, type Env, type Grow, type NuState, type Place, type Sheet, type Viewer } from "./numeros/view";
 import { I, Q } from "./numeros/bits";
@@ -216,9 +216,6 @@ export function NumerosPage() {
   const peopleKey = sq.squad.map((p) => `${p.id}${SEP}${p.name}`).join("\n");
   const people = useMemo(() => peopleIndex(peopleKey ? peopleKey.split("\n").map((l) => ({ id: l.split(SEP)[0], name: l.split(SEP)[1] })) : []), [peopleKey]);
 
-  // ── the catalogue: loaded when a screen or a sheet needs it
-  const [catalog, setCatalog] = useState<CatRow[] | null>(null);
-
   // ── the state: the address's part, read on arrival and on every move through history
   const fromUrl = (path: string, search: Search): NuState => {
     const u = stateFromUrl(path, search, people);
@@ -226,6 +223,8 @@ export function NumerosPage() {
     return { ...BASE, ...rest };
   };
   const [st, setSt] = useState<NuState>(() => fromUrl(location.pathname, raw));
+  const catalogLoad = useCatalog(st.grow === "catalogo" || st.sheet === "metric" || st.sheet === "search");
+  const { catalog } = catalogLoad;
   const stRef = useRef(st);
   stRef.current = st;
   const narrowNow = () => {
@@ -236,7 +235,8 @@ export function NumerosPage() {
       return false;
     }
   };
-  const seasonWord = askedT && askedT !== "todas" && seasonId !== current && season ? slug(season.name) : undefined;
+  // An explicitly selected season must survive actions while Firestore is still loading.
+  const seasonWord = askedT && askedT !== "todas" ? askedT : undefined;
   const ctx = { people, seasonWord, edge: moment.edge, narrow: false };
   // the page's own address writes go one after another (two quick ones never land in the wrong order), each
   // compared with the address the router shows when its turn comes
@@ -367,7 +367,6 @@ export function NumerosPage() {
     const next = { ...stRef.current, sheet, sheetId: id };
     if (sheet === "search") next.sq = "";
     setSt(next);
-    if (sheet === "search" || sheet === "metric") void loadCatalog().then(setCatalog);
     if (!stRef.current.sheet) {
       underSheet.current = keyOf({ ...stRef.current, sheet: null, sheetId: null });
       pushedOverlay.current = true;
@@ -401,7 +400,6 @@ export function NumerosPage() {
       return;
     }
     rememberOpener();
-    if (g === "catalogo") void loadCatalog().then(setCatalog);
     const next = { ...cur, grow: g };
     transition(null, reduced, () => flushSync(() => setSt(next)));
     commit(next, false);
@@ -512,10 +510,6 @@ export function NumerosPage() {
   const v = useMemo(() => numerosView(st, env, stableAct), [st, env, stableAct]);
   const numOf = (id: string) => nd.num(id);
 
-  // the catalogue arrives with the screen that shows it (an address that opens the catalogue or a metric)
-  useEffect(() => {
-    if (!catalog && (st.grow === "catalogo" || st.sheet === "metric" || st.sheet === "search")) void loadCatalog().then(setCatalog);
-  }, [catalog, st.grow, st.sheet]);
   // a narrow screen opens the chosen player's or rival's sheet when the address asks for him
   const arrived = useRef(false);
   useEffect(() => {
@@ -809,7 +803,7 @@ export function NumerosPage() {
               ) : st.place === "campo" ? (
                 <Campo v={v} numOf={numOf} />
               ) : st.place === "juego" ? (
-                <Juego v={v} grow={st.grow === "mesa" || st.grow === "catalogo" || st.grow === "graficas" ? st.grow : null} onClose={() => grow(null)} onInspect={(metricId, playerId) => { if (playerId) { const next = { ...stRef.current, jug: [playerId] }; stRef.current = next; setSt(next); } open("metric", metricId); }} />
+                <Juego v={v} catalogLoad={catalogLoad} catalogPaused={!!st.sheet} grow={st.grow === "mesa" || st.grow === "catalogo" || st.grow === "graficas" ? st.grow : null} onClose={() => grow(null)} onInspect={(metricId, playerId) => { if (playerId) { const next = { ...stRef.current, jug: [playerId] }; stRef.current = next; setSt(next); } open("metric", metricId); }} />
               ) : st.place === "rivales" ? (
                 <Rivales v={v} grow={st.grow === "rivales"} onClose={() => grow(null)} />
               ) : (
@@ -828,7 +822,7 @@ export function NumerosPage() {
           <I name="check" />
           <span>{say.t}</span>
         </div>
-        <Sheets v={v} st={st} onClose={closeSheet} openSearch={() => open("search")} infoScope={() => open("info", "scope")} numOf={numOf} sheetRef={sheetRef} />
+        <Sheets v={v} st={st} catalogLoad={catalogLoad} onClose={closeSheet} openSearch={() => open("search")} infoScope={() => open("info", "scope")} numOf={numOf} sheetRef={sheetRef} />
       </div>
     </KitStillContext.Provider>
   );

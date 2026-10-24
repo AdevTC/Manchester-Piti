@@ -4,7 +4,7 @@ import type { ClubMatch } from "../../lib/clubData";
 import { buildPassingNetwork, buildShotChart } from "../../lib/statsCharts";
 import { formatWorkspaceMetric, workspaceMetricValue, type WorkspacePerson } from "../../lib/analysisWorkspace";
 import { AnalysisInsights, AnalysisInsightEvidence } from "./AnalysisInsights";
-import { MetricState } from "./AnalysisCatalog";
+import { MetricState } from "./MetricState";
 import "./stats-charts.css";
 
 export interface StatsChartsPanelProps {
