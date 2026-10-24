@@ -293,7 +293,7 @@ describe("«Siete»", () => {
     it("a real squad known only by lines (keepers stored as «POR»): no counts, no tints, no «Falta», no sort", () => {
       const lines = ["POR", "POR", "DEF", "DEF", "DEF", "MED", "MED", "MED", "DEL", "DEL"];
       const players: SquadPlayer[] = lines.map((naturalPosition, k) => ({ id: "p" + k, shirtName: "J" + k, firstName: "", number: k + 1, naturalPosition, injured: false, active: true }));
-      const real = buildSquad({ players, games: [], jornada: new Map(), suspended: new Set(), mvps: new Map() });
+      const real = buildSquad({ players, games: [], jornada: new Map(), suspended: new Set(), mvps: new Map(), standings: [] });
       const { container } = render(tab({ sq: real, cands: real.list.map((c) => c.id), now: 1 }));
       expect(tilesOf()[0]).toHaveAttribute("aria-label", "Sistema 2-3-1 Clásico");
       expect(container.querySelector(".pzp-syf")).toBeNull();

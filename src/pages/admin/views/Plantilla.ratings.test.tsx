@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { adminFixture, mountAdmin, setAdminData } from "../../../test/adminKit";
 
 // The admin's «Ha jugado de» rates by position as every page does: the published matches only (no
-// captain's drafts merged in) and the shared MVP reader (AdminData.mvpOf, derived/mvpOf).
+// captain's drafts merged in) and the season's notas built over them (AdminData.ratings, lib/seasonRating).
 
 const spy = vi.hoisted(() => ({ calls: [] as unknown[][] }));
 vi.mock("../../../lib/positionStats", async (orig) => {
@@ -29,7 +29,7 @@ beforeEach(() => {
   spy.calls.length = 0;
 });
 
-it("the open ficha's positions read data.published and data.mvpOf, never the merged drafts", async () => {
+it("the open ficha's positions read data.published and data.ratings, never the merged drafts", async () => {
   const data = adminFixture();
   setAdminData(data);
   mountAdmin("/admin/plantilla", { plantilla: Plantilla });
@@ -38,6 +38,6 @@ it("the open ficha's positions read data.published and data.mvpOf, never the mer
   for (const c of spy.calls) {
     expect(c[1]).toBe(data.published);
     expect(c[1]).not.toBe(data.matches);
-    expect(c[2]).toBe(data.mvpOf);
+    expect(c[2]).toBe(data.ratings);
   }
 });

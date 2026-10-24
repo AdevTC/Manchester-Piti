@@ -79,8 +79,8 @@ describe("archived matches contribute nowhere", () => {
     const picks = mixed.map(m => ({ matchId: m.id, uid: "me", name: "Ana", goalsFor: 1, goalsAgainst: 0 }));
     expect(porraHistory(mixed, picks, "me")).toEqual(porraHistory(games, picks, "me"));
     expect(playerPositions("a", mixed)).toEqual(playerPositions("a", games));
-    expect(seasonSquad([player], mixed, "s", results, NOW)).toEqual(seasonSquad([player], games, "s", results, NOW));
-    const squad = (matches: ClubMatch[]) => buildSquad({ players: [player], games: matches, jornada: jornadaNumbers(matches), suspended: new Set(), mvps: new Map(mixed.map(m => [m.id, ["a"]])) });
+    expect(seasonSquad([player], mixed, "s", results, NOW, [])).toEqual(seasonSquad([player], games, "s", results, NOW, []));
+    const squad = (matches: ClubMatch[]) => buildSquad({ players: [player], games: matches, jornada: jornadaNumbers(matches), suspended: new Set(), mvps: new Map(mixed.map(m => [m.id, ["a"]])), standings: [] });
     expect(squad(mixed)).toEqual(squad(games));
     expect(suspensions([{ ...hidden, events: [{ type: "red_card", playerId: "a" }] }])).toEqual(new Map());
   });

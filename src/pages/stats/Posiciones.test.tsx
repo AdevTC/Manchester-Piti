@@ -4,10 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { analysePlayer } from "../../lib/clubAnalytics";
 import { playerName, type ClubMatch } from "../../lib/clubData";
 import { Posiciones } from "./Posiciones";
-import { mvpOfFrom } from "../../lib/derived/mvpOf";
-
-// (no MVP results here: the shared reader, empty)
-const NO_MVP = mvpOfFrom(new Map(), [], 0);
 
 // /stats › Posiciones: «Por posición» (the club's pitch with the 13 positions, minutes and «el dueño»,
 // a sortable table, a selection that lists who played there) and «Por sistema» (record per system).
@@ -41,7 +37,7 @@ const players = [
   { id: "dani", shirtName: "DANI" },
 ];
 const rowsOf = (gs: ClubMatch[]) => players.map((p) => analysePlayer(p, gs));
-const show = (gs: ClubMatch[] = games) => render(<Posiciones games={gs} rows={rowsOf(gs)} nameOf={(p) => playerName(p)} mvpOf={NO_MVP} />);
+const show = (gs: ClubMatch[] = games) => render(<Posiciones games={gs} rows={rowsOf(gs)} nameOf={(p) => playerName(p)} />);
 const pitch = () => screen.getByRole("group", { name: /^El campo del club/ });
 const spot = (code: string) => within(pitch()).getByRole("button", { name: new RegExp(`^${code} ·`) });
 const table = () => screen.getByRole("table", { name: "Minutos por posición" });
@@ -136,12 +132,12 @@ describe("Posiciones · Por posición", () => {
     fireEvent.click(spot("DFC"));
     expect(spot("DFC")).toHaveAttribute("aria-pressed", "true");
     const other = [games[3]]; // only Erik at MCD
-    view.rerender(<Posiciones games={other} rows={rowsOf(other)} nameOf={(p) => playerName(p)} mvpOf={NO_MVP} />);
+    view.rerender(<Posiciones games={other} rows={rowsOf(other)} nameOf={(p) => playerName(p)} />);
     expect(within(pitch()).queryAllByRole("button", { pressed: true })).toHaveLength(0);
     expect(screen.queryByRole("list", { name: /Quién ha jugado/ })).toBeNull();
     // a position that still has minutes stays picked
     fireEvent.click(spot("MCD"));
-    view.rerender(<Posiciones games={games} rows={rowsOf(games)} nameOf={(p) => playerName(p)} mvpOf={NO_MVP} />);
+    view.rerender(<Posiciones games={games} rows={rowsOf(games)} nameOf={(p) => playerName(p)} />);
     expect(spot("MCD")).toHaveAttribute("aria-pressed", "true");
   });
 

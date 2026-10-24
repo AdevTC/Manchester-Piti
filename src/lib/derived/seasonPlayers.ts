@@ -4,9 +4,10 @@
 import type { ClubMatch } from "../clubData";
 import type { PlayerDoc } from "../schemas";
 import { resolvePositions } from "../positions";
-import { porraPosition, type MvpResult } from "../vestuario";
+import { porraPosition } from "../vestuario";
 import { playerPositions, type PlayerPositions } from "../positionStats";
-import { mvpOfFrom } from "./mvpOf";
+import { ratingMatches, seasonRatings } from "../seasonRating";
+import type { Standings } from "../standings";
 import type { SquadPlayer } from "../../pages/pizarra/v2/ratings";
 
 type Detail = { shirtName?: unknown; number?: unknown };
@@ -61,7 +62,8 @@ export function porraLine(rows: { uid: string; points: number; exact: number; pl
 }
 
 /** «Dónde has jugado»: his minutes, events and rating by position over the season's calendar, with the
- *  MVPs as every page (derived/mvpOf), so the perfil's rating is jugador's. */
-export function positionsPlayed(playerId: string, calendar: ClubMatch[], mvpResults: ReadonlyMap<string, MvpResult>, now: number): PlayerPositions {
-  return playerPositions(playerId, calendar, mvpOfFrom(mvpResults, calendar, now));
+ *  season's notas (GLOBAL's, the same tables as the card), so the perfil's rating is jugador's. */
+export function positionsPlayed(playerId: string, calendar: ClubMatch[], standings: readonly Standings[]): PlayerPositions {
+  const games = ratingMatches(calendar);
+  return playerPositions(playerId, calendar, seasonRatings(games, standings));
 }

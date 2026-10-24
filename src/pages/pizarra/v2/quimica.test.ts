@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chem, chemWhy, hops, links, lucesOf, tierOf } from "./quimica";
 import { lineOf, type PosCode } from "../../../lib/positions";
-import { formRating, buildSquad } from "./ratings";
+import { buildSquad } from "./ratings";
 import { hud, ago, pitchView, positionsOf, FX0 } from "./view";
 import type { ClubMatch } from "../../../lib/clubData";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
@@ -53,39 +53,6 @@ describe("química as light", () => {
   });
 });
 
-describe("form rating", () => {
-  const base = { teamW: 10, playedW: 0, shareW: 0, minW: 0, gaW: 0, concW: 0, mvpW: 0, cardsW: 0, savesW: 0 };
-  // four matches of 50′, the last three counting double: Σw = 7
-  const allIn = { ...base, teamW: 7, playedW: 7, shareW: 7, minW: 350 };
-  it("is null before the first match (shown as «—»)", () => {
-    expect(formRating(base)).toBeNull();
-  });
-  it("follows the documented formula", () => {
-    // presence 1, nothing else, a forward: 45 + 50·0.35 = 62.5 → 63
-    expect(formRating({ ...allIn, role: "DEL" })).toBe(63);
-    // + 1.5 G+A per 90 and an MVP every match: 45 + 50·(0.35 + 0.45 + 0.2) = 95, the top
-    expect(formRating({ ...allIn, role: "DEL", gaW: 50, mvpW: 7 })).toBe(95);
-    // a keeper who concedes nothing: defence = 1 − (3·90 / 440) / 6 ≈ 0.90
-    expect(formRating({ ...allIn, role: "POR" })).toBe(Math.round(45 + 50 * (0.35 + 0.45 * (1 - (3 * 90) / 440 / 6))));
-  });
-  it("spreads the squad over 45–95: a scorer in form, a regular, a cameo", () => {
-    const scorer = formRating({ ...allIn, role: "DEL", gaW: 12 })!;
-    const regular = formRating({ ...allIn, role: "MED" })!;
-    const cameo = formRating({ ...base, role: "DEL", playedW: 1, shareW: 0.2, minW: 10 })!;
-    expect(scorer).toBeGreaterThan(regular);
-    expect(regular).toBeGreaterThan(cameo);
-    expect(cameo).toBeGreaterThanOrEqual(45);
-    expect(scorer).toBeLessThanOrEqual(95);
-    expect(scorer - cameo).toBeGreaterThanOrEqual(25);
-  });
-  it("a defender who concedes less while on the pitch is in better form; cards cost", () => {
-    const solid = formRating({ ...allIn, role: "DEF", concW: 2 })!;
-    const leaky = formRating({ ...allIn, role: "DEF", concW: 20 })!;
-    expect(solid).toBeGreaterThan(leaky);
-    expect(formRating({ ...allIn, role: "MED", cardsW: 7 })!).toBeLessThan(formRating({ ...allIn, role: "MED" })!);
-  });
-});
-
 describe("the squad from the season's matches", () => {
   const m = (id: string, date: number, ledger: Record<string, { minutes: number; started: boolean; played: boolean }>, events: ClubMatch["events"] = []): ClubMatch =>
     ({ id, date, status: "finished", duration: 50, events, ledger: Object.fromEntries(Object.entries(ledger).map(([k, v]) => [k, { goals: 0, assists: 0, penaltySaved: 0, ...v }])) }) as unknown as ClubMatch;
@@ -99,7 +66,7 @@ describe("the squad from the season's matches", () => {
       m("g1", 1, { a: { minutes: 50, started: true, played: true }, b: { minutes: 30, started: false, played: true } }, [{ type: "goal", playerId: "b", assistPlayerId: "a" } as never]),
       m("g2", 2, { a: { minutes: 50, started: true, played: true }, b: { minutes: 50, started: true, played: true } }),
     ];
-    const sq = buildSquad({ players, games, jornada: new Map([["g1", 4], ["g2", 5]]), suspended: new Set(["a"]), mvps: new Map([["g2", ["a"]]]) });
+    const sq = buildSquad({ players, games, jornada: new Map([["g1", 4], ["g2", 5]]), suspended: new Set(["a"]), mvps: new Map([["g2", ["a"]]]), standings: [] });
     // (no stints in these ledgers: the shorter of their minutes, 30′ + 50′)
     expect(sq.pairs.get("a|b")).toEqual({ tog: 2, ast: 1, min: 80, known: 80 }); // (ledgers: the printable minutes are the same)
     expect(sq.byId.get("a")?.stats).toMatchObject({ played: 2, minutes: 100, starts: 2, mvps: 1 });
@@ -110,7 +77,7 @@ describe("the squad from the season's matches", () => {
       ["a", { left: 2, source: "manual" as const, reason: "Federación" }],
       ["b", { left: 1, source: "acta" as const }],
     ]);
-    const sq2 = buildSquad({ players, games, jornada: new Map([["g1", 4], ["g2", 5]]), suspended: map, mvps: new Map() });
+    const sq2 = buildSquad({ players, games, jornada: new Map([["g1", 4], ["g2", 5]]), suspended: map, mvps: new Map(), standings: [] });
     expect(sq2.byId.get("a")).toMatchObject({ baja: "Sancionado", sancion: { left: 2, reason: "Federación" } });
     expect(sq2.byId.get("b")?.baja).toBe("Lesionado");
     expect(sq2.byId.get("b")?.sancion).toBeUndefined();

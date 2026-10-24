@@ -1,9 +1,9 @@
-// The form and the química over a small season (4 matches with their ledgers): the numbers must mean
-// something — who scores lately is in form, a cameo is not, a pair that never shared the pitch is a weak
+// GLOBAL and the química over a small season (4 matches with their ledgers): the numbers must mean
+// something — the scorer rates highest, a cameo is provisional, a pair that never shared the pitch is a weak
 // link — and the «why» says it in words.
 import { describe, expect, it } from "vitest";
 import type { ClubMatch, MatchEvent, Participation } from "../../../lib/clubData";
-import { buildSquad, cardPoints, concededOnPitch, formWhy, minutesTogether, type SquadPlayer } from "./ratings";
+import { buildSquad, concededOnPitch, formWhy, minutesTogether, type SquadPlayer } from "./ratings";
 import { chem, links, tierDiamonds, tierOf, TIERS } from "./quimica";
 import { rtTxt } from "./model";
 import { squadInfo } from "./bench";
@@ -32,24 +32,27 @@ const SEASON: ClubMatch[] = [
   match("j3", { por: on(0, 50), def: on(0, 50, { yellowCards: 1 }), med: on(0, 50), del: on(0, 50, { goals: 2 }) }, [goal("del", 5), goal("del", 30, "def"), opp(48)]),
   match("j4", { por: on(0, 50), def: on(0, 50), med: on(0, 50), del: on(0, 50, { goals: 1, assists: 1 }) }, [goal("del", 20), goal("med", 33, "del")]),
 ];
-const squad = () => buildSquad({ players: PLAYERS, games: SEASON, jornada: new Map(SEASON.map((m, i) => [m.id, i + 1])), suspended: new Set(), mvps: new Map([["j4", ["del"]]]) });
+const squad = () => buildSquad({ players: PLAYERS, games: SEASON, jornada: new Map(SEASON.map((m, i) => [m.id, i + 1])), suspended: new Set(), mvps: new Map([["j4", ["del"]]]), standings: [] });
 
-describe("la forma sobre una temporada corta", () => {
-  it("does not turn goals, attendance or MVP alone into a complete GLOBAL grade", () => {
+describe("GLOBAL sobre una temporada corta", () => {
+  it("rates from the acta's minutes: the scorer highest, provisional under 150′, the same on the cromo", () => {
     const sq = squad();
-    sq.list.forEach((c) => {
-      expect(c.unrated).toBe(true);
-      expect(c.global?.value).toBeNull();
-      expect(rtTxt(c)).toBe("—");
-    });
-    expect(sq.byId.get("del")!.stats.goals).toBe(4);
+    const del = sq.byId.get("del")!;
+    expect(del.global?.value).not.toBeNull();
+    expect(del.rt).toBe(del.global!.value);
+    expect(rtTxt(del)).toBe(String(del.rt));
+    expect(Math.max(...sq.list.map((c) => c.global?.value ?? 0))).toBe(del.rt);
+    expect(del.stats.goals).toBe(4);
+    // four whole matches (200′) rate in full; a 10′ cameo is provisional
+    expect(sq.byId.get("por")!.global!.status).toBe("rated");
+    expect(sq.byId.get("sub")!.global!.status).toBe("provisional");
   });
   it("a player with no match shows «—», not a made-up number", () => {
     const sq = squad();
     const c = sq.byId.get("nuevo")!;
     expect(c.unrated).toBe(true);
+    expect(c.global?.value).toBeNull();
     expect(rtTxt(c)).toBe("—");
-    expect(rtTxt(sq.byId.get("del")!)).toBe("—");
   });
   it("says why, in a few words", () => {
     const sq = squad();
@@ -67,11 +70,6 @@ describe("la forma sobre una temporada corta", () => {
     expect(concededOnPitch(j1, "sub", 10)).toBe(1);
     // without stints: his share of the match's goals
     expect(concededOnPitch({ id: "x", duration: 50, goalsAgainst: 2, events: [] }, "y", 25)).toBe(1);
-  });
-  it("a sending-off counts once, a yellow counts one", () => {
-    expect(cardPoints({ yellowCards: 1, redCards: 0, doubleYellows: 0 })).toBe(1);
-    expect(cardPoints({ yellowCards: 2, redCards: 1, doubleYellows: 1 })).toBe(2);
-    expect(cardPoints({ yellowCards: 0, redCards: 1, doubleYellows: 0 })).toBe(2);
   });
 });
 
@@ -101,7 +99,7 @@ describe("la química en minutos juntos", () => {
     });
   });
   it("an unknown position is not natural", () => {
-    const sq = buildSquad({ players: [player("x"), player("y", "DEF")], games: [], jornada: new Map(), suspended: new Set(), mvps: new Map() });
+    const sq = buildSquad({ players: [player("x"), player("y", "DEF")], games: [], jornada: new Map(), suspended: new Set(), mvps: new Map(), standings: [] });
     const ch = chem(lineupOf(["x", "y"], "2-3-1", sq), sq);
     expect(ch.gk).toBe(true);
     expect(ch.gkNat).toBe(false);
@@ -150,7 +148,7 @@ describe("each cromo carries his resolved positions", () => {
       player("por", "POR"),
       player("nada"),
     ];
-    const sq = buildSquad({ players, games: [], jornada: new Map(), suspended: new Set(), mvps: new Map() });
+    const sq = buildSquad({ players, games: [], jornada: new Map(), suspended: new Set(), mvps: new Map(), standings: [] });
     expect(sq.byId.get("lat")!.ps).toEqual({ main: "LD", also: ["MD"], line: "DEF" });
     expect(sq.byId.get("lat")!.pos).toBe("DEF");
     expect(sq.byId.get("por")!.ps).toEqual({ main: "POR", also: [], line: "POR" });

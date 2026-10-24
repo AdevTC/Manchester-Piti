@@ -3,7 +3,7 @@
 // perfil already uses, so every number is the one Perfil › Temporada and the stats pages print:
 // - partidos, minutos, goles, asistencias, MVP and the socio come from the perfil card (buildCard: the
 //   pizarra cromo over the season, with derived/minutesOf for minutes — a legacy acta stays unknown, «—»);
-// - «Dónde jugaste» is the perfil's «Dónde has jugado» (positionsPlayed: playerPositions + mvpOfFrom);
+// - «Dónde jugaste» is the perfil's «Dónde has jugado» (positionsPlayed: playerPositions + the season's GLOBAL notas);
 // - la porra is the perfil's line (porraLine), las medallas the «Logros» won in it (derived/achievements), el equipo G·E·P via resultOf
 //   (derived/result's resultLetter) and the jornadas via derived/jornada.
 // A card with nothing to say is left out, so a story has 5 to 10 cards.
@@ -15,6 +15,7 @@
 //                  which says which season is «later»; `archived` when the caller knows it
 //   mvpResults     useMvpResults()
 //   porraStandings usePorraStandings(seasonId).data (the recap's season)
+//   standings      useAllStandings() (the league tables: the rival's strength in GLOBAL, as the card)
 //   uid            the member's uid (his porra row)
 //   now            the perfil's minute clock (MVP votes count once closed)
 import { nextFixture, type ClubMatch } from "../clubData";
@@ -27,6 +28,7 @@ import { jornadaLabel } from "./jornada";
 import { buildCard, seasonSquad } from "./card";
 import { porraLine, positionsPlayed, seasonPlayers } from "./seasonPlayers";
 import { scoreText } from "./words";
+import type { Standings } from "../standings";
 
 export type RecapCard =
   | { kind: "portada"; name: string; number: string; season: string }
@@ -64,6 +66,7 @@ export interface RecapInput {
   seasons: RecapSeason[];
   mvpResults: Map<string, MvpResult>;
   porraStandings: RecapPorraRow[];
+  standings: readonly Standings[];
   uid: string;
   now: number;
 }
@@ -73,7 +76,7 @@ export const PARTIAL_FROM = 10;
 
 /** The season's matches in calendar order and the finished ones (the perfil card's own call). */
 function seasonGames(input: RecapInput, seasonId: string) {
-  return seasonSquad([], input.matches, seasonId, input.mvpResults, input.now);
+  return seasonSquad([], input.matches, seasonId, input.mvpResults, input.now, input.standings);
 }
 
 /**
@@ -115,7 +118,7 @@ export function seasonRecap(input: RecapInput, playerId: string, seasonId: strin
   if (!season || !playerId) return null;
   const { now, mvpResults } = input;
   const squad = seasonPlayers(input.players, seasonId, input.seasons, playerId);
-  const card = buildCard({ state: "vinculada", playerId, nickname: "", captain: false, squad, matches: input.matches, seasonId, seasonName: season.name, seasons: input.seasons, mvpResults, now });
+  const card = buildCard({ state: "vinculada", playerId, nickname: "", captain: false, squad, matches: input.matches, seasonId, seasonName: season.name, seasons: input.seasons, mvpResults, standings: input.standings, now });
   const { calendar, games, jornada } = seasonGames(input, seasonId);
   const t = card.totals;
   if (!card.started || t.played === 0) return null;
@@ -141,7 +144,7 @@ export function seasonRecap(input: RecapInput, playerId: string, seasonId: strin
   const p = card.partner;
   if (p && p.combos > 0) cards.push({ kind: "socio", partnerId: p.playerId, partnerName: p.name, combined: p.combos });
 
-  const played = positionsPlayed(playerId, calendar, mvpResults, now);
+  const played = positionsPlayed(playerId, calendar, input.standings);
   if (played.lines.length) cards.push({ kind: "posiciones", codes: played.lines.map((l) => ({ code: l.code, minutes: l.minutes })), main: played.top });
 
   const porra = porraLine(input.porraStandings, input.uid);

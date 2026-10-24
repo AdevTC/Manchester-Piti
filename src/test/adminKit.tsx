@@ -15,7 +15,7 @@ import type { PlayerDoc, SeasonDoc } from "../lib/schemas";
 import { buildOverview, contentGaps, convocatoriaState, doneLines, lastActaMatch, matchState, mergeMatches, mvpNote, nextMatch, pendingProposals, reviewActa, rsvpCounts, type AdminMatch } from "../pages/admin/data/adminLogic";
 import { hoyHero, matchMoment } from "../pages/admin/data/moments";
 import { seasonSquad } from "../pages/perfil/card";
-import { mvpOfFrom } from "../lib/derived/mvpOf";
+import { ratingMatches, seasonRatings } from "../lib/seasonRating";
 import { seasonPlayers } from "../pages/perfil/profileData";
 import type { Availability } from "../pages/vestuario/live";
 import type { AdminData, RosterPlayer } from "../pages/admin/data/useAdminData";
@@ -145,7 +145,7 @@ export function adminFixture({
       notified: next && typeof next.convocatoriaNotifiedAt === "number" ? next : null,
     }),
   });
-  const built = seasonSquad(seasonPlayers(fixturePlayers, "t1", seasons, null), published, "t1", new Map(), now);
+  const built = seasonSquad(seasonPlayers(fixturePlayers, "t1", seasons, null), published, "t1", new Map(), now, []);
   return {
     loading: false,
     error: false,
@@ -160,7 +160,7 @@ export function adminFixture({
     archivesLoading: false,
     archivesError: false,
     published,
-    mvpOf: mvpOfFrom(new Map(), published, now),
+    ratings: seasonRatings(ratingMatches(published), []),
     stateOf: (m) => matchState(m, now, next?.id),
     reviewOf,
     last: lastView,

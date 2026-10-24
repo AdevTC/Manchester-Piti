@@ -1,13 +1,12 @@
-// «Ha jugado de» read back: minutes, events and form by exact position for a player, the club's owner of
+// «Ha jugado de» read back: minutes, events and rating by exact position for a player, the club's owner of
 // each position, and the record of each system. Pure, from the finished matches already loaded: each
 // acta's ledger[pid].positionsPlayed / positionEvents / positionsEstimated and the match's `system`
 // (saveMatchSheet stores them; older actas lack them and simply add nothing).
 import type { ClubMatch } from "./clubData";
 import { isCompleted } from "../../functions/src/matchEngine";
 import { SYSTEM_IDS, isFormationName, systemDef } from "./formations";
-import { POS_CODES, isPosCode, lineOf, type PosCode } from "./positions";
-import { cardPoints, concededOnPitch, durationOf, formRating, type FormInput } from "./form";
-import type { MvpOf } from "./derived/mvpOf";
+import { POS_CODES, isPosCode, type PosCode } from "./positions";
+import { notesMean, type MatchNote, type SeasonRatings } from "./rating/season";
 import { isGuestId } from "./derived/guests";
 
 export interface PosLine {
@@ -56,16 +55,14 @@ function eventsAt(pe: unknown, code: PosCode): Ev {
 /**
  * A player's minutes, matches and events by exact position over the finished matches of `games`.
  *
- * `rating` is the pizarra's form rating (formRating) restricted to the matches where that code was his
- * most-played code (ties in catalogue order), each weighing 1 (no recency): teamW = playedW = those
- * matches, shareW = Σ min(1, minutes at the code / match duration), minW = Σ minutes at the code,
- * gaW = Σ goals + assists at the code, concW = Σ concededOnPitch (his whole time on the pitch that
- * match), cardsW = Σ cardPoints of the cards at the code (a second yellow counts once, 2), savesW = 0, mvpW = Σ [mvpOf(match) === pid]
- * (0 without `mvpOf`; every page passes derived/mvpOf's mvpOfFrom), role = the code's line. Null with fewer than 2 such matches.
+ * `rating` is GLOBAL restricted to the matches where that code was his most-played code (ties in catalogue
+ * order): his notas there (`ratings`: seasonRatings over the same period, so it is the card's own nota of
+ * each match) on GLOBAL's scale, with its cushion and its rule for short matches. Null with fewer than 2 such
+ * matches with a nota, or without `ratings` (the pages that only read the minutes).
  */
-export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: MvpOf): PlayerPositions {
+export function playerPositions(pid: string, games: ClubMatch[], ratings?: SeasonRatings): PlayerPositions {
   const lines = new Map<PosCode, PosLine>();
-  const form = new Map<PosCode, FormInput>();
+  const notes = new Map<PosCode, MatchNote[]>();
   let minutes = 0;
   let matches = 0;
   let estimatedMatches = 0;
@@ -89,27 +86,15 @@ export function playerPositions(pid: string, games: ClubMatch[], mvpOf?: MvpOf):
       lines.set(code, l);
       minutes += min;
     }
-    // the match counts for the form of his most-played code
-    const [code, min] = byCode.reduce((a, b) => (b[1] > a[1] || (b[1] === a[1] && order(b[0]) < order(a[0])) ? b : a));
-    const e = eventsAt(row.positionEvents, code);
-    const f = form.get(code) ?? { role: lineOf(code), teamW: 0, playedW: 0, shareW: 0, minW: 0, gaW: 0, concW: 0, mvpW: 0, cardsW: 0, savesW: 0 };
-    f.teamW++;
-    f.playedW++;
-    f.shareW += Math.min(1, min / durationOf(m));
-    f.minW += min;
-    f.gaW += e.goals + e.assists;
-    f.concW += concededOnPitch(m, pid, row.minutes);
-    // a second yellow is stored at its code as one more yellow and a red (the first yellow too, when it
-    // fell at the same code): read it as cardPoints does, once, as the sending-off
-    const dy = Math.min(row.doubleYellows ?? 0, e.redCards, Math.floor(e.yellowCards / 2));
-    f.cardsW += cardPoints({ yellowCards: e.yellowCards, redCards: e.redCards, doubleYellows: dy });
-    f.mvpW += mvpOf?.(m.id, pid) === pid ? 1 : 0;
-    form.set(code, f);
+    // the match's nota counts for the rating of his most-played code
+    const [code] = byCode.reduce((a, b) => (b[1] > a[1] || (b[1] === a[1] && order(b[0]) < order(a[0])) ? b : a));
+    const note = ratings?.noteOf(m.id, pid);
+    if (note) notes.set(code, [...(notes.get(code) ?? []), note]);
   }
   const list = [...lines.values()]
     .map((l) => {
-      const f = form.get(l.code);
-      return { ...l, minutes: round2(l.minutes), rating: f && f.playedW >= 2 ? formRating(f) : null };
+      const n = notes.get(l.code) ?? [];
+      return { ...l, minutes: round2(l.minutes), rating: n.length >= 2 ? Math.round(notesMean(n) * 10) / 10 : null };
     })
     // a line that would read «0′» is not a line (its minutes still count in the total)
     .filter((l) => Math.round(l.minutes) > 0)

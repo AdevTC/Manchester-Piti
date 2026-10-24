@@ -3,7 +3,8 @@ import type { ClubMatch } from "./clubData";
 import { systemDef } from "./formations";
 import { POS_CODES } from "./positions";
 import { clubPositions, playedSummary, playerPositions, systemRecord } from "./positionStats";
-import { formRating } from "../pages/pizarra/v2/ratings";
+import { ratingMatches, seasonRatings } from "./seasonRating";
+import { notesMean } from "./rating/season";
 
 type Ev = NonNullable<ClubMatch["events"]>[number];
 type Row = NonNullable<ClubMatch["ledger"]>[string];
@@ -63,16 +64,18 @@ describe("playerPositions", () => {
     expect(playerPositions("ana", odd).lines.map((l) => l.code)).toEqual(["MC"]);
   });
 
-  it("rates a code over the matches where it was his most-played one; null below 2", () => {
-    const p = playerPositions("ana", games, (id) => (id === "j1" ? "ana" : null));
+  it("rates a code with GLOBAL's notas of the matches where it was his most-played one; null below 2", () => {
+    const ratings = seasonRatings(ratingMatches(games));
+    const p = playerPositions("ana", games, ratings);
     const by = new Map(p.lines.map((l) => [l.code, l.rating]));
-    // MCD led j1 (30 of 50) and j2 (50): presence 0.8, G+A 2 in 80′, 1 MVP, 1 yellow → 76
-    expect(by.get("MCD")).toBe(76);
+    // MCD led j1 (30 of 50) and j2 (50): his two notas there, on GLOBAL's scale (one decimal)
+    const notes = [ratings.noteOf("j1", "ana")!, ratings.noteOf("j2", "ana")!];
+    expect(by.get("MCD")).toBe(Math.round(notesMean(notes) * 10) / 10);
     // MC led only j3 and DFC never: too few matches
     expect(by.get("MC")).toBeNull();
     expect(by.get("DFC")).toBeNull();
-    // without the MVPs the same code rates lower
-    expect(playerPositions("ana", games).lines[0].rating).toBe(71);
+    // without the season's notas (the pages that only print minutes), no rating
+    expect(playerPositions("ana", games).lines[0].rating).toBeNull();
   });
 });
 
@@ -82,14 +85,17 @@ describe("playerPositions: cards and tiny lines", () => {
     match(2, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }),
     match(3, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }),
   ];
-  const base = { role: "MED" as const, teamW: 3, playedW: 3, shareW: 3, minW: 150, gaW: 0, concW: 0, mvpW: 0, savesW: 0 };
-  it("a second yellow (yellow 2 + red 1 at the code) counts 2, as cardPoints", () => {
-    const dbl = playerPositions("ana", three({ yellowCards: 2, redCards: 1, doubleYellows: 1, positionEvents: { MCD: ev(0, 0, 2, 1) } }));
-    expect(dbl.lines[0].rating).toBe(formRating({ ...base, cardsW: 2 }));
-    expect(dbl.lines[0].rating).not.toBe(formRating({ ...base, cardsW: 4 }));
-    // a straight red is 2 too; a yellow and a red without a double yellow stay 1 + 2
-    expect(playerPositions("ana", three({ redCards: 1, positionEvents: { MCD: ev(0, 0, 0, 1) } })).lines[0].rating).toBe(formRating({ ...base, cardsW: 2 }));
-    expect(playerPositions("ana", three({ yellowCards: 1, redCards: 1, positionEvents: { MCD: ev(0, 0, 1, 1) } })).lines[0].rating).toBe(formRating({ ...base, cardsW: 3 }));
+  const rate = (first: Partial<Row>) => {
+    const gs = three(first);
+    return playerPositions("ana", gs, seasonRatings(ratingMatches(gs))).lines[0].rating!;
+  };
+  it("the code's rating follows his notas there: a goal raises it, a sending-off lowers it", () => {
+    const plain = rate({});
+    expect(plain).toBe(65);
+    expect(rate({ goals: 1, positionEvents: { MCD: ev(1) } })).toBeGreaterThan(plain);
+    expect(rate({ redCards: 1, positionEvents: { MCD: ev(0, 0, 0, 1) } })).toBeLessThan(plain);
+    // a second yellow (stored as two yellows and a red) costs as the sending-off, once
+    expect(rate({ yellowCards: 2, redCards: 1, doubleYellows: 1, positionEvents: { MCD: ev(0, 0, 2, 1) } })).toBe(rate({ redCards: 1, positionEvents: { MCD: ev(0, 0, 0, 1) } }));
   });
   it("drops lines under 1′ but keeps them in the total", () => {
     const p = playerPositions("ana", [match(1, { ana: row(50, { positionsPlayed: { MC: 49.6, DC: 0.4 } }) })]);
