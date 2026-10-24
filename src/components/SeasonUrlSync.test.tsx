@@ -107,6 +107,16 @@ describe("SeasonUrlSync — seed URL from context when absent", () => {
     expect(seasonState.adoptSeasonId).not.toHaveBeenCalled();
   });
 
+  it("sembrarla no mueve el scroll (una página que reescribe su dirección no vuelve arriba)", async () => {
+    seasonState.selectedSeasonId = "s2";
+    const router = buildRouter(["/?min=30"]);
+    const nav = vi.spyOn(router, "navigate");
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => expect(currentSeasonParam(router)).toBe("s2"));
+    expect(nav).toHaveBeenCalledWith(expect.objectContaining({ replace: true, resetScroll: false }));
+  });
+
   it("mantiene la URL limpia cuando la selección es 'all'", async () => {
     seasonState.selectedSeasonId = "all";
     const router = buildRouter(["/"]);
