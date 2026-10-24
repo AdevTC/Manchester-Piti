@@ -21,7 +21,8 @@ import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import { useFirestoreCollection } from "../../../lib/useFirestoreCollection";
 import { mvpWinners } from "../../../lib/vestuario";
 import { seasonSquad } from "../../../lib/derived/card";
-import { mvpOfFrom, type MvpOf } from "../../../lib/derived/mvpOf";
+import { ratingMatches, seasonRatings, type SeasonRatings } from "../../../lib/seasonRating";
+import { useAllStandings } from "../../../lib/useStandings";
 import { seasonPlayers } from "../../../lib/derived/seasonPlayers";
 import type { Squad } from "../../pizarra/v2/model";
 import { boardFromLocks, mapOfficialLock } from "../../pizarra/officialBoard";
@@ -109,8 +110,8 @@ export interface AdminData {
   archivesError: boolean;
   /** The published matches only (no drafts): what the public pages read, for the stats by position. */
   published: ClubMatch[];
-  /** The MVP reader over the published matches (derived/mvpOf), for the ratings by position. */
-  mvpOf: MvpOf;
+  /** The notas of every published match (GLOBAL's, with the league tables), for the ratings by position. */
+  ratings: SeasonRatings;
   /** A match's state for the captains (draft / acta / published / next / scheduled / postponed / cancelled). */
   stateOf: (m: AdminMatch) => AdminMatchState;
   /** The acta review of any match (its season's roster). */
@@ -121,7 +122,7 @@ export interface AdminData {
   next: { match: AdminMatch; conv: ConvocatoriaState; rsvp: RsvpCounts; answers: Availability[]; note: string } | null;
   /** Hoy's hero: the match being played, just played or next, and its moment (null = off-season). */
   hero: Hero<AdminMatch> | null;
-  /** The season's cromos (the pizarra's ratings: buildSquad / formRating), for the kit's CromoCard. */
+  /** The season's cromos (the pizarra's ratings: buildSquad / GLOBAL), for the kit's CromoCard. */
   squad: Squad;
   /** Matches the team has finished this season (with none, the cromos' rating reads «—»). */
   games: number;
@@ -151,6 +152,7 @@ export function useAdminData(): AdminData {
   const canReadArchives = !!user && isAdminRole(profile?.role ?? "");
   const whistled = useWhistled();
   const mvpResults = useMvpResults();
+  const standings = useAllStandings();
   const club = useClubData();
   const seasonsQ = useFirestoreCollection(SEASONS_KEY, seasonQuery, mapSeason);
   const draftsQ = useFirestoreCollection(DRAFTS_KEY, draftsQuery, mapMatch);
@@ -212,8 +214,8 @@ export function useAdminData(): AdminData {
     return { match: next, conv: convocatoriaState(next, ids, next.published && !next.draft), rsvp: rsvpCounts(avail.data, ids), answers: avail.data, note: note.data };
   }, [next, rosterOf, avail.data, note.data]);
   const hero = useMemo(() => hoyHero(matches, now, whistled), [matches, now, whistled]);
-  const mvpOf = useMemo(() => mvpOfFrom(mvpResults, published, now), [mvpResults, published, now]);
-  const built = useMemo(() => seasonSquad(seasonPlayers(club.players, seasonId, seasons, null), published, seasonId, mvpResults, now), [club.players, seasonId, seasons, published, mvpResults, now]);
+  const ratings = useMemo(() => seasonRatings(ratingMatches(published), standings), [published, standings]);
+  const built = useMemo(() => seasonSquad(seasonPlayers(club.players, seasonId, seasons, null), published, seasonId, mvpResults, now, standings), [club.players, seasonId, seasons, published, mvpResults, now, standings]);
 
   const claims = useMemo(
     () =>
@@ -280,7 +282,7 @@ export function useAdminData(): AdminData {
     archivesLoading: canReadArchives && (archivesQ.isPending || archiveDraftsQ.isPending || archivePlayersQ.isPending),
     archivesError: canReadArchives && !!(archivesQ.error || archiveDraftsQ.error || archivePlayersQ.error),
     published,
-    mvpOf,
+    ratings,
     stateOf,
     reviewOf,
     last: lastView,

@@ -1,5 +1,5 @@
-// /profile «La carta»: the member's card built from real data. The rating is the pizarra cromo's
-// (buildSquad / formRating over the same season), so the card and the cromo always show the same
+// /profile «La carta»: the member's card built from real data. The rating is the pizarra cromo's GLOBAL
+// (buildSquad / seasonRating over the same season and tables), so the card and the cromo always show the same
 // number. Also the six attributes, the tier, the LED videoboard text, the season series, the last five
 // results, the partner and the evoluciones (design: stats-gen/pf-g.mjs + pf-e-data.mjs). Pure.
 import { dateMillis, isCompleted, isVisibleMatch } from "../../../functions/src/matchEngine";
@@ -18,6 +18,8 @@ import type { Zone } from "../../pages/pizarra/formations";
 import { knownMinutes, type Cromo, type Squad } from "../../pages/pizarra/v2/model";
 import { buildSquad, type SquadPlayer } from "../../pages/pizarra/v2/ratings";
 import type { SeasonRating } from "../seasonRating";
+import type { Standings } from "../standings";
+import { TIER_ORO, TIER_PLATA } from "../rating/constants";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -39,13 +41,13 @@ export const TIER_NAME: Record<TierKey, string> = {
 };
 /** «Tipos de carta»: the four tiers and their rule. */
 export const TIERS: { k: Tier; label: string; rule: string }[] = [
-  { k: "bronce", label: "Bronce", rule: "Valoración menos de 65" },
-  { k: "plata", label: "Plata", rule: "De 65 a 79" },
-  { k: "oro", label: "Oro", rule: "80 o más" },
+  { k: "bronce", label: "Bronce", rule: `Valoración menos de ${TIER_PLATA}` },
+  { k: "plata", label: "Plata", rule: `De ${TIER_PLATA} a ${TIER_ORO - 1}` },
+  { k: "oro", label: "Oro", rule: `${TIER_ORO} o más` },
   { k: "racha", label: "En racha", rule: "G o A en las 3 últimas" },
 ];
 export function tierOf(rating: number): Exclude<Tier, "racha"> {
-  return rating >= 80 ? "oro" : rating >= 65 ? "plata" : "bronce";
+  return rating >= TIER_ORO ? "oro" : rating >= TIER_PLATA ? "plata" : "bronce";
 }
 
 export type AttrKey = "GOL" | "MVP" | "ASI" | "PJ" | "MIN" | "FOR";
@@ -56,7 +58,7 @@ export const ATTRS: { k: AttrKey; label: string; d: string }[] = [
   { k: "ASI", label: "Asistencias", d: "Pases tuyos que acabaron en gol" },
   { k: "PJ", label: "Partidos jugados", d: "Partidos en los que has salido al campo" },
   { k: "MIN", label: "Minutos", d: "Minutos jugados (un partido son 50′)" },
-  { k: "FOR", label: "Forma reciente", d: "Tus últimos 5 partidos: goles, asistencias y MVP, de 40 a 99. Es un indicador reciente distinto de GLOBAL de temporada" },
+  { k: "FOR", label: "Forma reciente", d: "Tu nota en tus últimos 5 partidos, en la escala de GLOBAL (65 es un partido normal). GLOBAL es toda la temporada" },
 ];
 export interface Attr {
   k: AttrKey;
@@ -163,6 +165,8 @@ export interface CardInput {
   seasonName: string;
   seasons: { id: string; name: string }[];
   mvpResults: Map<string, MvpResult>;
+  /** Every season's current league table (useAllStandings): the rival's strength in GLOBAL. */
+  standings: readonly Standings[];
   now: number;
 }
 
@@ -217,8 +221,9 @@ export function seasonCalendar(matches: ClubMatch[], seasonId: string): ClubMatc
     .sort(calendarOrder);
 }
 
-/** The pizarra's squad (cromos) for this season: the same call useBoardData makes. */
-export function seasonSquad(squad: SquadPlayer[], matches: ClubMatch[], seasonId: string, mvpResults: Map<string, MvpResult>, now: number): { squad: Squad; calendar: ClubMatch[]; games: ClubMatch[]; jornada: Map<string, number> } {
+/** The pizarra's squad (cromos) for this season: the same call useBoardData makes (`standings`: every
+ *  season's current table, the rival's strength in GLOBAL). */
+export function seasonSquad(squad: SquadPlayer[], matches: ClubMatch[], seasonId: string, mvpResults: Map<string, MvpResult>, now: number, standings: readonly Standings[]): { squad: Squad; calendar: ClubMatch[]; games: ClubMatch[]; jornada: Map<string, number> } {
   const calendar = seasonCalendar(matches, seasonId);
   const games = calendar.filter((m) => isCompleted(m));
   // (the one numbering: each match's jornada in its own season, «all seasons» included)
@@ -227,7 +232,7 @@ export function seasonSquad(squad: SquadPlayer[], matches: ClubMatch[], seasonId
   games.forEach((m) => mvps.set(m.id, mvpWinners(m, mvpResults.get(m.id), now)));
   // the same bajas as the board: sent off (acta) or sanctioned by hand, newest match first
   const suspended = suspensions([...calendar].reverse(), squad);
-  return { squad: buildSquad({ players: squad, games, jornada, suspended, mvps }), calendar, games, jornada };
+  return { squad: buildSquad({ players: squad, games, jornada, suspended, mvps, standings }), calendar, games, jornada };
 }
 
 /** «T1» from «Temporada 1»; «T26/27» from «Temporada 2026/27» (a year range keeps both years, short). */
@@ -240,19 +245,6 @@ export function seasonShort(name: string): string {
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const ratio = (v: number, max: number) => (max > 0 ? clamp(v / max, 0, 1) : 0);
-
-/** Forma (FOR): the last five matches of the season — 45 + G+A·5 + MVP·3 + played, from 40 to 99. */
-export function formScore(playerId: string, games: ClubMatch[], mvps: (m: ClubMatch) => string[]): number {
-  const last5 = games.slice(-5);
-  let ga = 0, mv = 0, played = 0;
-  for (const m of last5) {
-    const g = playerGame(playerId, m);
-    ga += g.ga;
-    if (g.played) played++;
-    if (mvps(m).includes(playerId)) mv++;
-  }
-  return clamp(45 + ga * 5 + mv * 3 + played, 40, 99);
-}
 
 /** «En racha»: a goal or an assist in each of the player's last three played jornadas. */
 export function onStreak(playerId: string, games: ClubMatch[]): boolean {
@@ -279,11 +271,11 @@ export function tierWhy(key: TierKey, first: { dateMs: number; rival: string } |
     case "racha":
       return "Carta especial: has marcado o asistido en las 3 últimas jornadas.";
     case "oro":
-      return "Valoración de 80 o más.";
+      return `Valoración de ${TIER_ORO} o más.`;
     case "plata":
-      return "Valoración de 65 a 79.";
+      return `Valoración de ${TIER_PLATA} a ${TIER_ORO - 1}.`;
     case "bronce":
-      return "Valoración por debajo de 65.";
+      return `Valoración por debajo de ${TIER_PLATA}.`;
     case "nuevo":
       return first ? `Se revela en la J1, el ${firstDate(first.dateMs)} contra ${first.rival}.` : "Se revela con el primer partido de la temporada.";
     case "down":
@@ -360,8 +352,7 @@ const EMPTY_TOTALS: CardView["totals"] = { played: 0, goals: 0, assists: 0, minu
 
 export function buildCard(input: CardInput): CardView {
   const { state, playerId, captain, matches, seasonId, mvpResults, now } = input;
-  const { squad, calendar, games, jornada } = seasonSquad(input.squad, matches, seasonId, mvpResults, now);
-  const mvpsOf = (m: ClubMatch) => mvpWinners(m, mvpResults.get(m.id), now);
+  const { squad, calendar, games, jornada } = seasonSquad(input.squad, matches, seasonId, mvpResults, now, input.standings);
   const started = games.length > 0;
   const vinc = state === "vinculada";
   const me: Cromo | undefined = playerId ? squad.byId.get(playerId) : undefined;
@@ -377,7 +368,8 @@ export function buildCard(input: CardInput): CardView {
 
   // (no match of his yet: the cromo's rating is only a floor for sorting, so the card prints «—»)
   const rating = shown && !shown.unrated ? shown.rt : null;
-  const form = shown ? formScore(shown.id, games, mvpsOf) : null;
+  // FOR: his nota over his last five matches, on GLOBAL's scale («—» with no nota yet)
+  const form = shown?.global?.form ?? null;
   const racha = !!shown && onStreak(shown.id, games);
   const tier: Tier | null = racha ? "racha" : rating === null ? null : tierOf(rating);
   const tierKey: TierKey = !vinc ? (state === "pendiente" ? "pack" : "down") : tier ?? "nuevo";
@@ -396,8 +388,8 @@ export function buildCard(input: CardInput): CardView {
   };
   const attrs: Attr[] = ATTRS.map((a) => {
     const [v, p] = values[a.k];
-    // (minutes no acta of his knows: «—», never an invented number)
-    const shows = showNumbers && !(a.k === "MIN" && totals.minutes === null);
+    // (minutes no acta of his knows, or no nota for FOR yet: «—», never an invented number)
+    const shows = showNumbers && !(a.k === "MIN" && totals.minutes === null) && !(a.k === "FOR" && form === null);
     return { ...a, value: shows ? v : null, text: shows ? String(v) : "—", p: shows ? p : 0 };
   });
 

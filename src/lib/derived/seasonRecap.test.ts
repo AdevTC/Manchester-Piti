@@ -46,7 +46,7 @@ const PORRA = [
   { uid: "u-bea", points: 12, exact: 2, played: 4 },
   { uid: "u-ana", points: 7, exact: 1, played: 4 },
 ];
-const input = (o: Partial<RecapInput> = {}): RecapInput => ({ matches: [...T2, ...T1], players: DOCS, seasons: SEASONS, mvpResults: MVP, porraStandings: PORRA, uid: "u-ana", now: NOW, ...o });
+const input = (o: Partial<RecapInput> = {}): RecapInput => ({ matches: [...T2, ...T1], players: DOCS, seasons: SEASONS, mvpResults: MVP, porraStandings: PORRA, uid: "u-ana", now: NOW, standings: [], ...o });
 const kinds = (cards: RecapCard[]) => cards.map((c) => c.kind);
 const find = <K extends RecapCard["kind"]>(cards: RecapCard[], k: K) => cards.find((c): c is Extract<RecapCard, { kind: K }> => c.kind === k);
 
@@ -76,7 +76,7 @@ describe("seasonRecap: a closed season", () => {
 
   it("parity: the same numbers as Perfil › Temporada and the stats pages", () => {
     const squad = seasonPlayers(DOCS, "t1", SEASONS, "ana");
-    const card = buildCard({ state: "vinculada", playerId: "ana", nickname: "ana", captain: false, squad, matches: input().matches, seasonId: "t1", seasonName: "Temporada 1", seasons: SEASONS, mvpResults: MVP, now: NOW });
+    const card = buildCard({ state: "vinculada", playerId: "ana", nickname: "ana", captain: false, squad, matches: input().matches, seasonId: "t1", seasonName: "Temporada 1", seasons: SEASONS, mvpResults: MVP, now: NOW, standings: [] });
     const games = chronological(input().matches.filter((m) => m.seasonId === "t1"));
     const stats = analysePlayer(DOCS[0], games);
     const partidos = find(r.cards, "partidos")!;
@@ -91,7 +91,7 @@ describe("seasonRecap: a closed season", () => {
     expect(find(r.cards, "mvp")!.times).toBe(card.totals.mvps);
     expect(find(r.cards, "socio")!.partnerId).toBe(card.partner!.playerId);
     expect(find(r.cards, "socio")!.combined).toBe(card.partner!.combos);
-    const played = positionsPlayed("ana", seasonCalendar(input().matches, "t1"), MVP, NOW);
+    const played = positionsPlayed("ana", seasonCalendar(input().matches, "t1"), []);
     expect(find(r.cards, "posiciones")!.codes).toEqual(played.lines.map((l) => ({ code: l.code, minutes: l.minutes })));
     const porra = porraLine(PORRA, "u-ana")!;
     expect(find(r.cards, "porra")).toMatchObject({ rank: porra.rank, of: porra.of, points: porra.points });

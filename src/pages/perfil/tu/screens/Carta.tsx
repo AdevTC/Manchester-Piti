@@ -20,10 +20,11 @@ import { Screen, type Act } from "./Head";
 import { PorraBlock } from "./Porra";
 import type { MenuItem } from "../../../../components/vidrio/tu/ui";
 import { SeasonRatingDetails } from "../../../../components/SeasonRatingDetails";
+import { TIER_ORO, TIER_PLATA } from "../../../../lib/rating/constants";
 
 /** The tier's reason, as the board words it. */
-const WHY: Record<string, string> = { oro: "Valoración de 80 o más", plata: "Valoración entre 65 y 79", bronce: "Valoración por debajo de 65", racha: "Gol o asistencia en las 3 últimas" };
-const TIER_RULE: Record<string, string> = { bronce: "Valoración menos de 65", plata: "De 65 a 79", oro: "80 o más", racha: "Gol o asistencia en las 3 últimas" };
+const WHY: Record<string, string> = { oro: `Valoración de ${TIER_ORO} o más`, plata: `Valoración entre ${TIER_PLATA} y ${TIER_ORO - 1}`, bronce: `Valoración por debajo de ${TIER_PLATA}`, racha: "Gol o asistencia en las 3 últimas" };
+const TIER_RULE: Record<string, string> = { bronce: `Valoración menos de ${TIER_PLATA}`, plata: `De ${TIER_PLATA} a ${TIER_ORO - 1}`, oro: `${TIER_ORO} o más`, racha: "Gol o asistencia en las 3 últimas" };
 const RSVP: { v: "yes" | "maybe" | "no"; t: string }[] = [
   { v: "yes", t: "Voy" },
   { v: "maybe", t: "Duda" },

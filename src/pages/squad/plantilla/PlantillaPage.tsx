@@ -15,6 +15,7 @@ import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { KitStillContext } from "../../../components/jersey3d/kitStill";
 import { useSeason } from "../../../context/SeasonContext";
 import { useClubData, nextFixture } from "../../../lib/clubData";
+import { useAllStandings } from "../../../lib/useStandings";
 import { currentSeasonId, type MvpResult } from "../../../lib/vestuario";
 import { matchdayOf, type MatchdayModel } from "../../../lib/derived/matchday";
 import { squadLive } from "../../../lib/derived/vidrio/squadLive";
@@ -114,6 +115,7 @@ export function PlantillaPage() {
   const { players, matches, loading, error } = useClubData();
   const { seasons, selectedSeasonId } = useSeason();
   const results = useMvpResults();
+  const standings = useAllStandings();
   const viewer = useViewer();
   const clockNow = useClock(15_000);
   const seasonId = selectedSeasonId !== "all" && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : currentSeasonId(nextFixture(matches, clockNow), matches, seasons);
@@ -137,10 +139,10 @@ export function PlantillaPage() {
   // vote closes (votesClosedAt), read on the hour so a medal's «hoy» stays right. The clock never rebuilds it.
   const minuteNow = Math.floor(now / 60_000) * 60_000;
   const mvpAt = Math.max(Math.floor(now / 3_600_000) * 3_600_000, votesClosedAt(matches, now));
-  const curBase = useMemo(() => periodBase(players, matches, seasonId, visibleSeasons), [players, matches, seasonId, visibleSeasons]);
-  const cur = useMemo(() => periodCtx(players, matches, seasonId, visibleSeasons, results, mvpAt, curBase), [players, matches, seasonId, visibleSeasons, results, mvpAt, curBase]);
+  const curBase = useMemo(() => periodBase(players, matches, seasonId, visibleSeasons, standings), [players, matches, seasonId, visibleSeasons, standings]);
+  const cur = useMemo(() => periodCtx(players, matches, seasonId, visibleSeasons, results, mvpAt, standings, curBase), [players, matches, seasonId, visibleSeasons, results, mvpAt, standings, curBase]);
   // (every season's period and the other seasons' ones are built only when a screen asks for them)
-  const ctxCache = useMemo(() => ({ of: [players, matches, results, mvpAt], map: new Map<string, Ctx>() }), [players, matches, results, mvpAt]).map;
+  const ctxCache = useMemo(() => ({ of: [players, matches, results, mvpAt, standings], map: new Map<string, Ctx>() }), [players, matches, results, mvpAt, standings]).map;
   const S: Squad = useMemo(() => {
     const by = new Map<string, PPlayer>(roster.map((p) => [p.id, p]));
     return {
@@ -157,13 +159,13 @@ export function PlantillaPage() {
       seasonCtx: (id: string) => {
         let c = ctxCache.get(id);
         if (!c) {
-          c = periodCtx(players, matches, id, visibleSeasons, results, mvpAt);
+          c = periodCtx(players, matches, id, visibleSeasons, results, mvpAt, standings);
           ctxCache.set(id, c);
         }
         return c;
       },
     };
-  }, [roster, seasonId, seasonName, minuteNow, seasons, matches, visibleSeasons, cur, players, results, ctxCache, mvpAt]);
+  }, [roster, seasonId, seasonName, minuteNow, seasons, matches, visibleSeasons, cur, players, results, ctxCache, mvpAt, standings]);
 
   // ── who looks
   const who: Who = useMemo(() => {

@@ -105,8 +105,8 @@ describe("parity: the same J for the same match on every surface", () => {
 
     // perfil (the carta's series and the pizarra squad built from it), selected season and «all»
     // every numbered match is there, with the same number
-    expect(seasonSquad([], published, "t1", new Map(), NOW).jornada).toEqual(jornadas(published, "t1"));
-    expect(seasonSquad([], published, "all", new Map(), NOW).jornada).toEqual(EXPECTED);
+    expect(seasonSquad([], published, "t1", new Map(), NOW, []).jornada).toEqual(jornadas(published, "t1"));
+    expect(seasonSquad([], published, "all", new Map(), NOW, []).jornada).toEqual(EXPECTED);
 
     // avisos: the next fixtures carry the same J
     expect(upcomingRows(published, NOW).map((r) => [r.id, r.j])).toEqual([["c", "J4"]]);

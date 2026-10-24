@@ -7,6 +7,7 @@ import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useSeason } from "../../context/SeasonContext";
 import { useClubData, dateMillis, nextFixture, type ClubMatch } from "../../lib/clubData";
+import { useAllStandings } from "../../lib/useStandings";
 import { currentSeasonId } from "../../lib/vestuario";
 import { achievements, nextToChase, type Achievement } from "../../lib/derived/achievements";
 import type { PlayerPositions } from "../../lib/positionStats";
@@ -137,6 +138,7 @@ export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
   const { seasons, loadingSeasons } = useSeason();
   const { matches, players, loading: clubLoading, error: clubError } = useClubData();
   const mvpResults = useMvpResults();
+  const standings = useAllStandings();
   const now = useClock(60_000);
   const minute = Math.floor(now / 60_000) * 60_000;
   const uid = user?.uid ?? "";
@@ -164,7 +166,7 @@ export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
   // (the cromos may be the previous season's, closed: its porra too, only for a linked member and only
   // while that recap is the one on offer)
   const recapPlayer = info.state === "vinculada" ? info.playerId : null;
-  const recapBase = { matches, players, seasons, mvpResults, uid, now: minute };
+  const recapBase = { matches, players, seasons, mvpResults, standings, uid, now: minute };
   const closedId = closedRecapSeason(recapBase, recapPlayer, seasonId);
   const prevPorra = usePorraStandings(closedId ?? undefined);
   const nextAvailability = useAvailability(next?.id);
@@ -191,11 +193,12 @@ export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
     seasonName,
     seasons,
     mvpResults,
+    standings,
     now: minute,
   });
 
   const taken = new Set(links.data.map((l) => l.playerId));
-  const built = seasonSquad(squadPlayers, matches, seasonId, mvpResults, minute);
+  const built = seasonSquad(squadPlayers, matches, seasonId, mvpResults, minute, standings);
   const freeFichas: FreeFicha[] = built.squad.list
     .filter((c) => !taken.has(c.id) && c.id !== linkedId && !c.baja)
     .map((c) => ({ id: c.id, name: c.name, number: c.num ? String(c.num) : "", posLong: c.pos ? POSITION_LONG[c.pos] : null, rating: c.unrated ? null : c.rt }));
@@ -230,7 +233,7 @@ export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
     shirt: { current: me?.shirtName || [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" "), number: me && me.number ? String(me.number) : "", squad: shirtSquad, fullName: [meDoc?.firstName, meDoc?.lastName].filter(Boolean).join(" ") },
     card,
     positions: positionsInfo(fichaDoc, seasonId),
-    played: info.state === "vinculada" && info.playerId ? positionsPlayed(info.playerId, calendar, mvpResults, minute) : null,
+    played: info.state === "vinculada" && info.playerId ? positionsPlayed(info.playerId, calendar, standings) : null,
     freeFichas,
     next: next ? { id: next.id, rival: next.rival || "Rival", dateMs: dateMillis(next.date), home: typeof next.home === "boolean" ? next.home : null, j: built.jornada.get(next.id) ?? null } : null,
     upcoming: upcomingRows(matches, minute),

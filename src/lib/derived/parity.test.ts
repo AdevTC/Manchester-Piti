@@ -13,7 +13,7 @@ import { buildSquad } from "../../pages/pizarra/v2/ratings";
 import { knownMinutes } from "../../pages/pizarra/v2/model";
 import { mergeMatches } from "../../pages/admin/data/adminLogic";
 import { mvpWinners } from "../vestuario";
-import { mvpOfFrom } from "./mvpOf";
+import { ratingMatches, seasonRatings } from "../seasonRating";
 import { minutesOf, totalMinutes } from "./minutesOf";
 import { wholeMinutes } from "./minutes";
 
@@ -49,10 +49,10 @@ const DOCS = [
 const statsGames = chronological(MATCHES.filter((m) => m.seasonId === "t1"));
 const stats = (pid: string) => analysePlayer(DOCS.find((p) => p.id === pid)!, statsGames);
 const squadPlayers = seasonPlayers(DOCS, "t1", SEASONS, null);
-const card = (pid: string) => buildCard({ state: "vinculada", playerId: pid, nickname: pid, captain: false, squad: squadPlayers, matches: MATCHES, seasonId: "t1", seasonName: "Temporada 1", seasons: SEASONS, mvpResults: MVP, now: NOW });
+const card = (pid: string) => buildCard({ state: "vinculada", playerId: pid, nickname: pid, captain: false, squad: squadPlayers, matches: MATCHES, seasonId: "t1", seasonName: "Temporada 1", seasons: SEASONS, mvpResults: MVP, now: NOW, standings: [] });
 const boardGames = boardSeason(MATCHES, "t1").filter((m) => isCompleted(m));
-const board = buildSquad({ players: squadPlayers, games: boardGames, jornada: new Map(), suspended: new Set(), mvps: new Map(boardGames.map((m) => [m.id, mvpWinners(m, MVP.get(m.id), NOW)])) });
-const admin = seasonSquad(squadPlayers, MATCHES, "t1", MVP, NOW).squad;
+const board = buildSquad({ players: squadPlayers, games: boardGames, jornada: new Map(), suspended: new Set(), mvps: new Map(boardGames.map((m) => [m.id, mvpWinners(m, MVP.get(m.id), NOW)])), standings: [] });
+const admin = seasonSquad(squadPlayers, MATCHES, "t1", MVP, NOW, []).squad;
 
 describe("paridad de minutos: /stats, /jugadores, la ficha, la carta del perfil, la pizarra y el admin", () => {
   it("the same known minutes for a player with ledgers (the legacy acta adds nothing, the cancelled one neither)", () => {
@@ -80,13 +80,23 @@ describe("paridad de minutos: /stats, /jugadores, la ficha, la carta del perfil,
   });
 });
 
-describe("paridad de la valoración por puesto: siempre con los MVP, el admin sin borradores", () => {
-  const rating = (games: ClubMatch[]) => playerPositions("ana", games, mvpOfFrom(MVP, games, NOW)).lines.find((l) => l.code === "DC")!.rating;
+describe("paridad de GLOBAL: la carta del perfil, la pizarra y el admin", () => {
+  it("the same GLOBAL and FOR for the same season and tables", () => {
+    const g = board.byId.get("ana")!.global!;
+    expect(g.value).not.toBeNull();
+    expect(admin.byId.get("ana")!.global!.value).toBe(g.value);
+    expect(card("ana").rating).toBe(g.value);
+    expect(card("ana").attrs.find((a) => a.k === "FOR")!.value).toBe(g.form);
+  });
+});
+
+describe("paridad de la valoración por puesto: las notas de GLOBAL, el admin sin borradores", () => {
+  const rating = (games: ClubMatch[]) => playerPositions("ana", games, seasonRatings(ratingMatches(games))).lines.find((l) => l.code === "DC")!.rating;
   it("jugador, /stats, la ficha de la plantilla, el perfil y el admin give the same DC rating", () => {
     const jugador = rating(statsGames);
     expect(jugador).not.toBeNull();
-    // the MVP of j4 counts: without it the rating is lower
-    expect(playerPositions("ana", statsGames).lines[0].rating!).toBeLessThan(jugador!);
+    // the card's own notas: without them (the pages that only read minutes) there is no rating
+    expect(playerPositions("ana", statsGames).lines[0].rating).toBeNull();
     expect(rating(chronological(MATCHES.filter((m) => m.seasonId === "t1")))).toBe(jugador); // /stats, /plantilla
     expect(rating(seasonCalendar(MATCHES, "t1"))).toBe(jugador); // perfil «Dónde has jugado»
     expect(rating(MATCHES)).toBe(jugador); // admin: the published matches
@@ -94,7 +104,7 @@ describe("paridad de la valoración por puesto: siempre con los MVP, el admin si
   it("the admin reads the published matches, not a captain's draft on top of them", () => {
     const draft = { ...MATCHES[3], ledger: { ana: row(50, { positionsPlayed: { EI: 50 } }) } };
     const merged = mergeMatches(MATCHES, [draft]);
-    expect(playerPositions("ana", merged, mvpOfFrom(MVP, merged, NOW)).lines.find((l) => l.code === "DC")!.rating).not.toBe(rating(statsGames));
+    expect(playerPositions("ana", merged, seasonRatings(ratingMatches(merged))).lines.find((l) => l.code === "DC")!.rating).not.toBe(rating(statsGames));
     expect(rating(MATCHES)).toBe(rating(statsGames));
   });
 });

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ClubMatch } from "../../lib/clubData";
+import type { ClubMatch, Participation } from "../../lib/clubData";
 import type { MvpResult } from "../../lib/vestuario";
 import { buildSquad, type SquadPlayer } from "../pizarra/v2/ratings";
-import { buildCard, evoluciones, formScore, nextEvolution, onStreak, seasonShort, seasonSquad, tickerFor, tierOf, type CardInput } from "./card";
+import { buildCard, evoluciones, nextEvolution, onStreak, seasonShort, seasonSquad, tickerFor, tierOf, type CardInput } from "./card";
 
 const DAY = 86_400_000;
 let seq = 0;
@@ -29,6 +29,7 @@ function input(over: Partial<CardInput> = {}): CardInput {
     seasons: [{ id: "t1", name: "Temporada 1" }],
     mvpResults: new Map(),
     now: NOW,
+    standings: [],
     ...over,
   };
 }
@@ -42,12 +43,22 @@ const SEASON: ClubMatch[] = [
   match("j6", 45, [], 0, 0, { status: "scheduled", goalsFor: undefined, goalsAgainst: undefined }),
 ];
 const MVP = new Map<string, MvpResult>([["j4", { id: "j4", counts: { adri: 3, erik: 1 }, total: 4 }]]);
+/** The same match with an acta that knows the minutes (50 each, the goals and assists of its events): GLOBAL rates it. */
+function timed(m: ClubMatch): ClubMatch {
+  if (m.status !== "finished") return m;
+  const evs = m.events ?? [];
+  const count = (id: string, k: "playerId" | "assistPlayerId") => evs.filter((e) => e.type === "goal" && e[k] === id).length;
+  const row = (id: string) => ({ played: true, started: true, benched: false, minutes: 50, secondsPlayed: 3000, goals: count(id, "playerId"), assists: count(id, "assistPlayerId"), yellowCards: 0, redCards: 0, doubleYellows: 0 }) as Participation;
+  return { ...m, duration: 50, ledger: Object.fromEntries(evs.filter((e) => e.type === "match_played").map((e) => [e.playerId!, row(e.playerId!)])) };
+}
 
 describe("la carta: valoración = la del cromo de la pizarra", () => {
   it("es exactamente la de buildSquad para la misma temporada", () => {
-    const card = buildCard(input({ matches: SEASON, mvpResults: MVP }));
-    const games = SEASON.filter((m) => m.status === "finished");
-    const sq = buildSquad({ players: SQUAD, games, jornada: new Map(SEASON.map((m, i) => [m.id, i + 1])), suspended: new Set(), mvps: new Map(games.map((m) => [m.id, m.id === "j4" ? ["adri"] : []])) });
+    const season = SEASON.map(timed);
+    const card = buildCard(input({ matches: season, mvpResults: MVP }));
+    const games = season.filter((m) => m.status === "finished");
+    const sq = buildSquad({ players: SQUAD, games, jornada: new Map(season.map((m, i) => [m.id, i + 1])), suspended: new Set(), mvps: new Map(games.map((m) => [m.id, m.id === "j4" ? ["adri"] : []])), standings: [] });
+    expect(card.rating).not.toBeNull();
     expect(card.rating).toBe(sq.byId.get("adri")!.global!.value);
     expect(card.ratingText).toBe(card.rating === null ? "—" : String(card.rating));
   });
@@ -61,11 +72,11 @@ describe("la carta: valoración = la del cromo de la pizarra", () => {
     expect(card.clubLine).toBe("MANCHESTER PITI · T1 · J1");
     expect(card.totals).toEqual({ played: 1, goals: 1, assists: 0, minutes: null, mvps: 0 });
   });
-  it("los límites de los tipos: 64 bronce, 65 plata, 79 plata, 80 oro", () => {
+  it("los límites de los tipos: 64 bronce, 65 plata, 74 plata, 75 oro", () => {
     expect(tierOf(64)).toBe("bronce");
     expect(tierOf(65)).toBe("plata");
-    expect(tierOf(79)).toBe("plata");
-    expect(tierOf(80)).toBe("oro");
+    expect(tierOf(74)).toBe("plata");
+    expect(tierOf(75)).toBe("oro");
   });
 });
 
@@ -160,13 +171,16 @@ describe("la carta: números", () => {
     expect(at.FOR.value).toBe(card.form);
     expect(at.FOR.p).toBeCloseTo(card.form! / 99);
   });
-  it("forma: últimos cinco partidos, 45 + G+A·5 + MVP·3 + jugados", () => {
-    // adri in J1–J5: G+A = 1+1+0+2+1 = 5, 1 MVP, 4 played → 45 + 25 + 3 + 4
-    expect(card.form).toBe(77);
-    const mv = (m: ClubMatch) => (m.id === "j4" ? ["adri"] : []);
-    expect(formScore("evans", SEASON.slice(0, 5), mv)).toBe(47);
-    const flood = Array.from({ length: 5 }, (_, i) => match(`f${i}`, i, [goal("adri"), goal("adri"), goal("adri")]));
-    expect(formScore("adri", flood, () => ["adri"])).toBe(99);
+  it("forma (FOR): la nota de GLOBAL en sus últimos cinco partidos; «—» con actas que no saben sus minutos", () => {
+    // these actas only have events (no ledger): no minutes, so no nota and no invented FOR
+    expect(card.form).toBeNull();
+    expect(card.attrs.find((a) => a.k === "FOR")!.text).toBe("—");
+    // with his minutes in the acta, FOR is the cromo's own (GLOBAL's form), MVP or not
+    const rated = buildCard(input({ matches: SEASON.map(timed), mvpResults: MVP }));
+    expect(rated.form).not.toBeNull();
+    expect(rated.form).toBe(rated.global!.form);
+    expect(rated.attrs.find((a) => a.k === "FOR")!.text).toBe(String(rated.form));
+    expect(buildCard(input({ matches: SEASON.map(timed) })).form).toBe(rated.form);
   });
   it("gol a gol y los últimos cinco", () => {
     expect(card.series.map((s) => [s.label, s.goals, s.played, s.p])).toEqual([
@@ -282,12 +296,12 @@ describe("seasonSquad: las bajas de la pizarra", () => {
     const red = match("j5", 38, [played("adri"), { id: "r1", type: "red_card", playerId: "illescas" }], 1, 3);
     const season = [...SEASON.filter((m) => m.id !== "j5"), red];
     const squad = SQUAD.map((p) => (p.id === "evans" ? { ...p, sanction: { games: 2, from: 40 * DAY, reason: "Federación" } } : p));
-    const { squad: sq } = seasonSquad(squad, season, "t1", new Map(), NOW);
+    const { squad: sq } = seasonSquad(squad, season, "t1", new Map(), NOW, []);
     expect(sq.byId.get("illescas")).toMatchObject({ baja: "Sancionado", sancion: { left: 1 } });
     expect(sq.byId.get("evans")).toMatchObject({ baja: "Sancionado", sancion: { left: 2, reason: "Federación" } });
     expect(sq.byId.get("adri")?.baja).toBeUndefined();
     const lifted = squad.map((p) => (p.id === "illescas" ? { ...p, sanctionClearedAt: 39 * DAY } : p));
-    expect(seasonSquad(lifted, season, "t1", new Map(), NOW).squad.byId.get("illescas")?.baja).toBeUndefined();
+    expect(seasonSquad(lifted, season, "t1", new Map(), NOW, []).squad.byId.get("illescas")?.baja).toBeUndefined();
   });
 });
 

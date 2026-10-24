@@ -22,6 +22,8 @@ import { dateMillis, isVisibleMatch } from "../../../../functions/src/matchEngin
 import { emptyTechnical, type TechnicalStats } from "../../../../functions/src/matchAnalysis";
 import { minutesOf } from "../../../lib/derived/minutesOf";
 import type { PlayerDoc } from "../../../lib/schemas";
+import { ratingMatches, seasonRatings, type SeasonRatings } from "../../../lib/seasonRating";
+import type { Standings } from "../../../lib/standings";
 
 const DAY = 86_400_000;
 export const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -236,21 +238,23 @@ export interface Ctx {
   jornada: Map<string, number>;
   results: ReadonlyMap<string, MvpResult>;
   now: number;
+  /** Every match's nota (GLOBAL's, over the period's games and the league tables): the rating by position. */
+  ratings: SeasonRatings;
 }
-/** The heavy part of a period, which only the data changes (no clock): its games, every player's acta numbers
- *  and one narrated analysis for the whole squad. */
-export type PeriodBase = Pick<Ctx, "games" | "rows" | "tech" | "passes" | "jornada">;
-export function periodBase(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[]): PeriodBase {
+/** The heavy part of a period, which only the data changes (no clock): its games, every player's acta numbers,
+ *  one narrated analysis for the whole squad and the notas (`standings`: every season's league table). */
+export type PeriodBase = Pick<Ctx, "games" | "rows" | "tech" | "passes" | "jornada" | "ratings">;
+export function periodBase(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[], standings: readonly Standings[]): PeriodBase {
   const games = chronological(matches.filter((m) => isVisibleMatch(m) && (seasonId === "all" || m.seasonId === seasonId)));
   const tech = technicalAnalysis(games);
   const rows = new Map<string, PlayerAnalysis>();
   for (const raw of players) rows.set(raw.id, analysePlayer(playerForSeason(raw, seasonId, [...seasons]), games, tech.players[raw.id] ?? emptyTechnical()));
   const passes = new Map<string, number>();
   for (const l of tech.links) passes.set(`${l.from}>${l.to}`, (passes.get(`${l.from}>${l.to}`) ?? 0) + l.count);
-  return { games, rows, tech, passes, jornada: jornadaNumbers(matches as ClubMatch[]) };
+  return { games, rows, tech, passes, jornada: jornadaNumbers(matches as ClubMatch[]), ratings: seasonRatings(ratingMatches(games), standings) };
 }
 /** A period with its MVPs at `now` (cheap on top of a base). */
-export function periodCtx(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[], results: ReadonlyMap<string, MvpResult>, now: number, base: PeriodBase = periodBase(players, matches, seasonId, seasons)): Ctx {
+export function periodCtx(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[], results: ReadonlyMap<string, MvpResult>, now: number, standings: readonly Standings[], base: PeriodBase = periodBase(players, matches, seasonId, seasons, standings)): Ctx {
   return { ...base, mvpOf: mvpOfFrom(results, base.games, now), results, now };
 }
 
@@ -530,7 +534,7 @@ export function partners(id: string, ids: readonly string[], ctx: Ctx, numOf: (i
 
 /** Positions by exact minutes (positionStats); with no official pizarra, his preferred one counts. */
 export function positions(id: string, ctx: Ctx): { known: boolean; lines: (PosLine & { min: number | null })[] } {
-  const pp = playerPositions(id, ctx.games, ctx.mvpOf);
+  const pp = playerPositions(id, ctx.games, ctx.ratings);
   return { known: pp.lines.length > 0 && pp.estimatedMatches < pp.matches, lines: pp.lines.map((l) => ({ ...l, min: Math.round(l.minutes) })) };
 }
 

@@ -14,7 +14,7 @@ const row = (minutes: number) => ({ played: minutes > 0, started: true, minutes,
 const ledgerMatch = (id: string, ledger: Record<string, Participation>): ClubMatch => ({ id, status: "finished", duration: 50, goalsFor: 1, goalsAgainst: 0, events: [], ledger });
 const legacyMatch = (id: string, ids: string[]): ClubMatch => ({ id, status: "finished", duration: 50, goalsFor: 1, goalsAgainst: 0, events: ids.map((p, i) => ({ id: `${id}-${i}`, type: "match_played", playerId: p })) });
 const sp = (id: string, pos = "DEF"): SquadPlayer => ({ id, shirtName: id.toUpperCase(), firstName: id, number: 1, naturalPosition: pos, injured: false, active: true });
-const squad = (games: ClubMatch[]) => buildSquad({ players: [sp("ana"), sp("bea")], games, jornada: new Map(), suspended: new Set(), mvps: new Map() });
+const squad = (games: ClubMatch[]) => buildSquad({ players: [sp("ana"), sp("bea")], games, jornada: new Map(), suspended: new Set(), mvps: new Map(), standings: [] });
 
 describe("minutes together: printed only when the actas know them", () => {
   it("ledger matches only: «N′ juntos»; with a legacy acta among them: «N partidos juntos» (the score keeps the estimate)", () => {

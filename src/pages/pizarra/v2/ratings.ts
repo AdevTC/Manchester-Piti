@@ -4,7 +4,8 @@
 import type { ClubMatch } from "../../../lib/clubData";
 import { isVisibleMatch } from "../../../../functions/src/matchEngine";
 import { concededOnPitch, durationOf, stintsOf } from "../../../lib/form";
-import { GLOBAL_MAX as FORM_MAX, GLOBAL_MIN as FORM_MIN, ratingMatches, seasonRating } from "../../../lib/seasonRating";
+import { GLOBAL_MAX as FORM_MAX, GLOBAL_MIN as FORM_MIN, ratingMatches, seasonRatingFrom, seasonRatings } from "../../../lib/seasonRating";
+import type { Standings } from "../../../lib/standings";
 import { goalLinks, playerGame } from "../../../lib/clubAnalytics";
 import { minutesOf, presenceMinutes, timedGames, totalMinutes } from "../../../lib/derived/minutesOf";
 import type { Zone } from "../formations";
@@ -14,9 +15,8 @@ import { bajaOf, type Sanction, type Suspension } from "../chemistry";
 import { pairKey, type Baja, type Convocatoria, type Cromo, type FormGame, type PairStats, type Squad } from "./model";
 import { plural } from "./plural";
 
-// Legacy per-position pieces stay available to their separate consumers in lib/form.ts.
+// The per-match pieces the química and the tests read stay in lib/form.ts.
 export { FORM_MAX, FORM_MIN, concededOnPitch, durationOf };
-export { cardPoints, formRating, type FormInput } from "../../../lib/form";
 
 /** How many recent matches inform the «sobre» (Sugerir siete); GLOBAL never weights them twice. */
 export const RECENT_GAMES = 3;
@@ -121,11 +121,15 @@ export interface SquadInput {
   suspended: ReadonlySet<string> | ReadonlyMap<string, Suspension>;
   /** MVP winners per match id. */
   mvps: Map<string, string[]>;
+  /** Every season's current league table (useAllStandings): the rival's strength in GLOBAL. Every caller
+   *  passes the same, so the card, the cromos and the mesa print the same number. */
+  standings: readonly Standings[];
   convocatoria?: Map<string, Convocatoria>;
 }
 
-export function buildSquad({ players, games, jornada, suspended, mvps, convocatoria }: SquadInput): Squad {
+export function buildSquad({ players, games, jornada, suspended, mvps, standings, convocatoria }: SquadInput): Squad {
   games = ratingMatches(games);
+  const ratings = seasonRatings(games, standings);
   const recent = games.slice(-RECENT_GAMES);
   const recentFrom = games.length - recent.length;
   const teamMin = games.reduce((s, m) => s + durationOf(m), 0);
@@ -170,7 +174,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
     });
     const baja: Baja | undefined = bajaOf(p, suspended);
     const susp = "get" in suspended ? suspended.get(p.id) : undefined;
-    const global = seasonRating(p, games);
+    const global = seasonRatingFrom(p, ratings, games);
     const form = global.value;
     return {
       id: p.id,

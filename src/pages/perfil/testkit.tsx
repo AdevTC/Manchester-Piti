@@ -42,6 +42,7 @@ export function makeData(o: { state?: FichaState; captain?: boolean; superadmin?
     seasons: [{ id: "t1", name: "Temporada 1" }],
     mvpResults: new Map(),
     now: 400 * DAY,
+    standings: [],
   });
   return {
     loading: false,

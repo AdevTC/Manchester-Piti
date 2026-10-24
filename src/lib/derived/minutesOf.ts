@@ -47,8 +47,8 @@ export function totalMinutes(games: readonly MinutesMatch[], pid: string): numbe
 }
 
 /**
- * INTERNAL to the form rating (the pizarra's formRating: presence, minutes weight, goals conceded on the
- * pitch) — never printed. The known minutes, or on an acta that does not know them, the whole match when
+ * INTERNAL to the pizarra's cromos (buildSquad: the «sobre»'s recent minutes, the química's pairs and its
+ * defence minutes) — never printed. The known minutes, or on an acta that does not know them, the whole match when
  * he played (`played`: computeStats' participation), else 0. Without it a legacy season would rate
  * everybody as absent.
  */

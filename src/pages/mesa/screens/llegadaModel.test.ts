@@ -9,12 +9,13 @@ const cromo = (id: string, extra: Partial<Cromo> = {}): Cromo => ({
 const g = (played: boolean, ga: number) => ({ j: 1, played, min: played ? 50 : 0, ga });
 
 describe("la forma", () => {
-  it("cuts the cromo's rating in five bands; no match yet lights nothing", () => {
+  it("cuts GLOBAL in five bands (65 a normal season, oro «Muy buena»); no match yet lights nothing", () => {
     expect(formMeter(cromo("a", { unrated: true }))).toMatchObject({ level: 0, word: "Sin partidos" });
-    expect(formMeter(cromo("a", { rt: 46 }))).toMatchObject({ level: 1, word: "Baja", low: true });
-    expect(formMeter(cromo("a", { rt: 58 }))).toMatchObject({ level: 3, word: "Normal" });
+    expect(formMeter(cromo("a", { rt: 54 }))).toMatchObject({ level: 1, word: "Baja", low: true });
+    expect(formMeter(cromo("a", { rt: 58 }))).toMatchObject({ level: 2, word: "Floja" });
+    expect(formMeter(cromo("a", { rt: 65 }))).toMatchObject({ level: 3, word: "Normal" });
     expect(formMeter(cromo("a", { rt: 70 }))).toMatchObject({ level: 4, word: "Buena" });
-    expect(formMeter(cromo("a", { rt: 90 }))).toMatchObject({ level: 5, word: "Muy buena", hot: false });
+    expect(formMeter(cromo("a", { rt: 75 }))).toMatchObject({ level: 5, word: "Muy buena", hot: false });
     expect(formMeter(undefined).level).toBe(0);
   });
   it("«En racha»: a goal or an assist in each of his last three played", () => {

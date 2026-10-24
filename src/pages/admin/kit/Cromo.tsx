@@ -1,5 +1,5 @@
-// The cromo that heads a player's drawer (`.cromo`): the form rating (the pizarra's formula — the same
-// number as the profile card and the board: buildSquad / formRating over the season, read from
+// The cromo that heads a player's drawer (`.cromo`): his GLOBAL (lib/seasonRating — the same number as
+// the profile card and the board: buildSquad over the season, read from
 // useAdmin().squad), the position, his shirt, his name and GOL / ASI / PJ / MVP. `.cromo.new` is the
 // empty shirt of a new player, stamped as the name and dorsal are typed.
 import type { Cromo as CromoData } from "../../pizarra/v2/model";

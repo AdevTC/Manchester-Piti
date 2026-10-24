@@ -10,7 +10,6 @@ import { statsViewAt, statsViewPath } from "../../lib/interimScreens";
 import type { StatsSearch } from "../../router";
 import { ALL_SEASONS_LABEL } from "../../lib/useSetSeason";
 import { nextFixture, playerForSeason, nameFor, useClubData, formatDate } from "../../lib/clubData";
-import { mvpOfFrom, votesClosedAt } from "../../lib/derived/mvpOf";
 import { analysePlayer, chronological, rankedLeaders, type PlayerAnalysis } from "../../lib/clubAnalytics";
 import { tickerLines } from "../../lib/statsView";
 import { jornadaNumbers } from "../../lib/derived/jornada";
@@ -108,10 +107,6 @@ export function StatsPage() {
     [periodPlayers, games, effectiveSeason, seasons, search.players],
   );
   const mvps = useMemo(() => new Map(rows.map((p) => [p.id, mvpWins(p.id, games, results, now)]).filter(([, n]) => (n as number) > 0) as [string, number][]), [rows, games, results, now]);
-  // the MVPs for the ratings by position: the one shared reader (derived/mvpOf), keyed on the results and
-  // the last vote closed — not on the minute clock, so «Por posición» isn't re-rated every minute
-  const votesAt = votesClosedAt(games, now);
-  const mvpOf = useMemo(() => mvpOfFrom(results, games, votesAt), [results, games, votesAt]);
   const lines = useMemo(() => tickerLines(rows, games), [rows, games]);
   const leaders = [
     { label: "Pichichi", v: (p: PlayerAnalysis) => p.goals },
@@ -260,7 +255,7 @@ export function StatsPage() {
             {view === "summary" && <Resumen games={games} rows={rows} nameOf={nameOf} mvps={mvps} />}
             {view === "players" && <Jugadores rows={rows} nameOf={nameOf} />}
             {view === "minutes" && <Minutos rows={rows} games={games} nameOf={nameOf} jornada={jornada} />}
-            {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} mvpOf={mvpOf} />}
+            {view === "positions" && <Posiciones games={games} rows={rows} nameOf={nameOf} />}
             {view === "rivals" && <Rivales games={games} rows={rows} />}
             {view === "compare" && <Comparar rows={rows} nameOf={nameOf} games={games.length} a={search.a} b={search.b} onPick={setPair} />}
             {view === "explore" && <Explorar rows={rows} games={games} section={section} onSection={setSection} nameOf={nameOf} />}

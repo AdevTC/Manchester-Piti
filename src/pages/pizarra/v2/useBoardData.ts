@@ -7,6 +7,7 @@ import { useClubData, dateMillis, isCompleted, nextFixture, type ClubMatch } fro
 import { mvpWinners, type MvpResult } from "../../../lib/vestuario";
 import { useMvpResults } from "../../vestuario/live";
 import { useClock } from "../../../hooks/useClock";
+import { useAllStandings } from "../../../lib/useStandings";
 import { usePizarraPlayers } from "../usePizarraPlayers";
 import { usePizarraStats } from "../usePizarraStats";
 import { scoreOf } from "../../../lib/partidos";
@@ -51,6 +52,7 @@ export function useBoardData(seasonId: string): BoardData {
   const { suspended, loading: statsLoading } = usePizarraStats(seasonId, players);
   const { matches, loading: matchesLoading } = useClubData();
   const mvpResults = useMvpResults();
+  const standings = useAllStandings();
   const now = useClock(60_000);
 
   const season = useMemo<ClubMatch[]>(() => boardSeason(matches, seasonId), [matches, seasonId]);
@@ -61,8 +63,8 @@ export function useBoardData(seasonId: string): BoardData {
   const mvps = useMvpWinners(games, mvpResults, now);
   const squad = useMemo<Squad>(() => {
     const jornada = new Map(calendar.flatMap((c) => (c.j ? [[c.id, c.j] as const] : [])));
-    return buildSquad({ players, games, jornada, suspended, mvps });
-  }, [games, calendar, players, suspended, mvps]);
+    return buildSquad({ players, games, jornada, suspended, mvps, standings });
+  }, [games, calendar, players, suspended, mvps, standings]);
 
   const next = useMemo<CalMatch | null>(() => {
     const n = nextFixture(season, now);
