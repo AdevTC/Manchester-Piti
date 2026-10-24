@@ -28,6 +28,36 @@ describe('narrated catalogue engine', () => {
     expect(metric('067', [m]).status).toBe('complete');
     expect(metric('206', [m])).toMatchObject({ value: null, status: 'unknown' });
   });
+  it('certifies reviewed direct assists from goal coverage without requiring every pass or shot', () => {
+    const m = match([
+      obs('goal', 'goal', 2500, { assistReviewed: true }, { actorId: 'scorer', period: 2, links: { pass: 'previous' } }),
+      obs('previous', 'pass', 2499, { outcome: 'complete', continuity: true }, { actorId: 'passer', receiverId: 'scorer', period: 2 }),
+      obs('pending-pass', 'pass', 100, {}, { validity: 'pending', actorId: 'passer', period: 1 }),
+    ]);
+    m.analysis!.coverage = [{ family: 'goal', team: 'us', state: 'complete' }];
+    // An explicit «sin asistencia» overrides a pass that happens to precede the goal.
+    expect(metric('105', [m])).toMatchObject({ value: 0, status: 'complete', pending: 0 });
+    expect(metric('105', [m], { playerIds: ['passer'], period: 2 })).toMatchObject({ value: 0, status: 'complete' });
+    m.analysis!.observations[0].facts.assistPlayerId = 'passer';
+    expect(metric('105', [m], { playerIds: ['passer'] })).toMatchObject({ value: 1, status: 'complete', pending: 0 });
+    expect(metric('105', [m], { playerIds: ['scorer'] })).toMatchObject({ value: 0, status: 'complete' });
+    expect(metric('105', [m], { period: 1 })).toMatchObject({ value: 0, status: 'complete' });
+    expect(metric('108', [m]).status).not.toBe('complete');
+    expect(metric('109', [m]).status).not.toBe('complete');
+    m.analysis!.coverage = [{ family: 'goal', team: 'us', state: 'partial' }];
+    expect(metric('105', [m])).toMatchObject({ value: 1, status: 'partial' });
+  });
+  it('does not certify an unresolved or pending goal merely because the goal list is covered', () => {
+    const m = match([obs('goal', 'goal', 10)]);
+    m.analysis!.coverage = [{ family: 'goal', team: 'us', state: 'complete' }];
+    expect(metric('105', [m])).toMatchObject({ value: null, status: 'unknown', pending: 1 });
+    m.analysis!.observations = [obs('pending-goal', 'goal', 10, { assistReviewed: true }, { validity: 'pending' })];
+    expect(metric('105', [m])).toMatchObject({ value: null, status: 'unknown', pending: 1 });
+    m.analysis!.observations = [];
+    expect(metric('105', [m])).toMatchObject({ value: 0, status: 'complete', pending: 0 });
+    m.analysis!.coverage = [];
+    expect(metric('105', [m])).toMatchObject({ value: null, status: 'unknown' });
+  });
   it('certifies only the requested real half and time range, joining contiguous coverage', () => {
     const m = match([
       obs('half1', 'context', 0, { intervalStart: 0, intervalEnd: 1537 }, { period: 1 }),

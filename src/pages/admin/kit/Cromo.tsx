@@ -3,6 +3,7 @@
 // useAdmin().squad), the position, his shirt, his name and GOL / ASI / PJ / MVP. `.cromo.new` is the
 // empty shirt of a new player, stamped as the name and dorsal are typed.
 import type { Cromo as CromoData } from "../../pizarra/v2/model";
+import { rtTxt } from "../../pizarra/v2/model";
 import { ShirtBack } from "./ShirtBack";
 
 export interface CromoViewProps {
@@ -18,7 +19,7 @@ export interface CromoViewProps {
 }
 /** `.cromo`: rating + position, the shirt, the name and the season line. */
 export function CromoCard({ cromo, name, num, pos, games }: CromoViewProps) {
-  const rating = cromo && games > 0 ? String(cromo.rt) : "—";
+  const rating = cromo && games > 0 ? rtTxt(cromo) : "—";
   const s = cromo?.stats;
   return (
     <div className="cromo" role="group" aria-label={`Cromo de ${name}: media ${rating}, ${pos}`}>

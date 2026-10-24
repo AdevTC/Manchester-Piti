@@ -1,0 +1,12 @@
+.season-rating-details{font-size:14px;line-height:1.5;min-width:0}
+.season-rating-details summary{cursor:pointer;font-weight:700;padding:10px 0;min-height:44px}
+.season-rating-details summary:focus-visible{outline:2px solid currentColor;outline-offset:4px;border-radius:4px}
+.season-rating-details__body{display:grid;gap:12px;padding:8px 0 12px}
+.season-rating-details__body p{font-size:inherit!important;line-height:inherit!important}
+.season-rating-details__body dl{margin:0;display:grid;gap:12px}
+.season-rating-details__body dl>div{border-top:1px solid var(--vd-rule2,var(--mp-border,#6cabdd66));padding-top:10px;display:grid;grid-template-columns:minmax(100px,1fr) minmax(0,2fr);gap:12px}
+.season-rating-details__body dt{font-weight:700}
+.season-rating-details__body dt span,.season-rating-details__body dd small{display:block;font-weight:400}
+.season-rating-details__body dd{margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.season-rating-details__body small,.season-rating-details__body dt span{font-size:12.5px}
+@media(max-width:460px){.season-rating-details__body dl>div{grid-template-columns:minmax(0,1fr)}.season-rating-details__body dt{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}}

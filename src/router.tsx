@@ -94,6 +94,13 @@ export const numerosSearchSchema = z.object({
   "fuera-del-audio": z.coerce.number().int().min(1).max(1).optional().catch(undefined),
   /** The catalogue's search. */
   q: z.string().max(160).optional().catch(undefined),
+  /** Configurable game-analysis table; an empty column list is deliberate. */
+  vista: z.enum(["resumen", "pases", "remates", "defensa", "porteria", "rotaciones", "disciplina"]).optional().catch(undefined),
+  columnas: z.union([z.string(), z.number()]).transform(String).pipe(z.string().max(2048).regex(/^(?:(?:\d{3}|A\d{2})(?:,(?:\d{3}|A\d{2}))*)?$/)).optional().catch(undefined),
+  orden: z.union([z.string(), z.number()]).transform(String).pipe(z.string().regex(/^(\d{3}|A\d{2})$/)).optional().catch(undefined),
+  sentido: z.enum(["asc", "desc"]).optional().catch(undefined),
+  "buscar-columna": z.string().max(160).optional().catch(undefined),
+  "familia-columna": z.string().max(160).optional().catch(undefined),
   rival: slug,
   hoja: slug,
 });
@@ -275,6 +282,7 @@ const numerosPuestosRoute = createRoute({ getParentRoute: () => statsRoute, path
 const numerosSistemasRoute = createRoute({ getParentRoute: () => statsRoute, path: "campo/sistemas" });
 const numerosJuegoRoute = createRoute({ getParentRoute: () => statsRoute, path: "juego" });
 const numerosJuegoTablaRoute = createRoute({ getParentRoute: () => statsRoute, path: "juego/tabla" });
+const numerosGraficasRoute = createRoute({ getParentRoute: () => statsRoute, path: "juego/graficas" });
 const numerosCatalogoRoute = createRoute({ getParentRoute: () => statsRoute, path: "juego/catalogo" });
 const numerosRivalesRoute = createRoute({ getParentRoute: () => statsRoute, path: "rivales" });
 const numerosRecordsRoute = createRoute({ getParentRoute: () => statsRoute, path: "records" });
@@ -527,6 +535,7 @@ const routeTree = rootRoute.addChildren([
     numerosSistemasRoute,
     numerosJuegoRoute,
     numerosJuegoTablaRoute,
+    numerosGraficasRoute,
     numerosCatalogoRoute,
     numerosRivalesRoute,
     numerosRecordsRoute,

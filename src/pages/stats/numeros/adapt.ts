@@ -6,8 +6,10 @@ import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
 import type { MvpResult } from "../../../lib/vestuario";
 import type { StandingRow } from "../../../lib/standings";
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
-import type { LRow, NMatch, NSeasonData, SquadP, StandRow, Tramo } from "./nd";
+import type { LRow, NMatch, NSeasonData, SquadP, StandRow } from "./nd";
 import { slug } from "./nd";
+import { numerosActions } from "./analysis";
+import type { TechnicalStats } from "../../../../functions/src/matchAnalysis";
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MON = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -20,8 +22,6 @@ const FAM: Record<string, string> = {
   tactical: "Táctica", substitution: "Cambios", block: "Bloqueos", judgement: "Arbitraje",
 };
 const GOAL = new Set(["goal", "goal_penalty", "goal_freekick"]);
-/** Narration v1: an event type → the observation it stands for. */
-const V1_KIND: Record<string, string> = { pass: "pass", cross: "pass", shot: "shot", recovery: "recovery", turnover: "loss", save: "save" };
 
 /** «Dom 25 oct», «25 de octubre», the month (1–12) and «14:00», on Madrid's clock. */
 export function madridWhen(ms: number | null): { day: string; long: string; month: number; time: string } {
@@ -42,8 +42,9 @@ const n0 = (v: Num | null): number => (typeof v === "number" && Number.isFinite(
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
 /** The acta's ledger line in the boards' keys (prep-real.mjs). */
-function ledgerRow(l: Record<string, unknown>): LRow {
+function ledgerRow(l: Record<string, unknown>, technical?: TechnicalStats): LRow {
   const g = (k: string) => n0(l[k] as Num);
+  const t = (k: keyof TechnicalStats) => technical?.[k] ?? g(k);
   const stints = Array.isArray(l.stints) ? (l.stints as { from?: number; to?: number }[]) : [];
   const pos = (l.positionsPlayed && typeof l.positionsPlayed === "object" ? l.positionsPlayed : {}) as Record<string, unknown>;
   return {
@@ -51,71 +52,20 @@ function ledgerRow(l: Record<string, unknown>): LRow {
     st: stints.filter((s) => isNum(s.from) && isNum(s.to)).map((s) => [s.from as number, s.to as number]),
     dy: g("doubleYellows"), pcm: g("penaltyCommitted"), prc: g("penaltyReceived"), psv: g("penaltySaved"), pms: g("penaltyMissed"), gpen: g("goalPenalty"), gfk: g("goalFreekick"),
     wood: g("woodwork"), ch: g("chances"), sv: g("saves"), f: g("fouls"), fr: g("foulsReceived"),
-    pas: g("passes"), pok: g("passesCompleted"), pko: g("passesFailed"), kp: g("keyPasses"), cr: g("crosses"), sh: g("shots"), sot: g("shotsOnTarget"),
-    tov: g("turnovers"), rec: g("recoveries"), int: g("interceptions"), tk: g("tackles"), cl: g("clearances"), bl: g("blocks"), du: g("duels"), duw: g("duelsWon"),
-    dr: g("dribbles"), to: g("touches"),
+    pas: t("passes"), pok: t("passesCompleted"), pko: t("passesFailed"), punk: t("passesUnknown"), kp: t("keyPasses"), cr: t("crosses"), sh: t("shots"), sot: t("shotsOnTarget"),
+    tov: t("turnovers"), rec: t("recoveries"), int: t("interceptions"), tk: t("tackles"), cl: t("clearances"), bl: t("blocks"), du: t("duels"), duw: t("duelsWon"),
+    dr: t("dribbles"), to: t("touches"),
     pos: Object.fromEntries(Object.entries(pos).filter(([, v]) => isNum(v) && v > 0)) as Record<string, number>,
   };
 }
 
-interface Obs {
-  kind?: string;
-  team?: string;
-  actorId?: string;
-  receiverId?: string;
-  facts?: { outcome?: string };
-  time?: { from?: number };
-}
-
-/** The partial analysis of a narrated acta: coverage per family, pass pairs, the ten 5′ stretches, the rival's counts. */
+/** Summaries use the same valid, deduplicated facts and pass policy as publication. */
 function analysisOf(m: ClubMatch) {
-  const a = (m.analysis ?? {}) as { observations?: Obs[]; coverage?: { family?: string; team?: string; state?: string }[] };
-  // the plays typed into the acta as events (narration v1) read like the observations
-  const typed = (m.events ?? []).filter((e) => V1_KIND[e.type]).map((e): Obs => {
-    const x = e as MatchEvent & { receiverId?: string; outcome?: string };
-    return { kind: V1_KIND[e.type], team: e.type.startsWith("opponent_") ? "them" : "us", actorId: e.playerId, receiverId: x.receiverId, facts: { outcome: x.outcome }, time: isNum(e.minute) ? { from: e.minute * 60 } : undefined };
-  });
-  const obs = [...(Array.isArray(a.observations) ? a.observations : []), ...typed];
-  const coverage = (Array.isArray(a.coverage) ? a.coverage : []).map((x): [string, "us" | "them", string] => [FAM[x.family ?? ""] ?? x.family ?? "", x.team === "us" ? "us" : "them", x.state ?? ""]);
-  const pairs: Record<string, number> = {};
-  obs
-    .filter((o) => o.kind === "pass" && o.team === "us" && o.actorId && o.receiverId && o.facts?.outcome === "complete")
-    .forEach((o) => {
-      const k = `${o.actorId}>${o.receiverId}`;
-      pairs[k] = (pairs[k] || 0) + 1;
-    });
-  const passPairs = Object.entries(pairs)
-    .map(([k, n]): [string, string, number] => {
-      const [x, y] = k.split(">");
-      return [x, y, n];
-    })
-    .sort((x, y) => y[2] - x[2])
-    .slice(0, 12);
-  const tramos: Tramo[] = Array.from({ length: 10 }, () => ({ pas: 0, pok: 0, sh: 0, rec: 0, loss: 0, tsh: 0 }));
-  obs.forEach((o) => {
-    if (!o.time || !isNum(o.time.from)) return;
-    const t = tramos[Math.max(0, Math.min(9, Math.floor(o.time.from / 300)))];
-    if (o.team === "us") {
-      if (o.kind === "pass") {
-        t.pas++;
-        if (o.facts?.outcome === "complete") t.pok++;
-      }
-      if (o.kind === "shot") t.sh++;
-      if (o.kind === "recovery") t.rec++;
-      if (o.kind === "loss") t.loss++;
-    } else if (o.kind === "shot") t.tsh++;
-  });
-  const them = { pas: 0, sh: 0, rec: 0, loss: 0, sv: 0 };
-  obs
-    .filter((o) => o.team !== "us")
-    .forEach((o) => {
-      if (o.kind === "pass") them.pas++;
-      if (o.kind === "shot") them.sh++;
-      if (o.kind === "recovery") them.rec++;
-      if (o.kind === "loss") them.loss++;
-      if (o.kind === "save") them.sv++;
-    });
-  return { coverage, passPairs, tramos, them, note: typeof m.analysisNotes === "string" ? m.analysisNotes : "" };
+  const summary = numerosActions([m]);
+  const coverage = (m.analysis?.coverage ?? []).map((x): [string, "us" | "them", string] => [FAM[x.family] ?? x.family, x.team === "us" ? "us" : "them", x.state]);
+  const passPairs = summary.links.map((link): [string, string, number] => [link.from, link.to, link.count]);
+  const rival = summary.teams.opponent;
+  return { ...summary, coverage, passPairs, them: { pas: rival.passes, sh: rival.shots, rec: rival.recoveries, loss: rival.turnovers, sv: rival.saves }, note: typeof m.analysisNotes === "string" ? m.analysisNotes : "" };
 }
 
 export interface AdaptInput {
@@ -158,23 +108,22 @@ export function seasonData(inp: AdaptInput): NSeasonData {
       starters: [...(m.starters ?? [])], bench: [...(m.bench ?? [])], notCalled: [...(m.notCalled ?? [])],
       subs: ev.filter((e) => e.type === "substitution").length, minutes: null, mvp: null, system: m.system && m.system !== "libre" ? m.system : null,
     };
+    c.source = m;
+    const a = analysisOf(m);
+    c.technicalAvailable = a.narrated > 0;
+    c.technicalRows = Object.fromEntries(Object.entries(a.players).map(([id, stats]) => [id, ledgerRow({}, stats)]));
+    c.coverage = a.coverage; c.passPairs = a.passPairs; c.tramos = a.tramos; c.them = a.them; c.analysisNote = a.note;
     if (st === "fin" && m.ledger) {
       c.ledger = {};
       c.minutes = {};
       for (const [pid, l] of Object.entries(m.ledger)) {
-        const row = ledgerRow(l as unknown as Record<string, unknown>);
+        const row = ledgerRow(l as unknown as Record<string, unknown>, m.analysis ? a.players[pid] : undefined);
         c.ledger[pid] = row;
         c.minutes[pid] = row.min;
       }
       c.saves = Object.entries(c.ledger)
         .filter(([, l]) => l.sv)
         .map(([k, l]): [string, number] => [k, l.sv]);
-      const a = analysisOf(m);
-      c.coverage = a.coverage;
-      c.passPairs = a.passPairs;
-      c.tramos = a.tramos;
-      c.them = a.them;
-      c.analysisNote = a.note;
     }
     if (st === "fin") {
       const r = inp.mvpResults.get(m.id);

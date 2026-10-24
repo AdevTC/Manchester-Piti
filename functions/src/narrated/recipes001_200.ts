@@ -187,10 +187,12 @@ function leadsTo(ctx: MetricContext, e: ScopedObservation, target: Predicate): b
 function assists(ctx: MetricContext, depth = 1): MetricCalculation {
   if (parameter(ctx, 'assistPolicy') == null) return missing('Configura el criterio de asistencia.', 'not_configured');
   const credited = new Map<string, ScopedObservation>(); let pending = 0;
-  for (const goal of ctx.all.filter(e => e.team === ctx.team && normalGoal(e))) {
+  const goals = ctx.all.filter(e => e.team === ctx.team && normalGoal(e));
+  const reviewed = depth === 1 && goals.every(goal => goal.facts.assistReviewed === true);
+  for (const goal of goals) {
     // An explicitly reviewed assist in a historical acta is already a fact; do not fabricate a pass.
-    if (depth === 1 && goal.facts.assistReviewed === true && typeof goal.facts.assistPlayerId === 'string') {
-      if (playerSelected(ctx, goal.facts.assistPlayerId)) credited.set(`${goal.matchId}:${goal.id}:${depth}`, goal);
+    if (depth === 1 && goal.facts.assistReviewed === true) {
+      if (typeof goal.facts.assistPlayerId === 'string' && playerSelected(ctx, goal.facts.assistPlayerId)) credited.set(`${goal.matchId}:${goal.id}:${depth}`, goal);
       continue;
     }
     let previous = goal; let last: ScopedObservation | undefined;
@@ -203,7 +205,13 @@ function assists(ctx: MetricContext, depth = 1): MetricCalculation {
     if (last && playerSelected(ctx, last.actorId)) credited.set(`${goal.matchId}:${goal.id}:${depth}`, last);
     else if (goal.facts.assistReviewed !== true) pending++;
   }
-  return value(credited.size, credited.size, pending, [...credited.values()].map(e => e.evidenceId), 'asistencias');
+  return {
+    ...value(credited.size, credited.size, pending, [...credited.values()].map(e => e.evidenceId), 'asistencias'),
+    // Reviewing every goal (including «sin asistencia») resolves the direct attribution.
+    // Unknown passes or unrelated shots cannot undo those decisions; goal coverage still
+    // prevents an incomplete list of goals from being certified as a complete total.
+    ...(reviewed ? { requiredCoverage: [{ family: 'goal', team: ctx.team }] } : {}),
+  };
 }
 function creation(ctx: MetricContext, goalOnly: boolean): MetricCalculation {
   const taxonomy = parameter(ctx, 'scaEligibleKinds'), phasePolicy = parameter(ctx, 'scaPhasePolicy');

@@ -447,7 +447,7 @@ export function numHitsOf(match: ClubMatch): { kinds: NumKind[]; hits: NumHit[];
       if (o.kind === "recovery" || o.kind === "interception") push("recup");
       if (o.kind === "loss") push("perdida");
       if (o.kind === "save") push("parada");
-      if (o.kind === "restart" && f.subtype === "corner" && (f.outcome || f.stage === "executed")) push("corner");
+      if (o.kind === "restart" && f.subtype === "corner" && f.stage === "executed") push("corner");
       if (o.kind === "discipline" && (f.subtype === "foul" || f.subtype === "penalty_committed")) push("falta");
       if (o.kind === "discipline" && f.subtype === "yellow_card") push("tarjeta");
     }

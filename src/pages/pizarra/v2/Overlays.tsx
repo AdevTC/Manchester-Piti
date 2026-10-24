@@ -6,6 +6,7 @@ import { CREST, Icon, Shirt } from "./icons";
 import { SPARKS } from "./geometry";
 import type { FanItem } from "./fan";
 import { vars } from "./view";
+import type { SeasonRating } from "../../../lib/seasonRating";
 
 /** Focus the first control, keep Tab inside, close on Escape, give focus back on close. */
 function useDialog(ref: React.RefObject<HTMLElement | null>, first: string, onClose: () => void) {
@@ -109,6 +110,7 @@ export interface FichaView {
   num: number;
   /** The form chip («—» for a player with no match yet). */
   rt: number | string;
+  global?: SeasonRating;
   pos: string;
   gk: boolean;
   sub: string;
@@ -129,7 +131,7 @@ export function Ficha({ f, rm, onFlip, onClose, link }: { f: FichaView; rm: bool
   useDialog(ref, ".fic-a .b3", onClose);
   const cls = f.side === "auto" ? (rm ? "back" : "auto") : f.side;
   return (
-    <div ref={ref} className={"fic " + cls} role="dialog" aria-modal="true" aria-label={"Ficha de " + f.name}>
+    <div ref={ref} className={"fic " + cls} role="dialog" aria-modal="true" aria-label={"Ficha de " + f.name} aria-description={f.global?.summary}>
       <button type="button" className="fic-bk" onClick={onClose} aria-label="Cerrar la ficha" tabIndex={-1} />
       <div className="fic-w">
         <div className={"fcard" + (f.gk ? " gk" : "")} style={vars({ "--ox": f.ox, "--oy": f.oy })}>
@@ -139,7 +141,7 @@ export function Ficha({ f, rm, onFlip, onClose, link }: { f: FichaView; rm: bool
                 <b>{f.rt}</b>
                 <span>
                   <span>{f.pos}</span>
-                  <span>FORMA</span>
+                  <span title={f.global?.summary}>GLOBAL</span>
                 </span>
               </div>
               <div className="fc-art">

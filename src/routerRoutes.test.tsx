@@ -43,7 +43,17 @@ vi.mock("./pages/perfil/ProfilePage", async () => {
 });
 vi.mock("./components/celeste/BuscarPage", () => ({ BuscarPage: () => <h1>buscar</h1> }));
 
-const { createAppRouter, plantillaSearchSchema } = await import("./router");
+const { createAppRouter, numerosSearchSchema, plantillaSearchSchema } = await import("./router");
+
+describe("custom analysis addresses", () => {
+  it("keeps all table controls after router validation, including no columns", () => {
+    const search = { vista: "pases", columnas: "067,068,069,070", orden: "070", sentido: "asc", "buscar-columna": "pase", "familia-columna": "Pases" };
+    expect(numerosSearchSchema.parse(search)).toMatchObject(search);
+    expect(numerosSearchSchema.parse({ columnas: "" }).columnas).toBe("");
+    expect(numerosSearchSchema.parse({ columnas: 105, orden: 105 })).toMatchObject({ columnas: "105", orden: "105" });
+    expect(numerosSearchSchema.parse({ columnas: "067,invalid", orden: "invalid", sentido: "invalid" })).toMatchObject({ columnas: undefined, orden: undefined, sentido: undefined });
+  });
+});
 
 const leaf = (path: string) => createAppRouter(createMemoryHistory({ initialEntries: ["/"] })).matchRoutes(path, {}).at(-1)?.routeId;
 
@@ -53,7 +63,7 @@ describe("every new address resolves", () => {
     partidos: ["/partidos", "/partidos/tabla", "/partidos/balance"],
     "el partido": ["/partidos/j1", "/partidos/j1/siete", "/partidos/j1/numeros", "/partidos/j1/vestuario"],
     "la mesa": ["/partidos/j1/mesa"],
-    números: ["/numeros", "/numeros/y-si", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion"],
+    números: ["/numeros", "/numeros/y-si", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/graficas", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion"],
     "la percha": ["/plantilla", "/plantilla/album", "/plantilla/cara-a-cara", "/jugadores/alcides", "/jugadores/alcides/temporada", "/jugadores/alcides/jornadas", "/jugadores/alcides/juego", "/jugadores/alcides/analisis", "/jugadores/alcides/cromo"],
     "el club": ["/club", "/club/vitrina", "/club/vitrina/escudo", "/club/historia", "/club/equipo", "/club/equipo/camiseta", "/club/gente"],
     "el vestuario": ["/vestuario", "/vestuario/caja", "/vestuario/encuestas", "/vestuario/encuestas/p1", "/vestuario/ausencias", "/vestuario/turnos", "/vestuario/entrenos", "/vestuario/tablon", "/vestuario/puerta", "/vestuario/ficha"],

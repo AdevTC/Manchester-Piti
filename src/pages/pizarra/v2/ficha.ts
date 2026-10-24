@@ -130,6 +130,7 @@ export function fichaOf({ id, L, sq, ch, match, ox, oy, side }: FichaArgs): Fich
     num: p.num,
     // the form chip: «—» before his first match
     rt: rtTxt(p),
+    global: p.global,
     pos: home ?? p.pos ?? "—",
     gk: p.pos === "POR",
     // (who he is and where he plays in this seven — by the slot's name and how well he fits it for a

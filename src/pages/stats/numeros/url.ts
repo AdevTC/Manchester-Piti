@@ -37,6 +37,7 @@ export function screenAt(pathname: string): Screen {
       s.place = "juego";
       if (seg[1] === "tabla") s.grow = "mesa";
       if (seg[1] === "catalogo") s.grow = "catalogo";
+      if (seg[1] === "graficas") s.grow = "graficas";
       break;
     case "records":
       s.place = "records";
@@ -53,7 +54,7 @@ export function screenAt(pathname: string): Screen {
 export function pathOf(st: Pick<NuState, "place" | "campoView" | "recView" | "grow" | "sheet">): string {
   if (st.place === "temporada") return st.sheet === "ysi" ? "/numeros/y-si" : "/numeros";
   if (st.place === "campo") return st.campoView === "pases" ? "/numeros/campo" : `/numeros/campo/${st.campoView}`;
-  if (st.place === "juego") return st.grow === "mesa" ? "/numeros/juego/tabla" : st.grow === "catalogo" ? "/numeros/juego/catalogo" : "/numeros/juego";
+  if (st.place === "juego") return st.grow === "mesa" ? "/numeros/juego/tabla" : st.grow === "catalogo" ? "/numeros/juego/catalogo" : st.grow === "graficas" ? "/numeros/juego/graficas" : "/numeros/juego";
   if (st.place === "records") return st.recView === "rachas" ? "/numeros/records" : `/numeros/records/${st.recView}`;
   return `/numeros/${st.place}`;
 }
@@ -141,6 +142,16 @@ export function stateFromUrl(pathname: string, search: Search, people: PeopleInd
   out.catFam = str(search.familia) ?? "";
   out.catX = Number(search["fuera-del-audio"]) === 1;
   out.catQ = str(search.q) ?? "";
+  const preset = str(search.vista);
+  out.wsSet = preset && ["resumen", "pases", "remates", "defensa", "porteria", "rotaciones", "disciplina"].includes(preset) ? preset : "resumen";
+  const metricId = (id: string) => /^(?:\d{3}|A\d{2})$/.test(id);
+  const columns = typeof search.columnas === "number" ? String(search.columnas) : search.columnas;
+  const order = str(search.orden);
+  out.wsColumns = typeof columns === "string" ? [...new Set(columns.split(",").filter(metricId))].slice(0, 412) : undefined;
+  out.wsSort = order && metricId(order) ? order : undefined;
+  out.wsDirection = search.sentido === "asc" ? "asc" : "desc";
+  out.wsQuery = str(search["buscar-columna"]) ?? "";
+  out.wsFamily = str(search["familia-columna"]) ?? "";
   // the sheets with an address
   const metrica = str(search.metrica);
   const hoja = sheetOfHoja(search.hoja);
@@ -183,6 +194,12 @@ export function urlOf(st: NuState, ctx: UrlCtx): { path: string; search: Record<
   if (st.campo !== "todo") s.campo = st.campo;
   if (st.partidos.length) s.partidos = st.partidos.join(",");
   if (st.jug.length) s.jugadores = st.jug.map(ctx.people.word).join(",");
+  if (st.wsSet && st.wsSet !== "resumen") s.vista = st.wsSet;
+  if (st.wsColumns !== undefined) s.columnas = st.wsColumns.join(",");
+  if (st.wsSort) s.orden = st.wsSort;
+  if (st.wsDirection === "asc") s.sentido = "asc";
+  if (st.wsQuery) s["buscar-columna"] = st.wsQuery;
+  if (st.wsFamily) s["familia-columna"] = st.wsFamily;
   if (st.place === "jugadores") {
     s.ranking = rankingParam(st.rankK);
     if (st.pick) s.jugador = ctx.people.word(st.pick);

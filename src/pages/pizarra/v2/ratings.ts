@@ -1,9 +1,10 @@
-// La pizarra «Noche de partido» — the cromos: each player's form rating, his season line and the
+// La pizarra «Noche de partido» — the cromos: each player's season GLOBAL, his season line and the
 // pair stats the química reads (minutes on the pitch together, goals assisted to each other). Everything
 // is derived from the season's finished matches already loaded by the app (no extra reads). Pure.
 import type { ClubMatch } from "../../../lib/clubData";
 import { isVisibleMatch } from "../../../../functions/src/matchEngine";
-import { FORM_MAX, FORM_MIN, cardPoints, concededOnPitch, durationOf, formRating, stintsOf, type FormInput } from "../../../lib/form";
+import { concededOnPitch, durationOf, stintsOf } from "../../../lib/form";
+import { GLOBAL_MAX as FORM_MAX, GLOBAL_MIN as FORM_MIN, ratingMatches, seasonRating } from "../../../lib/seasonRating";
 import { goalLinks, playerGame } from "../../../lib/clubAnalytics";
 import { minutesOf, presenceMinutes, timedGames, totalMinutes } from "../../../lib/derived/minutesOf";
 import type { Zone } from "../formations";
@@ -13,10 +14,11 @@ import { bajaOf, type Sanction, type Suspension } from "../chemistry";
 import { pairKey, type Baja, type Convocatoria, type Cromo, type FormGame, type PairStats, type Squad } from "./model";
 import { plural } from "./plural";
 
-// The form rating and its per-match pieces live in lib/form.ts (the position stats share them).
-export { FORM_MAX, FORM_MIN, cardPoints, concededOnPitch, durationOf, formRating, type FormInput };
+// Legacy per-position pieces stay available to their separate consumers in lib/form.ts.
+export { FORM_MAX, FORM_MIN, concededOnPitch, durationOf };
+export { cardPoints, formRating, type FormInput } from "../../../lib/form";
 
-/** How many recent matches make the «sobre» (Sugerir siete) and weigh double in the form. */
+/** How many recent matches inform the «sobre» (Sugerir siete); GLOBAL never weights them twice. */
 export const RECENT_GAMES = 3;
 
 // Encaje and form in balance (the user's «Equilibrio encaje + forma»): when Auto-colocar (ops.ts
@@ -123,7 +125,7 @@ export interface SquadInput {
 }
 
 export function buildSquad({ players, games, jornada, suspended, mvps, convocatoria }: SquadInput): Squad {
-  games = games.filter(isVisibleMatch);
+  games = ratingMatches(games);
   const recent = games.slice(-RECENT_GAMES);
   const recentFrom = games.length - recent.length;
   const teamMin = games.reduce((s, m) => s + durationOf(m), 0);
@@ -132,21 +134,17 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
   const list: Cromo[] = players.map((p) => {
     const role = normZone(p.naturalPosition);
     let played = 0, goals = 0, assists = 0, starts = 0, mv = 0, recentMin = 0, recentGA = 0, presenceMin = 0;
-    const f: FormInput = { role, teamW: 0, playedW: 0, shareW: 0, minW: 0, gaW: 0, concW: 0, mvpW: 0, cardsW: 0, savesW: 0 };
     const r: Recent = { played: 0, goals: 0, assists: 0, mvps: 0, clean: 0, minutes: 0, timed: 0 };
     games.forEach((m, gi) => {
       const g = playerGame(p.id, m);
       const row = m.ledger?.[p.id];
-      const d = durationOf(m);
       const isRecent = gi >= recentFrom;
-      const w = isRecent ? 2 : 1;
       const mvp = mvps.get(m.id)?.includes(p.id) ? 1 : 0;
       // the form (and the chemistry's pairs) read his presence: the known minutes, or on a legacy acta the
       // whole match when he played (presenceMinutes, internal: never printed); what the cromo prints is
       // the one minutes rule (derived/minutesOf), the same number as /stats, /jugadores and the perfil card
       const known = minutesOf(m, p.id);
       const min = presenceMinutes(m, p.id, g.played);
-      f.teamW += w;
       goals += g.goals;
       assists += g.assists;
       if (row?.started) starts++;
@@ -160,14 +158,6 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       playedBy[gi].set(p.id, { est: min, known });
       presenceMin += min;
       const conc = concededOnPitch(m, p.id, min);
-      f.playedW += w;
-      f.shareW += w * Math.min(1, min / d);
-      f.minW += w * min;
-      f.gaW += w * g.ga;
-      f.concW += w * conc;
-      f.mvpW += w * mvp;
-      f.cardsW += w * cardPoints(g);
-      f.savesW += w * g.penaltySaved;
       if (isRecent) {
         r.played++;
         r.goals += g.goals;
@@ -180,7 +170,8 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
     });
     const baja: Baja | undefined = bajaOf(p, suspended);
     const susp = "get" in suspended ? suspended.get(p.id) : undefined;
-    const form = formRating(f);
+    const global = seasonRating(p, games);
+    const form = global.value;
     return {
       id: p.id,
       num: p.number,
@@ -190,6 +181,7 @@ export function buildSquad({ players, games, jornada, suspended, mvps, convocato
       ps: resolvePositions({ positions: p.positions, naturalPosition: p.naturalPosition }),
       rt: form ?? FORM_MIN,
       ...(form == null ? { unrated: true } : {}),
+      global,
       why: whyOf(r, role, played),
       stats: { played, goals, assists, minutes: totalMinutes(games, p.id), timed: timedGames(games, p.id), starts, mvps: mv },
       presenceMin,

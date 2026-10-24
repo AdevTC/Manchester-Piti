@@ -173,10 +173,10 @@ function Ficha(p: FichaProps) {
 function Numeros({ card }: { card: CardView }) {
   const showN = card.showNumbers;
   const txt = showN
-    ? "Sale de partidos jugados, goles y asistencias, minutos en las últimas jornadas y MVP. Es la misma que ve el capitán en los cromos de la pizarra."
+    ? (card.global?.summary ?? "GLOBAL de esta temporada") + ". Se ponderan las estadísticas conocidas por posición y se limita el efecto de muestras pequeñas. Es la misma que ve el capitán en los cromos de la pizarra."
     : !card.started
       ? "Se calcula con tus partidos: aparece después de la J1. Es la misma que ve el capitán en la pizarra."
-      : "En cuanto tengas ficha, sale de tus partidos jugados, goles, asistencias, minutos y MVP.";
+      : "En cuanto tengas ficha y suficiente información de juego, se calcula con las estadísticas conocidas de tu temporada.";
   return (
     <div className="bk">
       <h3 className="bk-h">Qué significa cada número</h3>

@@ -14,7 +14,7 @@ const st = (p: Partial<NuState>): NuState =>
 const ctx = { people, seasonWord: undefined, edge: 8, narrow: false };
 
 describe("Números: every screen has its address", () => {
-  it("reads the 14 screens from the path", () => {
+  it("reads every screen including the interactive charts from the path", () => {
     expect(screenAt("/numeros")).toMatchObject({ place: "temporada", grow: null, ysi: false });
     expect(screenAt("/numeros/y-si")).toMatchObject({ place: "temporada", ysi: true });
     expect(screenAt("/numeros/jugadores/")).toMatchObject({ place: "jugadores" });
@@ -23,6 +23,7 @@ describe("Números: every screen has its address", () => {
     expect(screenAt("/numeros/campo/sistemas")).toMatchObject({ place: "campo", campoView: "sistemas" });
     expect(screenAt("/numeros/juego")).toMatchObject({ place: "juego", grow: null });
     expect(screenAt("/numeros/juego/tabla")).toMatchObject({ place: "juego", grow: "mesa" });
+    expect(screenAt("/numeros/juego/graficas")).toMatchObject({ place: "juego", grow: "graficas" });
     expect(screenAt("/numeros/juego/catalogo")).toMatchObject({ place: "juego", grow: "catalogo" });
     expect(screenAt("/numeros/rivales")).toMatchObject({ place: "rivales" });
     expect(screenAt("/numeros/records")).toMatchObject({ place: "records", recView: "rachas" });
@@ -31,7 +32,7 @@ describe("Números: every screen has its address", () => {
     expect(screenAt("/numeros/records/evolucion")).toMatchObject({ recView: "evolucion" });
   });
   it("writes back the path it read", () => {
-    for (const p of ["/numeros", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion"]) {
+    for (const p of ["/numeros", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/graficas", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion"]) {
       const s = stateFromUrl(p, {}, people);
       expect(pathOf(st(s)), p).toBe(p);
     }
@@ -40,6 +41,18 @@ describe("Números: every screen has its address", () => {
 });
 
 describe("the boards' Spanish parameters", () => {
+  it("keeps custom columns, preset and sorting on reload and across screens", () => {
+    const selection = { wsSet: "pases", wsColumns: ["067", "068", "069", "070"], wsSort: "070", wsDirection: "asc" as const, wsQuery: "pase", wsFamily: "Pases" };
+    const u = urlOf(st({ place: "juego", grow: "mesa", parte: "2", ...selection }), ctx);
+    expect(u.search).toMatchObject({ columnas: "067,068,069,070", orden: "070", sentido: "asc", vista: "pases", parte: "2" });
+    expect(stateFromUrl(u.path, u.search, people)).toMatchObject(selection);
+    const next = urlOf(st({ place: "jugadores", ...selection }), ctx);
+    expect(stateFromUrl(next.path, next.search, people)).toMatchObject(selection);
+  });
+  it("rejects invalid column parameters and preserves an explicitly empty selection", () => {
+    expect(stateFromUrl("/numeros/juego/tabla", { columnas: "067,067,<script>,070", orden: "bad", sentido: "bad", vista: "bad" }, people)).toMatchObject({ wsColumns: ["067", "070"], wsSort: undefined, wsDirection: "desc", wsSet: "resumen" });
+    expect(stateFromUrl("/numeros/juego/tabla", { columnas: "" }, people).wsColumns).toEqual([]);
+  });
   it("ranking: the quick five by word, the rest by label", () => {
     expect(rankingParam("goles")).toBeUndefined();
     expect(rankingParam("asist")).toBe("asistencias");

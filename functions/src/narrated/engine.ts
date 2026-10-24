@@ -102,7 +102,8 @@ function completeCoverage(ctx: MetricContext, category: string, id: string, requ
   });
 }
 function finalize(id: string, category: string, ctx: MetricContext, raw: MetricCalculation): MetricResult {
-  const families = [...metricFamilies(id), ...(raw.requiredCoverage ?? []).map(c => c.family)];
+  const families = id === '105' && raw.requiredCoverage?.length === 1 && raw.requiredCoverage[0].family === 'goal'
+    ? ['goal'] : [...metricFamilies(id), ...(raw.requiredCoverage ?? []).map(c => c.family)];
   const n = Number(id);
   // These recipes attribute their own actions to the actor. Other recipes may depend on
   // a receiver, defender, keeper or the whole team, so their context must remain available.

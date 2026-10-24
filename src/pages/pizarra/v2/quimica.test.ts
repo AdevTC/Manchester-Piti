@@ -122,7 +122,7 @@ describe("the squad from the season's matches", () => {
     expect(sq.byId.get("a")?.name).toBe("AAA");
     expect(sq.recentLabel).toBe("J4–J5");
     // never played: no form yet, the floor for sorting and «—» on the cromo
-    expect(sq.byId.get("c")).toMatchObject({ rt: 45, unrated: true, why: "Sin partidos esta temporada" });
+    expect(sq.byId.get("c")).toMatchObject({ rt: 0, unrated: true, why: "Sin partidos esta temporada" });
     expect(sq.teamMin).toBe(100);
 
   });

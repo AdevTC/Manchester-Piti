@@ -83,7 +83,7 @@ export function heroView(i: HeroInput): HeroView {
   const won = [...REWARD_WORDS.filter(([k]) => r[k]).map(([, w]) => w), ...(r.duo !== null ? [`placa dúo con el ${r.duo}`] : [])];
   const cardAria = vinc
     ? "Tu carta" +
-      (showN ? ": valoración " + c.ratingText : ", aún sin valoración") +
+      (showN && c.rating !== null ? ": GLOBAL " + c.ratingText : c.totals.played > 0 ? ": GLOBAL pendiente" : ", aún sin valoración") +
       ", " +
       posLong +
       (num ? ", dorsal " + num : "") +
@@ -99,7 +99,7 @@ export function heroView(i: HeroInput): HeroView {
       ? "Sobre cerrado con la carta del " + num + ", esperando al capitán. Toca para ver tu petición."
       : "Carta por revelar. Toca para elegir tu dorsal.";
   const ticker = tickerFor({ state, name: shirt, number: num, posLong: c.posLong, captain: c.captain, nickname: i.nick });
-  const rt = showN ? c.ratingText : "";
+  const rt = showN && c.rating !== null ? c.ratingText : "";
   const odoT = rt.length > 1 ? Number(rt[0]) : 0;
   const odoU = rt ? Number(rt[rt.length - 1]) : 0;
   const path = c.playerId ? `/jugadores/${c.playerId}` : "/jugadores";

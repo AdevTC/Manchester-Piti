@@ -100,7 +100,10 @@ describe("la carta viva", () => {
     noIntro();
     const { container } = view();
     const card = heroCard(container);
-    expect(card).toHaveAccessibleName(/^Tu carta: valoración \d+, Delantero, dorsal 10 con «ADRI» a la espalda/);
+    // This historical fixture has goals but no minutes or narrated actions: keep its
+    // totals while withholding a season rating instead of manufacturing one.
+    expect(card).toHaveAccessibleName(/^Tu carta: GLOBAL pendiente, Delantero, dorsal 10 con «ADRI» a la espalda/);
+    expect(card).toHaveAccessibleName(/GOL 2, MVP 0, ASI 0, PJ 2, MIN —/);
     expect(card).toHaveAccessibleName(/Toca para ver el dorso\.$/);
     const btn = screen.getByRole("button", { name: "Ver el dorso" });
     expect(btn).toHaveAttribute("aria-pressed", "false");

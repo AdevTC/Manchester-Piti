@@ -1,10 +1,12 @@
 // «El partido» · «Números» (P- boards, place-numeros): before the whistle the rival (the meetings so far, «Su
 // siete» from the official pizarra for the vestuario, locked for a fan) and what is at stake (G · E · P move the
 // table); while it is played the match in numbers up to the moviola's minute and «Si acaba así»; once played the
-// whole match, «De un vistazo» and «Quién sumó» from the acta's ledger, the table after the jornada and the record
+// whole match, «De un vistazo» and «Quién sumó» from the shared catalogue, the table after the jornada and the record
 // against them; aplazado or pendiente, a still. With no table published, the league's story in its place. The
-// words and the table are pure in numerosModel.ts.
+// words and the table are pure in numerosModel.ts; the figures in matchNumbers.ts.
 import { useMemo, useState, type CSSProperties } from "react";
+import type { AnalysisFilters } from "../../../../functions/src/narrated/types";
+import { StatsChartsPanel } from "../../../components/celeste/StatsChartsPanel";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../../lib/clubData";
 import { useStandings } from "../../../lib/useStandings";
 import { rivalDossier, rivalKey } from "../../../lib/derived/rival";
@@ -18,14 +20,13 @@ import { useBoardView, useMatchBoard } from "../../pizarra/useMatchBoard";
 import { rivalName } from "../../pizarra/v2/rival";
 import type { PageCtx } from "./ctx";
 import { Go, Icon, Tee } from "./bits";
-import { numbersAt } from "./model";
+import { matchNumbers } from "./matchNumbers";
 import {
   chipsOf,
   fixturesOf,
   formLabel,
   formOf,
   headOf,
-  leadersOf,
   noTableOf,
   ORD,
   PICK_WORD,
@@ -36,13 +37,10 @@ import {
   saveNoteOf,
   signed,
   tableView,
-  vistazoOf,
   type Letter,
   type Moment,
   type Record3,
 } from "./numerosModel";
-
-type LedgerRows = Record<string, Partial<Record<string, unknown>>>;
 
 export function ScreenNumeros({ c }: { c: PageCtx }) {
   const { match, rival, fase } = c;
@@ -107,12 +105,20 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
   const facts = rivalFacts({ home: match.home !== false, venue: venueName(match.venue ?? ""), jornada: c.jornada, theirRow });
 
   // ---- the numbers up to the moviola's minute
-  const nums = c.played ? numbersAt(c.nums, c.plays, c.minute) : [];
-  const ledger = (match.ledger ?? null) as LedgerRows | null;
-  const saveNote = c.played ? saveNoteOf(c.plays, c.done ? ledger : null, c.minute, c.duration, c.nameOf) : "";
+  const saveNote = c.played ? saveNoteOf(c.plays, null, c.minute, c.duration, c.nameOf) : "";
   const numsSub = c.minute >= c.duration ? `Los ${c.duration}′` : `Hasta el ${c.minute}′`;
-  const vistazo = c.done ? vistazoOf(ledger, c.nameOf) : [];
-  const leaders = c.done ? leadersOf(ledger, c.plays) : [];
+  const chartMatches = useMemo(() => [match], [match]);
+  const chartPeople = useMemo(() => [...c.people.values()].map(p => ({ id: p.id, name: p.name, number: p.num || undefined })), [c.people]);
+  const chartFilters = useMemo<AnalysisFilters>(() => ({
+    matchIds: [match.id],
+    // A displayed minute includes its whole one-based football minute. Without a
+    // cut at the final whistle, exact boundary actions stay in the completed acta.
+    ...(c.dragged || !c.done && c.live ? { toSecond: Math.max(0, c.minute) * 60 } : {}),
+  }), [match.id, c.dragged, c.done, c.live, c.minute]);
+  const figures = useMemo(() => c.played ? matchNumbers(match, chartPeople, chartFilters, c.score) : null, [c.played, match, chartPeople, chartFilters, c.score]);
+  const nums = figures?.rows ?? [];
+  const vistazo = c.done ? figures?.glance ?? [] : [];
+  const leaders = c.done ? figures?.leaders ?? [] : [];
 
   // ---- la forma, the season left, the record
   const form = c.played || c.off ? formOf(segments, match.id, mo, c.score, c.result) : null;
@@ -141,6 +147,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
           <h2 id="ppn-h">{head.title}</h2>
           <p>{head.sub}</p>
         </div>
+        {c.played && <a className="vd-glass vd-press vd-btn vd-btn--sm" href="#ppn-charts"><Icon name="chart" />Red de pases y gráficas</a>}
       </header>
       <div className="pp-place__body">
         <div className="ppn">
@@ -246,13 +253,13 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                   {nums.map((r, i) => (
                     <li
                       key={r.k}
-                      className={["ppn-bar", r.k === "gol" ? "is-gol" : "", r.us > r.them ? "is-us" : r.them > r.us ? "is-them" : ""].filter(Boolean).join(" ")}
+                      className={["ppn-bar", r.k === "gol" ? "is-gol" : "", r.us != null && r.them != null ? r.us > r.them ? "is-us" : r.them > r.us ? "is-them" : "" : ""].filter(Boolean).join(" ")}
                       role="img"
-                      aria-label={`${r.label}: Piti ${r.us}, ${rival} ${r.them}`}
+                      aria-label={`${r.label}: Piti ${r.us == null ? "sin dato suficiente" : r.usText}, ${rival} ${r.them == null ? "sin dato suficiente" : r.themText}`}
                       style={{ "--d": i } as CSSProperties}
                     >
                       <b className="ppn-bar__n" aria-hidden="true">
-                        {r.us}
+                        {r.usText}
                       </b>
                       <div className="ppn-bar__c" aria-hidden="true">
                         <span className="ppn-bar__l">
@@ -269,12 +276,13 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                         </span>
                       </div>
                       <b className="ppn-bar__n ppn-bar__n--them" aria-hidden="true">
-                        {r.them}
+                        {r.themText}
                       </b>
                     </li>
                   ))}
                 </ul>
                 <div className="ppn-nums__foot">
+                  <p className="ppn-note">{figures?.partial ? "Cobertura parcial: solo cuentan las acciones confirmadas. — indica que faltan datos para esa cifra." : "Las cifras usan las mismas reglas y jugadas que Números y las gráficas."}</p>
                   {saveNote && (
                     <p className="ppn-save">
                       <Icon name="glove" />
@@ -294,15 +302,12 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                     {c.nums.narrated ? "Del relato narrado" : "Del acta"}
                   </span>
                 </div>
-                <p className="ppn-note">{c.nums.narrated ? "Lo que contó la narración jugada a jugada, con cobertura parcial: solo acciones explícitas, sin xG." : "Lo que narró la mesa jugada a jugada: el Piti, todo el partido."}</p>
+                <p className="ppn-note">{c.dragged ? `El Piti hasta el ${c.minute}′ de la moviola.` : "El Piti, todo el partido."} Mismas reglas que el catálogo: las acciones sin resultado no entran en el denominador del acierto.</p>
                 <ul className="ppn-vis">
                   {vistazo.map((v) => (
                     <li key={v.t} className="vd-count ppn-vis__i">
                       <b className="ppn-num">
-                        <span className="ppn-up" style={{ "--to": v.n } as CSSProperties} aria-hidden="true">
-                          {v.unit}
-                        </span>
-                        <span className="vd-vh">{`${v.n}${v.unit}`}</span>
+                        {v.display}{v.n == null ? "" : v.unit}
                       </b>
                       <span className="ppn-numw">{v.t}</span>
                       <small>{v.d}</small>
@@ -319,17 +324,17 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
               <section className="ppn-sec ppn-lead" aria-labelledby="ppn-lead-h">
                 <div className="ppn-sec__head">
                   <h3 id="ppn-lead-h">Quién sumó</h3>
-                  <span className="ppn-sec__sub">{ledger && c.nums.narrated ? "Del acta y el relato narrado" : "Del acta"}</span>
+                  <span className="ppn-sec__sub">{c.dragged ? `Hasta el ${c.minute}′` : "Del acta y sus jugadas"}</span>
                 </div>
                 <ul className="ppn-lead__l">
                   {leaders.map((l) => (
-                    <li key={l.what}>
+                    <li key={`${l.what}:${l.id}`}>
                       <Tee kit={c.kit} num={c.numOf(l.id)} className="ppn-lead__tee" />
                       <span className="ppn-lead__w">
                         <small>{l.what}</small>
                         <b>{c.nameOf(l.id)}</b>
                         <span>
-                          {l.v} {l.t}
+                          {l.display} {l.t}
                         </span>
                       </span>
                     </li>
@@ -574,6 +579,10 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
             )}
           </div>
         </div>
+        {c.played && <div id="ppn-charts" className="ppn-charts">
+          <p className="ppn-charts__scope">{chartFilters.toSecond != null ? `Hasta el ${c.minute}′ de la moviola. Las acciones posteriores no entran en estas gráficas.` : "Este partido completo · Manchester Piti"}</p>
+          <StatsChartsPanel matches={chartMatches} people={chartPeople} filters={chartFilters}/>
+        </div>}
       </div>
     </section>
   );

@@ -19,6 +19,7 @@ import { dayName } from "../model";
 import { Screen, type Act } from "./Head";
 import { PorraBlock } from "./Porra";
 import type { MenuItem } from "../../../../components/vidrio/tu/ui";
+import { SeasonRatingDetails } from "../../../../components/SeasonRatingDetails";
 
 /** The tier's reason, as the board words it. */
 const WHY: Record<string, string> = { oro: "Valoración de 80 o más", plata: "Valoración entre 65 y 79", bronce: "Valoración por debajo de 65", racha: "Gol o asistencia en las 3 últimas" };
@@ -90,7 +91,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
   const rated = card.kind === "face" && c.showNumbers && c.rating !== null;
   const nx = data.next;
   const answer = rsvp ?? data.stuff.convocatorias.next;
-  const estreno = card.kind === "face" && !rated && started && nx;
+  const estreno = card.kind === "face" && !rated && c.totals.played === 0 && started && nx;
   const pickRsvp = (v: "yes" | "maybe" | "no") => {
     if (!me || !nx) return;
     setRsvp(v);
@@ -101,8 +102,10 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
         say("No se ha guardado tu respuesta. Inténtalo otra vez.");
       });
   };
-  const why = rated
-    ? `${WHY[c.tier ?? "bronce"]}. Sale de tus partidos, goles, asistencias, minutos y MVP: la misma que ve el capitán en la pizarra.`
+  const why = c.global && c.totals.played > 0
+    ? `${c.global.summary}. La misma valoración de temporada en tu carta y en la pizarra.`
+    : rated
+    ? `${WHY[c.tier ?? "bronce"]}. Valoración de esta temporada.`
     : !started
       ? c.first
         ? `La ${data.seasonName} aún no ha empezado: tus números salen en la J1, el ${dayName(c.first.dateMs)} contra ${c.first.rival}.`
@@ -171,7 +174,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
               <section className="tu-rate" aria-labelledby="tu-rate-t">
                 <div className="tu-rate__n">
                   {rated && <b>{c.rating}</b>}
-                  <span id="tu-rate-t">{rated ? `Carta ${c.tierName.toLowerCase()}` : "Carta nueva"}</span>
+                  <span id="tu-rate-t">{rated ? `GLOBAL · ${c.tierName.toLowerCase()}` : c.totals.played > 0 ? "GLOBAL pendiente" : "Carta nueva"}</span>
                 </div>
                 <div className="tu-rate__t">
                   <p>{why}</p>
@@ -184,6 +187,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
                       </li>
                     ))}
                   </ul>
+                  {c.global && <SeasonRatingDetails rating={c.global} />}
                 </div>
               </section>
               {estreno && (
@@ -206,7 +210,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
                 </h3>
                 <ul className="tu-six">
                   {c.attrs.map((a) => {
-                    const v = rated && a.value !== null;
+                    const v = c.showNumbers && a.value !== null;
                     return (
                       <li key={a.k}>
                         <span className="tu-six__k">{a.k}</span>

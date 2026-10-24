@@ -48,16 +48,16 @@ describe("la carta: valoración = la del cromo de la pizarra", () => {
     const card = buildCard(input({ matches: SEASON, mvpResults: MVP }));
     const games = SEASON.filter((m) => m.status === "finished");
     const sq = buildSquad({ players: SQUAD, games, jornada: new Map(SEASON.map((m, i) => [m.id, i + 1])), suspended: new Set(), mvps: new Map(games.map((m) => [m.id, m.id === "j4" ? ["adri"] : []])) });
-    expect(card.rating).toBe(sq.byId.get("adri")!.rt);
-    expect(card.ratingText).toBe(String(card.rating));
+    expect(card.rating).toBe(sq.byId.get("adri")!.global!.value);
+    expect(card.ratingText).toBe(card.rating === null ? "—" : String(card.rating));
   });
-  it("un solo partido con gol: la forma de la pizarra (presencia + gol por 90) → 77, plata; un acta antigua sin ledger no inventa minutos («—»)", () => {
+  it("un acta antigua con gol conserva estadísticas pero no inventa minutos ni GLOBAL", () => {
     const card = buildCard(input({ matches: [match("j1", 10, [played("adri"), goal("adri")])] }));
-    expect(card.rating).toBe(77);
-    expect(card.tier).toBe("plata");
-    expect(card.tierKey).toBe("plata");
-    expect(card.tierName).toBe("Plata");
-    expect(card.tierWhy).toBe("Valoración de 65 a 79.");
+    expect(card.rating).toBeNull();
+    expect(card.ratingText).toBe("—");
+    expect(card.tier).toBeNull();
+    expect(card.tierKey).toBe("nuevo");
+    expect(card.tierWhy).toContain("GLOBAL pendiente");
     expect(card.clubLine).toBe("MANCHESTER PITI · T1 · J1");
     expect(card.totals).toEqual({ played: 1, goals: 1, assists: 0, minutes: null, mvps: 0 });
   });

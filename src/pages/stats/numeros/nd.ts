@@ -2,6 +2,7 @@
 // computed from — a port of the boards' data.js (ND), fed by production's data through adapt.ts instead of the
 // boards' generated file. Every number here is the boards' arithmetic, unchanged.
 
+import type { ClubMatch } from "../../../lib/clubData";
 export type MatchSt = "fin" | "live" | "apl" | "por";
 export type Res = "g" | "e" | "p";
 
@@ -31,6 +32,7 @@ export interface LRow {
   pas: number;
   pok: number;
   pko: number;
+  punk?: number;
   kp: number;
   cr: number;
   sh: number;
@@ -58,6 +60,10 @@ export interface Tramo {
 }
 
 export interface NMatch {
+  /** Original acta: filtering and catalogue calculations use the shared domain engine. */
+  source?: ClubMatch;
+  technicalAvailable?: boolean;
+  technicalRows?: Record<string, LRow>;
   id: string;
   j: number;
   day: string;
@@ -192,6 +198,7 @@ export interface PRow {
   pas: number;
   pok: number;
   pko: number;
+  punk: number;
   kp: number;
   cr: number;
   sh: number;
@@ -354,7 +361,7 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
       R[id] = {
         id, name: name(id), n: num(id), pj: 0, tit: 0, g: 0, a: 0, yc: 0, rc: 0, saves: 0, wood: 0, chances: 0, fouls: 0, frec: 0, min: 0, tracked: 0, mvp: 0, wins: 0,
         games: [], perGame: {}, links: {}, pos: {}, ledgered: 0, ban: 0, nc: 0, sin: 0, sout: 0, dy: 0, pcm: 0, prc: 0, psv: 0, pms: 0, gpen: 0, gfk: 0,
-        pas: 0, pok: 0, pko: 0, kp: 0, cr: 0, sh: 0, sot: 0, tov: 0, rec: 0, int: 0, tk: 0, cl: 0, bl: 0, du: 0, duw: 0, dr: 0, to: 0,
+        pas: 0, pok: 0, pko: 0, punk: 0, kp: 0, cr: 0, sh: 0, sot: 0, tov: 0, rec: 0, int: 0, tk: 0, cl: 0, bl: 0, du: 0, duw: 0, dr: 0, to: 0,
         ga: 0, minKnown: false, tech: false, passPct: null, braces: 0, hats: 0, partner: null, partnerN: 0, winPct: 0, per50: "0,0",
         gStreak: NO_STREAK, aStreak: NO_STREAK, caStreak: NO_STREAK, pStreak: NO_STREAK, cStreak: NO_STREAK, next: 1, mainPos: null, rank: 0, val: 0,
       };
@@ -404,6 +411,11 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
         m.fouls.forEach((c) => R[c[0]] && R[c[0]].fouls++);
         m.frec.forEach((c) => R[c[0]] && R[c[0]].frec++);
       }
+      if (!m.ledger) for (const [id, technical] of Object.entries(m.technicalRows ?? {})) {
+        const r = R[id];
+        if (!r) continue;
+        for (const k of TECH_KEYS) r[k] += technical[k] || 0;
+      }
       m.goals.forEach((g) => {
         const sc = R[g[0]];
         if (sc) {
@@ -425,7 +437,7 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
       const r = R[id];
       r.ga = r.g + r.a;
       r.minKnown = gs.length > 0 && r.tracked === gs.length;
-      r.tech = r.ledgered > 0;
+      r.tech = r.games.some(m => m.technicalAvailable ?? !!m.ledger);
       r.passPct = r.pok + r.pko ? Math.round((r.pok / (r.pok + r.pko)) * 100) : null;
       Object.keys(r.perGame).forEach((k) => {
         if (r.perGame[k] >= 2) r.braces++;
@@ -727,7 +739,7 @@ export interface Cromo {
 
 const NO_STREAK: Streak = { best: 0, cur: 0, from: null, to: null };
 const nOrd = (r: { n: number | "" }) => (r.n === "" ? 999 : r.n);
-const TECH_KEYS = ["pas", "pok", "pko", "kp", "cr", "sh", "sot", "tov", "rec", "int", "tk", "cl", "bl", "du", "duw", "dr", "to"] as const;
+const TECH_KEYS = ["pas", "pok", "pko", "punk", "kp", "cr", "sh", "sot", "tov", "rec", "int", "tk", "cl", "bl", "du", "duw", "dr", "to"] as const;
 /** The app's 24 player metrics (clubAnalytics.metrics) + the narrated counts, by key → the row's field. */
 const MK: Record<string, string> = {
   goles: "g", asist: "a", ga: "ga", pj: "pj", tit: "tit", ban: "ban", nc: "nc", sin: "sin", sout: "sout", yc: "yc", rc: "rc", dy: "dy", wood: "wood", ch: "chances", sv: "saves",

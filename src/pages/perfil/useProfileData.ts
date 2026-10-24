@@ -198,7 +198,7 @@ export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
   const built = seasonSquad(squadPlayers, matches, seasonId, mvpResults, minute);
   const freeFichas: FreeFicha[] = built.squad.list
     .filter((c) => !taken.has(c.id) && c.id !== linkedId && !c.baja)
-    .map((c) => ({ id: c.id, name: c.name, number: c.num ? String(c.num) : "", posLong: c.pos ? POSITION_LONG[c.pos] : null, rating: built.games.length ? c.rt : null }));
+    .map((c) => ({ id: c.id, name: c.name, number: c.num ? String(c.num) : "", posLong: c.pos ? POSITION_LONG[c.pos] : null, rating: c.unrated ? null : c.rt }));
 
   const answers = new Map(answersQ.data ?? []);
   // The next match's answer is live (shared with the vestuario): it wins over the cached read.

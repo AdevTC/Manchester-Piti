@@ -85,14 +85,14 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await page.locator(".nu-cat").getByRole("button", { name: /Pases intentados/ }).first().click();
     const detail = page.getByRole("dialog", { name: /Pases intentados/ });
     await expect(detail.locator(".nu-mt__v b")).toHaveText("2");
-    await expect(detail.locator(".nu-mt__v")).toContainText("Parcial");
+    await expect(detail.locator(".nu-mt__v")).toContainText("Completo");
     await expect(detail.locator(".nu-ev").getByRole("listitem")).toHaveCount(2);
     await expect(detail.locator(".nu-ev")).toContainText(names[2]);
     await expect(detail).not.toContainText(privateQuote);
     await detail.getByRole("button", { name: "Cerrar" }).click();
     await page.getByRole("region", { name: "Una ficha para cada estadística" }).getByRole("button", { name: "Cerrar" }).click();
 
-    // «Qué números ver»: the other match adds its pass, a player narrows the tables (the team keeps everyone)
+    // «Qué números ver»: both cards and tables follow the selected matches and player.
     const pick = async (name: RegExp) => {
       await page.getByRole("button", { name: /^Qué números ver/ }).click();
       const sheet = page.getByRole("dialog", { name: "Qué números ver" });
@@ -108,11 +108,11 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     // (the address names him as the boards do: his name's word)
     expect(new URL(page.url()).searchParams.get("jugadores")).toBe(`marcos-${stamp}`);
     await page.reload();
-    await expect(attempts).toHaveText("3");
+    await expect(attempts).toHaveText("2");
     await page.getByRole("button", { name: /^Todos los números, a tu medida/ }).click();
     const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
     await workspace.getByRole("button", { name: "Pases y creación", exact: true }).click();
-    await expect(workspace.getByRole("row", { name: /^Total del Piti/ }).getByRole("cell").nth(1)).toHaveText("2");
+    await expect(workspace.getByRole("row", { name: /^Total de los jugadores seleccionados/ }).getByRole("cell").nth(1)).toHaveText("2");
     await expect(workspace).toContainText(names[2]);
     await workspace.getByRole("button", { name: "Cerrar" }).click();
 
@@ -130,7 +130,7 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     expect(exportedText).not.toContain('"sourceRef"');
     expect(exported.partidos.map((m: { id: string }) => m.id)).toEqual(expect.arrayContaining([id, otherId]));
     expect(exported.filtros.jugadores).toEqual([players[2]]);
-    expect(exported.deUnVistazo.find((metric: { id: string }) => metric.id === "067").valor).toBe(3);
+    expect(String(exported.deUnVistazo.find((metric: { id: string }) => metric.id === "067").valor)).toBe("2");
     await page.setViewportSize({ width: 1440, height: 1050 });
     await page.locator(".nu-screen").screenshot({ path: testInfo.outputPath("narrated-juego-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });

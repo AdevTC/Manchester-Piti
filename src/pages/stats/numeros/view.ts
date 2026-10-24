@@ -2,6 +2,10 @@
 // the time bar, the rail with each section's live headline, the six screens, what grows in place and the sheets.
 // A port of the boards' renderVals (component.js), word for word; the page (NumerosPage) owns the state and the
 // address and passes the actions in `act`.
+import { numerosActions, numerosMatches, numerosMetrics } from "./analysis";
+import { buildAnalysisWorkspace, formatWorkspaceMetric, selectAnalysisMatches, sortAnalysisRows, workspaceMetricValue, ANALYSIS_WORKSPACE_PRESETS } from "../../../lib/analysisWorkspace";
+import { NARRATED_METRICS } from "../../../../functions/src/narrated/catalog";
+import type { AnalysisFilters, MetricResult } from "../../../../functions/src/narrated/types";
 import { NU_GLOSS, NU_MET, NU_METRICS } from "./glossary";
 import type { CatRow } from "./catalog";
 import { clock, dec, list, pct, posWith, result, slug, strip, table, type Moment, type ND, type NMatch, type NSeasonData, type PRow, type Se, type TRow } from "./nd";
@@ -9,7 +13,7 @@ import { clock, dec, list, pct, posWith, result, slug, strip, table, type Moment
 export const PLACES = ["temporada", "jugadores", "campo", "juego", "rivales", "records"] as const;
 export type Place = (typeof PLACES)[number];
 export const PLACE_LABEL: Record<Place, string> = { temporada: "Temporada", jugadores: "Jugadores", campo: "El campo", juego: "El juego", rivales: "Rivales", records: "Récords" };
-export type Grow = "tabla" | "jugadores" | "mesa" | "catalogo" | "rivales";
+export type Grow = "tabla" | "jugadores" | "mesa" | "catalogo" | "graficas" | "rivales";
 export type Sheet = "scope" | "ysi" | "player" | "rival" | "metric" | "info" | "search";
 export type CampoView = "pases" | "puestos" | "sistemas";
 export type RecView = "rachas" | "marcas" | "cromos" | "evolucion";
@@ -49,6 +53,11 @@ export interface NuState {
   allStats: boolean;
   colSet: string;
   wsSet: string;
+  wsColumns?: string[];
+  wsSort?: string;
+  wsDirection?: "asc" | "desc";
+  wsQuery?: string;
+  wsFamily?: string;
   clockK: "ambos" | "favor" | "contra";
   streakK: "g" | "a" | "ga" | "p" | "c";
   evoIds: string[] | null;
@@ -119,6 +128,13 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     gs = rest.concat(gs);
   }
   if (st.partidos.length) gs = gs.filter((m) => st.partidos.includes(m.id));
+  const sourceMatches = numerosMatches(gs);
+  const hasAnalysisSource = sourceMatches.length > 0;
+  const analysisFilters = { team: st.team === "them" ? "opponent" : "us", ...(st.parte !== "all" ? { period: Number(st.parte) } : {}), ...(st.jug.length ? { playerIds: st.jug } : {}) } satisfies AnalysisFilters;
+  const analysisMatchIds = new Set(selectAnalysisMatches(sourceMatches, analysisFilters).map(match => match.id));
+  const analysis = { matches: sourceMatches.filter(match => analysisMatchIds.has(match.id)), filters: analysisFilters };
+  const metrics = numerosMetrics(analysis.matches, analysis.filters);
+  const actions = numerosActions(analysis.matches, analysis.filters);
   const gsDone = gs.filter((m) => m.st === "fin");
   const T = ND.team(gs);
   const rs = ND.rows(gs, st.jug);
@@ -549,7 +565,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ].concat(
         R.tech
           ? [
-              { t: "Pases completados", v: `${R.pok} de ${R.pok + R.pko}${R.passPct != null ? ` (${R.passPct} %)` : ""} · parcial` },
+              { t: "Pases completados", v: `${R.pok} completados de ${R.pas} intentados · ${R.pko} fallados${R.punk ? ` · ${R.punk} sin resultado` : ""}${R.passPct != null ? ` (${R.passPct} % de los resueltos)` : ""} · parcial` },
               { t: "Recuperaciones · pérdidas", v: `${R.rec} · ${R.tov} · parcial` },
             ]
           : [],
@@ -794,7 +810,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   // ---------- El juego: the narrated analysis (real counts from the ledger when the actas bring them)
   const us = st.team === "us";
   const parte = st.parte;
-  const inParte = (min: number) => parte === "all" || (parte === "1" ? min < 25 : min >= 25);
+  const inParte = (min: number) => parte === "all" || (hasAnalysisSource ? actions.periodWindows.some(p => min * 60 >= p.from && min * 60 < p.to) : (parte === "1" ? min < 25 : min >= 25));
   let gU = 0;
   let gT = 0;
   gs.forEach((m) => {
@@ -802,7 +818,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     m.opp.forEach((x) => inParte(x) && gT++);
   });
   // (as the boards: every acta with a ledger counts its narrated plays; an acta that narrated none says 0, «Parcial»)
-  const narrated = gs.filter((m) => m.ledger);
+  const narrated = gs.filter((m) => m.technicalAvailable ?? !!m.ledger);
   const nN = narrated.length;
   const withActions = gs.filter((m) => m.ledger || m.chances.length || m.corners.length || m.oppChances).length;
   const partial = `${nN} de ${gs.length}${gs.length === 1 ? " acta narrada" : " actas narradas"}`;
@@ -840,7 +856,19 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         techOk && !byParte ? tile("272", "Paradas de su portero", sumThem("sv"), "part", partial) : tile("272", "Paradas de su portero", "–", "none", "Hace falta la narración"),
         tile("300", "Amarillas del rival", gs.reduce((s, m) => s + (m.oppCards || 0), 0), withActions ? "part" : "none", withActions ? "Lo que apuntó la mesa" : "Falta en las actas"),
       ];
-  const ck = clock(gs);
+  const metricStatus = (result: MetricResult | undefined): Status => result?.status === "complete" ? "ok" : workspaceMetricValue(result) != null ? "part" : "none";
+  const metricTile = (id: string, title: string) => {
+    const result = metrics.get(id);
+    return { ...tile(id, title, formatWorkspaceMetric(result), metricStatus(result), result?.reason ?? "Sin datos para esta selección"), result };
+  };
+  if (hasAnalysisSource) {
+    vistazo.splice(0, vistazo.length, ...vistazo.map(t => metricTile(t.id, t.t)));
+    const ownGoals = actions.teams.us.shotGoals, rivalGoals = actions.teams.opponent.shotGoals;
+    if (us) gU = metrics.get("015")?.value ?? ownGoals; else gT = metrics.get("015")?.value ?? rivalGoals;
+  }
+  const clockActions = hasAnalysisSource ? numerosActions(analysis.matches, { ...analysis.filters, team: undefined }) : null;
+  const ck = clockActions ? { us: clockActions.goalBins.us, them: clockActions.goalBins.opponent } : clock(gs);
+  const clockGoalsUs = ck.us.reduce((n, v) => n + v, 0), clockGoalsThem = ck.them.reduce((n, v) => n + v, 0);
   const cmax = Math.max(1, ...ck.us, ...ck.them);
   const cf = st.clockK;
   const slices = ck.us.map((u, i) => {
@@ -852,7 +880,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   });
   const bu = ck.us.indexOf(Math.max(...ck.us));
   const bt = ck.them.indexOf(Math.max(...ck.them));
-  const tram = Array.from({ length: 10 }, (_, i) => {
+  const tram = hasAnalysisSource ? actions.tramos : Array.from({ length: 10 }, (_, i) => {
     const o = { pas: 0, pok: 0, sh: 0, rec: 0, loss: 0, tsh: 0 };
     narrated.forEach((m) => {
       const x = (m.tramos || [])[i];
@@ -866,7 +894,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     label: `Del ${i * 5}′ al ${i * 5 + 5}′: ${x.pas} pases, ${x.pok} completados, ${x.sh} remates nuestros y ${x.tsh} del rival`,
   }));
   const pairs: Record<string, number> = {};
-  narrated.forEach((m) => (m.passPairs || []).forEach((p) => (pairs[`${p[0]}>${p[1]}`] = (pairs[`${p[0]}>${p[1]}`] || 0) + p[2])));
+  if (hasAnalysisSource) actions.links.forEach(p => { pairs[`${p.from}>${p.to}`] = p.count; });
+  else narrated.forEach((m) => (m.passPairs || []).forEach((p) => (pairs[`${p[0]}>${p[1]}`] = (pairs[`${p[0]}>${p[1]}`] || 0) + p[2])));
   const pairL = Object.keys(pairs)
     .map((k2) => {
       const s2 = k2.split(">");
@@ -901,6 +930,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     ).map((p) => ({ t: p[1], on: parte === p[0], pick: set({ parte: p[0] }) })),
     parteI: ["all", "1", "2"].indexOf(parte),
     tiles: vistazo, slices,
+    passes: { attempted: actions.teams[analysis.filters.team].passes, completed: actions.teams[analysis.filters.team].passesCompleted, failed: actions.teams[analysis.filters.team].passesFailed, unknown: actions.teams[analysis.filters.team].passesUnknown },
     clockOpts: (
       [
         ["ambos", "Ambos"],
@@ -909,54 +939,58 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ] as const
     ).map((v) => ({ t: v[1], on: cf === v[0], pick: set({ clockK: v[0] }) })),
     clockI: ["ambos", "favor", "contra"].indexOf(cf),
-    clockCap: gU + gT
-      ? (gU ? `Marcamos más entre el ${bu * 5}′ y el ${bu * 5 + 5}′` : "Aún no hemos marcado con minuto") + (gT ? `; el rival nos marca más entre el ${bt * 5}′ y el ${bt * 5 + 5}′.` : ".")
+    clockCap: clockGoalsUs + clockGoalsThem
+      ? (clockGoalsUs ? `Marcamos más entre el ${bu * 5}′ y el ${bu * 5 + 5}′` : "Aún no hemos marcado con minuto") + (clockGoalsThem ? `; el rival nos marca más entre el ${bt * 5}′ y el ${bt * 5 + 5}′.` : ".")
       : "Aún no hay goles con minuto registrado.",
     hasTech: nN > 0, tramos, tramT: "Dónde cambia el juego: pases por tramo",
-    tramSub: `Cada columna, cinco minutos: alto, los pases intentados; relleno, los completados. ${nN === 1 ? `De la J${narrated[0].j}.` : `${nN} partidos.`}`,
+    tramSub: `Cada columna, cinco minutos: alto, los pases intentados; relleno, los completados. ${nN === 1 ? `De la J${narrated[0].j}.` : `${nN} partidos.`}${actions.unplaced ? ` ${actions.unplaced} acciones no se asignan a un tramo por falta de tiempo preciso.` : ""}`,
     pairs: pairL, hasPairs: pairL.length > 0,
     cov: { ok: cov.complete.join(" · ") || "Ninguna", part: cov.partial.join(" · ") || "Ninguna", none: cov.unknown.join(" · ") || "Ninguna", hasNone: cov.unknown.length > 0 },
     note: narrated.map((m) => m.analysisNote).find(Boolean) ?? "",
-    openMesa: () => act.grow("mesa"), openCat: () => act.grow("catalogo"), exportJson: () => act.json(),
+    openCharts: () => act.grow("graficas"), openMesa: () => act.grow("mesa"), openCat: () => act.grow("catalogo"), exportJson: () => act.json(),
     i: { vistazo: info("vistazo"), reloj: info("reloj"), tramos: info("conecta"), cobertura: info("cobertura"), estados: info("estados") },
   };
-  // the workspace: the app's seven presets over the ledger
-  const WSP: Record<string, string[]> = {
-    resumen: ["pj", "min", "goles", "asist", "yc", "sh", "rec"], pases: ["pas", "pok", "kp", "cr", "tov"], remates: ["sh", "sot", "goles", "wood", "kp"],
-    defensa: ["rec", "int", "tk", "cl", "bl", "du"], porteria: ["sv", "psv", "cl", "pas"], rotaciones: ["pj", "min", "tit", "ban", "sin", "sout", "nc"], disciplina: ["yc", "rc", "dy", "f", "fr", "pcm"],
-  };
-  const wsKeys = WSP[st.wsSet] || WSP.resumen;
-  const wsLabel = (k: string) => (k === "tk" ? "Entradas al rival" : k === "bl" ? "Bloqueos" : (NU_MET[k] || { t: k }).t);
-  const wsRows = rs
-    .filter((r) => r.pj)
-    .sort((a, b) => {
-      const k0 = wsKeys[0] === "pj" ? "min" : wsKeys[0];
-      return ND.metricOf(b, k0) - ND.metricOf(a, k0) || (a.n === "" ? 999 : a.n) - (b.n === "" ? 999 : b.n);
-    })
-    .map((r) => ({ key: r.id, name: r.name, n: r.n, cls: you(r.id) ? "is-you" : "", cells: wsKeys.map((k) => ({ key: k, v: wsTech(k) && !r.tech ? "–" : cellOf(r, k) })) }));
-  function wsTech(k: string) {
-    return (NU_MET[k] && NU_MET[k].tech) || k === "tk" || k === "bl";
-  }
+  // The table, its total and each metric's detail share the actual filtered sample.
+  const presetNames = ["resumen", "pases", "remates", "defensa", "porteria", "rotaciones", "disciplina"];
+  const preset = ANALYSIS_WORKSPACE_PRESETS[Math.max(0, presetNames.indexOf(st.wsSet || "resumen"))];
+  const wsKeys = [...new Set(st.wsColumns ?? preset.metricIds)].filter(id => NARRATED_METRICS.some(m => m.id === id));
+  const workspace = buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, wsKeys);
+  const sortKey = wsKeys.includes(st.wsSort ?? "") ? st.wsSort! : wsKeys[0] ?? "001";
+  const sortDirection = st.wsDirection ?? "desc";
+  const wsRows = sortAnalysisRows(workspace.rows, sortKey, sortDirection).map(r => ({
+    key: r.person.id, name: r.person.name, n: r.person.number ?? "", cls: you(r.person.id) ? "is-you" : "",
+    cells: wsKeys.map(key => { const result = r.results.get(key); return { key, v: formatWorkspaceMetric(result), status: result?.status, reason: result?.reason ?? "Sin datos para esta selección" }; }),
+  }));
+  const searchable = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("es");
+  const wsQuery = searchable(st.wsQuery ?? "").trim();
+  const wsFamily = st.wsFamily ?? "";
+  const availableColumns = NARRATED_METRICS.filter(m => workspaceMetricValue(metrics.get(m.id)) != null).map(m => m.id);
+  const wsColumns = NARRATED_METRICS.filter(m => (!wsFamily || m.category === wsFamily) && (!wsQuery || searchable(m.name + " " + m.id + " " + m.category).includes(wsQuery))).map(m => {
+    const result = metrics.get(m.id), selected = wsKeys.includes(m.id), available = workspaceMetricValue(result) != null;
+    return { key: m.id, t: m.name, family: m.category, selected, available, reason: result?.reason ?? "Sin datos para esta selección",
+      toggle: () => { if (selected) act.set({ wsColumns: wsKeys.filter(id => id !== m.id) }); else if (available) act.set({ wsColumns: [...wsKeys, m.id] }); },
+    };
+  });
+  const wsCols = wsKeys.map(key => ({ key, t: NARRATED_METRICS.find(m => m.id === key)?.name ?? key,
+    sort: key === sortKey ? sortDirection === "asc" ? "ascending" as const : "descending" as const : "none" as const,
+    pick: () => act.set({ wsSort: key, wsDirection: key === sortKey && sortDirection === "desc" ? "asc" : "desc" }),
+  }));
   const ws = {
-    sets: (
-      [
-        ["resumen", "Resumen"],
-        ["pases", "Pases y creación"],
-        ["remates", "Remates"],
-        ["defensa", "Defensa"],
-        ["porteria", "Portería"],
-        ["rotaciones", "Rotaciones"],
-        ["disciplina", "Disciplina"],
-      ] as const
-    ).map((v) => ({ key: v[0], t: v[1], on: (st.wsSet || "resumen") === v[0], pick: set({ wsSet: v[0] }) })),
-    n: wsKeys.length, cols: wsKeys.map((k) => ({ key: k, t: wsLabel(k) })), rows: wsRows,
-    foot: wsKeys.map((k) => ({ key: k, v: wsTech(k) && !techOk ? "–" : k === "min" && !minKnown ? "–" : Math.round(rs.reduce((s, r) => s + ND.metricOf(r, k), 0)) })),
+    sets: ANALYSIS_WORKSPACE_PRESETS.map((p, i) => ({ key: presetNames[i], t: p.label, on: !st.wsColumns && p.id === preset.id, pick: () => act.set({ wsSet: presetNames[i], wsColumns: undefined, wsSort: undefined }) })),
+    n: wsKeys.length, cols: wsCols, rows: wsRows,
+    foot: wsKeys.map(key => { const result = workspace.total.get(key); return { key, v: formatWorkspaceMetric(result), status: result?.status, reason: result?.reason ?? "Sin datos" }; }),
+    totalLabel: st.jug.length ? "Total de los jugadores seleccionados" : us ? "Total del Piti, incluidas acciones sin jugador" : "Total del rival",
+    columns: wsColumns, query: st.wsQuery ?? "", setQuery: (value: string) => act.set({ wsQuery: value }),
+    family: wsFamily, families: [...new Set(NARRATED_METRICS.map(m => m.category))], setFamily: (value: string) => act.set({ wsFamily: value }),
+    availableCount: availableColumns.length, selectedCount: wsKeys.length,
+    selectAll: () => act.set({ wsColumns: availableColumns }), clearColumns: () => act.set({ wsColumns: [] }),
     csv: () => act.csv("mesa"),
-    table: { head: ["Jugador", "Dorsal", ...wsKeys.map(wsLabel)], rows: wsRows.map((r) => [r.name, String(r.n), ...r.cells.map((c) => String(c.v))]) },
+    table: { head: ["Jugador", "Dorsal", ...wsCols.map(c => c.t)], rows: wsRows.map(r => [r.name, String(r.n), ...r.cells.map(c => String(c.v))]) },
   };
   // the catalogue: the real 412 definitions, 26 families, the ones outside audio, paged by 24
   const TILE_V: Record<string, ReturnType<typeof tile>> = {};
   vistazo.forEach((t) => (TILE_V[t.id] = t));
+  for (const definition of NARRATED_METRICS) if (metrics.has(definition.id)) TILE_V[definition.id] = metricTile(definition.id, definition.name);
   const CAT = env.catalog ?? [];
   const FAMS: string[] = [];
   CAT.forEach((c) => !FAMS.includes(c[1]) && FAMS.push(c[1]));
@@ -971,7 +1005,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     items: catAll.slice(0, st.catN).map((c) => {
       const t2 = TILE_V[c[0]];
       const s = t2 ? t2.status : c[5] ? "none" : "cfg";
-      return { key: c[0], id: c[0], t: c[2], fam: c[1], cls: `is-${s}`, st: t2 ? `${t2.statusT} · ${t2.v}` : c[5] ? "Necesita vídeo u otra fuente" : "Aún sin calcular aquí", pick: () => act.open("metric", c[0]) };
+      return { key: c[0], id: c[0], t: c[2], fam: c[1], cls: `is-${s}`, st: t2 ? `${t2.statusT} · ${t2.v}` : c[5] ? "Necesita vídeo u otra fuente" : "Sin datos para esta selección", pick: () => act.open("metric", c[0]) };
     }),
     count: env.catalog ? `${catAll.length} de las ${CAT.length} estadísticas${famSel ? ` · ${famSel}` : ""}${st.catX ? " · incluidas las de fuera del audio" : ""}` : "Cargando el catálogo…",
     more: catAll.length > st.catN, moreT: `Mostrar más (${Math.min(st.catN, catAll.length)} de ${catAll.length})`,
@@ -1197,7 +1231,17 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     const c = CAT.find((x) => x[0] === st.sheetId);
     const t = c ? TILE_V[c[0]] : undefined;
     const evid: { key: string; t: string; d: string; href: string }[] = [];
-    if (c) {
+    const detail = c ? metrics.get(c[0]) : undefined;
+    if (c && hasAnalysisSource) {
+      for (const evidenceId of detail?.evidenceEventIds ?? []) {
+        const observation = actions.observations.find(o => o.evidenceId === evidenceId);
+        if (!observation) continue;
+        const match = gs.find(m => m.id === observation.matchId);
+        const minute = observation.time ? ` · ${Math.max(1, Math.ceil(observation.time.to / 60))}′` : " · sin minuto";
+        const actor = observation.actorId ? ND.name(observation.actorId) : observation.team === "us" ? "Piti · jugador sin identificar" : "El rival";
+        evid.push({ key: evidenceId, t: `J${match?.j ?? "?"}${minute}`, d: actor, href: `/partidos/${observation.matchId}/numeros` });
+      }
+    } else if (c) {
       gs.forEach((m) => {
         if (c[0] === "015") m.goals.forEach((g, k) => evid.push({ key: `${m.id}-${k}`, t: `J${m.j} · ${g[2]}′`, d: `Gol de ${ND.name(g[0])}${g[1] ? `, pase de ${ND.name(g[1])}` : ""}`, href: `/partidos/${m.id}` }));
         else if (c[0] === "105") m.goals.forEach((g, k) => g[1] && evid.push({ key: `${m.id}-${k}`, t: `J${m.j} · ${g[2]}′`, d: `Pase de ${ND.name(g[1])} a ${ND.name(g[0])}`, href: `/partidos/${m.id}` }));
@@ -1214,9 +1258,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     }
     mt = c
       ? {
-          id: c[0], t: c[2], fam: c[1], v: t ? t.v : "–", st: t ? t.statusT : c[5] ? "Fuera del audio" : "Sin calcular aquí", cls: t ? t.cls : "is-none",
+          id: c[0], t: c[2], fam: c[1], v: t ? t.v : "–", st: detail ? ({ complete: "Completo", partial: "Parcial", unknown: "Sin información", no_sample: "Sin oportunidades", not_configured: "Falta configuración", not_applicable: "No aplicable" }[detail.status]) : t ? t.statusT : c[5] ? "Fuera del audio" : "Sin datos", cls: t ? t.cls : "is-none",
           def: c[3], narr: c[4], scope: c[6] || "",
-          why: t
+          why: detail ? `${detail.reason}${detail.pending ? ` ${detail.pending} acciones o atributos pendientes.` : ""}` : t
             ? t.status === "ok"
               ? "Sale del acta: cada partido lo trae."
               : t.status === "part"
@@ -1362,7 +1406,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     prov: place === "temporada" && tem.prov,
   };
   return {
-    se, edge, upto, all, withLive, member, lede, time, scope, tem, jug, gj, campo, juego, ws, cat, rivales, records, mt, infoS, ysi, asks, search, rail, screen,
+    analysis, se, edge, upto, all, withLive, member, lede, time, scope, tem, jug, gj, campo, juego, ws, cat, rivales, records, mt, infoS, ysi, asks, search, rail, screen,
     pl: st.sheet === "player" && st.sheetId ? playerCard(st.sheetId) : null,
     rv: st.sheet === "rival" && st.sheetId ? dossier(rivalBySlug(st.sheetId) ?? st.sheetId) : null,
     slimT: `${all ? "Todas" : se.S.name} · ${time.jLabel}${time.tip ? ` · ${time.tip.replace(/^J\d+ · /, "")}` : ""}`,

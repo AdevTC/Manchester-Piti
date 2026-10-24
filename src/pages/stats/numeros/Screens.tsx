@@ -4,6 +4,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { NuView } from "./view";
 import { I, Q, Shirt } from "./bits";
+import { WorkspaceTable } from "./WorkspaceTable";
+import { StatsChartsPanel } from "../../../components/celeste/StatsChartsPanel";
 
 type V = NuView;
 type NumOf = (id: string) => number | "";
@@ -846,75 +848,16 @@ export function Campo({ v, numOf }: { v: V; numOf: NumOf }) {
 }
 
 // ===================== El juego =====================
-export function Juego({ v, grow, onClose }: { v: V; grow: "mesa" | "catalogo" | null; onClose: () => void }) {
+export function Juego({ v, grow, onClose, onInspect }: { v: V; grow: "mesa" | "catalogo" | "graficas" | null; onClose: () => void; onInspect?: (metricId: string, playerId?: string) => void }) {
   const g = v.juego;
-  if (grow === "mesa") {
-    const w = v.ws;
-    return (
-      <GrowWin id="nu-g-mesa" title="Todos los números, a tu medida" onClose={onClose} table>
-        <p className="nu-grow__note">Elige una vista; «–» es que el dato no está registrado. Descárgala para tu hoja.</p>
-        <ul className="nu-chips nu-chips--row" aria-label="Vistas de la tabla">
-          {w.sets.map((o) => (
-            <li key={o.key}>
-              <button type="button" className="nu-chip nu-chip--stat" aria-pressed={o.on} onClick={o.pick}>
-                {o.t}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="nu-tools">
-          <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm" onClick={w.csv}>
-            <I name="arrow" />
-            Descargar tabla CSV
-          </button>
-        </div>
-        <p className="nu-swipe" aria-hidden="true">
-          Desliza para ver más columnas →
-        </p>
-        <div className="nu-scroll" tabIndex={0} role="region" aria-label="Tabla con desplazamiento lateral">
-          <div className="nu-ws" role="table" aria-label="Todos los números por jugador" style={css({ "--n": w.n })}>
-            <div className="nu-ws__r nu-ws__r--h" role="row">
-              <span role="columnheader" className="t">
-                Jugador
-              </span>
-              {w.cols.map((c) => (
-                <span key={c.key} role="columnheader">
-                  {c.t}
-                </span>
-              ))}
-            </div>
-            {w.rows.map((r) => (
-              <div key={r.key} className={`nu-ws__r ${r.cls}`.trim()} role="row">
-                <span role="cell" className="t">
-                  <i>{r.n}</i>
-                  {r.name}
-                </span>
-                {r.cells.map((x) => (
-                  <span key={x.key} role="cell">
-                    {x.v}
-                  </span>
-                ))}
-              </div>
-            ))}
-            <div className="nu-ws__r nu-ws__r--f" role="row">
-              <span role="cell" className="t">
-                Total del Piti
-              </span>
-              {w.foot.map((x) => (
-                <span key={x.key} role="cell">
-                  {x.v}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </GrowWin>
-    );
-  }
+  const context = <div className="nu-ctx" role="group" aria-label="Contexto de las jugadas"><Seg label="Equipo" opts={g.teamOpts} i={g.teamI} n={2} /><Seg label="Parte" opts={g.parteOpts} i={g.parteI} n={3} /></div>;
+  if (grow === "mesa") return <GrowWin id="nu-g-mesa" title="Todos los números, a tu medida" onClose={onClose} table>{context}<WorkspaceTable w={v.ws} /></GrowWin>;
+  if (grow === "graficas") return <GrowWin id="nu-g-graficas" title="Gráficas del juego" onClose={onClose}>{context}<StatsChartsPanel matches={v.analysis.matches} filters={v.analysis.filters} people={v.scope.people.map(p => ({id:p.key, name:p.t, number:p.n}))} onInspect={onInspect} /></GrowWin>;
   if (grow === "catalogo") {
     const c = v.cat;
     return (
       <GrowWin id="nu-g-cat" title="Una ficha para cada estadística" onClose={onClose}>
+          {context}
         <p className="nu-grow__note">412 definiciones para el fútbol 7. Las que necesitan vídeo, seguimiento u otra fuente se ven aparte.</p>
         <div className="nu-tools">
           <label className="nu-field">
@@ -949,7 +892,7 @@ export function Juego({ v, grow, onClose }: { v: V; grow: "mesa" | "catalogo" | 
           </span>
           <span>
             <i className="nu-dot" />
-            Sin información o sin calcular
+            Sin información para la selección
           </span>
         </p>
         <p className="nu-regsub" aria-live="polite">
@@ -1095,9 +1038,10 @@ export function Juego({ v, grow, onClose }: { v: V; grow: "mesa" | "catalogo" | 
             </>
           )}
           <div className="nu-grows">
+            <button type="button" className="vd-glass vd-press nu-growbtn" onClick={g.openCharts}><b>Gráficas del juego</b><span>Red de pases, matriz entre jugadores, tramos y remates</span><I name="expand" /></button>
             <button type="button" className="vd-glass vd-press nu-growbtn" onClick={g.openMesa}>
               <b>Todos los números, a tu medida</b>
-              <span>La tabla de trabajo: siete vistas (pases, remates, defensa, portería…), ordenar y descargar</span>
+              <span>Vistas rápidas y Personalizado: elegir columnas, ordenar y descargar</span>
               <I name="expand" />
             </button>
             <button type="button" className="vd-glass vd-press nu-growbtn" onClick={g.openCat}>

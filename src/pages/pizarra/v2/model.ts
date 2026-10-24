@@ -5,6 +5,7 @@ import { normPlaysAs } from "../positions";
 import { isPosCode, lineOf, type ResolvedPositions } from "../../../lib/positions";
 import { plural } from "./plural";
 import { inPlace, logicGrade } from "./encaje";
+import type { SeasonRating } from "../../../lib/seasonRating";
 
 export type Baja = "Lesionado" | "Sancionado" | "Inactivo";
 /** The player's answer to the convocatoria (wired in phase 3; absent = unknown). */
@@ -47,9 +48,10 @@ export interface Cromo {
   pos?: Zone;
   /** His exact positions (preferida, también, línea: resolvePositions); absent = only `pos` is known. */
   ps?: ResolvedPositions;
-  /** Form rating (45–95, see ratings.ts), from the season's matches. */
+  /** GLOBAL, 0–99. A missing rating uses 0 only internally; unrated prints «—». */
   rt: number;
-  /** No match played yet: the rating is only a floor for sorting, shown as «—» (see rtTxt). */
+  global?: SeasonRating;
+  /** Insufficient season evidence: only a floor for sorting, shown as «—» (see rtTxt). */
   unrated?: boolean;
   /** Why his form is what it is, in a few words («3 goles en sus 2 últimos»). */
   why?: string;
@@ -111,7 +113,8 @@ export interface Squad {
 /** The rating as the cromo prints it: «—» before his first match. */
 export const rtTxt = (c: Pick<Cromo, "rt" | "unrated">): string => (c.unrated ? "—" : String(c.rt));
 /** «forma 82: 3 goles en sus 2 últimos» / «sin forma aún: sin partidos esta temporada». */
-export function formAria(c: Pick<Cromo, "rt" | "unrated" | "why">): string {
+export function formAria(c: Pick<Cromo, "rt" | "unrated" | "why" | "global">): string {
+  if (c.global) return c.global.summary;
   return (c.unrated ? "sin forma aún" : "forma " + c.rt) + (c.why ? ": " + c.why.charAt(0).toLowerCase() + c.why.slice(1) : "");
 }
 /** The team's minutes this season

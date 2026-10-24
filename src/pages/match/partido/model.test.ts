@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
-import { autoCronica, chapters, edgeOf, faseOf, lineupOf, parseMin, playsOf, resultWords, scoreAt, timelineOf } from "./model";
+import { autoCronica, chapters, edgeOf, faseOf, lineupOf, numHitsOf, numbersAt, parseMin, playsOf, resultWords, scoreAt, timelineOf } from "./model";
+import { DEFAULT_ANALYSIS_PROFILE } from "../../../../functions/src/narrated/types";
 import { ribbonMarks } from "./moviola";
 import { statusOf, titleOf } from "./words";
 
@@ -115,5 +116,18 @@ describe("ribbonMarks", () => {
     expect(first?.n).toBeGreaterThan(1);
     expect(first?.label).toMatch(/^Minutos 2 a /);
     expect(marks.some((m) => m.cls.includes("vd-ribbon__mark--gold"))).toBe(true);
+  });
+});
+
+describe("narrated match figures", () => {
+  it("counts only explicitly executed corners, even when a pending restart has an outcome", () => {
+    const match: ClubMatch = { ...J1, analysis: { version: 2, revision: 0, profile: DEFAULT_ANALYSIS_PROFILE, coverage: [], observations: [
+      { id: "unknown", order: 1, kind: "restart", team: "us", time: { from: 10, to: 10, precision: "exact" }, facts: { subtype: "corner", outcome: "unknown" } },
+      { id: "awarded", order: 2, kind: "restart", team: "us", time: { from: 15, to: 15, precision: "exact" }, facts: { subtype: "corner", stage: "awarded", outcome: "complete" } },
+      { id: "executed", order: 3, kind: "restart", team: "us", time: { from: 20, to: 20, precision: "exact" }, facts: { subtype: "corner", stage: "executed" } },
+      { id: "rival", order: 4, kind: "restart", team: "opponent", time: { from: 30, to: 30, precision: "exact" }, facts: { subtype: "corner", stage: "executed", outcome: "unknown" } },
+    ] } };
+    const corners = numbersAt(numHitsOf(match), [], 50).find(row => row.k === "corner");
+    expect(corners).toMatchObject({ us: 1, them: 1 });
   });
 });

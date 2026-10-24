@@ -17,6 +17,7 @@ import { suspensions } from "../../pages/pizarra/chemistry";
 import type { Zone } from "../../pages/pizarra/formations";
 import { knownMinutes, type Cromo, type Squad } from "../../pages/pizarra/v2/model";
 import { buildSquad, type SquadPlayer } from "../../pages/pizarra/v2/ratings";
+import type { SeasonRating } from "../seasonRating";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -55,7 +56,7 @@ export const ATTRS: { k: AttrKey; label: string; d: string }[] = [
   { k: "ASI", label: "Asistencias", d: "Pases tuyos que acabaron en gol" },
   { k: "PJ", label: "Partidos jugados", d: "Partidos en los que has salido al campo" },
   { k: "MIN", label: "Minutos", d: "Minutos jugados (un partido son 50′)" },
-  { k: "FOR", label: "Forma", d: "Tus últimos 5 partidos: goles, asistencias y MVP, de 40 a 99" },
+  { k: "FOR", label: "Forma reciente", d: "Tus últimos 5 partidos: goles, asistencias y MVP, de 40 a 99. Es un indicador reciente distinto de GLOBAL de temporada" },
 ];
 export interface Attr {
   k: AttrKey;
@@ -181,6 +182,7 @@ export interface CardView {
   captain: boolean;
   rating: number | null;
   ratingText: string;
+  global?: SeasonRating;
   form: number | null;
   /** The real tier (null until there are numbers). */
   tier: Tier | null;
@@ -377,7 +379,7 @@ export function buildCard(input: CardInput): CardView {
   const rating = shown && !shown.unrated ? shown.rt : null;
   const form = shown ? formScore(shown.id, games, mvpsOf) : null;
   const racha = !!shown && onStreak(shown.id, games);
-  const tier: Tier | null = rating === null ? null : racha ? "racha" : tierOf(rating);
+  const tier: Tier | null = racha ? "racha" : rating === null ? null : tierOf(rating);
   const tierKey: TierKey = !vinc ? (state === "pendiente" ? "pack" : "down") : tier ?? "nuevo";
   const firstMatch = calendar[0];
   const first = firstMatch ? { dateMs: dateMillis(firstMatch.date), rival: firstMatch.rival || "el rival" } : null;
@@ -448,11 +450,12 @@ export function buildCard(input: CardInput): CardView {
     captain,
     rating,
     ratingText: rating === null ? "—" : String(rating),
+    global: shown?.global,
     form,
     tier,
     tierKey,
-    tierName: TIER_NAME[tierKey],
-    tierWhy: tierKey === "nuevo" && started ? "Se revela con tu primer partido de la temporada." : tierWhy(tierKey, first),
+    tierName: tierKey === "nuevo" && totals.played > 0 ? "GLOBAL pendiente" : TIER_NAME[tierKey],
+    tierWhy: tierKey === "nuevo" && started ? shown && shown.stats.played > 0 ? shown.global?.summary ?? "Faltan datos para valorar la temporada." : "Se revela con tu primer partido de la temporada." : tierWhy(tierKey, first),
     racha,
     attrs,
     totals,

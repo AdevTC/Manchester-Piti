@@ -55,8 +55,8 @@ export function cardOf(d: ProfileData, kind: Kind, origin: string, typed: string
     name: c.name || d.shirt.current.toUpperCase(),
     num: c.number,
     club: clubLineOf(c.clubLine),
-    // (a card without its first rating says «—» for all six, as the boards draw it)
-    attrs: c.attrs.map((a) => ({ k: a.k, text: c.showNumbers && c.rating !== null ? a.text : "—" })),
+    // Known season totals remain visible when GLOBAL lacks enough evidence.
+    attrs: c.attrs.map((a) => ({ k: a.k, text: c.showNumbers ? a.text : "—" })),
     typed,
     racha: c.racha,
     back,
@@ -91,7 +91,7 @@ export function identityOf(d: ProfileData, kind: Kind, captain: boolean): Identi
   const nick = `@${d.nickname}`;
   if (kind === "jugador") {
     const c = d.card;
-    const chip = c.showNumbers && c.rating !== null && c.tier ? { t: `Carta ${c.tierName.toLowerCase()}, ${c.rating}`, cls: `t-${c.tier}` } : { t: "Carta nueva", cls: "t-nuevo" };
+    const chip = c.showNumbers && c.rating !== null && c.tier ? { t: `Carta ${c.tierName.toLowerCase()}, ${c.rating}${c.global?.status === "provisional" ? " · provisional" : ""}`, cls: `t-${c.tier}` } : { t: c.totals.played > 0 ? "GLOBAL pendiente" : "Carta nueva", cls: "t-nuevo" };
     return { name, line: [c.number, c.posLong, nick].filter(Boolean).join(" · "), chips: [chip, ...(captain ? [{ t: "Capitán del vestuario", cls: "is-cap" }] : [])] };
   }
   const since = `${nick} · socio desde ${d.access.sinceText}`;
@@ -106,7 +106,7 @@ export function hintOf(id: Sec | "avisos", d: ProfileData, kind: Kind, o: { avis
     case "carta":
       if (kind === "socio") return `Socio desde ${d.access.sinceText}`;
       if (kind === "nuevo") return d.ficha.state === "pendiente" ? `Sobre cerrado · el ${wantedNumber(d)}` : "Por revelar";
-      return c.showNumbers && c.rating !== null ? `${c.tierName} · ${c.rating}` : "Nueva · se revela al jugar";
+      return c.showNumbers && c.rating !== null ? `${c.tierName} · ${c.rating}${c.global?.status === "provisional" ? " · provisional" : ""}` : c.totals.played > 0 ? "GLOBAL pendiente" : "Nueva · se revela al jugar";
     case "temporada": {
       if (!c.started) return "Sin partidos aún";
       const t = c.totals;

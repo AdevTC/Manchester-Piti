@@ -91,10 +91,10 @@ const DEMO_PORRA: [string, number][] = [["kevin", 61], ["jordi", 54], ["huberosk
 const BASE: NuState = {
   place: "temporada", upto: Number.POSITIVE_INFINITY, playing: false, raceK: "goles", star: null, temporada: "esta", campo: "todo", jug: [], partidos: [], grow: null, sheet: null, sheetId: null,
   rankK: "goles", pick: null, rival: null, campoView: "pases", puesto: "", team: "us", parte: "all", recView: "rachas", cromoK: "todos", evoK: "goles", ysi: {}, sortK: "goles",
-  q: "", rq: "", catQ: "", catFam: "", catN: 24, catX: false, allStats: false, colSet: "basico", wsSet: "resumen", clockK: "ambos", streakK: "g", evoIds: null, sq: "",
+  q: "", rq: "", catQ: "", catFam: "", catN: 24, catX: false, allStats: false, colSet: "basico", wsSet: "resumen", wsColumns: undefined, wsSort: undefined, wsDirection: "desc", wsQuery: "", wsFamily: "", clockK: "ambos", streakK: "g", evoIds: null, sq: "",
 };
 /** The parts of the state the address holds (everything else is the screen's own). */
-const URL_KEYS = ["place", "campoView", "recView", "grow", "sheet", "sheetId", "temporada", "upto", "campo", "partidos", "jug", "rankK", "pick", "rival", "star", "puesto", "team", "parte", "catFam", "catX", "catQ", "sq"] as const;
+const URL_KEYS = ["place", "campoView", "recView", "grow", "sheet", "sheetId", "temporada", "upto", "campo", "partidos", "jug", "rankK", "pick", "rival", "star", "puesto", "team", "parte", "catFam", "catX", "catQ", "sq", "wsSet", "wsColumns", "wsSort", "wsDirection", "wsQuery", "wsFamily"] as const;
 
 /** The View Transition of the boards: html[data-nu-dir] (down · up) and a transition whose update commits at once;
  *  without View Transitions, under reduced motion or a shot, the change just happens. */
@@ -809,7 +809,7 @@ export function NumerosPage() {
               ) : st.place === "campo" ? (
                 <Campo v={v} numOf={numOf} />
               ) : st.place === "juego" ? (
-                <Juego v={v} grow={st.grow === "mesa" || st.grow === "catalogo" ? st.grow : null} onClose={() => grow(null)} />
+                <Juego v={v} grow={st.grow === "mesa" || st.grow === "catalogo" || st.grow === "graficas" ? st.grow : null} onClose={() => grow(null)} onInspect={(metricId, playerId) => { if (playerId) { const next = { ...stRef.current, jug: [playerId] }; stRef.current = next; setSt(next); } open("metric", metricId); }} />
               ) : st.place === "rivales" ? (
                 <Rivales v={v} grow={st.grow === "rivales"} onClose={() => grow(null)} />
               ) : (

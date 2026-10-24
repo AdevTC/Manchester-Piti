@@ -35,25 +35,21 @@ const SEASON: ClubMatch[] = [
 const squad = () => buildSquad({ players: PLAYERS, games: SEASON, jornada: new Map(SEASON.map((m, i) => [m.id, i + 1])), suspended: new Set(), mvps: new Map([["j4", ["del"]]]) });
 
 describe("la forma sobre una temporada corta", () => {
-  it("a scorer in form is well above a regular, and a cameo is at the bottom", () => {
+  it("does not turn goals, attendance or MVP alone into a complete GLOBAL grade", () => {
     const sq = squad();
-    const rt = (id: string) => sq.byId.get(id)!.rt;
-    expect(rt("del")).toBeGreaterThan(rt("med"));
-    expect(rt("med")).toBeGreaterThan(rt("sub"));
-    expect(rt("del") - rt("sub")).toBeGreaterThanOrEqual(30);
     sq.list.forEach((c) => {
-      expect(c.rt).toBeGreaterThanOrEqual(45);
-      expect(c.rt).toBeLessThanOrEqual(95);
+      expect(c.unrated).toBe(true);
+      expect(c.global?.value).toBeNull();
+      expect(rtTxt(c)).toBe("—");
     });
-    // a defender who played every match beats one who played only the first (and conceded three)
-    expect(rt("def")).toBeGreaterThan(rt("cola"));
+    expect(sq.byId.get("del")!.stats.goals).toBe(4);
   });
   it("a player with no match shows «—», not a made-up number", () => {
     const sq = squad();
     const c = sq.byId.get("nuevo")!;
     expect(c.unrated).toBe(true);
     expect(rtTxt(c)).toBe("—");
-    expect(rtTxt(sq.byId.get("del")!)).toBe(String(sq.byId.get("del")!.rt));
+    expect(rtTxt(sq.byId.get("del")!)).toBe("—");
   });
   it("says why, in a few words", () => {
     const sq = squad();
