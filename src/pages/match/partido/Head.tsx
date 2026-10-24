@@ -8,8 +8,8 @@ import { Link } from "@tanstack/react-router";
 import { Lens, LIVE_MORPH, useLiveDock } from "../../../components/vidrio";
 import type { PageCtx } from "./ctx";
 import { Go, Icon, RivalCrest } from "./bits";
-import { nearestPlay, type Play } from "./model";
-import { ribbonMarks, ribbonPaths, tardeOf } from "./moviola";
+import type { Play } from "./model";
+import { playheadTip, ribbonMarks, ribbonPaths, tardeOf } from "./moviola";
 
 export interface HeadProps {
   c: PageCtx;
@@ -88,12 +88,7 @@ export function Head(p: HeadProps) {
   // ---- the moviola
   const paths = ribbonPaths(c.pulse, played ? edge : 0, duration);
   const marks = played ? ribbonMarks(c.plays, edge, m, duration, trackW) : [];
-  const near = played ? nearestPlay(c.plays, m) : null;
-  const atPlay = near && near.m === m ? near : null;
-  const atN = c.plays.filter((x) => x.m === m && x.k === "cambio").length;
-  const half = Math.round(duration / 2);
-  const tip = atPlay ? (atPlay.k === "cambio" && atN > 1 ? `${atN} cambios` : atPlay.title) : m === 0 ? "Pitido inicial" : m === half ? "Descanso" : m === duration ? "Final" : live && m === edge ? "Ahora" : "";
-  const tipCls = [m < 6 ? "is-start" : m > duration - 6 ? "is-end" : "", atPlay?.k === "gol" ? "is-gold" : atPlay?.k === "rival" ? "is-them" : ""].filter(Boolean).join(" ");
+  const { tip, at: atPlay, cls: tipCls } = played ? playheadTip(c.plays, m, duration, live ? edge : null) : { tip: "", at: null, cls: "" };
   const movCls = ["pp-mov", live ? "is-live" : "", fase === "descanso" ? "is-half" : "", p.playing ? "is-playing" : ""].filter(Boolean).join(" ");
   const playLabel = p.playing ? "Pausa" : fase === "descanso" ? "Repasar la primera parte" : "Repasar el partido";
   const hint = live && fase !== "descanso" ? `Arrastra para volver a cualquier minuto: la pantalla que tengas abierta vuelve con él. El directo sigue en el ${edge}.` : fase === "descanso" ? "Arrastra o toca una jugada: la pantalla abierta vuelve a ese minuto." : "Arrastra o toca una jugada: el marcador, el cielo y la pantalla abierta vuelven a ese minuto.";

@@ -2,7 +2,7 @@
 // has, the playhead's tip, and before the whistle the evening over the ground hour by hour (the sun from sun.ts).
 import { sunPosition, sunTimes } from "../../../lib/derived/sun";
 import { madridTime } from "../../../lib/derived/madrid";
-import type { Play, PlayK } from "./model";
+import { nearestPlay, type Play, type PlayK } from "./model";
 import { focosOf } from "./partidoModel";
 
 /** Catmull-rom through the points as cubic béziers: the ribbon's soft pressure line. */
@@ -99,6 +99,18 @@ export function ribbonMarks(plays: readonly Play[], edge: number, m: number, dur
     const label = `${c.start === c.end ? `Minuto ${c.start}` : `Minutos ${c.start} a ${c.end}`}: ${c.items.length > 2 ? `${c.items.length} jugadas, ` : ""}${words.filter((w, i) => words.indexOf(w) === i).join(", ")}`;
     return { key: `${c.lane}${c.start}`, cls, left: ((c.pos / duration) * 100).toFixed(2), top: c.lane === "them" ? 76 : 24, icon: card ? null : (ICON[k] ?? "swap"), n: c.items.length, label, to: top.m };
   });
+}
+
+/** What the playhead says at minute `m` (the play there, else the whistle, the break, the end or now) and its
+ *  colour: gold for our goal, the rival's for theirs; is-start / is-end keep it inside the track. */
+export function playheadTip(plays: readonly Play[], m: number, duration: number, now: number | null): { tip: string; at: Play | null; cls: string } {
+  const near = nearestPlay(plays, m);
+  const at = near && near.m === m ? near : null;
+  const changes = plays.filter((x) => x.m === m && x.k === "cambio").length;
+  const half = Math.round(duration / 2);
+  const tip = at ? (at.k === "cambio" && changes > 1 ? `${changes} cambios` : at.title) : m === 0 ? "Pitido inicial" : m === half ? "Descanso" : m === duration ? "Final" : m === now ? "Ahora" : "";
+  const cls = [m < 6 ? "is-start" : m > duration - 6 ? "is-end" : "", at?.k === "gol" ? "is-gold" : at?.k === "rival" ? "is-them" : ""].filter(Boolean).join(" ");
+  return { tip, at, cls };
 }
 
 // ---------- «La tarde»

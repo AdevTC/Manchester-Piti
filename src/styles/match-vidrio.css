@@ -197,6 +197,37 @@
 .pp .pp-mini__w .vd-livedot{margin:0}
 .pp.is-compact .pp-mini{height:40px;opacity:1;visibility:visible;transition:height .28s var(--vd-ease),opacity .2s var(--vd-ease),visibility 0s}
 .pp.is-compact .pp-mini:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-3px}
+/* the moviola in the strip (partido/Tira.tsx): folded while the header is in view. Phone: «el hilo», a rail with
+   the goals (ours filled gold, theirs a ring) and the minute riding it */
+.pp .pp-tira{position:relative;z-index:1;display:flex;align-items:center;gap:4px;height:0;padding:0 22px;overflow:hidden;opacity:0;visibility:hidden;
+  transition:height .28s var(--vd-ease),opacity .2s var(--vd-ease),visibility 0s .28s}
+.pp.is-compact .pp-tira{height:30px;padding-bottom:4px;opacity:1;visibility:visible;transition:height .28s var(--vd-ease),opacity .2s var(--vd-ease),visibility 0s}
+.pp.is-compact.has-tira .pp-tabs__prog{display:none}
+.pp .pp-tira__bar{display:none}
+.pp .pp-tira__track{position:relative;flex:1;min-width:0;height:4px}
+.pp .pp-tira__rib{display:none}
+.pp .pp-tira__rail{position:absolute;inset:0;border-radius:4px;background:rgba(234,243,252,.14)}
+:root[data-theme="light"] .pp .pp-tira__rail{background:rgba(12,23,51,.12)}
+.pp .pp-tira__fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,rgba(108,171,221,.25),var(--vd-celeste));transition:width .18s linear}
+:root[data-theme="light"] .pp .pp-tira__fill{background:linear-gradient(90deg,rgba(12,23,51,.1),var(--vd-marino))}
+.pp .pp-tira__dot{position:absolute;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;box-sizing:border-box;transition:opacity .3s var(--vd-ease)}
+.pp .pp-tira__dot.is-gold{background:var(--vd-oro)}
+.pp .pp-tira__dot.is-them{background:var(--vd-solid);border:2.5px solid var(--vd-rival)}
+.pp .pp-tira__dot.is-later{opacity:.45}
+.pp .pp-tira__live{top:-6px;bottom:-6px}
+.pp .pp-tira__chip{position:absolute;top:50%;left:0;z-index:2;display:flex;align-items:center;transform:translate(-50%,-50%);padding:2px 9px;border-radius:999px;white-space:nowrap;pointer-events:none;
+  background:var(--vd-solid);color:var(--vd-g-ink);font-size:12px;font-weight:600;box-shadow:0 0 0 1px var(--vd-rule2),0 6px 14px -6px rgba(2,8,26,.7);transition:left .18s linear}
+.pp .pp-tira__chip b{font-size:12.5px;font-weight:760}
+.pp .pp-tira__chip.is-start{transform:translate(-8px,-50%)}
+.pp .pp-tira__chip.is-end{transform:translate(calc(-100% + 8px),-50%)}
+.pp .pp-tira__chip.is-gold{background:var(--vd-oro);color:#2b1d00}
+.pp .pp-tira__chip.is-them{background:var(--vd-rival);color:#2a0b07}
+:root[data-theme="light"] .pp .pp-tira__chip.is-them{color:#fff}
+.pp .pp-tira__tip{display:none}
+.pp .pp-tira__range{position:absolute;left:0;right:0;top:-13px;bottom:-13px;width:100%;height:auto;margin:0;opacity:0;cursor:ew-resize;z-index:3}
+.pp .pp-tira__range:focus-visible{opacity:1;background:transparent;outline:2px solid var(--vd-celeste);outline-offset:2px;border-radius:10px;-webkit-appearance:none;appearance:none}
+.pp .pp-tira__range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:30px;background:transparent;border:0}
+.pp .pp-tira__range::-moz-range-thumb{width:28px;height:30px;background:transparent;border:0}
 
 /* ---------- the screen: one at a time, it owns the whole content area */
 .pp .pp-screen{position:relative;min-width:0;min-height:420px;padding-top:8px;view-transition-name:pp-screen;view-transition-class:vd-reg;touch-action:pan-y}
@@ -335,6 +366,25 @@
   .pp .pp-tabs__list{grid-template-columns:repeat(4,minmax(150px,200px));justify-content:center}
   .pp .pp-mini{position:absolute;left:16px;top:0;bottom:0;height:auto!important;width:0;justify-content:flex-start;transition:opacity .25s var(--vd-ease)}
   .pp.is-compact .pp-mini{width:auto}
+  /* the strip's moviola is «la cinta»: ‹ ▶ ›, the ribbon with its plays, the minute and what happened */
+  .pp .pp-tira{padding:0 12px}
+  .pp.is-compact .pp-tira{height:50px;padding-bottom:8px}
+  .pp .pp-tira__bar{display:flex;gap:4px}
+  .pp .pp-tira__b{width:36px;height:36px}
+  .pp .pp-tira__b .pp-i{width:16px;height:16px}
+  .pp .pp-tira.is-live .pp-tira__play{display:none}
+  .pp .pp-tira__track{height:40px;margin:0 6px 0 12px}
+  .pp .pp-tira__rib{display:block;position:absolute;inset:0;height:auto;margin:0}
+  .pp .pp-tira__rib svg{position:absolute;inset:0;width:100%;height:100%}
+  .pp .pp-tira__ghost{opacity:.32}
+  .pp .pp-tira__rib .vd-ribbon__mark{transform:translate(-50%,-50%) scale(.72);transition:opacity .3s var(--vd-ease)}
+  .pp .pp-tira__rib .vd-ribbon__mark.is-later{opacity:.42}
+  .pp .pp-tira__rail{display:none}
+  .pp .pp-tira__live{top:2px;bottom:2px}
+  .pp .pp-tira__tip{display:inline;margin-left:4px}
+  .pp .pp-tira__range{top:-5px;bottom:-5px}
+  .pp .pp-tira__range::-webkit-slider-thumb{height:50px}
+  .pp .pp-tira__range::-moz-range-thumb{height:50px}
   .pp .pp-tab{min-height:64px}
   .pp .pp-toast{bottom:28px}
   .pp .pp-place__head h2{font-size:28px}
@@ -345,6 +395,10 @@
 @container (min-width:700px) and (max-width:1219px){
   .pp .pp-mini{position:relative;left:auto;width:auto;height:0}
   .pp.is-compact .pp-mini{height:40px}
+}
+/* the score strip beside the tabs keeps to the tabs' row: the cinta runs under both */
+@container (min-width:1220px){
+  .pp.has-tira .pp-mini{bottom:auto;height:64px!important}
 }
 
 /* ---------- big screens (1920): more room for the same header, never more windows */
@@ -371,7 +425,7 @@
 }
 
 @media (prefers-reduced-motion:reduce){
-  .pp .pp-dg__w,.pp>.pp-sky-b,.pp .pp-head,.pp .pp-rib .vd-ribbon__mark,.pp .pp-toast,.pp .pp-sheet,.pp .pp-mini,.pp .pp-tabs__prog,.pp .pp-tab{transition:none!important;animation:none!important}
+  .pp .pp-dg__w,.pp>.pp-sky-b,.pp .pp-head,.pp .pp-rib .vd-ribbon__mark,.pp .pp-toast,.pp .pp-sheet,.pp .pp-mini,.pp .pp-tabs__prog,.pp .pp-tab,.pp .pp-tira,.pp .pp-tira__chip,.pp .pp-tira__fill,.pp .pp-tira__dot,.pp .pp-tira__rib .vd-ribbon__mark{transition:none!important;animation:none!important}
   .pp .pp-lens.is-goal .pp-score{animation:none}
 }
 
