@@ -224,7 +224,9 @@
 .pp .pp-tira__chip.is-them{background:var(--vd-rival);color:#2a0b07}
 :root[data-theme="light"] .pp .pp-tira__chip.is-them{color:#fff}
 .pp .pp-tira__tip{display:none}
-.pp .pp-tira__range{position:absolute;left:0;right:0;top:-13px;bottom:-13px;width:100%;height:auto;margin:0;opacity:0;cursor:ew-resize;z-index:3}
+/* (touch-action:none: Chrome on Android lets a slightly slanted drag over a range also scroll the page — in a 30px
+   strip that is every drag — so the page climbed while the minute moved) */
+.pp .pp-tira__range{position:absolute;left:0;right:0;top:-13px;bottom:-13px;width:100%;height:auto;margin:0;opacity:0;cursor:ew-resize;z-index:3;touch-action:none}
 .pp .pp-tira__range:focus-visible{opacity:1;background:transparent;outline:2px solid var(--vd-celeste);outline-offset:2px;border-radius:10px;-webkit-appearance:none;appearance:none}
 .pp .pp-tira__range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:30px;background:transparent;border:0}
 .pp .pp-tira__range::-moz-range-thumb{width:28px;height:30px;background:transparent;border:0}
