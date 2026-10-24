@@ -31,6 +31,16 @@ describe("the moviola in the sticky strip", () => {
     expect(v.onPlay).toHaveBeenCalled();
   });
 
+  it("takes the finger without scrolling the page back to where the strip sits", () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    render(<Tira c={ctxAt(20)} on playing={false} {...verbs()} />);
+    const range = screen.getByRole("slider");
+    fireEvent.pointerDown(range);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(range).toHaveFocus();
+    focus.mockRestore();
+  });
+
   it("says the minute and what happened in it, our goal in gold", () => {
     const { container } = render(<Tira c={ctxAt(43)} on playing={false} {...verbs()} />);
     const chip = container.querySelector(".pp-tira__chip");

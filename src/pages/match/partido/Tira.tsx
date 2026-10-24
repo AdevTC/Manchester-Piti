@@ -2,7 +2,7 @@
 // screen below (the siete, the números) can still be moved minute by minute. On a wide page it is «la cinta» (the
 // ribbon, its plays, ‹ ▶ › and the minute with what happened); on the phone «el hilo» (a thin rail with the goals
 // and the minute), so the strip only grows a little. The same verbs as the header's: one moviola, two handles.
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type SyntheticEvent } from "react";
 import type { PageCtx } from "./ctx";
 import { Icon } from "./bits";
 import { playheadTip, ribbonMarks, ribbonPaths } from "./moviola";
@@ -16,6 +16,10 @@ export interface TiraProps {
   onJump: (dir: 1 | -1) => void;
   onSeek: (m: number, fromDrag: boolean) => void;
 }
+
+const keepScroll = (e: SyntheticEvent<HTMLInputElement>) => {
+  if (document.activeElement !== e.currentTarget) e.currentTarget.focus({ preventScroll: true });
+};
 
 export function Tira({ c, on, playing, onPlay, onJump, onSeek }: TiraProps) {
   const { minute: m, edge, duration, live, fase } = c;
@@ -94,6 +98,10 @@ export function Tira({ c, on, playing, onPlay, onJump, onSeek }: TiraProps) {
           max={edge}
           step={1}
           value={m}
+          // (focused by hand without scrolling: a phone scrolls a focused field inside a sticky bar back to where the
+          // bar sits in the page, the top, before the drag even starts)
+          onPointerDown={keepScroll}
+          onTouchStart={keepScroll}
           onChange={(e: ChangeEvent<HTMLInputElement>) => onSeek(Number(e.target.value), true)}
           aria-label="La moviola: minuto del partido"
           aria-valuetext={`Minuto ${m}${at ? `, ${at.title}` : ""}. Marcador ${sc.us} a ${sc.them}`}
