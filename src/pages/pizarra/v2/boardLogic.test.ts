@@ -442,7 +442,7 @@ describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () =>
     const L = lineupOf(["gk", "dc", "c2", "ya", "za", "xa", "c1"], "2-3-1", sq);
     expect(ids(autoPlace(L, sq))).toEqual(["gk", "c1", "c2", "xa", "ya", "za", "dc"]);
   });
-  it("Auto-colocar: from the bench, in place before adaptado unless 15 points of form apart; between those in place, form", () => {
+  it("Auto-colocar: from the bench, in place before adaptado unless 10 points of form apart; between those in place, form", () => {
     const L6 = (sq: ReturnType<typeof squadOf>) => lineupOf(["gk", "c1", "c2", "mi", "mc", "md", null], "2-3-1", sq);
     // ext: EI 99 (adaptado at DC) · d2: DC 60 · d3: DC 80 · d4: MCO también DC 95 — in place, the best form
     const sq = squadOf([...base, x("ext", 11, "EI", [], { rt: 99 }), x("d2", 12, "DC", [], { rt: 60 }), x("d3", 13, "DC", [], { rt: 80 }), x("d4", 14, "MCO", ["DC"], { rt: 95 })]);
@@ -461,11 +461,11 @@ describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () =>
     const L = lineupOf(["gk", "c2", "c1", "mi", "mc", "md", "dc"], "2-3-1", sq);
     const n = autoPlace(L, sq);
     expect(ids(n)).toEqual(ids(L));
-    // Auto-colocar arranges, it doesn't re-pick: the same fit from the bench comes in only with 15+ more
-    // form (here +10 stays out, +16 comes in)
-    expect(autoPlace(L, squadOf([...sq.list, x("ten", 12, "DC", [], { rt: 60 })])).slots[6].playerId).toBe("dc");
-    expect(autoPlace(L, squadOf([...sq.list, x("six", 12, "DC", [], { rt: 66 })])).slots[6].playerId).toBe("six");
-    const lat = squadOf([...base, x("ext", 11, "EI", [], { rt: 50 }), x("ed", 12, "ED", [], { rt: 60 })]);
+    // Auto-colocar arranges, it doesn't re-pick: the same fit from the bench comes in only with about 10
+    // more form (no answer yet: 8; here +7 stays out, +8 comes in)
+    expect(autoPlace(L, squadOf([...sq.list, x("seven", 12, "DC", [], { rt: 57 })])).slots[6].playerId).toBe("dc");
+    expect(autoPlace(L, squadOf([...sq.list, x("eight", 12, "DC", [], { rt: 58 })])).slots[6].playerId).toBe("eight");
+    const lat = squadOf([...base, x("ext", 11, "EI", [], { rt: 50 }), x("ed", 12, "ED", [], { rt: 55 })]);
     expect(autoPlace(lineupOf(["gk", "c1", "c2", "mi", "mc", "md", "ext"], "2-3-1", lat), lat).slots[6].playerId).toBe("ext");
     const withStar = squadOf([...sq.list, x("star", 12, "DC", [], { rt: 99 })]);
     expect(autoPlace(L, withStar).slots[6].playerId).toBe("star");
@@ -482,11 +482,12 @@ describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () =>
     const pair = (pablo: number, lucas: number) =>
       squadOf([x("gk", 1, "POR", [], { rt: 99 }), x("c1", 2, "DFC"), x("c2", 3, "DFC"), x("mc", 5, "MC"), x("md", 6, "MD"), x("dc", 9, "DC"), x("pablo", 16, "MCD", [], { rt: pablo }), x("lucas", 17, "EI", ["MI"], { rt: lucas })]);
     const both = (sq: ReturnType<typeof squadOf>) => [autoPlace(lineupOf([], "2-3-1", sq), sq), suggestSeven(lineupOf([], "2-3-1", sq), sq)];
-    it("an adaptado 15+ points better in form takes the slot of one in place (Pablo 75 adaptado over Lucas 45 también at MI)", () => {
+    it("an adaptado 10+ points better in form takes the slot of one in place (Pablo 72 adaptado over Lucas 60 también at MI)", () => {
+      both(pair(72, 60)).forEach((n) => expect(n.slots[3].playerId).toBe("pablo"));
       both(pair(75, 45)).forEach((n) => expect(n.slots[3].playerId).toBe("pablo"));
     });
-    it("with less than 15 between them, the one in place keeps it (Lucas 60 también over Pablo 70 adaptado)", () => {
-      both(pair(70, 60)).forEach((n) => expect(n.slots[3].playerId).toBe("lucas"));
+    it("with less than 10 between them, the one in place keeps it (Lucas 62 también over Pablo 70 adaptado)", () => {
+      both(pair(70, 62)).forEach((n) => expect(n.slots[3].playerId).toBe("lucas"));
     });
     it("in place or adaptado always beat fuera, whatever the form", () => {
       // gk2 (a keeper: fuera at DC) 95 against pun (DC, in place) 50, then against ext (EI, adaptado at DC) 45
@@ -504,7 +505,7 @@ describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () =>
     // somebody we know nothing about counts as adaptado too
     const s2 = squadOf([...base, x("lat", 10, "LD", [], { rt: 95 }), cromo("u", 12, undefined, { rt: 45 })]);
     expect(autoPlace(L(s2), s2).slots[6].playerId).toBe("u");
-    // an adaptado on the pitch stays against an adaptado of the bench a little better (the pitch's +5), not a much better one
+    // an adaptado on the pitch stays against an adaptado of the bench a little better (the pitch's FIT_STICK), not a much better one
     const s3 = squadOf([...base, x("ext", 11, "EI", [], { rt: 50 }), x("ed", 12, "ED", [], { rt: 52 })]);
     const A = lineupOf(["gk", "c1", "c2", "mi", "mc", "md", "ext"], "2-3-1", s3);
     expect(autoPlace(A, s3).slots[6].playerId).toBe("ext");
@@ -530,8 +531,8 @@ describe("Auto-colocar and «Sugerir siete» by encaje (exact positions)", () =>
     expect(ids(n)).toEqual(["gk", "c1", "c2", "mi", "mc", "md", "pun"]);
   });
   it("Sugerir siete: each to his preferida when it costs only a little form (not the best three medios anywhere)", () => {
-    // MI MC MD: mc1 MC 95 · mc2 MC 90 (adaptado at MI/MD: 90 + 10 < 80 + 25) · mi MI 80 · md MD 80
-    const sq = squadOf([x("gk", 1, "POR"), x("c1", 2, "DFC"), x("c2", 3, "DFC"), x("dc", 9, "DC"), x("mc1", 5, "MC", [], { rt: 95 }), x("mc2", 6, "MC", [], { rt: 90 }), x("mi", 4, "MI", [], { rt: 80 }), x("md", 8, "MD", [], { rt: 80 })]);
+    // MI MC MD: mc1 MC 95 · mc2 MC 88 (adaptado at MI/MD: 88 < 80 + the step, 10) · mi MI 80 · md MD 80
+    const sq = squadOf([x("gk", 1, "POR"), x("c1", 2, "DFC"), x("c2", 3, "DFC"), x("dc", 9, "DC"), x("mc1", 5, "MC", [], { rt: 95 }), x("mc2", 6, "MC", [], { rt: 88 }), x("mi", 4, "MI", [], { rt: 80 }), x("md", 8, "MD", [], { rt: 80 })]);
     const n = suggestSeven(lineupOf([], "2-3-1", sq), sq);
     expect(ids(n).slice(3, 6)).toEqual(["mi", "mc1", "md"]);
   });

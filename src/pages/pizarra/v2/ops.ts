@@ -284,8 +284,8 @@ export function autoByEncajeOn(L: Lineup, sq: Squad, called: ReadonlySet<string>
  * Auto-colocar with exact positions (someone has a preferida or a también): the best placement of the
  * pitch and the bench, an exact max-weight assignment with encaje and form in balance (ratings.ts
  * FIT_*): in place or adaptado (or unknown) always over fuera; between in place and adaptado the form
- * decides once it is 15 points apart. It arranges the seven rather than re-picking it: the pitch gets
- * FIT_STICK (14) over the bench, so the same fit from the bench comes in only with about 15 more form;
+ * decides once it is 10 points apart. It arranges the seven rather than re-picking it: the pitch gets
+ * FIT_STICK (9) over the bench, so the same fit from the bench comes in only with about 10 more form;
  * the bench's answer («Voy», no answer, «Duda»: 2 a step) only tips near-equals; the grade (preferida
  * over también) and staying in his own slot break exact ties. The keeper's slot only to a declared keeper while there is one.
  */

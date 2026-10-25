@@ -29,7 +29,8 @@ Cambiar un número es cambiar el modelo: sube `MODEL_VERSION` y actualiza esta p
   - Sin GLOBAL ni FOR al mezclar temporadas; las notas siguen valiendo para las posiciones.
 - **Tipos de carta**: oro desde 75, plata de 65 a 74 y bronce por debajo de 65. «En racha» (gol o asistencia en las tres últimas) manda sobre el tipo.
 - **Posiciones**: la valoración de un puesto es GLOBAL sobre los partidos en los que ese fue su puesto con más minutos. Aparece desde dos partidos.
-- **Bandas de la mesa** (`FORM_BANDS`): baja < 55, floja 55–61, normal 62–67, buena 68–74, muy buena ≥ 75.
+- **Bandas** (`GLOBAL_BANDS`): baja < 55, floja 55–61, normal 62–67, buena 68–74, muy buena ≥ 75. Las usa el medidor de forma de la mesa. La barra FOR de la pizarra (la media de GLOBAL del siete) se enciende desde «buena».
+- **Pizarra** (`FIT_FORM_STEP` = 10, en `pages/pizarra/v2/ratings.ts`): al colocar por posiciones exactas, un adaptado le quita el sitio a uno en su posición solo con 10 puntos más de GLOBAL, lo que va de plata a oro. Un jugador del banquillo con el mismo encaje entra por uno del campo con unos 10 puntos más: 6 si dijo «voy», 8 si no contestó.
 
 ## Lo que vale cada acción (en goles)
 
