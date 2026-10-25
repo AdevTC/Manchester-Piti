@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lineOf, type PosCode, type ResolvedPositions } from "../../../lib/positions";
-import { andList, avisoTxt, avisoUrl, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, type BenchFilter, type BenchHand } from "./bench";
+import { andList, avisoTxt, avisoUrl, BAR_FOR_HI, benchGroups, calledOf, convHead, pitchFound, reparto, squadInfo, type BenchFilter, type BenchHand } from "./bench";
 import type { Cromo } from "./model";
 import { slotLabel } from "./geometry";
 import { withConvocatoria, type CalMatch } from "./boards";
@@ -15,7 +15,7 @@ const OFF: BenchFilter = { on: false, q: "", zf: "Todos", oc: false };
 const off = (L: ReturnType<typeof lineupOf>, s = sq) => s.list.filter((c) => !L.slots.some((x) => x.playerId === c.id));
 
 describe("the squad bars", () => {
-  it("media of the seven on the pitch, the química's diamonds and the four axes (hi ≥ 80, lo < 50)", () => {
+  it("media of the seven on the pitch, the química's diamonds and the four axes (hi ≥ 80, FOR ≥ «Buena»; lo < 50)", () => {
     const L = lineupOf(SEVEN, "2-3-1", sq);
     const ch = chem(L, sq);
     const info = squadInfo(L, sq, ch);
@@ -23,11 +23,21 @@ describe("the squad bars", () => {
     expect(info.once).toBe("7/7");
     expect(info.bars.map((b) => b.k)).toEqual(["ATA", "DEF", "FOR", "EXP"]);
     expect(info.bars.map((b) => b.v)).toEqual([ch.at, ch.de, ch.fo, ch.ex]);
-    info.bars.forEach((b) => expect(b.cls).toBe(b.v >= 80 ? "hi" : b.v < 50 ? "lo" : ""));
+    info.bars.forEach((b) => expect(b.cls).toBe(b.v >= (b.k === "FOR" ? BAR_FOR_HI : 80) ? "hi" : b.v < 50 ? "lo" : ""));
     const lit = ch.v >= 80 ? 3 : ch.v >= 60 ? 2 : ch.v >= 35 ? 1 : 0;
     expect(info.dm.filter(Boolean)).toHaveLength(lit);
     const empty = squadInfo(lineupOf([], "2-3-1", sq), sq, chem(lineupOf([], "2-3-1", sq), sq));
     expect(empty).toMatchObject({ media: 0, once: "0/7", dm: [false, false, false] });
+  });
+  it("FOR (the seven's mean GLOBAL) lights up from «Buena», the mesa's band, not from the química's 80", () => {
+    const forBar = (rt: number) => {
+      const s = squadOf(sq.list.map((c) => ({ ...c, rt })));
+      const L = lineupOf(SEVEN, "2-3-1", s);
+      return squadInfo(L, s, chem(L, s)).bars.find((b) => b.k === "FOR");
+    };
+    expect(BAR_FOR_HI).toBe(68);
+    expect(forBar(68)).toMatchObject({ v: 68, cls: "hi" });
+    expect(forBar(67)).toMatchObject({ v: 67, cls: "" });
   });
 });
 

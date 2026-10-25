@@ -5,7 +5,7 @@
 // matches/{id}.present (setMatchPresent).
 import type { Convocatoria, Cromo } from "../../pizarra/v2/model";
 import { formAria, rtTxt } from "../../pizarra/v2/model";
-import { TIER_ORO } from "../../../lib/rating/constants";
+import { GLOBAL_BANDS } from "../../../lib/rating/constants";
 
 export interface Convocado {
   id: string;
@@ -25,15 +25,14 @@ export interface FormMeter {
   low: boolean;
 }
 
-/** Where GLOBAL's bands start (65 is a normal season, oro from TIER_ORO): Floja, Normal, Buena, Muy buena. */
-export const FORM_BANDS = [55, 62, 68, TIER_ORO] as const;
-/** The form meter for a cromo: its GLOBAL cut in five bands; «En racha» lights all five. */
+/** The form meter for a cromo: its GLOBAL cut in five bands (GLOBAL_BANDS: 65 is a normal season, oro
+ *  «Muy buena»); «En racha» lights all five. */
 export function formMeter(c: Pick<Cromo, "rt" | "unrated" | "form"> | undefined): FormMeter {
   if (!c || c.unrated) return { level: 0, word: FORM_WORDS[0], hot: false, low: false };
   const played = (c.form ?? []).filter((g) => g.played);
   const last3 = played.slice(-3);
   if (last3.length === 3 && last3.every((g) => g.ga > 0)) return { level: 5, word: "En racha", hot: true, low: false };
-  const level = 1 + FORM_BANDS.filter((from) => c.rt >= from).length;
+  const level = 1 + GLOBAL_BANDS.filter((from) => c.rt >= from).length;
   return { level, word: FORM_WORDS[level], hot: false, low: level === 1 };
 }
 

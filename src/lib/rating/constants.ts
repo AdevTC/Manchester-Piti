@@ -29,6 +29,8 @@ export const NARRATED_MIN_ACTIONS = 30;
 export const PROVISIONAL_MINUTES = 150;
 export const TIER_ORO = 75;
 export const TIER_PLATA = 65;
+/** Where GLOBAL's words start (the mesa's form meter, the pizarra's FOR bar): Floja, Normal, Buena, Muy buena (oro). */
+export const GLOBAL_BANDS = [55, 62, 68, TIER_ORO] as const;
 
 // ── zones: our chance of scoring in the next few actions with the ball there (own area … opponent area)
 export const ZONE_THREAT = [0.005, 0.01, 0.02, 0.05, 0.12] as const;

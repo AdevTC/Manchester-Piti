@@ -76,7 +76,7 @@ export function sevenByEncajeOn(L: Lineup, sq: Squad, first: readonly string[] =
  * The seven with exact positions (someone has a preferida or a también, or a «Jugar de» by code on the
  * pitch): an exact assignment — the convocatoria's siete always plays; then encaje and form in balance
  * (ratings.ts FIT_*): in place or adaptado (or unknown) always over fuera, and between in place and
- * adaptado the form (the rating) decides once it is 15 points apart; the answer («Voy» before no answer
+ * adaptado the form (the rating) decides once it is 10 points apart; the answer («Voy» before no answer
  * before «Duda», −2 a step) and, for an adaptado or an unknown, having played there in the official
  * (fam ≥ 2, +5: that exact position for a player with one, else that line) only tip near-equals; exact
  * ties follow the pack's order. Keepers: the goal only to a declared

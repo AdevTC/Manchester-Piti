@@ -12,14 +12,17 @@ import { matchShort, type CalMatch } from "./boards";
 import { plural } from "./plural";
 import { mediaOf } from "./view";
 import { fmtMinutes, wholeMinutes } from "../../../lib/derived/minutes";
+import { GLOBAL_BANDS } from "../../../lib/rating/constants";
 
 // ── the squad bars ──
 export interface SquadBar {
   k: "ATA" | "DEF" | "FOR" | "EXP";
   v: number;
-  /** "hi" ≥ 80, "lo" < 50. */
+  /** "hi" ≥ 80 (FOR ≥ BAR_FOR_HI), "lo" < 50. */
   cls: "" | "hi" | "lo";
 }
+/** FOR is the seven's mean GLOBAL: it lights up from «Buena», the mesa's band (65 is a normal season). */
+export const BAR_FOR_HI = GLOBAL_BANDS[2];
 export interface SquadInfo {
   /** Mean form rating of the seven on the pitch who have played (0 with nobody). */
   media: number;
@@ -33,7 +36,7 @@ export interface SquadInfo {
 export function squadInfo(L: Lineup, sq: Squad, ch: Chem): SquadInfo {
   const media = mediaOf(L, sq);
   const t = tierDiamonds(ch.v);
-  const bar = (k: SquadBar["k"], v: number): SquadBar => ({ k, v, cls: v >= 80 ? "hi" : v < 50 ? "lo" : "" });
+  const bar = (k: SquadBar["k"], v: number): SquadBar => ({ k, v, cls: v >= (k === "FOR" ? BAR_FOR_HI : 80) ? "hi" : v < 50 ? "lo" : "" });
   return { media, once: ch.n + "/7", dm: [0, 1, 2].map((i) => i < t), bars: [bar("ATA", ch.at), bar("DEF", ch.de), bar("FOR", ch.fo), bar("EXP", ch.ex)] };
 }
 
