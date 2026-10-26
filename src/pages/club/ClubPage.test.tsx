@@ -49,6 +49,13 @@ it("the hub: the vitrina with the crest on its peana and the four doors", () => 
   expect(screen.getByRole("button", { name: /^El vestuario\. Solo plantilla/ })).toBeInTheDocument();
 });
 
+it("the head's actions keep their names when a phone hides their words", () => {
+  render(<ClubPage />);
+  expect(screen.getByRole("button", { name: "Compartir el club" })).toHaveAttribute("aria-label", "Compartir el club");
+  expect(screen.getByRole("link", { name: "Instagram de Manchester Piti (se abre en otra pestaña)" })).toHaveAttribute("href", "https://www.instagram.com/manchesterpiti.__/");
+  expect(screen.getByRole("link", { name: "YouTube de Manchester Piti (se abre en otra pestaña)" })).toHaveAttribute("href", "https://www.youtube.com/@ManchesterPitiFC2026");
+});
+
 it("a door opens its room's address", () => {
   render(<ClubPage />);
   fireEvent.click(screen.getByRole("button", { name: /^La gente\./ }));

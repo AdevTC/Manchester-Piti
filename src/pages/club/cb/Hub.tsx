@@ -124,7 +124,8 @@ export function Hub({ headSub, next, share, social, pieces, focus, pick, seasonN
               <span>{l.name}</span>
             </a>
           ))}
-          <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm cb-share" onClick={share}>
+          {/* (its word hides on a phone: the name stays in aria-label) */}
+          <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm cb-share" aria-label="Compartir el club" onClick={share}>
             <I n="share" />
             <span>Compartir el club</span>
           </button>
