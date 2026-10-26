@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // The boot check runs once the session is known (the personal topics need the member's sign-in).
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

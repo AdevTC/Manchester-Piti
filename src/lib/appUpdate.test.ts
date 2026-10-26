@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { appUpdate, CHECK_GAP_MS, holdsUpdate, NAV_CHECK_GAP_MS, QUIET_MS, startAppUpdates, type UpdateRouter } from "./appUpdate";
 

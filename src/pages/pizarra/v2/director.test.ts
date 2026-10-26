@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Stadium3DHandle } from "../../../components/pitch3d/Stadium3D";
 import type { PlayController, PlayOptions, RevealOptions } from "../../../components/pitch3d/types";

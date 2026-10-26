@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { inlineBundle } from "./inlineBundle";
 import { identityTokenUrl, PURGE_GAP_MS, PURGE_URL, purgeDue, purgeRequest } from "../../functions/src/htmlCacheLogic";

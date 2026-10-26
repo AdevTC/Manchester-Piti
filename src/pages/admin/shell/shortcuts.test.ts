@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { CHORD_MS, chordStep, isTypingTarget } from "./shortcuts";
 import { goHint, goKeys, sectionForGo } from "./nav";

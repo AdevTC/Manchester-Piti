@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RecapCard } from "../../lib/derived/seasonRecap";
 import { drawRecapCard, heroSize, RECAP_FACES, RECAP_PALETTE, RECAP_SIZE, recapFonts, recapLayout, recapText } from "./recapDraw";

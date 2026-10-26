@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // This device's push subscription kept alive (src/lib/push.ts): the boot check re-asserts a lost or
 // renewed subscription at most once a day, a stale session (signed out, another account) at once, the
 // service worker's own re-subscription at once, and all-well once a week (to learn whether the server

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { PerspectiveCamera, Vector3 } from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";

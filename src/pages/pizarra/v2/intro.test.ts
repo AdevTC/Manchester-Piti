@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { INTRO3D_KEY, INTRO_KEY, intro3dWanted, introKind, introSeen, markIntroSeen, setIntro3dWanted, type IntroArgs } from "./intro";
 

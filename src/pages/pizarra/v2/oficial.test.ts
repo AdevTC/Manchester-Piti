@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 import { CARTEL_GAP, cartelLayout, spreadCromos } from "./cartel";
 import { chemOf } from "./quimica";

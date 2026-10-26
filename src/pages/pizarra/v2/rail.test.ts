@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NUEVO_DESDE, NUEVO_DIAS, noteToolOpened, nuevoOn, RAIL } from "./rail";
 

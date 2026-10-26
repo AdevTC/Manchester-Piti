@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Characterisation: what Partidos, the match page and the club page showed with their own copies of
 // mapsUrl / kitLabel / origin() before they shared this module (bloque 5, D3).
 import { afterEach, describe, expect, it, vi } from "vitest";

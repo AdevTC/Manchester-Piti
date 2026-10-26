@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { loadFirebase } from "./fb";
 import { createElement, type ReactNode } from "react";

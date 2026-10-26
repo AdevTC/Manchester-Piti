@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type { INPMetricWithAttribution, LCPMetricWithAttribution, CLSMetricWithAttribution } from "web-vitals/attribution";
 import { parseVitals, MAX_BODY, RATE_PER_MIN, withinRate } from "../../functions/src/vitalsLogic";

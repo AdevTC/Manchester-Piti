@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { countTxt, fold, matches, noteOpened, organize, readSort, recentIds, recentRows, RECENT_KEEP, writeSort, type Organizable } from "./boardList";
 

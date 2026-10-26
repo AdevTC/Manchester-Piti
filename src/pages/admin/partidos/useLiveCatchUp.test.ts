@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { defaultSheet, isSheet, type MatchEvent, type MatchSheet } from "../acta/sheetModel";

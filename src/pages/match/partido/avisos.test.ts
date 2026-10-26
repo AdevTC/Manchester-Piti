@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // «Avisos de este partido» (avisos.ts): the sheet starts from this device's real choice for the match, a
 // device that can't get notices shows the switches off with the reason, and a switch saves the match's
 // override (optimistic; a failure goes back and says why).

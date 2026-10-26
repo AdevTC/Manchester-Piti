@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { PREFS0, readPrefs } from "../pizarra/v2/prefs";
 import {
