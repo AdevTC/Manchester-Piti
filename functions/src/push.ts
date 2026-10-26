@@ -204,14 +204,15 @@ export const pushUnsubscribe = onCall(async (req) => {
 
 /** Sends a notice to everyone subscribed to its topic (or only to `uid`'s devices). A personal notice
  *  goes to `uid`'s devices only, whatever their topics (and nowhere without a uid). */
-/** `skip`: members whose devices a broadcast leaves out (they got their own version of it). */
-export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<string>) {
+/** `skip`: members whose devices a broadcast leaves out (they got their own version of it); `keep` false: a push
+ *  only, not kept in the centro de avisos (a personal copy of a notice the bell already has for everyone). */
+export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<string>, keep = true) {
   const matchId = noticeMatchId(notice.url);
   if (matchId && !(await matchActive(matchId))) return;
   const who = pushAudience(notice, uid);
   if (!who) return;
   // The centro de avisos keeps it too, whoever has push on (even nobody).
-  await keepNotice(notice, uid);
+  if (keep) await keepNotice(notice, uid);
   let q: FirebaseFirestore.Query = db.collection("pushSubscriptions");
   if (who.topic) q = q.where("topics", "array-contains", who.topic);
   if (who.uid) q = q.where("uid", "==", who.uid);
@@ -356,7 +357,7 @@ async function notasOnMatch(matchId: string, before: MatchLike | undefined, afte
     const uid = (await db.doc(`playerLinks/${pid}`).get()).get("uid");
     if (typeof uid !== "string" || !uid) continue;
     told.add(uid);
-    if (await claimLog(`notas-${matchId}-${pid}`, matchId)) await sendTo(mine, uid);
+    if (await claimLog(`notas-${matchId}-${pid}`, matchId)) await sendTo(mine, uid, undefined, false);
   }
   await sendTo(everyone, undefined, told);
 }

@@ -113,6 +113,10 @@ export function positionsPlayed(
         const c = vacated.get(outId) ?? null;
         vacated.delete(outId);
         open(inId, t, c ?? ownMain(inId));
+      } else if (!ledger[outId]) {
+        // (one the ledger doesn't hold — a guest, in a stored acta that keeps members only — went off: whoever came
+        // on for him plays at his own main, estimated)
+        open(inId, t, ownMain(inId));
       }
     } else if (SENT_OFF.has(e.type)) {
       const cur = on.get(e.playerId);
@@ -262,7 +266,9 @@ export function swapsChanged(before: unknown, after: readonly EventLike[]): Set<
   const was = sign(Array.isArray(before) ? before : []);
   const now = sign(after);
   const out = new Set<string>();
-  for (const pid of new Set([...was.keys(), ...now.keys()])) if ((was.get(pid) ?? []).join("|") !== (now.get(pid) ?? []).join("|")) out.add(pid);
+  // (in any order: the same swaps written in another order are the same recolocación)
+  const key = (list: readonly string[] | undefined) => [...(list ?? [])].sort().join("|");
+  for (const pid of new Set([...was.keys(), ...now.keys()])) if (key(was.get(pid)) !== key(now.get(pid))) out.add(pid);
   return out;
 }
 

@@ -27,6 +27,7 @@ import { mvpDoc, tallyVotes } from "./mvpLogic.js";
 import { notasDoc, parseStoredNotas } from "./rating/frozen.js";
 import { standingsLike } from "./rating/rival.js";
 import { frozenNotas } from "./rating/season.js";
+import { matchValue } from "./rating/values.js";
 import type { RatingMatch, StandingsLike } from "./rating/types.js";
 
 /** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
@@ -194,9 +195,12 @@ export async function publishSheet(input: PublishRequest) {
         db.collection("matches").where("seasonId", "==", sheet.seasonId).where("status", "==", "finished").get(),
         db.doc(`standings/${sheet.seasonId}`).get(),
       ]);
-      seasonGames = games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m));
+      seasonGames = games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m) && dateMillis(m.date) <= sheet.date);
       const t = standingsLike(sheet.seasonId, standings.data());
       table = t ? [t] : [];
+      // (what every earlier acta's actions were worth, now: matchValue keeps it per match, so the transaction —
+      // and each of its retries — only rates this one)
+      for (const m of seasonGames) matchValue(m);
     } catch (error) {
       // (the acta never waits for its notas: stored without them, the web rates it with its season)
       console.error("saveMatchSheet: the season could not be read for the notas", input.id, error);
@@ -278,7 +282,9 @@ export async function publishSheet(input: PublishRequest) {
     if (finished && seasonGames)
       try {
         const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players };
-        notas = notasDoc(frozenNotas(self, seasonGames, table, parseStoredNotas(old.get("notas"))?.rival ?? null), Date.now());
+        // (a correction keeps the rival's factor of the first publication, while it is the same rival and season)
+        const sameRival = old.get("rival") === sheet.rival && old.get("seasonId") === sheet.seasonId;
+        notas = notasDoc(frozenNotas(self, seasonGames, table, sameRival ? (parseStoredNotas(old.get("notas"))?.rival ?? null) : null), Date.now());
       } catch (error) {
         console.error("saveMatchSheet: the notas could not be rated, the acta keeps the ones it had", input.id, error);
       }

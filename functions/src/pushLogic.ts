@@ -417,12 +417,13 @@ export function notaPlayers(notas: unknown): string[] {
 }
 
 /**
- * «Ya están las notas»: the acta's notas appear (its first publication; a correction re-rates them, says
- * nothing). Once per match (its pushLog), on the result's topic: to whoever has a nota «Mira la tuya» (their own
- * devices, `mine`), to everyone else «Míralas». It never says the nota. It opens «El siete» of the match.
+ * «Ya están las notas»: the acta is published for the first time with its notas (a correction, or the notas
+ * written later by the backfill, says nothing). Once per match (its pushLog), on the result's topic: to whoever
+ * has a nota «Mira la tuya» (their own devices, `mine`), to everyone else «Míralas». It never says the nota. It
+ * opens «El siete» of the match.
  */
 export function notasNotice(id: string, before: MatchLike | undefined, after: MatchLike | undefined, jornada: number | null, mine: boolean): Notice | null {
-  if (!after || after.archived || after.status !== "finished") return null;
+  if (!after || after.archived || after.status !== "finished" || before?.status === "finished") return null;
   if (!notaPlayers(after.notas).length || notaPlayers(before?.notas).length) return null;
   const rival = after.rival ?? "el rival";
   const of = jornada ? `de la J${jornada}` : "del partido";
