@@ -1,5 +1,6 @@
 // Tú (TU boards, component.js): who looks at /perfil, which screens his page has, what each tab says it holds
 // and which address each screen is. Pure: the page (TuPage) reads the screen from the address and draws it.
+import { SECTION, type SectionKey } from "../../admin/shell/nav";
 
 /** Who looks: no session · a member without a ficha (his carné) · a new account whose ficha is pending or was
  *  turned down (the sobre / the pick) · a player with his ficha linked. */
@@ -112,6 +113,15 @@ export function doorLead(n: number): string {
   if (n === 0) return "Nadie llama ahora mismo.";
   if (n === 1) return "Una petición espera tu sí o tu no.";
   return `${n <= 10 ? WORDS[n] : n} peticiones esperan tu sí o tu no.`;
+}
+
+/** Capitanía's «Administrar el club»: straight into the admin's sections (Hoy is the sala de control itself). */
+export const ADMIN_LINKS: readonly SectionKey[] = ["hoy", "partidos", "convocar", "plantilla", "fichas", "caja", "temporadas", "contenido"];
+export function adminLinks(): { key: SectionKey; t: string; hint: string; path: string }[] {
+  return ADMIN_LINKS.map((k) => {
+    const s = SECTION[k];
+    return { key: k, t: k === "hoy" ? "Sala de control" : s.name, hint: s.blurb, path: s.path };
+  });
 }
 
 /** The move's direction between two screens (an «Avisos» tab always goes right, coming back from it left). */

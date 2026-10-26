@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allowedSec, dirOf, doorLead, fitWord, initials, screenAt, secLabel, secsOf, sinceLong } from "./model";
+import { adminLinks, allowedSec, dirOf, doorLead, fitWord, initials, screenAt, secLabel, secsOf, sinceLong } from "./model";
 import { clubLineOf, firstName, kindOf } from "./view";
 import { cromosOf, type CromosInput } from "./cromosModel";
 import { goalClock } from "./season";
@@ -25,6 +25,11 @@ describe("Tú: the screen an address shows", () => {
     expect(allowedSec("capitania", { kind: "jugador", captain: false })).toBe("carta");
     expect(secLabel("carta", "socio")).toBe("Tu carné");
     expect(secLabel("nombre", "socio")).toBe("Tu apodo");
+  });
+  it("Capitanía's «Administrar el club» goes straight into the admin's sections", () => {
+    const links = adminLinks();
+    expect(links[0]).toMatchObject({ t: "Sala de control", path: "/admin" });
+    expect(links.map((l) => l.path)).toEqual(["/admin", "/admin/partidos", "/admin/convocar", "/admin/plantilla", "/admin/fichas", "/admin/caja", "/admin/temporadas", "/admin/contenido"]);
   });
   it("moves in the order of the tabs", () => {
     const at = (sec: "carta" | "nombre", page: "perfil" | "avisos" = "perfil") => ({ page, sec, open: null });

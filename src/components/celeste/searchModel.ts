@@ -248,7 +248,8 @@ const FAMILY: [string, string, string, string, string, TuIconName, Who][] = [
   ["amedida", "Avisos a medida", "Qué te llega a este móvil", "/avisos/a-medida", "avisos notificaciones push silenciar solo goles calendario", "bell", "all"],
   ["ajustes", "Ajustes", "Tema, sonido, estadio en 3D", "/perfil/ajustes", "ajustes tema oscuro claro noche dia sonido 3d animaciones", "gear", "member"],
   ["cuenta", "Tu cuenta", "Google, acceso, salir y baja", "/perfil/cuenta", "cuenta google salir sesion baja datos id", "user", "member"],
-  ["capitania", "Capitanía", "La puerta y administrar el club", "/perfil/capitania", "capitan puerta admin administrar", "door", "cap"],
+  ["capitania", "Capitanía", "La puerta y administrar el club", "/perfil/capitania", "capitan puerta", "door", "cap"],
+  ["admin", "Admin", "Sala de control: partidos, plantilla, caja y temporadas", "/admin", "admin administrar sala control gestionar panel", "shield", "cap"],
 ];
 
 /** Everything this viewer can find, in the board's order (players, matches, rivals, his page, the pages, the
