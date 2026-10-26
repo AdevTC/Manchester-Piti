@@ -270,9 +270,9 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       }
     };
     return {
-      add(type: MesaType, opts: MesaAddOpts = {}) {
+      add(type: MesaType, opts: MesaAddOpts = {}, at?: { elapsed: number; period: 1 | 2 }) {
         const requestId = crypto.randomUUID();
-        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: textOf(type, opts), payload: payloadNow(type, opts) });
+        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: textOf(type, opts), payload: payloadNow(type, opts, at) });
         const id = liveId(requestId);
         setLastId(id);
         setNotice("");

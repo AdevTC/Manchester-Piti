@@ -1,7 +1,7 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { DRAFT_MS, EnJuego } from "./EnJuego";
-import type { MesaPlayer, MesaView } from "./types";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { EnJuego } from "./EnJuego";
+import type { MesaEvent, MesaPlayer, MesaView } from "./types";
 
 const player = (id: string, name: string, number: string, more: Partial<MesaPlayer> = {}): MesaPlayer => ({
   id, name, number, guest: false, keeper: false, minutes: 19, pending: 0, played: true, offAt: null, sentOff: false, vacancy: null, pos: null, stints: [{ from: 0, to: null }], spot: { x: 50, y: 50 },
@@ -48,18 +48,26 @@ function makeView(over: Partial<MesaView> = {}): MesaView {
   };
 }
 
-/** A held change goes up by itself when nobody recolocates (fake timers). */
-const waitDraft = () => act(() => {
-  vi.advanceTimersByTime(DRAFT_MS);
-});
-const AT = { elapsed: 1122, period: 1 };
-const subOf = (playerId: string, inPlayerId: string) => ({ type: "substitution", playerId, inPlayerId });
+/** The change «Entra Hugo, sale Pablo» as the view has it once written (still in the queue): Hugo in Pablo's
+ *  place, Pablo on the bench, the play tapped at 18:20. */
+const CHANGE_AT = { elapsed: 1100, period: 1 };
+function changed(view: MesaView): MesaView {
+  const pablo = view.field.find((p) => p.id === "p")!;
+  const hugo = view.bench.find((p) => p.id === "h")!;
+  const change: MesaEvent = {
+    id: "live-r1", type: "substitution", side: "us", minute: 19, elapsedSeconds: CHANGE_AT.elapsed, period: 1, playerId: "p", playerName: "Pablo", assistId: null, assistName: null, inPlayerId: "h", inName: "Hugo",
+    text: "Entra Hugo, sale Pablo", tag: "CAMBIO", goal: null, pendingScorer: false, assistReviewed: false, byUid: "me", byName: "Tú", editedByUid: null, editedByName: null, editedAt: null, dupOf: null, queued: true, local: true, mine: true,
+  };
+  return {
+    ...view,
+    field: view.field.map((p) => (p.id === "p" ? { ...hugo, pos: pablo.pos, spot: pablo.spot, played: true } : p)),
+    bench: [{ ...pablo, pos: null, spot: null, offAt: 19 }],
+    events: [change],
+  };
+}
+const swapOf = (playerId: string, inPlayerId: string) => ({ type: "position_swap", playerId, inPlayerId });
 
 describe("La mesa · En juego", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("pinta el marcador, el reloj, el campo, el banquillo y quién más anota", () => {
     const view = makeView();
     render(<EnJuego view={view} />);
@@ -114,16 +122,12 @@ describe("La mesa · En juego", () => {
     const view = makeView({ bench: [player("h", "Hugo", "8", { played: false, minutes: 0, stints: [], spot: null }), dani] });
     render(<EnJuego view={view} />);
     expect(screen.getByRole("button", { name: /^Dani, expulsado. Que entre/ })).toBeDisabled();
-    vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "Hueco de Dani, expulsado, DFC. Toca para que entre alguien" }));
     fireEvent.click(screen.getByRole("button", { name: "Entra Hugo" }));
-    waitDraft();
-    expect(view.actions.addMany).toHaveBeenLastCalledWith([subOf("d", "h")], AT);
+    expect(view.actions.add).toHaveBeenLastCalledWith("substitution", { playerId: "d", inPlayerId: "h" });
     fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
     fireEvent.click(screen.getByRole("button", { name: "Entra Hugo por Dani, expulsado" }));
-    waitDraft();
-    expect(view.actions.addMany).toHaveBeenCalledTimes(2);
-    expect(view.actions.add).not.toHaveBeenCalled();
+    expect(view.actions.add).toHaveBeenCalledTimes(2);
   });
 
   it("sin alineación, el hueco del expulsado sale como botón sobre el banquillo", () => {
@@ -131,10 +135,8 @@ describe("La mesa · En juego", () => {
     const view = makeView({ bench: [player("h", "Hugo", "8", { played: false, minutes: 0, stints: [], spot: null }), dani] });
     render(<EnJuego view={view} />);
     fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
-    vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "Entra Hugo por Dani (expulsado)" }));
-    waitDraft();
-    expect(view.actions.addMany).toHaveBeenLastCalledWith([subOf("d", "h")], AT);
+    expect(view.actions.add).toHaveBeenLastCalledWith("substitution", { playerId: "d", inPlayerId: "h" });
   });
 
   it("«Sin asistencia» deja el gol revisado sin pase: el acta no vuelve a preguntar", () => {
@@ -168,57 +170,70 @@ describe("La mesa · En juego", () => {
     expect(view.actions.add).toHaveBeenCalledWith("yellow_card", { playerId: "k" });
   });
 
-  it("un cambio: del banquillo, quién entra; en el campo, quién sale. Ocupa su sitio, ofrece «Recolocar» y, si nadie recoloca, sube solo a la hora del toque", () => {
-    vi.useFakeTimers();
+  it("un cambio se escribe al momento; su rótulo dice dónde juega el que entra y ofrece «Recolocar»", () => {
     const view = makeView({ field: posed() });
-    render(<EnJuego view={view} />);
+    const { rerender } = render(<EnJuego view={view} />);
     fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
     fireEvent.click(screen.getByRole("button", { name: "Sale Pablo" }));
+    expect(view.actions.add).toHaveBeenCalledWith("substitution", { playerId: "p", inPlayerId: "h" });
+    rerender(<EnJuego view={changed(view)} />);
     const strap = screen.getByRole("status");
-    expect(strap).toHaveTextContent("Entra Hugo por Pablo");
+    expect(strap).toHaveTextContent("Entra Hugo, sale Pablo");
     expect(strap).toHaveTextContent("Ocupa su sitio: mediocentro");
     expect(within(strap).getByRole("button", { name: "Recolocar" })).toBeInTheDocument();
-    // Hugo is already on the pitch, Pablo on the bench
-    expect(screen.getByRole("button", { name: /^Hugo, dorsal 8/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Pablo, fuera 19′/ })).toBeInTheDocument();
+    // the change's own «Deshacer» takes the written change back
+    fireEvent.click(within(strap).getByRole("button", { name: "Deshacer" }));
+    expect(view.actions.undo).toHaveBeenCalled();
     expect(view.actions.addMany).not.toHaveBeenCalled();
-    waitDraft();
-    expect(view.actions.addMany).toHaveBeenCalledWith([subOf("p", "h")], AT);
-    expect(view.actions.add).not.toHaveBeenCalled();
   });
 
-  it("«Deshacer» del cambio retenido: no se manda nada", () => {
-    vi.useFakeTimers();
-    const view = makeView();
-    render(<EnJuego view={view} />);
-    fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Sale Pablo" }));
-    fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Deshacer" }));
-    waitDraft();
-    expect(view.actions.addMany).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: /Hugo, sin jugar/ })).toBeInTheDocument();
-  });
-
-  it("«Recolocar»: el que entra ya está elegido, se cambia con un compañero; «Deshacer» la última y «Hecho» manda cambio y recolocación en una ola", () => {
+  it("«Recolocar»: el que entra ya está elegido, se cambia con un compañero; «Deshacer» la última y «Hecho» manda solo las recolocaciones, a la hora del cambio", () => {
     const view = makeView({ field: posed() });
-    render(<EnJuego view={view} />);
+    const { rerender } = render(<EnJuego view={view} />);
     fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
     fireEvent.click(screen.getByRole("button", { name: "Sale Pablo" }));
+    rerender(<EnJuego view={changed(view)} />);
     fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Recolocar" }));
     expect(screen.getByRole("status")).toHaveTextContent("¿Con quién cambia el sitio Hugo?");
     expect(screen.getByRole("button", { name: /^Hugo, mediocentro/ })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Hugo y Mario se cambian el sitio" }));
     expect(screen.getByRole("status")).toHaveTextContent("Hugo, a punta · Mario, a mediocentro");
     expect(screen.getByRole("status")).toHaveTextContent("RECOLOCACIÓN");
-    // another pair, taken back
+    // two more pairs, the last one taken back
     fireEvent.click(screen.getByRole("button", { name: "Álex, portero. Elegir para cambiar de sitio" }));
     fireEvent.click(screen.getByRole("button", { name: "Álex y Mario se cambian el sitio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hugo, punta. Elegir para cambiar de sitio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hugo y Álex se cambian el sitio" }));
     fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Deshacer" }));
-    expect(screen.getByRole("button", { name: "Álex, portero. Elegir para cambiar de sitio" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Hecho" }));
-    expect(view.actions.addMany).toHaveBeenCalledTimes(1);
-    expect(view.actions.addMany).toHaveBeenCalledWith([subOf("p", "h"), { type: "position_swap", playerId: "h", inPlayerId: "m" }], AT);
-    expect(view.actions.add).not.toHaveBeenCalled();
+    expect(view.actions.add).toHaveBeenCalledTimes(1);
+    expect(view.actions.addMany).toHaveBeenCalledWith([swapOf("h", "m"), swapOf("k", "m")], CHANGE_AT);
+  });
+
+  it("una sola recolocación tras el cambio va como una jugada, con la hora del cambio", () => {
+    const view = makeView({ field: posed() });
+    const { rerender } = render(<EnJuego view={view} />);
+    fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sale Pablo" }));
+    rerender(<EnJuego view={changed(view)} />);
+    fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Recolocar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hugo y Mario se cambian el sitio" }));
+    fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Hecho" }));
+    expect(view.actions.add).toHaveBeenLastCalledWith("position_swap", { playerId: "h", inPlayerId: "m" }, CHANGE_AT);
+    expect(view.actions.addMany).not.toHaveBeenCalled();
+  });
+
+  it("sin «Hecho» no se manda nada más: el cambio ya está escrito", () => {
+    const view = makeView({ field: posed() });
+    const { rerender, unmount } = render(<EnJuego view={view} />);
+    fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sale Pablo" }));
+    rerender(<EnJuego view={changed(view)} />);
+    fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Recolocar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hugo y Mario se cambian el sitio" }));
+    unmount();
+    expect(view.actions.add).toHaveBeenCalledTimes(1);
+    expect(view.actions.addMany).not.toHaveBeenCalled();
   });
 
   it("«Cambiar de sitio» desde el anillo, sin cambio: toca a un compañero y va como una jugada", () => {
@@ -232,18 +247,8 @@ describe("La mesa · En juego", () => {
     expect(within(strap).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mario y Pablo se cambian el sitio" }));
     fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Hecho" }));
-    expect(view.actions.add).toHaveBeenCalledWith("position_swap", { playerId: "m", inPlayerId: "p" });
+    expect(view.actions.add).toHaveBeenCalledWith("position_swap", { playerId: "m", inPlayerId: "p" }, undefined);
     expect(view.actions.addMany).not.toHaveBeenCalled();
-  });
-
-  it("otra jugada manda antes el cambio retenido (la cola guarda el orden)", () => {
-    const view = makeView();
-    render(<EnJuego view={view} />);
-    fireEvent.click(screen.getByRole("button", { name: /Hugo, sin jugar/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Sale Pablo" }));
-    fireEvent.click(within(screen.getByRole("group", { name: "Jugadas de Atlético Demo" })).getByRole("button", { name: "Falta" }));
-    expect(view.actions.addMany).toHaveBeenCalledWith([subOf("p", "h")], AT);
-    expect(vi.mocked(view.actions.addMany).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(view.actions.add).mock.invocationCallOrder[0]);
   });
 
   it("la fila del rival y su «···»", () => {
@@ -315,10 +320,7 @@ describe("La mesa · En juego", () => {
     expect(screen.getByText("Falta de Pablo")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /1 jugada/ }));
     expect(view.nav.cronica).toHaveBeenCalled();
-    vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "Toca: entra Hugo por Pablo" }));
-    expect(screen.queryByRole("button", { name: "Toca: entra Hugo por Pablo" })).toBeNull();
-    waitDraft();
-    expect(view.actions.addMany).toHaveBeenCalledWith([subOf("p", "h")], AT);
+    expect(view.actions.add).toHaveBeenCalledWith("substitution", { playerId: "p", inPlayerId: "h" });
   });
 });

@@ -1,8 +1,8 @@
-// La mesa's «Recolocar» (the canvas's Mesa board): a change at la mesa is held for a moment as a draft, so
-// the scorer can tap two players on the pitch and swap their places (one pair or several, «Deshacer» the
-// last one) before it goes up. The change(s) and the swaps then go up as ONE wave (liveEvent addMany: the
-// changes first, then the swaps in the order made), all or none. «Cambiar de sitio» from the ring is the
-// same draft without a change. Pure: EnJuego keeps the draft, the tests run it.
+// La mesa's «Recolocar» (the canvas's Mesa board): after a change (written at once), the scorer taps two
+// players on the pitch who swap places (one pair or several, «Deshacer» the last one) and «Hecho» sends
+// just the swaps, stamped with the change's own time (one play, or one wave). «Cambiar de sitio» from the
+// ring is the same without a change. At Descanso the changes and the swaps go up as ONE wave (liveEvent
+// addMany: the changes first, then the swaps in the order made). Pure: the screens keep the draft.
 import { POSITIONS, isPosCode } from "../../../functions/src/positions";
 import type { MesaPlayer } from "./types";
 
@@ -21,7 +21,7 @@ export type DraftSwap = readonly [a: string, b: string];
 export interface Draft {
   subs: DraftSub[];
   swaps: DraftSwap[];
-  /** The clock when the first change was tapped: the wave goes up with that time, not «Hecho»'s. */
+  /** The time the swaps are stamped with: their change's (they sort right after it), or «Cambiar de sitio»'s. */
   at: { elapsed: number; period: 1 | 2 };
   /** «subbed»: the change is on the pitch, «Recolocar» offered · «swap»: picking pairs. */
   step: "subbed" | "swap";

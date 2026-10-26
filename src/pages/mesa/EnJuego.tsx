@@ -2,8 +2,9 @@
 // score and the clock, the keys (Pausa, añadido, Fin de parte), the floodlit pitch with the seven, the
 // dugout, the rival bar and the dock (last play, lower third with «Deshacer», «Gol del Piti»). Tapping a
 // shirt opens the action ring; «Gol del Piti» asks «¿Quién marcó?», then the pitch asks for the pass.
-// A change is held a moment as a draft (./recolocar): «Recolocar» lets the scorer tap two players who swap
-// places, and the change and its swaps go up as one wave; the ring's «Cambiar de sitio» does a swap alone.
+// A change is written at once; its lower third offers «Recolocar» (./recolocar): the scorer taps pairs who
+// swap places and «Hecho» sends just the swaps, at the change's own time. The ring's «Cambiar de sitio»
+// does the same without a change.
 // Without signal it is the same screen: amber housing, «Sin red», ↓N per player, a queue line in the dock.
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { allowedAtBreak } from "../../../functions/src/liveRules";
@@ -75,12 +76,10 @@ interface StrapButton {
   label: string;
   /** The way forward (a filled pill). */
   go?: boolean;
-  act: "recolocar" | "undoSub" | "undoPlace" | "done" | "cancelPlaces";
+  act: "recolocar" | "undoPlace" | "done" | "cancelPlaces";
 }
 const ASSIST_MS = 14_000;
 const STRAP_MS = 6_000;
-/** How long a change waits for «Recolocar» before it goes up by itself (any other play sends it at once). */
-export const DRAFT_MS = 8_000;
 /** How long the pair just swapped keeps its ping. */
 const MOVED_MS = 1_200;
 
@@ -270,41 +269,32 @@ export function EnJuego({ view }: MesaScreenProps) {
   const [busy, setBusy] = useState(false);
   /** The kick-off's «Deshacer» was used (or the strap dismissed): it doesn't come back. */
   const [kickGone, setKickGone] = useState(false);
-  /** A change (and its swaps) not sent yet: «Recolocar» (./recolocar). */
+  /** The swaps being made, not sent yet: «Recolocar» / «Cambiar de sitio» (./recolocar; no change in it,
+   *  the change is already written). */
   const [draft, setDraftState] = useState<Draft | null>(null);
   /** The pair just swapped (their halos ping). */
   const [moved, setMoved] = useState<readonly string[]>([]);
   const close = () => setMode(NONE);
-  // (the draft also lives in a ref: a tap and the timer that sends it must see the latest one at once)
+  // (the draft also lives in a ref: two quick taps must see the latest one at once)
   const draftRef = useRef<Draft | null>(null);
   const setDraft = (d: Draft | null) => {
     draftRef.current = d;
     setDraftState(d);
   };
-  /** Sends the draft: a lone swap from the ring as one play (it gets the lower third and its «Deshacer»),
-   *  anything else as one wave, all or none, at the time the change was tapped. Returns the lone play's id. */
+  /** Sends the swaps made: one play when there is one (it gets the lower third and its «Deshacer»), else one
+   *  wave, all or none. After a change they carry the change's own time (they sort right after it in the
+   *  acta); from the ring, the time now. Returns the single play's id. */
   const commit = (): string | null => {
     const d = draftRef.current;
     if (!d) return null;
     setDraft(null);
     const items = draftItems(d);
+    const at = d.alone ? undefined : d.at;
     if (!items.length) return null;
-    if (d.alone && items.length === 1) return actions.add("position_swap", { playerId: items[0].playerId, inPlayerId: items[0].inPlayerId });
-    actions.addMany(items, d.at);
+    if (items.length === 1) return actions.add("position_swap", { playerId: items[0].playerId, inPlayerId: items[0].inPlayerId }, at);
+    actions.addMany(items, at);
     return null;
   };
-  const commitRef = useRef(commit);
-  useLayoutEffect(() => {
-    commitRef.current = commit;
-  });
-  // leaving the screen (the half-time whistle, «Salir») never loses a held change
-  useEffect(() => () => void commitRef.current(), []);
-  // a change nobody recolocates goes up by itself; a menu or a pick open holds it
-  useEffect(() => {
-    if (!draft || draft.step !== "subbed" || mode.k !== "") return;
-    const t = window.setTimeout(() => void commitRef.current(), DRAFT_MS);
-    return () => window.clearTimeout(t);
-  }, [draft, mode.k]);
   useEffect(() => {
     if (!moved.length) return;
     const t = window.setTimeout(() => setMoved([]), MOVED_MS);
@@ -371,7 +361,7 @@ export function EnJuego({ view }: MesaScreenProps) {
   const can = (type: MesaType) => clock.playing || (held && allowedAtBreak(type));
   const add = (type: MesaType, opts?: { playerId?: string; inPlayerId?: string }) => {
     if (!can(type)) return;
-    // (a held change goes first: the queue keeps the order)
+    // (pairs already made go first: the queue keeps the order)
     commit();
     const id = actions.add(type, opts);
     setStrapId(id);
@@ -391,22 +381,11 @@ export function EnJuego({ view }: MesaScreenProps) {
   };
   const nowAt = () => ({ elapsed: clock.elapsedSeconds, period: clock.period });
   /** A change: held as a draft (another one joins it) until «Hecho», the timer or the next play. */
-  const swap = (outId: string, inId: string) => {
-    if (!can("substitution")) return;
-    let d = draftRef.current;
-    if (d && (d.step !== "subbed" || draftItems(d).length >= DRAFT_MAX)) {
-      commit();
-      d = null;
-    }
-    setDraft(d ? { ...d, subs: [...d.subs, { outId, inId }] } : { subs: [{ outId, inId }], swaps: [], at: nowAt(), step: "subbed", pick: null, alone: false });
-    setStrapId(null);
-    setPop(inId);
-    setMode(NONE);
-  };
-  /** «Recolocar» / «Cambiar de sitio»: the pitch asks for pairs (`first` already picked). */
-  const startPlaces = (first: string | null) => {
-    const d = draftRef.current;
-    setDraft(d ? { ...d, step: "swap", pick: first } : { subs: [], swaps: [], at: nowAt(), step: "swap", pick: first, alone: true });
+  const swap = (outId: string, inId: string) => add("substitution", { playerId: outId, inPlayerId: inId });
+  /** «Recolocar» (after the change `after`, at its time) / «Cambiar de sitio» (alone): the pitch asks for
+   *  pairs, `first` already picked. */
+  const startPlaces = (first: string | null, after: MesaEvent | null) => {
+    setDraft({ subs: [], swaps: [], at: after ? { elapsed: after.elapsedSeconds ?? clock.elapsedSeconds, period: after.period } : nowAt(), step: "swap", pick: first, alone: !after });
     setStrapId(null);
     setMode(NONE);
   };
@@ -426,23 +405,17 @@ export function EnJuego({ view }: MesaScreenProps) {
     const last = d.swaps[d.swaps.length - 1];
     if (last) setMoved(last);
     const rest = d.swaps.slice(0, -1);
-    // (no swap left: back to the change alone, or out of a «Cambiar de sitio»)
-    if (!rest.length) return setDraft(d.alone ? null : { ...d, swaps: [], step: "subbed", pick: null });
     setDraft({ ...d, swaps: rest, pick: null });
-  };
-  const undoSub = () => {
-    const d = draftRef.current;
-    if (!d) return;
-    const subs = d.subs.slice(0, -1);
-    setDraft(subs.length ? { ...d, subs } : null);
   };
   const done = () => {
     const id = commit();
     if (id) setStrapId(id);
   };
   const onStrap = (act: StrapButton["act"]) => {
-    if (act === "recolocar") return startPlaces(draftRef.current?.subs.at(-1)?.inId ?? null);
-    if (act === "undoSub") return undoSub();
+    if (act === "recolocar") {
+      const change = strapId ? view.events.find((e) => e.id === strapId) ?? null : null;
+      return startPlaces(change?.inPlayerId ?? null, change);
+    }
     if (act === "undoPlace") return undoPlace();
     if (act === "done") return done();
     setDraft(null);
@@ -525,32 +498,23 @@ export function EnJuego({ view }: MesaScreenProps) {
     if (swapping.swaps.length || !swapping.alone) btns.push({ label: "Hecho", go: true, act: "done" });
     else btns.push({ label: "Cancelar", act: "cancelPlaces" });
     strap = { tag: swapping.swaps.length && !swapping.pick ? "RECOLOCACIÓN" : "RECOLOCAR", msg, sub, tone: "w", undo: false, cancel: false, btns };
-  } else if (draft?.subs.length) {
-    const last = draft.subs[draft.subs.length - 1];
-    const where = placeOf(last.inId);
-    strap = {
-      tag: "CAMBIO",
-      msg: draft.subs.map((s) => `Entra ${nameOf(s.inId)} por ${view.nameOf(s.outId)}`).join(" · "),
-      sub: where ? `Ocupa su sitio: ${where}` : "Ocupa su sitio",
-      tone: "",
-      undo: false,
-      cancel: false,
-      btns: [
-        { label: "Recolocar", go: true, act: "recolocar" },
-        { label: "Deshacer", act: "undoSub" },
-      ],
-    };
   } else if (lastStrap) {
     const goal = lastStrap.goal;
     const where = lastStrap.local ? (queue.online ? "subiendo" : "en el móvil, se sube sola") : goal ? "ya en la web" : "";
     strap = { tag: lastStrap.tag, msg: lastStrap.text, sub: [`Minuto ${lastStrap.minute ?? clock.minute}, apuntado por ti`, where].filter(Boolean).join(" · "), tone: goal === "us" ? "g" : goal === "them" ? "r" : "", undo: true, cancel: false };
+    // a change, written: where the one coming on plays, and «Recolocar» (the swaps go up apart, at its time)
+    const comer = lastStrap.type === "substitution" && lastStrap.inPlayerId ? field.find((p) => p.id === lastStrap.inPlayerId) : undefined;
+    if (comer && can("position_swap") && field.length > 1) {
+      const place = placeName(comer.pos);
+      strap = { ...strap, sub: place ? `Ocupa su sitio: ${place}` : strap.sub, btns: [{ label: "Recolocar", go: true, act: "recolocar" }] };
+    }
   } else if (justKicked) {
     strap = { tag: "INICIO", msg: clock.kickoffAt != null ? `Pitido inicial a las ${hhmm(clock.kickoffAt)}` : "Pitido inicial", sub: "El reloj ya corre", tone: "", undo: false, cancel: false, reset: true };
   }
   const last = view.events[view.events.length - 1];
   const unplayed = shown.bench.filter((p) => !p.played && !p.sentOff).length;
   // (the strap slides in again on every step of a draft)
-  const strapKey = draft ? (draft.subs.length + draft.swaps.length + (draft.step === "swap" ? 1 : 0) + (draft.pick ? 1 : 0)) % 2 : strapId ? strapId.length % 2 : 0;
+  const strapKey = draft ? (draft.swaps.length + (draft.pick ? 1 : 0)) % 2 : strapId ? strapId.length % 2 : 0;
   const half = clock.period === 1 ? "1ª PARTE" : "2ª PARTE";
   const endLabel = clock.phase === "first" ? "Fin de la 1ª" : "Fin del partido";
   const endAction = clock.phase === "first" ? "halftime" : "finish";
@@ -838,6 +802,11 @@ export function EnJuego({ view }: MesaScreenProps) {
                 <b>{strap.msg}</b>
                 <small>{strap.sub}</small>
               </span>
+              {strap.btns?.map((b) => (
+                <button key={b.label} type="button" className={b.go ? "ud go" : "ud"} onClick={() => onStrap(b.act)}>
+                  {b.label}
+                </button>
+              ))}
               {strap.undo && (
                 <button
                   type="button"
@@ -871,11 +840,6 @@ export function EnJuego({ view }: MesaScreenProps) {
                   Cancelar
                 </button>
               )}
-              {strap.btns?.map((b) => (
-                <button key={b.label} type="button" className={b.go ? "ud go" : "ud"} onClick={() => onStrap(b.act)}>
-                  {b.label}
-                </button>
-              ))}
             </div>
           </div>
         ) : queue.pending > 0 || queue.review.length > 0 ? null : (
@@ -958,7 +922,7 @@ export function EnJuego({ view }: MesaScreenProps) {
                     if (it.type === "_cards") return setMode({ ...mode, cards: true });
                     if (it.type === "_back") return setMode({ ...mode, cards: false });
                     if (it.type === "_sub") return setMode({ k: "outFrom", outId: sel.id });
-                    if (it.type === "_place") return startPlaces(sel.id);
+                    if (it.type === "_place") return startPlaces(sel.id, null);
                     add(it.type, { playerId: sel.id });
                   }}
                 >
