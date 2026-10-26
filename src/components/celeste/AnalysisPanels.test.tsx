@@ -1,12 +1,17 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ClubMatch } from "../../lib/clubData";
 import type { AnalysisSearch } from "../../lib/analysisSearch";
 import { AnalysisPanels } from "./AnalysisPanels";
 
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a> }));
 vi.mock("./TechnicalStats", () => ({ TechnicalStatsPanel: () => <p>Gráficas del partido completo</p> }));
+// (the catalogue panel is lazy and its module carries the whole catalogue: load it once before the clicks, so a
+// findBy* never races its first transform on a busy machine)
+beforeAll(async () => {
+  await import("./AnalysisCatalog");
+});
 const match: ClubMatch = { id: "j1", seasonId: "t1", status: "finished", duration: 50, events: [
   { id: "p1", type: "pass", playerId: "pepe", receiverId: "luis", minute: 4, period: 1, outcome: "complete" },
   { id: "p2", type: "pass", playerId: "pepe", receiverId: "luis", minute: 30, period: 2, outcome: "incomplete" },
