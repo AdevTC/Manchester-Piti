@@ -179,6 +179,7 @@ function EditorBody({ group, live, effective, players, liveStory, draftStory, st
               {(id) => <input id={id} className={`inp ${value.email.trim() && !emailOk(value.email) ? "bad" : ""}`.trim()} type="email" value={value.email} onChange={(e) => set("contacto", "email", e.target.value)} autoComplete="off" />}
             </Field>
             <LinkField label="Instagram" value={value.instagram} placeholder="https://instagram.com/…" onChange={(v) => set("contacto", "instagram", v)} />
+            <LinkField label="YouTube" value={value.youtube} placeholder="https://www.youtube.com/@…" onChange={(v) => set("contacto", "youtube", v)} />
             <LinkField label="Foto del equipo (HTTPS)" value={value.photoUrl} onChange={(v) => set("contacto", "photoUrl", v)} />
           </>
         )}

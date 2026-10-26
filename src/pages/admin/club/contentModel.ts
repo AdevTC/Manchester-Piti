@@ -19,7 +19,7 @@ export const CLUB_FIELDS = {
   frase: ["intro", "location", "founded", "venue"],
   historia: ["story", "crestStory"],
   campos: ["venues"],
-  contacto: ["email", "instagram", "photoUrl"],
+  contacto: ["email", "instagram", "youtube", "photoUrl"],
   momentos: ["milestones"],
   preguntas: ["faq"],
   colaboradores: ["sponsors"],
@@ -207,7 +207,7 @@ export function contentIssues(c: ClubContent): Issue[] {
   if (c.story.length > LIMITS.story) out.push({ key: "historia", text: "Nuestra historia es demasiado larga" });
   if ((c.crestStory ?? "").length > LIMITS.crestStory) out.push({ key: "historia", text: "La historia del escudo es demasiado larga" });
   if (!emailOk(c.email)) out.push({ key: "contacto", text: "Contacto: el correo no es válido" });
-  const nc = nBad([c.instagram, c.photoUrl]);
+  const nc = nBad([c.instagram, c.youtube, c.photoUrl]);
   if (nc) out.push({ key: "contacto", text: `Contacto: ${links(nc)}` });
   if (c.milestones.some((m) => !m.title.trim())) out.push({ key: "momentos", text: "Momentos: hay uno sin título" });
   if (c.milestones.length > LIMITS.milestones) out.push({ key: "momentos", text: `Momentos: máximo ${LIMITS.milestones}` });

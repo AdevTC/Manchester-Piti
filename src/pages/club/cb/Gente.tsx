@@ -4,6 +4,8 @@
 import { useState } from "react";
 import { googleSubscribeUrl, webcalUrl } from "../../../lib/calendarLinks";
 import { mailto } from "../../../lib/club";
+import { socialLabel, type SocialLink } from "../../../lib/social";
+import { SocialIcon } from "../../../components/vidrio/SocialIcon";
 import { Go, I } from "./ui";
 
 export interface GenteBday {
@@ -24,7 +26,8 @@ export interface GenteProps {
   list: GenteBday[];
   sponsors: { name: string; url: string; ini: string }[];
   email: string;
-  instagram: string;
+  /** The club's profiles (Instagram, YouTube). */
+  social: readonly SocialLink[];
   faq: { q: string; a: string }[];
   /** The calendar feed (https). */
   feed: string;
@@ -97,7 +100,7 @@ const ADS = [
   { k: "Se buscan mecenas", t: "Juega de nuestro lado", d: "Colabora con el equipo y acompáñanos durante la temporada." },
 ] as const;
 
-export function Gente({ fan, member, cap, bday, list, sponsors, email, instagram, faq, feed, congrats, door, invite, say }: GenteProps) {
+export function Gente({ fan, member, cap, bday, list, sponsors, email, social, faq, feed, congrats, door, invite, say }: GenteProps) {
   const [open, setOpen] = useState(0);
   const mail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email : "";
   return (
@@ -241,13 +244,14 @@ export function Gente({ fan, member, cap, bday, list, sponsors, email, instagram
               </li>
             ))}
           </ul>
-          {(instagram || mail) && (
+          {(social.length > 0 || mail) && (
             <p className="cb-social">
-              {instagram && (
-                <a className="vd-glass vd-press vd-btn vd-btn--sm" href={instagram} target="_blank" rel="noopener noreferrer" aria-label="El Piti en Instagram (se abre en otra pestaña)">
-                  El Piti en Instagram
+              {social.map((l) => (
+                <a key={l.key} className="vd-glass vd-press vd-btn vd-btn--sm" href={l.href} target="_blank" rel="noopener noreferrer" aria-label={socialLabel(l)}>
+                  <SocialIcon name={l.key} className="cb-i" />
+                  El Piti en {l.name}
                 </a>
-              )}
+              ))}
               {mail && <span>{mail}</span>}
             </p>
           )}

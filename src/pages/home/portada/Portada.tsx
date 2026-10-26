@@ -1,12 +1,15 @@
 // «La portada»: one screen, the score at its centre. Phone: the lens and the headline first, then «Lo que te
 // toca», the pitch and the plays, the doors. Tablet: the centre on top, the pitch and «Lo que te toca» side by
 // side. Desktop: el siete | the lens with the headline under it | «Lo que te toca» and the plays, the six doors in
-// one row under them (inicio.css balances the columns by how many tiles «Lo que te toca» holds).
+// one row under them (inicio.css balances the columns by how many tiles «Lo que te toca» holds); «Síguenos», the
+// club's Instagram and YouTube, closes the page.
 import type { ReactNode } from "react";
 import type { Kit } from "../../../components/jersey3d/kitStill";
 import type { Act, HeroView } from "./model";
 import type { DoorsView, NightView, PlayRowV, Task, TaskAct, TasksView } from "./bands";
 import { MatchLink, PageLink } from "./links";
+import { SocialIcon } from "../../../components/vidrio/SocialIcon";
+import { socialLabel, type SocialLink } from "../../../lib/social";
 import { PI, Seg, Tee } from "./ui";
 
 export interface PortadaProps {
@@ -18,6 +21,8 @@ export interface PortadaProps {
   onTask: (t: Task, act: TaskAct, value?: string) => void;
   night: NightView;
   doors: DoorsView;
+  /** The club's profiles: «Síguenos» (none → no band). */
+  social: readonly SocialLink[];
   kit: Kit;
   matchId: string | null;
   go: (to: "campo" | "jugadas" | "lo-tuyo" | "camiseta") => (e: React.MouseEvent) => void;
@@ -382,6 +387,34 @@ export function Portada(p: PortadaProps) {
           </li>
         </ul>
       </section>
+
+      {p.social.length > 0 && (
+        <section className="in-band in-follow" aria-labelledby="in-follow-h">
+          <header className="in-band__head">
+            <div>
+              <h2 id="in-follow-h">Síguenos</h2>
+              <p>El Piti también juega fuera de la web.</p>
+            </div>
+          </header>
+          <ul className="in-follow__g">
+            {p.social.map((l) => (
+              <li key={l.key}>
+                <a className="vd-glass vd-press in-follow__a" href={l.href} target="_blank" rel="noopener noreferrer" aria-label={socialLabel(l)}>
+                  <span className="in-follow__ic" aria-hidden="true">
+                    <SocialIcon name={l.key} size={24} />
+                  </span>
+                  <span className="in-follow__t">
+                    <b>{l.name}</b>
+                    <span className="in-follow__h">{l.handle}</span>
+                    <span>{l.blurb}</span>
+                  </span>
+                  <PI name="chev-r" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

@@ -28,6 +28,10 @@ vi.mock("@tanstack/react-router", () => ({
   useRouterState: ({ select }: { select: (s: { location: { pathname: string; search: Record<string, unknown> } }) => unknown }) => select({ location: { pathname: state.path, search: state.search } }),
 }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.loading ? [] : state.matches, players: PLAYERS, loading: state.loading, error: null }) }));
+vi.mock("../../lib/clubContent", async () => {
+  const { DEFAULT_CONTENT } = await import("../../lib/clubContentDefaults");
+  return { useClubContent: () => DEFAULT_CONTENT };
+});
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }] }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null, loading: false }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false, ready: true }) }));
@@ -154,6 +158,18 @@ describe("Inicio, la portada", () => {
     expect(screen.getByRole("heading", { name: "Desde la grada" })).toBeInTheDocument();
     const doors = screen.getByRole("region", { name: "Por la casa" });
     expect(within(doors).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["Partidos", "Plantilla", "Números", "Club", "El vestuario", "Ponte la del Piti"]);
+  });
+
+  it("«Síguenos» closes the page: the club's Instagram and YouTube, in another tab", () => {
+    at("antes");
+    render(<HomePage />);
+    const follow = screen.getByRole("region", { name: "Síguenos" });
+    const links = within(follow).getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("aria-label"))).toEqual(["Instagram de Manchester Piti (se abre en otra pestaña)", "YouTube de Manchester Piti (se abre en otra pestaña)"]);
+    expect(links.map((a) => [a.getAttribute("href"), a.getAttribute("target"), a.getAttribute("rel")])).toEqual([
+      ["https://www.instagram.com/manchesterpiti.__/", "_blank", "noopener noreferrer"],
+      ["https://www.youtube.com/@ManchesterPitiFC2026", "_blank", "noopener noreferrer"],
+    ]);
   });
 
   it("a door to a screen navigates there inside a View Transition", () => {
