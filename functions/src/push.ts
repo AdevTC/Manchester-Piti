@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, idSchema, memberAs, parse } from "./common.js";
-import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
+import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, notaPlayers, notasNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { LATE_TOPICS, legacyTodoGets, presetOf, presetTopics, PUSH_PRESETS, TOPICS_VERSION } from "./pushPresets.js";
 import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
 import { isPaused } from "./pushPauseLogic.js";
@@ -204,7 +204,8 @@ export const pushUnsubscribe = onCall(async (req) => {
 
 /** Sends a notice to everyone subscribed to its topic (or only to `uid`'s devices). A personal notice
  *  goes to `uid`'s devices only, whatever their topics (and nowhere without a uid). */
-export async function sendTo(notice: Notice, uid?: string) {
+/** `skip`: members whose devices a broadcast leaves out (they got their own version of it). */
+export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<string>) {
   const matchId = noticeMatchId(notice.url);
   if (matchId && !(await matchActive(matchId))) return;
   const who = pushAudience(notice, uid);
@@ -231,7 +232,7 @@ export async function sendTo(notice: Notice, uid?: string) {
   // the goals (not even the personal notices), «Nada» nothing (pushMatchTopics.ts deviceGets).
   // «Pausar» (pushPause.ts): a paused device gets nothing for now; the bell already kept the notice.
   const now = Date.now();
-  const devices = [...found.values()].filter((d) => !isPaused(d.get("pausedUntil"), now) && deviceGets({ preset: d.get("preset"), matchTopics: d.get("matchTopics") }, notice, about));
+  const devices = [...found.values()].filter((d) => !(skip && skip.has(d.get("uid"))) && !isPaused(d.get("pausedUntil"), now) && deviceGets({ preset: d.get("preset"), matchTopics: d.get("matchTopics") }, notice, about));
   if (!devices.length) return;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
   await Promise.all(
@@ -304,6 +305,14 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   // the season's shirt names, like the match page (nameFor with the match's season)
   const names = new Map(players.map((p) => [p.id, nameFor(p.data(), after?.seasonId)]));
   for (const n of named ? noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", now) : draft) await deliver(n);
+  // «Ya están las notas»: the acta's notas just appeared — «Mira la tuya» to each one with a nota (once each),
+  // «Míralas» to everyone else on the result's topic (once per match). Never in the way of the rest.
+  if (notasNotice(event.params.matchId, before, after, null, false))
+    try {
+      await notasOnMatch(event.params.matchId, before, after);
+    } catch (e) {
+      console.error("notasOnMatch", event.params.matchId, e);
+    }
   // «Ya está la convocatoria»: the first time it is published with titulares — once per match (pushLog).
   if (!convocatoriaNotice(event.params.matchId, before, after, null, Date.now())) return;
   const jornada = after?.seasonId ? await seasonJornada(after.seasonId, event.params.matchId) : null;
@@ -333,6 +342,23 @@ async function quiet(tag: string): Promise<void> {
     const ref = db.doc(`pushLog/${tag}`);
     if ((await tx.get(ref)).exists) tx.update(ref, { quiet: 'siete' });
   });
+}
+
+/** «Ya están las notas» (pushOnMatch): the personal ones first, then the broadcast without their devices. */
+async function notasOnMatch(matchId: string, before: MatchLike | undefined, after: MatchLike | undefined): Promise<void> {
+  const jornada = after?.seasonId ? await seasonJornada(after.seasonId, matchId) : null;
+  const everyone = notasNotice(matchId, before, after, jornada, false);
+  const mine = notasNotice(matchId, before, after, jornada, true);
+  if (!everyone || !mine) return;
+  if (!(await claimLog(everyone.log ?? everyone.tag, matchId))) return;
+  const told = new Set<string>();
+  for (const pid of notaPlayers(after?.notas)) {
+    const uid = (await db.doc(`playerLinks/${pid}`).get()).get("uid");
+    if (typeof uid !== "string" || !uid) continue;
+    told.add(uid);
+    if (await claimLog(`notas-${matchId}-${pid}`, matchId)) await sendTo(mine, uid);
+  }
+  await sendTo(everyone, undefined, told);
 }
 
 /** Claims pushLog/<tag> (false = it was already there: the notice already went). */
