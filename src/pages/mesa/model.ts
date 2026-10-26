@@ -146,15 +146,30 @@ export const DEFAULT_SPOTS: readonly Spot[] = [
 export const KEEPER_CODE: PosCode = "POR";
 
 /** Where each player on the pitch stands and who keeps goal: the official board's codes (one who came on
- *  takes the code of the one he replaced), else the 2-3-1 by order. Two on one code are set apart. */
+ *  takes the code of the one he replaced, two who swapped places trade theirs), else the 2-3-1 by order.
+ *  Two on one code are set apart. */
 export function fieldSpots(field: readonly string[], starters: readonly string[], events: readonly MatchEvent[], codes: Readonly<Record<string, string>> | null): { spots: Map<string, Spot>; keeper: string | null } {
   const code = new Map<string, PosCode>();
   if (codes) for (const [id, c] of Object.entries(codes)) if (isPosCode(c)) code.set(id, c);
   // the default codes by order, for whoever the board doesn't place
   const byOrder = new Map<string, number>();
   starters.forEach((id, i) => byOrder.set(id, i));
+  const trade = <T,>(m: Map<string, T>, a: string, b: string) => {
+    const va = m.get(a);
+    const vb = m.get(b);
+    if (vb !== undefined) m.set(a, vb);
+    else m.delete(a);
+    if (va !== undefined) m.set(b, va);
+    else m.delete(b);
+  };
   for (const e of [...events].filter(counted).sort((a, b) => secondsOf(a) - secondsOf(b))) {
-    if (e.type !== "substitution" || !e.playerId || !e.inPlayerId) continue;
+    if (!e.playerId || !e.inPlayerId) continue;
+    if (e.type === "position_swap") {
+      trade(code, e.playerId, e.inPlayerId);
+      trade(byOrder, e.playerId, e.inPlayerId);
+      continue;
+    }
+    if (e.type !== "substitution") continue;
     if (code.has(e.playerId) && !code.has(e.inPlayerId)) code.set(e.inPlayerId, code.get(e.playerId)!);
     if (byOrder.has(e.playerId) && !byOrder.has(e.inPlayerId)) byOrder.set(e.inPlayerId, byOrder.get(e.playerId)!);
   }
@@ -253,7 +268,7 @@ const TAGS: Partial<Record<string, string>> = {
   goal: "GOL", goal_penalty: "GOL", goal_freekick: "GOL", opponent_own_goal: "GOL", own_goal: "EN PROPIA",
   woodwork: "PALO", chance: "OCASIÓN", corner: "CÓRNER", foul: "FALTA", foul_received: "FALTA",
   yellow_card: "AMARILLA", double_yellow: "2ª AMARILLA", red_card: "ROJA", injury: "TOCADO", save: "PARADA",
-  substitution: "CAMBIO", penalty_received: "PENALTI", penalty_committed: "PENALTI", penalty_saved: "PARADA", penalty_missed: "PENALTI",
+  substitution: "CAMBIO", position_swap: "SITIO", penalty_received: "PENALTI", penalty_committed: "PENALTI", penalty_saved: "PARADA", penalty_missed: "PENALTI",
   opponent_chance: "OCASIÓN", opponent_corner: "CÓRNER", opponent_foul: "FALTA", opponent_woodwork: "PALO",
   opponent_offside: "FUERA", opponent_yellow: "AMARILLA", opponent_red: "ROJA", opponent_penalty_missed: "PENALTI",
 };
@@ -264,7 +279,8 @@ export function eventTag(type: string, rivalShort: string): string {
 export function eventSide(type: string): "us" | "them" {
   return type.startsWith("opponent_") ? "them" : "us";
 }
-/** «Gol de Mario, asistencia de Pablo», «Entra Hugo, sale Pablo», «Falta de Atlético Demo». */
+/** «Gol de Mario, asistencia de Pablo», «Entra Hugo, sale Pablo», «Mario y Pablo se cambian el sitio»,
+ *  «Falta de Atlético Demo». */
 export function eventText(e: Pick<MatchEvent, "type" | "playerId" | "assistPlayerId" | "inPlayerId">, nameOf: (id: string) => string, rival: string): string {
   const p = e.playerId ? nameOf(e.playerId) : "";
   const a = e.assistPlayerId ? nameOf(e.assistPlayerId) : "";
@@ -286,6 +302,7 @@ export function eventText(e: Pick<MatchEvent, "type" | "playerId" | "assistPlaye
     case "injury": return p ? `${p}, tocado` : "Tocado";
     case "save": return p ? `Parada de ${p}` : "Parada";
     case "substitution": return e.inPlayerId ? `Entra ${nameOf(e.inPlayerId)}${p ? `, sale ${p}` : ""}` : p ? `Sale ${p}` : "Cambio";
+    case "position_swap": return p && e.inPlayerId ? `${p} y ${nameOf(e.inPlayerId)} se cambian el sitio` : "Cambio de sitio";
     case "penalty_received": return p ? `Penalti a favor, sobre ${p}` : "Penalti a favor";
     case "penalty_committed": return p ? `Penalti en contra, de ${p}` : "Penalti en contra";
     case "penalty_saved": return p ? `Penalti parado por ${p}` : "Penalti parado";
@@ -302,11 +319,12 @@ export function eventText(e: Pick<MatchEvent, "type" | "playerId" | "assistPlaye
   }
 }
 
-/** The vibration of a play: our goal two knocks and a long one, theirs one long, a sub two short, the rest a tap. */
+/** The vibration of a play: our goal two knocks and a long one, theirs one long, a sub (or a swap of
+ *  place) two short, the rest a tap. */
 export function buzzOf(type: string): number[] {
   if (OUR_GOALS.has(type)) return [40, 60, 140];
   if (THEIR_GOALS.has(type)) return [220];
-  if (type === "substitution") return [20, 40, 20];
+  if (type === "substitution" || type === "position_swap") return [20, 40, 20];
   return [25];
 }
 

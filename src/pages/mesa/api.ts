@@ -1,17 +1,23 @@
 // A wave of changes in one liveEvent call (`addMany`, functions/src/live.ts): Descanso's «Arrancar con N
-// cambios» (through la mesa's queue) and the pizarra's live «Hacer el cambio» write every change of the wave
-// at once, all or none, idempotent by requestId (event ids `live-<requestId>-<i>`).
+// cambios», En juego's change with its «Recolocar» (both through la mesa's queue) and the pizarra's live
+// «Hacer el cambio» write every change of the wave at once, all or none, idempotent by requestId (event ids
+// `live-<requestId>-<i>`). A wave holds changes (substitution) and swaps of place (position_swap).
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../firebase";
 import { withServerTime } from "../../lib/serverTime";
 
-/** The most changes in one wave (the server's MAX_MANY). */
-export const MAX_WAVE = 7;
+/** The most plays in one wave (the server's MAX_MANY): 7 changes and 7 swaps. */
+export const MAX_WAVE = 14;
+
+/** What a wave can carry. */
+export type WaveType = "substitution" | "position_swap";
 
 export interface WaveSub {
-  /** Who goes off. */
+  /** A change (the default) or a swap of place. */
+  type?: WaveType;
+  /** Who goes off (a swap: the one, «a»). */
   playerId: string;
-  /** Who comes on. */
+  /** Who comes on (a swap: the other one, «b»). */
   inPlayerId: string;
   minute: number;
   clockRevision?: number;
@@ -23,7 +29,7 @@ export interface AddManyRequest {
   action: "addMany";
   matchId: string;
   requestId: string;
-  items: { clockRevision?: number; tappedElapsed?: number; period?: 1 | 2; event: { type: "substitution"; minute: number; playerId: string; inPlayerId: string } }[];
+  items: { clockRevision?: number; tappedElapsed?: number; period?: 1 | 2; event: { type: WaveType; minute: number; playerId: string; inPlayerId: string } }[];
 }
 const call = withServerTime(httpsCallable<AddManyRequest, { events: number; eventIds?: string[]; serverNow?: number }>(functions, "liveEvent"));
 
@@ -40,10 +46,10 @@ export function addManyRequest(matchId: string, requestId: string, subs: readonl
       ...(s.clockRevision !== undefined ? { clockRevision: s.clockRevision } : {}),
       ...(s.tappedElapsed !== undefined ? { tappedElapsed: s.tappedElapsed } : {}),
       ...(s.period !== undefined ? { period: s.period } : {}),
-      event: { type: "substitution" as const, minute: s.minute, playerId: s.playerId, inPlayerId: s.inPlayerId },
+      event: { type: s.type ?? "substitution", minute: s.minute, playerId: s.playerId, inPlayerId: s.inPlayerId },
     })),
   };
 }
 
-/** Writes a wave of changes in one operation. */
+/** Writes a wave of changes (and swaps) in one operation. */
 export const addSubs = (matchId: string, requestId: string, subs: readonly WaveSub[]) => call(addManyRequest(matchId, requestId, subs));
