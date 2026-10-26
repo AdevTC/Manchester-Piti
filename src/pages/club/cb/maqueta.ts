@@ -44,5 +44,6 @@ export function demoContent(c: ClubContent): ClubContent {
     ],
     email: "hola@manchesterpiti.es",
     instagram: "https://instagram.com/manchesterpiti",
+    youtube: "https://www.youtube.com/@ManchesterPitiFC2026",
   };
 }

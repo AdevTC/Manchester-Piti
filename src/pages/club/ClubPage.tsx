@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useLocation, useSearch } from "@tanstack/react-router";
 import { useClubContent } from "../../lib/clubContent";
+import { socialLinks } from "../../lib/social";
 import { dateMillis, nameFor, nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
 import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { useSeason } from "../../context/SeasonContext";
@@ -94,6 +95,7 @@ export function ClubPage() {
   }, [mq?.larga]);
   const demo = mq?.larga ? longDemo : null;
   const c = mq?.demo ? demoContent(raw) : raw;
+  const social = socialLinks(c);
   const matches = demo ? demo.matches : club.matches;
   const players = demo ? (demo.players as unknown as typeof club.players) : club.players;
   const seasons = useMemo(() => (demo ? [...realSeasons, demo.season] : realSeasons), [demo, realSeasons]);
@@ -314,6 +316,7 @@ export function ClubPage() {
             headSub={headSub}
             next={{ text: `Lo próximo: ${nextLine(nextJ, now)}`, href: nextJ ? `/partidos/${nextJ.id}` : "/partidos" }}
             share={() => void share()}
+            social={social}
             pieces={pieces}
             focus={focus}
             pick={pick}
@@ -372,7 +375,7 @@ export function ClubPage() {
               list={bdays.slice(0, 6).map((b) => ({ id: b.id, name: b.name, full: b.full, when: dayMonth(b.at), age: `cumple ${b.age}`, src: shirtOf(b.id), label: `${b.full}, ${b.name}: cumple ${b.age} el ${dayMonth(b.at)}` }))}
               sponsors={sponsors.map((s) => ({ name: s.name, url: /^https:\/\//.test(s.url ?? "") ? s.url : "", ini: ini(s.name) }))}
               email={c.email ?? ""}
-              instagram={/^https:\/\//.test(c.instagram ?? "") ? c.instagram : ""}
+              social={social}
               faq={(c.faq ?? []).filter((f) => f?.q?.trim() && f?.a?.trim())}
               feed={`${siteOrigin()}/calendario.ics`}
               congrats={() => b1 && go(`/vestuario/tablon?felicitar=${encodeURIComponent(b1.id)}`)}

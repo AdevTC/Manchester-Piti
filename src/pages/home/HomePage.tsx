@@ -38,6 +38,8 @@ import { pollTally } from "../../lib/derived/polls";
 import { capital, niceName } from "../../lib/derived/words";
 import { pushState, savedTopics, toggleTopic, usePushPreset, PRESET_NOTES, type PushPreset } from "../../lib/push";
 import { formatDate } from "../../lib/clubData";
+import { useClubContent } from "../../lib/clubContent";
+import { socialLinks } from "../../lib/social";
 import { useVenuePlace } from "../partidos/vidrio/venuePlace";
 import { usePolls, usePollVotes, useMatchScorers, useMvpResults, useMeetingNote } from "../vestuario/live";
 import { useMe, voteMvp, votePoll, predictScore } from "../vestuario/writes";
@@ -182,6 +184,7 @@ function SkyLayer({ light, gold, cold, className, style }: { light: string; gold
 export function HomePage() {
   const { matches, players, loading } = useClubData();
   const { seasons } = useSeason();
+  const social = socialLinks(useClubContent());
   const clockNow = useMatchClock(matches);
   const theme = useDocumentTheme();
   const dia = theme === "light";
@@ -790,6 +793,7 @@ export function HomePage() {
                 onTask={onTask}
                 night={night}
                 doors={doors}
+                social={social}
                 kit={kit}
                 matchId={pm?.id ?? null}
                 go={(to) => go(to)}

@@ -1,9 +1,12 @@
-// /club · the hub (CL- boards, part-hub): the head with the next match and «Compartir el club», the vitrina — a lit
+// /club · the hub (CL- boards, part-hub): the head with the next match, «Compartir el club» and the club's Instagram
+// and YouTube, the vitrina — a lit
 // museum case with the piece in focus turning on its peana (drag the range, the arrows or «Darle la vuelta») and the
 // shelves in depth with every piece, the missing ones frosted —, the plaque with its date and «Ver el partido»,
 // a member's own pieces, and the four doors, each with a living detail of its room.
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { prefersReducedMotion } from "../../../components/vidrio/env";
+import { SocialIcon } from "../../../components/vidrio/SocialIcon";
+import { socialLabel, type SocialLink } from "../../../lib/social";
 import { Go, I, Hero3, Obj, type ObjCtx } from "./ui";
 import type { Mine, Piece, PieceId } from "./model";
 import type { Room } from "./nav";
@@ -39,6 +42,8 @@ export interface HubProps {
   headSub: string;
   next: { text: string; href: string };
   share: () => void;
+  /** The club's profiles (Instagram, YouTube), beside «Compartir el club». */
+  social: readonly SocialLink[];
   pieces: Piece[];
   focus: PieceId;
   pick: (id: PieceId) => void;
@@ -55,7 +60,7 @@ export interface HubProps {
 
 const pad = (i: number) => `${i + 1 < 10 ? "0" : ""}${i + 1}`;
 
-export function Hub({ headSub, next, share, pieces, focus, pick, seasonName, ctx, back, mine, doors, from, open }: HubProps) {
+export function Hub({ headSub, next, share, social, pieces, focus, pick, seasonName, ctx, back, mine, doors, from, open }: HubProps) {
   const [ry, setRy] = useState(-32);
   const cab = useRef<HTMLDivElement | null>(null);
   // (the case's light follows a mouse or a pen, as the board's cabRef, once a frame; a finger leaves it at rest)
@@ -112,10 +117,18 @@ export function Hub({ headSub, next, share, pieces, focus, pick, seasonName, ctx
             {next.text}
           </Go>
         </p>
-        <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm cb-share" onClick={share}>
-          <I n="share" />
-          <span>Compartir el club</span>
-        </button>
+        <div className="cb-hubacts">
+          {social.map((l) => (
+            <a key={l.key} className="vd-glass vd-press vd-btn vd-btn--sm cb-soc" href={l.href} target="_blank" rel="noopener noreferrer" aria-label={socialLabel(l)}>
+              <SocialIcon name={l.key} className="cb-i" />
+              <span>{l.name}</span>
+            </a>
+          ))}
+          <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm cb-share" onClick={share}>
+            <I n="share" />
+            <span>Compartir el club</span>
+          </button>
+        </div>
       </header>
 
       <section className="cb-show" aria-labelledby="cb-vit-t">

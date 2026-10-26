@@ -44,7 +44,7 @@ describe("sections", () => {
   });
   it("slices the content per section", () => {
     expect(sliceOf(live, "frase")).toEqual({ intro: live.intro, location: "Madrid", founded: "", venue: "" });
-    expect(Object.keys(sliceOf(live, "contacto"))).toEqual(["email", "instagram", "photoUrl"]);
+    expect(Object.keys(sliceOf(live, "contacto"))).toEqual(["email", "instagram", "youtube", "photoUrl"]);
   });
   it("compares content ignoring key order and stray spaces", () => {
     expect(canonical({ a: " x ", b: [{ q: "1", a: "2" }] })).toBe(canonical({ b: [{ a: "2", q: "1" }], a: "x" }));

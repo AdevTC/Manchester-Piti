@@ -926,6 +926,7 @@ describe("Contenido de El club", () => {
     venue: "",
     email: "",
     instagram: "",
+    youtube: "https://www.youtube.com/@ManchesterPitiFC2026",
     photoUrl: "",
     milestones: [],
     sponsors: [],

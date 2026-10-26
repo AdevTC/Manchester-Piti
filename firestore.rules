@@ -310,7 +310,7 @@ service cloud.firestore {
     match /clubContent/{id} {
       allow read: if true;
       allow create, update: if admin() && id == 'main'
-        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','photoUrl','milestones','sponsors','gallery','faq','crestStory','venues'])
+        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','youtube','photoUrl','milestones','sponsors','gallery','faq','crestStory','venues'])
         && (!('venues' in request.resource.data) || venuesOk(request.resource.data.venues))
         && request.resource.data.intro is string && request.resource.data.intro.size() < 1000
         && request.resource.data.story is string && request.resource.data.story.size() < 20000

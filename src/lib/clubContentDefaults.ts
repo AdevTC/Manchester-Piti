@@ -8,6 +8,8 @@ export interface ClubContent {
   venue: string;
   email: string;
   instagram: string;
+  /** The club's YouTube channel (Club's head, Inicio's «Síguenos»). */
+  youtube: string;
   photoUrl: string;
   milestones: { year: string; title: string; text: string }[];
   sponsors: { name: string; url: string; logo: string }[];
@@ -27,7 +29,8 @@ export const DEFAULT_CONTENT: ClubContent = {
   founded: "",
   venue: "",
   email: "",
-  instagram: "",
+  instagram: "https://www.instagram.com/manchesterpiti.__/",
+  youtube: "https://www.youtube.com/@ManchesterPitiFC2026",
   photoUrl: "",
   milestones: [],
   sponsors: [],

@@ -98,7 +98,7 @@ export function Contenido() {
           return parts.join(" · ");
         }
         case "contacto":
-          return [c.email.trim() || "sin correo", c.instagram.trim() ? "Instagram" : "sin Instagram", c.photoUrl.trim() ? "foto del equipo" : "sin foto del equipo"].join(" · ");
+          return [c.email.trim() || "sin correo", c.instagram.trim() ? "Instagram" : "sin Instagram", c.youtube.trim() ? "YouTube" : "sin YouTube", c.photoUrl.trim() ? "foto del equipo" : "sin foto del equipo"].join(" · ");
         case "momentos": {
           const fresh = c.milestones.filter((m) => !web.milestones.some((x) => x.year === m.year && x.title === m.title && x.text === m.text));
           if (!c.milestones.length) return "Todavía sin momentos";
