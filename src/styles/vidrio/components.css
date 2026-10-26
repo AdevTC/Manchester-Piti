@@ -253,3 +253,20 @@
 .vd-float.is-docked[data-vd-tight] .vd-drop{padding:0 12px}
 .vd-float.is-docked[data-vd-tight] .vd-drop__crest{display:none}
 .vd-float.is-docked[data-vd-tight="2"] .vd-drop:not(.vd-drop--expanded) .vd-drop__min{display:none}
+
+/* ---------------------------------------------------------------- the nota (src/lib/rating/semaforo.ts): Sofascore's
+   traffic light on the «valoración Piti» ranges. Each band carries its own ink (white on the blue and the red, navy on
+   the four light ones): every pairing passes AA, and the figure says it without the colour. */
+.nb{--nb:rgba(8,18,39,.7);--nbi:var(--vd-bruma);display:inline-flex;align-items:center;justify-content:center;min-width:31px;height:20px;padding:0 5px;border-radius:6px;font-family:var(--vd-sans);font-size:12.5px;font-weight:780;font-feature-settings:'tnum' 1;line-height:1;letter-spacing:-.01em;white-space:nowrap;background:var(--nb);color:var(--nbi);box-shadow:0 2px 8px -3px rgba(2,8,26,.75);flex:none}
+.nb--sm{min-width:28px;height:18px;font-size:11.5px;border-radius:5px}
+.nb--lg{min-width:44px;height:28px;font-size:15px;border-radius:8px}
+.nb--hero{min-width:104px;height:78px;padding:0 14px;font-size:46px;font-weight:800;letter-spacing:-.045em;border-radius:22px;font-variation-settings:'wdth' 108;box-shadow:0 20px 44px -18px var(--nb),inset 0 1px 0 rgba(255,255,255,.4),inset 0 -2px 0 rgba(0,0,0,.12)}
+.nb--s9{--nb:#374df5;--nbi:#fff}
+.nb--s8{--nb:rgb(0,173,196);--nbi:#0c1733}
+.nb--s7{--nb:rgb(0,196,36);--nbi:#0c1733}
+.nb--s65{--nb:rgb(217,175,0);--nbi:#0c1733}
+.nb--s6{--nb:rgb(237,126,7);--nbi:#0c1733}
+.nb--s5{--nb:#dc0c00;--nbi:#fff}
+.nb--no{--nb:transparent;--nbi:var(--vd-g-ink2);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+:root[data-theme="light"] .nb:not(.nb--hero){box-shadow:0 1px 4px -2px rgba(12,23,51,.45)}
+:root[data-theme="light"] .nb--no{box-shadow:inset 0 0 0 1px var(--vd-rule2)}
