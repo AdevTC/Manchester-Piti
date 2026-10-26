@@ -27,6 +27,12 @@ describe("live · sides and the log", () => {
       ["12", "Gol de ERIK", "pase de ADRIÁN T.C.", ""],
     ]);
   });
+  it("a «Cambio de sitio» reads as the two who trade places and moves nobody off the pitch", () => {
+    const swap: MatchEvent = { id: "s1", type: "position_swap", minute: 31, playerId: "erik", inPlayerId: "adrian" };
+    const rows = liveLog([...events, swap], "MAD SKY", (id) => NAMES[id][1]);
+    expect(rows.find((r) => r.id === "s1")).toMatchObject({ minute: "31", icon: "swap", text: "Cambio de sitio · ERIK ↔ ADRIÁN T.C.", detail: "", cls: "" });
+    expect(liveSides(["evans", "tello", "erik", "adrian"], ["kevin", "almachi"], [...events, swap])).toEqual({ field: ["kevin", "erik", "adrian"], bench: ["tello", "almachi"] });
+  });
 });
 
 describe("live · football's minute in the log", () => {
