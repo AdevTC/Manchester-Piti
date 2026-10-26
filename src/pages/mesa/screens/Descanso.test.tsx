@@ -68,7 +68,7 @@ describe("Descanso", () => {
     fireEvent.click(row("Marcos"));
     fireEvent.click(row("Iván"));
     fireEvent.click(cta());
-    expect(v.actions.addMany).toHaveBeenCalledWith([{ playerId: "marcos", inPlayerId: "ivan" }]);
+    expect(v.actions.addMany).toHaveBeenCalledWith([{ type: "substitution", playerId: "marcos", inPlayerId: "ivan" }]);
     expect(v.actions.add).not.toHaveBeenCalled();
     await Promise.resolve();
     expect(v.actions.clock).toHaveBeenCalledWith("second");
@@ -91,7 +91,7 @@ describe("Descanso", () => {
     expect(within(within(card).getByRole("radiogroup", { name: "¿Por quién entra Iván?" })).getByRole("radio", { name: "DFC por Marcos" })).toHaveAttribute("aria-checked", "true");
     expect(within(within(card).getByRole("radiogroup", { name: "¿Por quién entra Rubén?" })).getByRole("radio", { name: "DC por Mario" })).toHaveAttribute("aria-checked", "true");
     fireEvent.click(cta());
-    expect(v.actions.addMany).toHaveBeenCalledWith(expect.arrayContaining([{ playerId: "marcos", inPlayerId: "ivan" }, { playerId: "mario", inPlayerId: "ruben" }]));
+    expect(v.actions.addMany).toHaveBeenCalledWith(expect.arrayContaining([{ type: "substitution", playerId: "marcos", inPlayerId: "ivan" }, { type: "substitution", playerId: "mario", inPlayerId: "ruben" }]));
     await Promise.resolve();
     expect(v.actions.clock).toHaveBeenCalledWith("second");
   });
@@ -107,7 +107,35 @@ describe("Descanso", () => {
     const card = screen.getByRole("region", { name: "Los cambios de la 2ª" });
     expect(within(card).getByRole("radio", { name: "DFC por Dani (expulsado)" })).toHaveAttribute("aria-checked", "true");
     fireEvent.click(cta());
-    expect(v.actions.addMany).toHaveBeenCalledWith([{ playerId: "dani", inPlayerId: "ivan" }]);
+    expect(v.actions.addMany).toHaveBeenCalledWith([{ type: "substitution", playerId: "dani", inPlayerId: "ivan" }]);
+  });
+
+  it("«Recolocar»: two of the seven swap places; the wave sends the changes and then the swaps", async () => {
+    const v = halftime();
+    v.field = v.field.map((p) => ({ ...p, pos: ({ alex: "POR", mario: "DC", sergio: "MC", dani: "DFC", marcos: "DFC", pablo: "MI", david: "MD" } as Record<string, string>)[p.id] ?? null }));
+    mount(v);
+    fireEvent.click(row("Marcos"));
+    fireEvent.click(row("Iván"));
+    const rec = screen.getByRole("region", { name: "Recolocar para la 2ª" });
+    // Iván comes on in Marcos's place (DFC); he swaps with Mario (DC)
+    fireEvent.click(within(rec).getByRole("button", { name: "Elegir a Iván (DFC) para cambiar de sitio" }));
+    expect(within(rec).getByText("¿Con quién cambia el sitio Iván? Toca a un compañero")).toBeInTheDocument();
+    fireEvent.click(within(rec).getByRole("button", { name: "Iván y Mario se cambian el sitio" }));
+    expect(within(rec).getByRole("button", { name: "Elegir a Mario (DFC) para cambiar de sitio" })).toBeInTheDocument();
+    expect(within(rec).getByText("Iván ↔ Mario")).toBeInTheDocument();
+    // a second pair, taken back with «Deshacer»
+    fireEvent.click(within(rec).getByRole("button", { name: "Elegir a Sergio (MC) para cambiar de sitio" }));
+    fireEvent.click(within(rec).getByRole("button", { name: "Sergio y David se cambian el sitio" }));
+    expect(within(rec).getByText("Iván ↔ Mario · Sergio ↔ David")).toBeInTheDocument();
+    fireEvent.click(within(rec).getByRole("button", { name: "Deshacer" }));
+    expect(within(rec).getByText("Iván ↔ Mario")).toBeInTheDocument();
+    fireEvent.click(cta());
+    expect(v.actions.addMany).toHaveBeenCalledWith([
+      { type: "substitution", playerId: "marcos", inPlayerId: "ivan" },
+      { type: "position_swap", playerId: "ivan", inPlayerId: "mario" },
+    ]);
+    await Promise.resolve();
+    expect(v.actions.clock).toHaveBeenCalledWith("second");
   });
 
   it("no changes: just the 2ª, nothing written", async () => {

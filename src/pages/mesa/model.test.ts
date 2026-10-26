@@ -85,6 +85,18 @@ describe("dónde va cada camiseta", () => {
     expect(keeper).toBe("k");
     expect(spots.get("z")).toEqual({ x: 50, y: 14 });
   });
+  it("dos que se cambian el sitio intercambian sus códigos (con pizarra) o su sitio por orden (sin ella)", () => {
+    const codes = { k: "POR", a: "DC", b: "MC" };
+    const swap = [ev("w", "position_swap", 200, { playerId: "a", inPlayerId: "b" })];
+    const coded = fieldSpots(["k", "a", "b"], ["k", "a", "b"], swap, codes);
+    expect(coded.spots.get("a")).toEqual({ x: 50, y: 48 });
+    expect(coded.spots.get("b")).toEqual({ x: 50, y: 14 });
+    // the keeper swaps with an outfielder: the gloves go with the slot
+    const gk = fieldSpots(["k", "d1", "d2", "m1", "m2", "m3", "f"], ["k", "d1", "d2", "m1", "m2", "m3", "f"], [ev("g", "position_swap", 300, { playerId: "k", inPlayerId: "f" })], null);
+    expect(gk.keeper).toBe("f");
+    expect(gk.spots.get("k")).toEqual({ x: 50, y: 14 });
+    expect(eventText({ type: "position_swap", playerId: "a", inPlayerId: "b" }, (id) => ({ a: "Fer", b: "Jordi" })[id] ?? id, "Rival")).toBe("Fer y Jordi se cambian el sitio");
+  });
   it("el central y el portero en la misma columna: el portero baja (y el central sube si hace falta) hasta que no se pisan", () => {
     // the Elegida 3-2-1: Illescas (50, 74) right in front of Evans (50, 92)
     const spots = [

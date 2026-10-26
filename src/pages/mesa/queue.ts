@@ -26,8 +26,9 @@ const itemSchema = z.object({
   createdAt: z.number().finite(),
   text: z.string().max(300),
   payload: payloadSchema,
-  /** A wave of changes in one operation (liveEvent addMany): every change, `payload` being the first. */
-  batch: z.array(payloadSchema).min(1).max(7).optional(),
+  /** A wave of changes (and swaps of place) in one operation (liveEvent addMany): every play, `payload`
+   *  being the first. Up to 14 (api.ts MAX_WAVE, the server's MAX_MANY). */
+  batch: z.array(payloadSchema).min(1).max(14).optional(),
   /** pending: waiting to go up · sent: the server took it, waiting for the realtime doc · review: refused */
   status: z.enum(["pending", "sent", "review"]),
   reason: z.string().max(500).optional(),

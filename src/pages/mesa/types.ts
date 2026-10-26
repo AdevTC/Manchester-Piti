@@ -209,6 +209,13 @@ export interface MesaAddOpts {
   inPlayerId?: string;
 }
 
+/** One play of a wave: a change (who goes off, who comes on) or a swap of place (the two who trade). */
+export interface MesaWaveItem {
+  type?: "substitution" | "position_swap";
+  playerId: string;
+  inPlayerId: string;
+}
+
 export interface MesaEditPatch {
   type?: MesaType;
   playerId?: string;
@@ -219,11 +226,14 @@ export interface MesaEditPatch {
 }
 
 export interface MesaActions {
-  /** Enters a play now (offline-safe: through the queue). Returns its event id (`live-${requestId}`). */
-  add(type: MesaType, opts?: MesaAddOpts): string;
-  /** A wave of changes (up to 7) in one operation, all or none (one queue item; liveEvent addMany).
-   *  Returns their event ids (`live-${requestId}-${i}`). */
-  addMany(subs: readonly { playerId: string; inPlayerId: string }[]): string[];
+  /** Enters a play now (offline-safe: through the queue). `at`: the time of play to stamp it with instead
+   *  of now (the swaps of a «Recolocar» carry their change's time). Returns its event id (`live-${requestId}`). */
+  add(type: MesaType, opts?: MesaAddOpts, at?: { elapsed: number; period: 1 | 2 }): string;
+  /** A wave of changes and swaps of place (up to 14) in one operation, all or none (one queue item;
+   *  liveEvent addMany): `type` defaults to a change. `at`: the time of play to stamp them with (the
+   *  swaps of a «Recolocar» carry their change's time), else now. Returns their event ids
+   *  (`live-${requestId}-${i}`). */
+  addMany(items: readonly MesaWaveItem[], at?: { elapsed: number; period: 1 | 2 }): string[];
   /** Fixes any play (player, assist, who came in, type, minute; «Son dos» = { dupOk: true }). */
   edit(id: string, patch: MesaEditPatch): Promise<void>;
   /** Deletes any play («Borrar», «Es el mismo»). A play still in the queue is just dropped. */

@@ -2,11 +2,15 @@
 // score and the clock, the keys (Pausa, añadido, Fin de parte), the floodlit pitch with the seven, the
 // dugout, the rival bar and the dock (last play, lower third with «Deshacer», «Gol del Piti»). Tapping a
 // shirt opens the action ring; «Gol del Piti» asks «¿Quién marcó?», then the pitch asks for the pass.
+// A change is written at once; its lower third offers «Recolocar» (./recolocar): the scorer taps pairs who
+// swap places and «Hecho» sends just the swaps, at the change's own time. The ring's «Cambiar de sitio»
+// does the same without a change.
 // Without signal it is the same screen: amber housing, «Sin red», ↓N per player, a queue line in the dock.
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { allowedAtBreak } from "../../../functions/src/liveRules";
 import { Shirt, ShirtDefs } from "./Shirt";
 import { pitchLeft, pitchTop, spreadTops } from "./model";
+import { DRAFT_MAX, draftItems, placeName, previewPitch, type Draft } from "./recolocar";
 import { hhmm, matchLine } from "./screens/model";
 
 /** How long after kick-off (seconds of play) the «INICIO» lower third offers to take the whistle back. */
@@ -20,6 +24,7 @@ const ICON: Record<string, string> = {
   faltaR: "M5 19l14-14M9 5h10v10",
   faltaH: "M10 11H3l2-4h8M15 18a5 5 0 100-10 5 5 0 000 10z",
   cambio: "M7 4v16M3 8l4-4 4 4M17 20V4M21 16l-4 4-4-4",
+  sitio: "M4 8h13l-3-3M20 16H7l3 3",
   tarjeta: "M8 3h8a1 1 0 011 1v16a1 1 0 01-1 1H8a1 1 0 01-1-1V4a1 1 0 011-1z",
   lesion: "M12 21s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.6-7 10-7 10z",
   parada: "M7 11V6a1.5 1.5 0 013 0v4M10 10V4.5a1.5 1.5 0 013 0V10M13 10V5.5a1.5 1.5 0 013 0V11M16 9.5a1.5 1.5 0 013 0V15a6 6 0 01-6 6h-1a6 6 0 01-5-2.7L4 14",
@@ -65,8 +70,18 @@ type Mode =
   | { k: "review" };
 
 const NONE: Mode = { k: "" };
+/** A button of the lower third (a draft's «Recolocar», «Deshacer», «Hecho»): what it does, by name (the
+ *  handlers read the draft's ref, so they are looked up on the tap, not carried through render). */
+interface StrapButton {
+  label: string;
+  /** The way forward (a filled pill). */
+  go?: boolean;
+  act: "recolocar" | "undoPlace" | "done" | "cancelPlaces";
+}
 const ASSIST_MS = 14_000;
 const STRAP_MS = 6_000;
+/** How long the pair just swapped keeps its ping. */
+const MOVED_MS = 1_200;
 
 const liveWord = (v: MesaView) => (v.match.clock.held ? "En pausa" : "En juego");
 
@@ -127,8 +142,9 @@ const playerAria = (p: MesaPlayer) =>
     .filter(Boolean)
     .join(", ");
 
-/** The ring around a player: Gol on top, then the canvas's order. The keeper gets Parada instead of Tocado. */
-function ringItems(p: MesaPlayer, cards: boolean): { label: string; type: MesaType | "_cards" | "_back" | "_sub"; icon?: string; gold?: boolean; sw?: { color: string; letter: string } }[] {
+/** The ring around a player: Gol on top, then the canvas's order. The keeper gets Parada instead of Tocado;
+ *  «Cambiar de sitio» hangs under «Cambio». */
+function ringItems(p: MesaPlayer, cards: boolean): { label: string; type: MesaType | "_cards" | "_back" | "_sub" | "_place"; icon?: string; gold?: boolean; sw?: { color: string; letter: string } }[] {
   if (cards)
     return [
       { label: "Amarilla", type: p.stickers.yellow ? "double_yellow" : "yellow_card", sw: { color: "#FFC659", letter: "A" } },
@@ -144,9 +160,10 @@ function ringItems(p: MesaPlayer, cards: boolean): { label: string; type: MesaTy
     { label: "Hace falta", type: "foul", icon: ICON.faltaH },
     { label: "Tarjeta", type: "_cards", icon: ICON.tarjeta },
     p.keeper ? { label: "Parada", type: "save", icon: ICON.parada } : { label: "Tocado", type: "injury", icon: ICON.lesion },
+    { label: "Cambiar de sitio", type: "_place", icon: ICON.sitio },
   ];
 }
-const RING_POS = [[0, -158], [108, -94], [124, 0], [102, 94], [0, 158], [-104, 94], [-124, 0], [-108, -94]];
+const RING_POS = [[0, -158], [108, -94], [124, 0], [102, 94], [0, 158], [-104, 94], [-124, 0], [-108, -94], [0, 214]];
 const CARD_POS = [[0, -156], [106, 80], [-106, 80]];
 
 /** The plays of the rival's «···» sheet. */
@@ -252,7 +269,37 @@ export function EnJuego({ view }: MesaScreenProps) {
   const [busy, setBusy] = useState(false);
   /** The kick-off's «Deshacer» was used (or the strap dismissed): it doesn't come back. */
   const [kickGone, setKickGone] = useState(false);
+  /** The swaps being made, not sent yet: «Recolocar» / «Cambiar de sitio» (./recolocar; no change in it,
+   *  the change is already written). */
+  const [draft, setDraftState] = useState<Draft | null>(null);
+  /** The pair just swapped (their halos ping). */
+  const [moved, setMoved] = useState<readonly string[]>([]);
   const close = () => setMode(NONE);
+  // (the draft also lives in a ref: two quick taps must see the latest one at once)
+  const draftRef = useRef<Draft | null>(null);
+  const setDraft = (d: Draft | null) => {
+    draftRef.current = d;
+    setDraftState(d);
+  };
+  /** Sends the swaps made: one play when there is one (it gets the lower third and its «Deshacer»), else one
+   *  wave, all or none. After a change they carry the change's own time (they sort right after it in the
+   *  acta); from the ring, the time now. Returns the single play's id. */
+  const commit = (): string | null => {
+    const d = draftRef.current;
+    if (!d) return null;
+    setDraft(null);
+    const items = draftItems(d);
+    const at = d.alone ? undefined : d.at;
+    if (!items.length) return null;
+    if (items.length === 1) return actions.add("position_swap", { playerId: items[0].playerId, inPlayerId: items[0].inPlayerId }, at);
+    actions.addMany(items, at);
+    return null;
+  };
+  useEffect(() => {
+    if (!moved.length) return;
+    const t = window.setTimeout(() => setMoved([]), MOVED_MS);
+    return () => window.clearTimeout(t);
+  }, [moved]);
 
   // the goal: digit flip with the gold ribbon (red on theirs), floodlight flare
   const total = { us: match.score.us + match.queuedGoals.us, them: match.score.them + match.queuedGoals.them };
@@ -314,6 +361,8 @@ export function EnJuego({ view }: MesaScreenProps) {
   const can = (type: MesaType) => clock.playing || (held && allowedAtBreak(type));
   const add = (type: MesaType, opts?: { playerId?: string; inPlayerId?: string }) => {
     if (!can(type)) return;
+    // (pairs already made go first: the queue keeps the order)
+    commit();
     const id = actions.add(type, opts);
     setStrapId(id);
     if (opts?.playerId) setPop(opts.playerId);
@@ -330,7 +379,49 @@ export function EnJuego({ view }: MesaScreenProps) {
       setBusy(false);
     }
   };
+  const nowAt = () => ({ elapsed: clock.elapsedSeconds, period: clock.period });
+  /** A change: held as a draft (another one joins it) until «Hecho», the timer or the next play. */
   const swap = (outId: string, inId: string) => add("substitution", { playerId: outId, inPlayerId: inId });
+  /** «Recolocar» (after the change `after`, at its time) / «Cambiar de sitio» (alone): the pitch asks for
+   *  pairs, `first` already picked. */
+  const startPlaces = (first: string | null, after: MesaEvent | null) => {
+    setDraft({ subs: [], swaps: [], at: after ? { elapsed: after.elapsedSeconds ?? clock.elapsedSeconds, period: after.period } : nowAt(), step: "swap", pick: first, alone: !after });
+    setStrapId(null);
+    setMode(NONE);
+  };
+  const pickPlace = (id: string) => {
+    const d = draftRef.current;
+    if (!d) return;
+    if (!d.pick) return setDraft({ ...d, pick: id });
+    if (d.pick === id) return setDraft({ ...d, pick: null });
+    if (draftItems(d).length >= DRAFT_MAX) return;
+    const pair = [d.pick, id] as const;
+    setDraft({ ...d, swaps: [...d.swaps, pair], pick: null });
+    setMoved(pair);
+  };
+  const undoPlace = () => {
+    const d = draftRef.current;
+    if (!d) return;
+    const last = d.swaps[d.swaps.length - 1];
+    if (last) setMoved(last);
+    const rest = d.swaps.slice(0, -1);
+    setDraft({ ...d, swaps: rest, pick: null });
+  };
+  const done = () => {
+    const id = commit();
+    if (id) setStrapId(id);
+  };
+  const onStrap = (act: StrapButton["act"]) => {
+    if (act === "recolocar") {
+      const change = strapId ? view.events.find((e) => e.id === strapId) ?? null : null;
+      return startPlaces(change?.inPlayerId ?? null, change);
+    }
+    if (act === "undoPlace") return undoPlace();
+    if (act === "done") return done();
+    setDraft(null);
+  };
+  const swapping = draft?.step === "swap" ? draft : null;
+  const shown = previewPitch(field, bench, draft, clock.minute);
 
   const openRing = (p: MesaPlayer, e: MouseEvent<HTMLButtonElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -340,6 +431,7 @@ export function EnJuego({ view }: MesaScreenProps) {
     setMode({ k: "ring", id: p.id, fx, fy, cards: false });
   };
   const tapField = (p: MesaPlayer, e: MouseEvent<HTMLButtonElement>) => {
+    if (swapping) return pickPlace(p.id);
     if (mode.k === "assist") {
       // the scorer again: another play of his (a second goal…); the pass stays unasked (the acta asks)
       if (p.id === mode.scorer) return openRing(p, e);
@@ -355,45 +447,74 @@ export function EnJuego({ view }: MesaScreenProps) {
   };
   // the slot a red left empty: someone from the bench comes on «por» the player sent off
   const tapVacancy = (v: MesaPlayer) => {
+    if (swapping) return;
     if (mode.k === "out") return swap(v.id, mode.inId);
     setStrapId(null);
     setMode(mode.k === "outFrom" && mode.outId === v.id ? NONE : { k: "outFrom", outId: v.id });
   };
   const tapBench = (p: MesaPlayer) => {
-    if (p.sentOff) return;
+    // (while recolocating, only the pitch answers)
+    if (p.sentOff || swapping) return;
     if (mode.k === "outFrom") return swap(mode.outId, p.id);
     setStrapId(null);
     setMode(mode.k === "out" && mode.inId === p.id ? NONE : { k: "out", inId: p.id });
   };
 
-  const sel = mode.k === "ring" ? field.find((p) => p.id === mode.id) : undefined;
+  const sel = mode.k === "ring" ? shown.field.find((p) => p.id === mode.id) : undefined;
   const lastStrap: MesaEvent | null = strapId ? view.events.find((e) => e.id === strapId) ?? null : null;
   const goalEv = mode.k === "assist" ? view.events.find((e) => e.id === mode.goalId) ?? null : null;
   const scorerName = mode.k === "assist" ? view.nameOf(mode.scorer) : "";
   const inName = mode.k === "out" ? view.nameOf(mode.inId) : "";
   const outName = mode.k === "outFrom" ? view.nameOf(mode.outId) : "";
-  const outGone = mode.k === "outFrom" && bench.some((p) => p.id === mode.outId && p.vacancy);
-  const vacant = bench.filter((p) => p.vacancy);
+  const outGone = mode.k === "outFrom" && shown.bench.some((p) => p.id === mode.outId && p.vacancy);
+  const vacant = shown.bench.filter((p) => p.vacancy);
   // every token's top, spread so two in one column never sit on each other (the keeper behind his centre-back)
-  const tops = spreadTops([...field.map((p) => p.spot ?? { x: 50, y: 50 }), ...vacant.map((v) => v.vacancy?.spot ?? null)].map((s) => (s ? { left: pitchLeft(s.x), top: pitchTop(s.y) } : { left: -999, top: 0 })));
+  const tops = spreadTops([...shown.field.map((p) => p.spot ?? { x: 50, y: 50 }), ...vacant.map((v) => v.vacancy?.spot ?? null)].map((s) => (s ? { left: pitchLeft(s.x), top: pitchTop(s.y) } : { left: -999, top: 0 })));
 
   // the lower third
-  let strap: { tag: string; msg: string; sub: string; tone: "" | "g" | "r"; undo: boolean; cancel: boolean; reset?: boolean } | null = null;
+  let strap: { tag: string; msg: string; sub: string; tone: "" | "g" | "r" | "w"; undo: boolean; cancel: boolean; reset?: boolean; btns?: StrapButton[] } | null = null;
+  const nameOf = (id: string) => shown.field.find((p) => p.id === id)?.name ?? view.nameOf(id);
+  const placeOf = (id: string) => placeName(shown.field.find((p) => p.id === id)?.pos);
   // (right after kick-off, while nothing has been written, «Deshacer» takes the whistle back: Antes hands
   //  over to this screen at once)
   const justKicked = clock.phase === "first" && clock.elapsedSeconds < KICK_STRAP_SECONDS && view.events.length === 0 && !kickGone;
   if (mode.k === "assist") strap = { tag: "GOL", msg: `Gol de ${scorerName}${goalEv?.minute ? `, minuto ${goalEv.minute}` : ""}`, sub: "¿Quién dio el pase? Toca su camiseta", tone: "g", undo: false, cancel: false };
   else if (mode.k === "out") strap = { tag: "CAMBIO", msg: `Entra ${inName}`, sub: "¿Por quién? Toca quién sale", tone: "", undo: false, cancel: true };
   else if (mode.k === "outFrom") strap = { tag: "CAMBIO", msg: outGone ? `Por ${outName}, expulsado` : `Sale ${outName}`, sub: "¿Quién entra? Toca en el banquillo", tone: "", undo: false, cancel: true };
-  else if (lastStrap) {
+  else if (swapping) {
+    const last = swapping.swaps[swapping.swaps.length - 1];
+    let msg = "Toca a dos jugadores";
+    let sub = "Se cambian el sitio";
+    if (swapping.pick) {
+      msg = `¿Con quién cambia el sitio ${nameOf(swapping.pick)}?`;
+      sub = "Toca a un compañero";
+    } else if (last) {
+      const [a, b] = last;
+      msg = placeOf(a) && placeOf(b) ? `${nameOf(a)}, a ${placeOf(a)} · ${nameOf(b)}, a ${placeOf(b)}` : `${nameOf(a)} y ${nameOf(b)} se cambian el sitio`;
+      sub = "¿Alguien más? Toca a dos jugadores";
+    }
+    const btns: StrapButton[] = [];
+    if (swapping.swaps.length) btns.push({ label: "Deshacer", act: "undoPlace" });
+    if (swapping.swaps.length || !swapping.alone) btns.push({ label: "Hecho", go: true, act: "done" });
+    else btns.push({ label: "Cancelar", act: "cancelPlaces" });
+    strap = { tag: swapping.swaps.length && !swapping.pick ? "RECOLOCACIÓN" : "RECOLOCAR", msg, sub, tone: "w", undo: false, cancel: false, btns };
+  } else if (lastStrap) {
     const goal = lastStrap.goal;
     const where = lastStrap.local ? (queue.online ? "subiendo" : "en el móvil, se sube sola") : goal ? "ya en la web" : "";
     strap = { tag: lastStrap.tag, msg: lastStrap.text, sub: [`Minuto ${lastStrap.minute ?? clock.minute}, apuntado por ti`, where].filter(Boolean).join(" · "), tone: goal === "us" ? "g" : goal === "them" ? "r" : "", undo: true, cancel: false };
+    // a change, written: where the one coming on plays, and «Recolocar» (the swaps go up apart, at its time)
+    const comer = lastStrap.type === "substitution" && lastStrap.inPlayerId ? field.find((p) => p.id === lastStrap.inPlayerId) : undefined;
+    if (comer && can("position_swap") && field.length > 1) {
+      const place = placeName(comer.pos);
+      strap = { ...strap, sub: place ? `Ocupa su sitio: ${place}` : strap.sub, btns: [{ label: "Recolocar", go: true, act: "recolocar" }] };
+    }
   } else if (justKicked) {
     strap = { tag: "INICIO", msg: clock.kickoffAt != null ? `Pitido inicial a las ${hhmm(clock.kickoffAt)}` : "Pitido inicial", sub: "El reloj ya corre", tone: "", undo: false, cancel: false, reset: true };
   }
   const last = view.events[view.events.length - 1];
-  const unplayed = bench.filter((p) => !p.played && !p.sentOff).length;
+  const unplayed = shown.bench.filter((p) => !p.played && !p.sentOff).length;
+  // (the strap slides in again on every step of a draft)
+  const strapKey = draft ? (draft.swaps.length + (draft.pick ? 1 : 0)) % 2 : strapId ? strapId.length % 2 : 0;
   const half = clock.period === 1 ? "1ª PARTE" : "2ª PARTE";
   const endLabel = clock.phase === "first" ? "Fin de la 1ª" : "Fin del partido";
   const endAction = clock.phase === "first" ? "halftime" : "finish";
@@ -517,9 +638,15 @@ export function EnJuego({ view }: MesaScreenProps) {
         <div className="cl" style={{ left: "50%", bottom: -2, width: 178, height: 62, marginLeft: -89, borderBottom: 0 }} />
         <span className="spot" style={{ left: "50%", bottom: 44, marginLeft: -2.5 }} />
         <div className="net" />
-        {field.map((p, i) => {
+        {shown.field.map((p, i) => {
           let cls = "tok";
           let aria = playerAria(p);
+          if (swapping) {
+            cls += p.id === swapping.pick ? " in" : " ask";
+            const where = placeName(p.pos) || p.pos || "";
+            aria = swapping.pick && swapping.pick !== p.id ? `${nameOf(swapping.pick)} y ${p.name} se cambian el sitio` : `${p.name}${where ? `, ${where}` : ""}. Elegir para cambiar de sitio`;
+          }
+          if (moved.includes(p.id)) cls += " moved";
           if (mode.k === "assist") {
             if (p.id !== mode.scorer) cls += " ask";
             aria = p.id === mode.scorer ? `${p.name}, ha marcado. Toca para apuntarle otra jugada` : `Asistencia de ${p.name}`;
@@ -532,7 +659,7 @@ export function EnJuego({ view }: MesaScreenProps) {
           if (pop === p.id) cls += " pop";
           const spot = p.spot ?? { x: 50, y: 50 };
           return (
-            <button key={p.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${tops[i]}%` }} aria-label={aria} onClick={(e) => tapField(p, e)}>
+            <button key={p.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${tops[i]}%` }} aria-label={aria} aria-pressed={swapping ? p.id === swapping.pick : undefined} onClick={(e) => tapField(p, e)}>
               <span className="halo" />
               <span className="shirtw">
                 <Shirt kind={p.keeper ? "keeper" : "field"} number={p.number} shadow />
@@ -546,7 +673,7 @@ export function EnJuego({ view }: MesaScreenProps) {
               </span>
               <span className="tag">
                 <span className="nm">{p.name}</span>
-                <span className="mn">{p.minutes}′</span>
+                <span className="mn">{swapping && p.pos ? p.pos : `${p.minutes}′`}</span>
               </span>
             </button>
           );
@@ -557,7 +684,7 @@ export function EnJuego({ view }: MesaScreenProps) {
           const cls = "tok hueco" + (mode.k === "out" ? " ask" : mode.k === "outFrom" ? (mode.outId === v.id ? " in" : " dim") : "");
           const aria = mode.k === "out" ? `Entra ${inName} por ${v.name}, expulsado` : `Hueco de ${v.name}, expulsado${v.vacancy.code ? `, ${v.vacancy.code}` : ""}. Toca para que entre alguien`;
           return (
-            <button key={"hueco-" + v.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${tops[field.length + k]}%` }} aria-label={aria} disabled={!can("substitution")} onClick={() => tapVacancy(v)}>
+            <button key={"hueco-" + v.id} type="button" className={cls} style={{ left: `${pitchLeft(spot.x)}%`, top: `${tops[shown.field.length + k]}%` }} aria-label={aria} disabled={!can("substitution") || !!swapping} onClick={() => tapVacancy(v)}>
               <span className="halo" />
               <span className="shirtw"><span className="hole" aria-hidden="true">+</span></span>
               <span className="tag">
@@ -572,23 +699,23 @@ export function EnJuego({ view }: MesaScreenProps) {
         <div className="roof" />
         <div className="dhead">
           <b>Banquillo</b>
-          <span>{mode.k === "outFrom" ? "¿quién entra?" : "toca para que entre"}</span>
+          <span>{mode.k === "outFrom" ? "¿quién entra?" : swapping ? "recolocando en el campo" : "toca para que entre"}</span>
           {unplayed > 0 && <em>{unplayed} sin jugar</em>}
         </div>
-        {view.nextSub && mode.k === "" && (
+        {view.nextSub && mode.k === "" && !draft && (
           <button type="button" className="toca" onClick={() => swap(view.nextSub!.outId, view.nextSub!.inId)} disabled={!can("substitution")}>
             <Ico d={ICON.cambio} size={16} />
             Toca: entra {view.nextSub.inName} por {view.nextSub.outName}
           </button>
         )}
         {mode.k !== "outFrom" && vacant.filter((v) => !v.vacancy?.spot).map((v) => (
-          <button key={"hueco-" + v.id} type="button" className="toca" onClick={() => tapVacancy(v)} disabled={!can("substitution")}>
+          <button key={"hueco-" + v.id} type="button" className="toca" onClick={() => tapVacancy(v)} disabled={!can("substitution") || !!swapping}>
             <Ico d={ICON.cambio} size={16} />
             {mode.k === "out" ? `Entra ${inName} por ${v.name} (expulsado)` : `Hueco de ${v.name} (expulsado): toca para que entre alguien`}
           </button>
         ))}
         <div className="row" role="group" aria-label="Banquillo">
-          {bench.map((p) => {
+          {shown.bench.map((p) => {
             let cls = "bt";
             if (mode.k === "out" && mode.inId === p.id) cls += " in";
             if (mode.k === "outFrom" && !p.sentOff) cls += " ask";
@@ -609,7 +736,7 @@ export function EnJuego({ view }: MesaScreenProps) {
               </button>
             );
           })}
-          {bench.length === 0 && <span className="none">Nadie en el banquillo</span>}
+          {shown.bench.length === 0 && <span className="none">Nadie en el banquillo</span>}
         </div>
       </div>
 
@@ -668,13 +795,18 @@ export function EnJuego({ view }: MesaScreenProps) {
           </button>
         )}
         {strap ? (
-          <div className={`l3 ${strapId && strapId.length % 2 ? "a" : "b"}`} role="status">
+          <div className={`l3 ${strapKey ? "a" : "b"}${strap.btns ? " w2" : ""}`} role="status">
             <span className={strap.tone ? `kk ${strap.tone}` : "kk"}>{strap.tag}</span>
             <div className={strap.tone ? `bar ${strap.tone}` : "bar"}>
               <span className="msg">
                 <b>{strap.msg}</b>
                 <small>{strap.sub}</small>
               </span>
+              {strap.btns?.map((b) => (
+                <button key={b.label} type="button" className={b.go ? "ud go" : "ud"} onClick={() => onStrap(b.act)}>
+                  {b.label}
+                </button>
+              ))}
               {strap.undo && (
                 <button
                   type="button"
@@ -777,8 +909,8 @@ export function EnJuego({ view }: MesaScreenProps) {
             </button>
             {ringItems(sel, mode.cards).map((it, i) => {
               const pos = (mode.cards ? CARD_POS : RING_POS)[i];
-              const isAction = it.type !== "_cards" && it.type !== "_back" && it.type !== "_sub";
-              const disabled = isAction ? !can(it.type as MesaType) : it.type === "_sub" ? !can("substitution") : false;
+              const isAction = it.type !== "_cards" && it.type !== "_back" && it.type !== "_sub" && it.type !== "_place";
+              const disabled = isAction ? !can(it.type as MesaType) : it.type === "_sub" ? !can("substitution") : it.type === "_place" ? !can("position_swap") || shown.field.length < 2 : false;
               return (
                 <button
                   key={it.label}
@@ -790,6 +922,7 @@ export function EnJuego({ view }: MesaScreenProps) {
                     if (it.type === "_cards") return setMode({ ...mode, cards: true });
                     if (it.type === "_back") return setMode({ ...mode, cards: false });
                     if (it.type === "_sub") return setMode({ k: "outFrom", outId: sel.id });
+                    if (it.type === "_place") return startPlaces(sel.id, null);
                     add(it.type, { playerId: sel.id });
                   }}
                 >
@@ -812,7 +945,7 @@ export function EnJuego({ view }: MesaScreenProps) {
         <Sheet label="¿Quién marcó?" kicker={`Gol del Piti, minuto ${clock.minute}`} title="¿Quién marcó?" onClose={close}>
           <div className="pg">
             {/* (from the front to the back: who scores most comes first, the keeper last) */}
-            {[...field].reverse().map((p, i) => (
+            {[...shown.field].reverse().map((p, i) => (
               <button key={p.id} type="button" className="pk" style={{ "--d": `${i * 30}ms` } as CSSProperties} onClick={() => add("goal", { playerId: p.id })}>
                 <Shirt kind={p.keeper ? "keeper" : "field"} number={p.number} size={40} />
                 <span>{p.name}</span>
@@ -838,8 +971,8 @@ export function EnJuego({ view }: MesaScreenProps) {
                 {r.label}
               </button>
             ))}
-            {field.some((p) => p.keeper) && (
-              <button type="button" className="ac" disabled={!can("penalty_saved")} onClick={() => add("penalty_saved", { playerId: field.find((p) => p.keeper)!.id })}>
+            {shown.field.some((p) => p.keeper) && (
+              <button type="button" className="ac" disabled={!can("penalty_saved")} onClick={() => add("penalty_saved", { playerId: shown.field.find((p) => p.keeper)!.id })}>
                 Penalti parado
               </button>
             )}

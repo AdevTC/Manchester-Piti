@@ -83,8 +83,8 @@ export function EditSheet({ event, players, maxMinute, onSave, onClose }: Props)
             if (isMesaType(x)) setType(x);
           }} />
         )}
-        {takesPlayer(t) && <Picks label={takesIn(t) ? "Sale" : "Quién"} value={playerId} options={people} onPick={setPlayerId} />}
-        {takesIn(t) && <Picks label="Entra" value={inId} options={people.filter((p) => p.id !== playerId)} onPick={setInId} />}
+        {takesPlayer(t) && <Picks label={t === "position_swap" ? "Se cambia de sitio" : takesIn(t) ? "Sale" : "Quién"} value={playerId} options={people} onPick={setPlayerId} />}
+        {takesIn(t) && <Picks label={t === "position_swap" ? "Con" : "Entra"} value={inId} options={people.filter((p) => p.id !== playerId)} onPick={setInId} />}
         {takesAssist(t) && (
           <Picks label="Pase de" value={assistId} options={[{ id: "", name: "Nadie" }, ...people.filter((p) => p.id !== playerId)]} onPick={setAssistId} />
         )}

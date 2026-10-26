@@ -8,7 +8,7 @@ export type Category = "gol" | "falta" | "cambio" | "tarjeta" | "otra";
 const CATEGORY: Partial<Record<EventType, Category>> = {
   goal: "gol", goal_penalty: "gol", goal_freekick: "gol", opponent_goal: "gol", opponent_own_goal: "gol", own_goal: "gol",
   foul: "falta", foul_received: "falta", opponent_foul: "falta", penalty_committed: "falta", penalty_received: "falta",
-  substitution: "cambio",
+  substitution: "cambio", position_swap: "cambio",
   yellow_card: "tarjeta", double_yellow: "tarjeta", red_card: "tarjeta", opponent_yellow: "tarjeta", opponent_red: "tarjeta",
 };
 export const categoryOf = (t: EventType): Category => CATEGORY[t] ?? "otra";
@@ -17,7 +17,7 @@ export type IconId = "gol" | "falta" | "cambio" | "palo" | "parada" | "ocasion" 
 const ICON: Partial<Record<EventType, IconId>> = {
   goal: "gol", goal_penalty: "gol", goal_freekick: "gol", opponent_goal: "gol", opponent_own_goal: "gol", own_goal: "gol",
   foul: "falta", foul_received: "falta", opponent_foul: "falta", penalty_committed: "penalti", penalty_received: "penalti",
-  substitution: "cambio", woodwork: "palo", opponent_woodwork: "palo", save: "parada", penalty_saved: "parada",
+  substitution: "cambio", position_swap: "cambio", woodwork: "palo", opponent_woodwork: "palo", save: "parada", penalty_saved: "parada",
   chance: "ocasion", opponent_chance: "ocasion", corner: "corner", opponent_corner: "corner",
   yellow_card: "amarilla", opponent_yellow: "amarilla", double_yellow: "roja", red_card: "roja", opponent_red: "roja",
   injury: "tocado", opponent_offside: "fuera", penalty_missed: "penalti", opponent_penalty_missed: "penalti",
@@ -30,7 +30,7 @@ export const isMesaType = (t: string): t is MesaType => MESA.has(t);
 /** The bare name of a type, for Corregir's choices. */
 export const TYPE_NAME: Record<MesaType, string> = {
   goal: "Gol", goal_penalty: "De penalti", goal_freekick: "De falta", opponent_own_goal: "Autogol suyo", own_goal: "En propia",
-  opponent_goal: "Gol suyo", yellow_card: "Amarilla", double_yellow: "2.ª amarilla", red_card: "Roja", substitution: "Cambio",
+  opponent_goal: "Gol suyo", yellow_card: "Amarilla", double_yellow: "2.ª amarilla", red_card: "Roja", substitution: "Cambio", position_swap: "Cambio de sitio",
   woodwork: "Al palo", chance: "Ocasión", corner: "Córner", save: "Parada", foul: "Hace falta", foul_received: "Le hacen falta",
   injury: "Tocado", penalty_saved: "Penalti parado", penalty_missed: "Penalti fallado", penalty_received: "Penalti a favor",
   penalty_committed: "Penalti en contra", opponent_chance: "Ocasión", opponent_corner: "Córner", opponent_foul: "Falta",
@@ -50,7 +50,8 @@ export const compatibleTypes = (t: MesaType): readonly MesaType[] => FAMILIES.fi
 /** Which player fields a type carries. */
 export const takesPlayer = (t: EventType) => !t.startsWith("opponent_");
 export const takesAssist = (t: EventType) => t === "goal" || t === "goal_penalty" || t === "goal_freekick";
-export const takesIn = (t: EventType) => t === "substitution";
+/** A change's «Entra», a swap of place's other one: both in `inPlayerId`. */
+export const takesIn = (t: EventType) => t === "substitution" || t === "position_swap";
 
 export const two = (n: number) => (n < 10 ? "0" : "") + n;
 /** 1145 → «19:05»; past an hour «1:05:00». */
