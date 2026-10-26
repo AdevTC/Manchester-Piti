@@ -4,7 +4,7 @@ import { notasDoc, parseStoredNotas, storedNotasOf, type StoredNotas } from "../
 import type { ClubMatch } from "../clubData";
 import type { Standings } from "../standings";
 import { MODEL_VERSION } from "./constants";
-import { frozenNotas, seasonRatings } from "./season";
+import { frozenNotas, matchNotas, seasonRatings } from "./season";
 
 // «La nota congelada» (docs/medias.md): each acta's notas are rated when it is published, with the season up to it.
 
@@ -65,5 +65,15 @@ describe("congelada: a match keeps the nota of its day", () => {
     expect(frozenNotas(j2, [j1, j2], [table], 1.01).rival).toBe(1.01);
     // a later match is not part of an earlier one's season
     expect(Object.keys(frozenNotas(j1, [j1, j2], [table]).players).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("matchNotas: what a page that only shows notas reads", () => {
+  it("reads the frozen notas without rating the season, and rates it when an acta has none", () => {
+    const frozen = match({ a: row(50), b: row(50) }, { notas: stored({ a: { nota: 8.8, minutes: 50, weight: 1, narrated: true } }) });
+    expect(matchNotas([frozen])(frozen.id, "a")?.nota).toBe(8.8);
+    expect(matchNotas([frozen])(frozen.id, "b")).toBeNull();
+    const open = match({ a: row(50, { goals: 1 }), b: row(50) });
+    expect(matchNotas([frozen, open])(open.id, "a")?.nota).toBe(seasonRatings([frozen, open]).noteOf(open.id, "a")?.nota);
   });
 });

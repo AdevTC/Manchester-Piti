@@ -10,7 +10,7 @@ import { MIN_RATED_MINUTES, MODEL_VERSION, PROVISIONAL_MINUTES } from "./rating/
 import { emptySeason, NO_STANDINGS, seasonRatings, type MatchNote, type PlusMinus, type SeasonRatings } from "./rating/season";
 import type { Group, Item } from "./rating/values";
 
-export { NO_STANDINGS, seasonRatings, type MatchNote, type SeasonRatings } from "./rating/season";
+export { matchNotas, NO_STANDINGS, seasonRatings, type MatchNote, type SeasonRatings } from "./rating/season";
 export const SEASON_RATING_VERSION = MODEL_VERSION;
 export const GLOBAL_MIN = 0;
 export const GLOBAL_MAX = 99;

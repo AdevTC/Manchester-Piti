@@ -176,9 +176,9 @@ await denied("liveEvent", david, add("q-off", "foul", { playerId: ids[6] }, { ta
   // the second change brings in who the first one already brought in: refused, and neither is written
   await denied("liveEvent", david, many("w-bad", [[ids[4], ids[8]], [ids[3], ids[8]]]), "FAILED_PRECONDITION", /cambio/);
   assert.equal((await snap()).events.length, before); checks++;
-  // only changes, and at most seven
+  // only changes and «Cambio de sitio», and at most fourteen (a whole seven of changes and its recolocación)
   await denied("liveEvent", david, { action: "addMany", matchId, requestId: "w-goal", items: [{ clockRevision: m.clock.revision, event: { type: "goal", minute: 0, playerId: ids[1] } }] }, "INVALID_ARGUMENT");
-  await denied("liveEvent", david, many("w-eight", Array.from({ length: 8 }, () => [ids[4], ids[8]])), "INVALID_ARGUMENT");
+  await denied("liveEvent", david, many("w-fifteen", Array.from({ length: 15 }, () => [ids[4], ids[8]])), "INVALID_ARGUMENT");
   // tapped at the break and uploaded from the queue, like la mesa does
   const wave = await ok("liveEvent", pablo, many("w1", [[ids[4], ids[8]], [ids[3], ids[6]]], { tappedElapsed: first, period: 1 }));
   assert.deepEqual(wave.eventIds, ["live-w1-0", "live-w1-1"]); checks++;
@@ -189,6 +189,13 @@ await denied("liveEvent", david, add("q-off", "foul", { playerId: ids[6] }, { ta
   // one audit entry for the whole wave
   const audits = await db.collection("matchAudit").where("matchId", "==", matchId).where("live", "==", "addMany").get();
   assert.equal(audits.size, 1); assert.equal(audits.docs[0].get("count"), 2); checks += 2;
+  // the recolocación that goes with them («Recolocar»): «Cambio de sitio» plays at the change's time
+  const sw = await ok("liveEvent", pablo, { action: "addMany", matchId, requestId: "sw1", items: [{ clockRevision: m.clock.revision, tappedElapsed: first, period: 1, event: { type: "position_swap", minute: 0, playerId: ids[8], inPlayerId: ids[1] } }] });
+  assert.deepEqual(sw.eventIds, ["live-sw1-0"]); checks++;
+  { const e = await byId("live-sw1-0"); assert.equal(e.type, "position_swap"); assert.equal(e.playerId, ids[8]); assert.equal(e.inPlayerId, ids[1]); assert.equal(e.elapsedSeconds, first); checks += 4; }
+  // with someone who just went off: refused, nothing written
+  await denied("liveEvent", pablo, add("sw-bad", "position_swap", { playerId: ids[1], inPlayerId: ids[4] }), "FAILED_PRECONDITION", /cambio de sitio/);
+  assert.equal((await snap()).events.length, before + 3); checks++;
 }
 
 // ---- the 2nd half: a queued play inside its window
@@ -219,6 +226,8 @@ assert.equal(m.events.find((e) => e.id === "live-q-goal").assistReviewed, true);
 assert.equal(m.events.find((e) => e.id === "live-r1").editedByUid, pablo.uid); checks++;
 assert.equal(m.rivalShort, "ATL"); checks++;
 assert.equal(typeof m.voteClosesAt, "number"); checks++;
+// the notas, frozen with the acta (rating/frozen.ts): this model's, with the rival factor used
+assert.equal(m.notas?.model, "piti-media-v2"); assert.equal(typeof m.notas.rival, "number"); assert.ok(Object.keys(m.notas.players).length > 0); checks += 3;
 const totals = await db.collection("playerSeasonStats").where("seasonId", "==", seasonId).get();
 assert.equal(totals.docs.find((d) => d.get("playerId") === ids[5]).get("totals").goals, 1); checks++;
 // published: la mesa can't change it any more, nor publish it twice

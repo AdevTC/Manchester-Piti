@@ -1,8 +1,9 @@
 // «El partido» · El siete (P- boards, place-siete): one glass pitch for the whole match day, driven by the
 // moviola's minute — the seven before the whistle with the bench and who is not here, the pitch minute by minute
-// while it is played (a change the playhead crosses walks in, a mark it passes pops), and once played «Quién hizo
-// qué» or «Los minutos». Beside it the player panel (never empty on desktop), the bench or who is off the pitch,
-// and every player's stints. The logic is pure in sieteModel.ts.
+// while it is played (a change the playhead crosses walks in, a mark it passes pops), and after the whistle, until
+// the acta, «Quién hizo qué» or «Los minutos». Beside it the player panel (never empty on desktop), the bench or who
+// is off the pitch, and every player's stints. The logic is pure in sieteModel.ts. Once the acta is published the
+// screen is SieteActa.tsx: the match with every nota.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { useClubData, type ClubMatch } from "../../../lib/clubData";

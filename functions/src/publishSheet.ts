@@ -186,17 +186,21 @@ export async function publishSheet(input: PublishRequest) {
   }
   // «La nota congelada» (rating/frozen): the season's other published actas and its table, which this acta's notas
   // are rated against — read here, like the fichas, since they only feed the rating.
-  let seasonGames: RatingMatch[] = [];
+  let seasonGames: RatingMatch[] | null = null;
   let table: StandingsLike[] = [];
-  if (!input.draft && sheet.status === "finished") {
-    const [games, standings] = await Promise.all([
-      db.collection("matches").where("seasonId", "==", sheet.seasonId).where("status", "==", "finished").get(),
-      db.doc(`standings/${sheet.seasonId}`).get(),
-    ]);
-    seasonGames = games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m));
-    const t = standingsLike(sheet.seasonId, standings.data());
-    table = t ? [t] : [];
-  }
+  if (!input.draft && sheet.status === "finished")
+    try {
+      const [games, standings] = await Promise.all([
+        db.collection("matches").where("seasonId", "==", sheet.seasonId).where("status", "==", "finished").get(),
+        db.doc(`standings/${sheet.seasonId}`).get(),
+      ]);
+      seasonGames = games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m));
+      const t = standingsLike(sheet.seasonId, standings.data());
+      table = t ? [t] : [];
+    } catch (error) {
+      // (the acta never waits for its notas: stored without them, the web rates it with its season)
+      console.error("saveMatchSheet: the season could not be read for the notas", input.id, error);
+    }
   const ref = db.doc(`matches/${input.id}`);
   // Who can vote the MVP (the turnout's «de 14»), counted outside the transaction.
   const eligible = !input.draft && sheet.status === "finished" ? await activeMemberCount(Date.now()) : 0;
@@ -268,14 +272,15 @@ export async function publishSheet(input: PublishRequest) {
       }
     }
     // Each player's nota of this acta, rated with the season's actas up to it and frozen with it; a correction keeps
-    // the rival factor of its first publication. A rating that fails never blocks the acta (the web rates it then).
-    let notas: ReturnType<typeof notasDoc> | null = null;
-    if (finished)
+    // the rival factor of its first publication. A rating that fails never blocks the acta: a correction keeps the
+    // notas it had, a first publication goes without them (the web rates it then).
+    let notas: unknown = finished ? (old.get("notas") ?? null) : null;
+    if (finished && seasonGames)
       try {
         const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players };
         notas = notasDoc(frozenNotas(self, seasonGames, table, parseStoredNotas(old.get("notas"))?.rival ?? null), Date.now());
       } catch (error) {
-        console.error("saveMatchSheet: the notas could not be rated, the acta goes without them", input.id, error);
+        console.error("saveMatchSheet: the notas could not be rated, the acta keeps the ones it had", input.id, error);
       }
     const votes = await tx.get(ref.collection("votes"));
     // Replace this match's contribution atomically: corrections never double count.

@@ -19,7 +19,7 @@ import { useViewer } from "../../hooks/useViewer";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { nameFor, nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
 import { useStandings } from "../../lib/useStandings";
-import { NO_STANDINGS, ratingMatches, seasonRatings } from "../../lib/seasonRating";
+import { matchNotas, NO_STANDINGS, ratingMatches } from "../../lib/seasonRating";
 import { isVisibleMatch } from "../../../functions/src/matchEngine";
 import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { mvpVoteOpen } from "../../lib/derived/memberWindows";
@@ -263,8 +263,9 @@ export function PartidosPage() {
   // ── las notas: every player's in every match of the season (public), from the season's actas and its table
   const calendar = useMemo(() => matches.filter((m) => isVisibleMatch(m) && m.seasonId === seasonId), [matches, seasonId]);
   const ratingTables = useMemo(() => (realStandings && !demo ? [realStandings] : NO_STANDINGS), [realStandings, demo]);
-  const ratings = useMemo(() => seasonRatings(ratingMatches(calendar), ratingTables), [calendar, ratingTables]);
-  const notaOf = useCallback((matchId: string, playerId: string) => ratings.noteOf(matchId, playerId)?.nota ?? null, [ratings]);
+  // (the notas each acta froze; the season is rated only for an acta without them)
+  const noteOf = useMemo(() => matchNotas(ratingMatches(calendar), ratingTables), [calendar, ratingTables]);
+  const notaOf = useCallback((matchId: string, playerId: string) => noteOf(matchId, playerId)?.nota ?? null, [noteOf]);
 
   const captain = member && !!viewer.playerId && (viewer.playerId === season?.captainPlayerId || viewer.admin);
   const myId = member ? viewer.playerId : null;

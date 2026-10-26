@@ -87,6 +87,25 @@ export function seasonRatings(games: readonly RatingMatch[], standings: readonly
   return result;
 }
 
+/** Each match's notas for a page that only shows them (Partidos): read from what every acta froze, and only when
+ *  some acta has none of this model is the season rated (seasonRatings). Memoised per array and table. */
+const notasMemo = new WeakMap<readonly RatingMatch[], { standings: readonly StandingsLike[]; noteOf: SeasonRatings["noteOf"] }>();
+export function matchNotas(games: readonly RatingMatch[], standings: readonly StandingsLike[] = NO_STANDINGS): SeasonRatings["noteOf"] {
+  const hit = notasMemo.get(games);
+  if (hit && hit.standings === standings) return hit.noteOf;
+  let noteOf: SeasonRatings["noteOf"];
+  if (games.every((m) => storedNotasOf(m))) {
+    const byId = new Map(games.map((m) => [m.id, m]));
+    noteOf = (matchId, playerId) => {
+      const m = byId.get(matchId);
+      const n = m ? storedNotasOf(m)?.players[playerId] : undefined;
+      return m && n ? { matchId, date: dateMillis(m.date), rival: m.rival || "Rival", nota: n.nota, minutes: n.minutes, weight: n.weight, narrated: n.narrated } : null;
+    };
+  } else noteOf = seasonRatings(games, standings).noteOf;
+  notasMemo.set(games, { standings, noteOf });
+  return noteOf;
+}
+
 /** Play order (date, then id): the order every rating walks. */
 const byDate = (a: RatingMatch, b: RatingMatch) => dateMillis(a.date) - dateMillis(b.date) || a.id.localeCompare(b.id);
 const seasonKey = (m: RatingMatch) => m.seasonId ?? "legacy";
