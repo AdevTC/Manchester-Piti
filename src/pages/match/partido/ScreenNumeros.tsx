@@ -15,6 +15,7 @@ import { seasonStrip } from "../../../lib/derived/vidrio/strip";
 import { scoreOf } from "../../../lib/partidos";
 import { systemMark } from "../../../lib/derived/system";
 import { toBePlayed } from "../../../lib/derived/kickoff";
+import { tonightWord } from "../../../lib/derived/madrid";
 import { venueName } from "../../../lib/derived/venue";
 import { useBoardView, useMatchBoard } from "../../pizarra/useMatchBoard";
 import { rivalName } from "../../pizarra/v2/rival";
@@ -75,7 +76,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
   const rows = standings && standings.rows.some((r) => r.pj > 0) ? standings.rows : null;
   const hasTable = !!rows;
   const already = !!standings && standings.jornada != null && c.jornada != null && standings.jornada >= c.jornada;
-  const table = rows ? tableView(mo, rows, { rival, score: c.score, pick, all, jornada: c.jornada, tableJornada: standings?.jornada ?? null, already, allZero: rows.every((r) => r.pj === 0) }) : null;
+  const table = rows ? tableView(mo, rows, { rival, score: c.score, pick, all, jornada: c.jornada, tableJornada: standings?.jornada ?? null, already, allZero: rows.every((r) => r.pj === 0), kickoff: dateMillis(match.date) }) : null;
   const me = table?.me ?? null;
   const chips = chipsOf(rows, rival, first, left);
   const winLine = rows ? (chips[0].line.charAt(0).toLowerCase() + chips[0].line.slice(1)) : "";
@@ -83,7 +84,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
   const head = headOf(mo, { hasTable, place, pos: me?.pos ?? null, winLine, rec: recBefore, result: c.result, narrated: c.nums.narrated, descanso: fase === "descanso" });
   const noTable = rows ? null : noTableOf(mo, { score: c.score, left, total: counted.length, playedBefore: before.length, teams, season: soFar, jornada: c.jornada });
   const tTitle = table?.title ?? (pick ? PICK_WORD[pick] : "La clasificación");
-  const tSub = table?.sub ?? (pick ? `Con un ${pick === "G" ? "1–0" : pick === "E" ? "1–1" : "0–1"}, por ejemplo; los demás, sin jugar` : c.pre && first ? "Todos a cero: la liga empieza esta noche" : "");
+  const tSub = table?.sub ?? (pick ? `Con un ${pick === "G" ? "1–0" : pick === "E" ? "1–1" : "0–1"}, por ejemplo; los demás, sin jugar` : c.pre && first ? `Todos a cero: la liga empieza ${tonightWord(dateMillis(match.date))}` : "");
   const counts = me
     ? [
         { v: ORD(me.pos), t: mo.final ? "si lo confirma" : c.played && !c.done && !already ? "si acaba así" : "en la tabla" },
