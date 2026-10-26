@@ -1,14 +1,29 @@
 // /perfil/capitania (TU boards isCapitania, captains): La puerta with who knocks (the shirt of the ficha he asks
-// for, else his initials), «Abrir La puerta» as the screen's action, Admin in «Más», and whether this device rings
-// when someone knocks (changed in Avisos a medida, its switch focused).
+// for, else his initials), «Abrir La puerta» as the screen's action, «Administrar el club» (straight into the admin's
+// sections) and whether this device rings when someone knocks (changed in Avisos a medida, its switch focused).
 import { useNavigate } from "@tanstack/react-router";
 import { pushState, savedTopics } from "../../../../lib/push";
-import { TuIcon } from "../../../../components/vidrio/tu/ui";
+import { TuIcon, type TuIconName } from "../../../../components/vidrio/tu/ui";
+import type { SectionKey } from "../../../admin/shell/nav";
 import { ago } from "../../lines";
-import { doorLead, initials, secDesc } from "../model";
+import { adminLinks, doorLead, initials, secDesc } from "../model";
 import type { ScreenProps } from "../MiPagina";
 import { Shirt } from "../TuCard";
 import { Screen } from "./Head";
+
+const ADMIN_ICON: Record<SectionKey, TuIconName> = {
+  hoy: "shield",
+  partidos: "fixtures",
+  convocar: "shirt",
+  plantilla: "user",
+  fichas: "cardi",
+  caja: "euro",
+  temporadas: "flag",
+  contenido: "post",
+  capitanes: "shield",
+  clasificacion: "chart",
+  turnos: "swap",
+};
 
 export function Capitania(p: ScreenProps) {
   const { data, who } = p;
@@ -18,7 +33,7 @@ export function Capitania(p: ScreenProps) {
   const numOf = (playerId: string | null) => (playerId ? String(data.shirt.squad.find((s) => s.id === playerId)?.number ?? "") || null : null);
   const open = () => void navigate({ to: "/vestuario/puerta" });
   return (
-    <Screen title="Capitanía" desc={secDesc("capitania", who.kind, false)} act={{ t: "Abrir La puerta", icon: "door", go: open }} more={[{ t: "Ir a Admin", icon: "gear", go: () => void navigate({ to: "/admin" }) }]}>
+    <Screen title="Capitanía" desc={secDesc("capitania", who.kind, false)} act={{ t: "Abrir La puerta", icon: "door", go: open }}>
       <div className="tu-cols">
         <section className="tu-blk" aria-labelledby="tu-door-h">
           <div className="tu-blk__hd">
@@ -77,7 +92,21 @@ export function Capitania(p: ScreenProps) {
               Cambiarlo
             </button>
           </p>
-          <p className="tu-small">Admin (partidos, plantilla, contenido y temporadas) está en «Más», arriba.</p>
+        </section>
+        <section className="tu-blk tu-blk--wide tu-adm" aria-labelledby="tu-adm-links-h">
+          <h3 className="tu-h3" id="tu-adm-links-h">
+            Administrar el club
+          </h3>
+          <nav className="tu-mlist" aria-labelledby="tu-adm-links-h">
+            {adminLinks().map((l) => (
+              <button key={l.key} type="button" className="tu-mi" onClick={() => void navigate({ href: l.path })}>
+                <TuIcon name={ADMIN_ICON[l.key]} />
+                <span className="tu-mi__t">{l.t}</span>
+                <small className="tu-mi__h">{l.hint}</small>
+                <TuIcon name="chev-r" className="tu-mi__c" />
+              </button>
+            ))}
+          </nav>
         </section>
       </div>
     </Screen>

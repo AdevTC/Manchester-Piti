@@ -172,6 +172,7 @@ function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => 
     { t: "Ajustes", hint: "", icon: "gear", badge: 0, go: go("/perfil/ajustes") },
     { t: "Cuenta", hint: "", icon: "user", badge: 0, go: go("/perfil/cuenta") },
     ...(inbox.viewer.captain ? [{ t: "Capitanía", hint: doors ? `${doors} en la puerta` : "Nadie en la puerta", icon: "door" as const, badge: doors, go: go("/perfil/capitania") }] : []),
+    ...(inbox.viewer.captain ? [{ t: "Admin", hint: "Sala de control", icon: "shield" as const, badge: 0, go: go("/admin") }] : []),
   ];
   const salir = () => {
     close(false);

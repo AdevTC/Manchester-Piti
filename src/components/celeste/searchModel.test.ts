@@ -41,8 +41,9 @@ describe("what each viewer finds (Main board, «Quién ve qué»)", () => {
     expect(titles(JUGADOR, "tu")).toEqual(expect.arrayContaining(["Tu carta", "Tu temporada", "Tus posiciones"]));
     expect(titles(JUGADOR, "tu")).not.toContain("Capitanía");
   });
-  it("a captain: Capitanía", () => {
-    expect(titles({ kind: "jugador", captain: true }, "tu")).toContain("Capitanía");
+  it("a captain: Capitanía and Admin", () => {
+    expect(titles({ kind: "jugador", captain: true }, "tu")).toEqual(expect.arrayContaining(["Capitanía", "Admin"]));
+    expect(titles({ kind: "socio", captain: false }, "tu")).not.toContain("Admin");
   });
   it("who looks, from the published viewer, his request and the DEV maqueta", () => {
     expect(searchViewer({ member: false, admin: false, playerId: null }, null)).toEqual({ kind: "fan", captain: false });

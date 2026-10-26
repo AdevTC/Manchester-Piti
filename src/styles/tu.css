@@ -436,6 +436,8 @@
 .tu-doorled small{font-size:13.5px;color:var(--vd-g-ink2)}
 .tu-reqs{display:grid;gap:8px}
 .tu-reqs__img{width:44px;height:auto}
+/* Capitanía's «Administrar el club»: the admin's sections, two columns where they fit */
+@container scr (min-width:760px){.tu-adm .tu-mlist{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:44px}}
 
 /* ======================================================= the door (no session) */
 .tu-door{display:grid;place-items:start center}
@@ -730,6 +732,9 @@ html[data-tu-surface]::view-transition-old(*.vd-reg),html[data-tu-surface]::view
 .tu-scr__acts{display:flex;align-items:center;gap:10px;flex:0 0 auto}
 .tu-scr__acts:empty{display:none}
 .tu-more-w{position:relative}
+/* the head and the body are each a view-transition region (their own stacking context): an open «Más» lifts
+   the head, or the body paints over its menu and takes its clicks */
+.tu-scr__head:has(.tu-pop){position:relative;z-index:5}
 .tu-more-btn{gap:6px;padding:0 16px}
 .tu-more-btn span{font-weight:620}
 @container tupg (max-width:699px){.tu-scr__acts{flex:1 1 100%}.tu-scr__acts .vd-btn--pri{flex:1 1 auto}}
