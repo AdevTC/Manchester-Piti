@@ -231,6 +231,8 @@ export function MatchPage() {
     const mm = opts.min === undefined ? (dragged ? minute : null) : opts.min;
     if (mm != null && screen !== "mesa") q.set("min", String(mm));
     if (opts.hoja) q.set("hoja", opts.hoja);
+    // (the screen's own state stays while it is the one shown: El siete's open ficha and its view)
+    if (screen === urlScreen) for (const k of ["ficha", "vista"]) if (typeof search[k] === "string") q.set(k, search[k] as string);
     // (the season stays: without it SeasonUrlSync writes it back with a navigation of its own)
     if (typeof search.season === "string") q.set("season", search.season);
     if (dev) for (const k of ["maqueta", "quien", "red"]) if (typeof search[k] === "string") q.set(k, search[k] as string);

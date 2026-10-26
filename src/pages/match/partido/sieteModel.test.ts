@@ -174,7 +174,7 @@ describe("sieteView", () => {
     const f = v.bench.find((b) => b.id === "f");
     expect(f?.status).toBe("Acaba de salir · 18′ jugados");
     expect(v.spots.find((s) => s.id === "j")?.me).toBe(true);
-    expect(v.card?.kicker).toBe("Tú, en esta noche");
+    expect(v.card?.kicker).toBe("Tú, en el partido");
     expect(v.card?.go).toBe("Ver mi ficha");
     expect(v.card?.href).toBe("/jugadores/j");
     expect(v.benchT).toBe("Fuera del campo ahora");

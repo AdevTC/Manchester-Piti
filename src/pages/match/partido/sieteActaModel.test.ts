@@ -3,7 +3,7 @@ import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
 import type { MatchNote } from "../../../lib/rating/season";
 import { lineupOf, playsOf, timelineOf } from "./model";
 import type { Person, Viewer } from "./ctx";
-import { actaPlayers, benchRows, cambiosRows, cambiosSub, fichaOf, headOf, lineText, rankRows, seasonLineOf, swarmOf, tokensAt, type ActaPlayer } from "./sieteActa";
+import { actaPlayers, benchRows, cambiosRows, cambiosSub, fichaOf, headOf, lineText, rankRows, seasonLineOf, swarmOf, tokensAt, type ActaPlayer } from "./sieteActaModel";
 
 // A published acta with a lineup from the pizarra: a change at 12:17, two at the break with a recolocación, and a
 // «Cambio de sitio» alone in the second half.

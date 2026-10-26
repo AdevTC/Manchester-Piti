@@ -145,7 +145,7 @@ it("las notas: public in the acta (the best three, every minutes row's badge); �
   const figs = rows.map((li) => Number(li.querySelector(".nb")!.textContent!.replace(",", ".")));
   expect([...figs].sort((a, b) => b - a)).toEqual(figs);
   expect(rows[0]).toHaveTextContent(/Nota \d+,\d, [a-z]+/);
-  expect(within(lens()).getByRole("link", { name: "Ver todas las notas" })).toHaveAttribute("href", "/partidos/j5/siete");
+  expect(within(lens()).getByRole("link", { name: "Ver todas las notas" })).toHaveAttribute("href", "/partidos/j5/siete?vista=notas");
   expect(lens()).toHaveTextContent("Los minutos y la nota");
   expect(lens().querySelectorAll(".pa-mins--notas li .nb").length).toBe(lens().querySelectorAll(".pa-mins li").length);
   // a fan: no «Tú» anywhere

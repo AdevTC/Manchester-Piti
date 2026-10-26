@@ -17,6 +17,8 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const low = (s: string) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
 const r2 = (n: number) => Math.round(n * 100) / 100;
+/** Sentences for a screen reader: «Adrián T.C. Nota 7,1» (a name ending in a point takes no second one). */
+const sentences = (parts: readonly string[]) => parts.filter(Boolean).map((s, i, all) => (i < all.length - 1 && !/[.!?]$/.test(s) ? `${s}.` : s)).join(" ");
 /** «Central», «Lateral izquierdo» (empty for a code it doesn't know). */
 export const posName = (code: string | null | undefined): string => (code && isPosCode(code) ? positionLabel(code, "name") : "");
 /** «+0,12» / «−0,05», a real minus. */
@@ -192,7 +194,8 @@ export interface TokenView {
 export function tokensAt(P: readonly ActaPlayer[], frame: (m: number) => Spot[], m: number, duration: number, plays: readonly Play[], all: boolean, published: boolean): TokenView[] {
   const now = frame(m);
   const spotOf = new Map(now.map((s) => [s.id, s]));
-  const xy = (s: Spot) => ({ x: clamp(s.x, 10, 90), y: clamp(s.y, 8, 88) });
+  // (the frame's 0–100 spread down the pitch, so the keeper and the line in front of him keep apart)
+  const xy = (s: Spot) => ({ x: clamp(s.x, 10, 90), y: r2(clamp(3 + s.y * 0.91, 5, 94)) });
   return P.map((p) => {
     const s = spotOf.get(p.id);
     let left: number;
@@ -207,7 +210,7 @@ export function tokensAt(P: readonly ActaPlayer[], frame: (m: number) => Spot[],
     const marks = s ? marksOf(plays, p.id, m, all) : [];
     const side = !!s && now.some((q) => q.id !== p.id && q.y - s.y > 0 && q.y - s.y < 18 && Math.abs(q.x - s.x) < 22);
     const pos = s && published ? low(posName(s.code)) : "";
-    const label = [`${p.name}${p.num ? `, el ${p.num}` : ""}${pos ? `, ${pos}` : ""}${p.cap ? ", capitán" : ""}${p.me ? ", tú" : ""}${p.mvp ? ", MVP del partido" : ""}`, p.nota !== null ? `Nota ${p.notaTxt}, ${low(p.word)}` : "Sin nota", ...marks.map((k) => k.label), p.me ? "Abrir tu ficha" : "Abrir su ficha"].join(". ");
+    const label = sentences([`${p.name}${p.num ? `, el ${p.num}` : ""}${pos ? `, ${pos}` : ""}${p.cap ? ", capitán" : ""}${p.me ? ", tú" : ""}${p.mvp ? ", MVP del partido" : ""}`, p.nota !== null ? `Nota ${p.notaTxt}, ${low(p.word)}` : "Sin nota", ...marks.map((k) => k.label), p.me ? "Abrir tu ficha" : "Abrir su ficha"]);
     return { id: p.id, num: p.num, short: p.short, nota: p.notaTxt, band: p.band, on: !!s, left, top, me: p.me, cap: p.cap, mvp: !!s && p.mvp, marks, side, label };
   });
 }
@@ -228,7 +231,8 @@ export interface BenchRow {
 export function benchRows(P: readonly ActaPlayer[], plays: readonly Play[], duration: number): BenchRow[] {
   return P.filter((p) => !p.start).map((p) => {
     const marks = marksOf(plays, p.id, duration, true);
-    return { id: p.id, num: p.num, name: p.name, nota: p.notaTxt, band: p.band, marks, label: [`${p.name}${p.num ? `, el ${p.num}` : ""}`, p.nota !== null ? `Nota ${p.notaTxt}, ${low(p.word)}` : "Sin nota", ...marks.map((k) => k.label), "Abrir su ficha"].join(". ") };
+    if (p.mvp) marks.push({ key: "mvp", k: "mvp", cls: "vd-tag--mvp vd-tag--gold", text: "MVP", label: "MVP del partido" });
+    return { id: p.id, num: p.num, name: p.name, nota: p.notaTxt, band: p.band, marks, label: sentences([`${p.name}${p.num ? `, el ${p.num}` : ""}`, p.nota !== null ? `Nota ${p.notaTxt}, ${low(p.word)}` : "Sin nota", ...marks.map((k) => k.label), "Abrir su ficha"]) };
   });
 }
 
@@ -350,7 +354,7 @@ export function rankRows(P: readonly ActaPlayer[], duration: number): RankRow[] 
         band: p.band,
         minPct: Math.round(clamp(p.minutes / duration, 0, 1) * 100),
         sub: `${how} · ${p.minutes}′${p.nota === null ? " · sin nota" : ""}`,
-        label: `${p.name}. ${p.nota !== null ? `Nota ${p.notaTxt}, ${low(p.word)}` : "Sin nota: menos de 10 minutos"}. ${how}, ${p.minutes} minutos.${p.mvp ? " MVP del partido." : ""}${p.me ? " Tú." : ""} Abrir su ficha`,
+        label: sentences([p.name, p.nota !== null ? `Nota ${p.notaTxt}, ${low(p.word)}` : "Sin nota: menos de 10 minutos", `${how}, ${p.minutes} minutos`, p.mvp ? "MVP del partido" : "", p.me ? "Tú" : "", "Abrir su ficha"]),
       };
     });
 }
@@ -451,7 +455,7 @@ export function shiftRows(P: readonly ActaPlayer[], plays: readonly Play[], dura
       band: p.band,
       segs: segViews(p, duration, published),
       dots,
-      label: `${p.name}: ${whereLabel(p, published)}. ${p.minutes} minutos. ${p.nota !== null ? `Nota ${p.notaTxt}` : "Sin nota"}. Abrir su ficha`,
+      label: sentences([`${p.name}: ${whereLabel(p, published)}`, `${p.minutes} minutos`, p.nota !== null ? `Nota ${p.notaTxt}` : "Sin nota", "Abrir su ficha"]),
     };
   });
 }

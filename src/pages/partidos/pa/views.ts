@@ -349,7 +349,7 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
       ...(sel.raw.wx ? [{ icon: "sun" as const, t: `Hizo ${sel.raw.wx.t}°`, s: `${sel.raw.wx.l ? `${sel.raw.wx.l.toLowerCase()}, ` : ""}al pitido.` }] : []),
     ].slice(0, 4),
     /** «Las notas»: the best three, the viewer's own under them when he is not among them, and the way to all. */
-    notas: notas.n ? { top: notas.top, mine: notas.mine, href: `${ctx.matchPath(sel)}/siete` } : null,
+    notas: notas.n ? { top: notas.top, mine: notas.mine, href: `${ctx.matchPath(sel)}/siete?vista=notas` } : null,
     minT: notas.n ? "Los minutos y la nota" : sel.raw.min ? "Quién jugó cuánto" : "El siete y el banquillo",
     mins: mins.slice(0, ctx.w >= 1100 ? 10 : 7).map((id) => {
       const stn: [number, number][] = sel.raw.stints?.[id] ?? (sel.raw.starters.includes(id) ? [[0, sel.dur]] : [[sel.dur * 0.6, sel.dur]]);
