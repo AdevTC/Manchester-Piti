@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateLedger, type MatchEvent } from "../../functions/src/matchEngine";
 import type { PosCode } from "../../functions/src/positions";
-import { backfillPatch, backfillUpdates, keepStoredPositions, positionFields, withPositions, positionsPlayed, type PositionEvents } from "../../functions/src/positionsPlayed";
+import { backfillPatch, backfillUpdates, keepStoredPositions, positionFields, swapsChanged, withPositions, positionsPlayed, type PositionEvents, type PositionsRow } from "../../functions/src/positionsPlayed";
 
 // a POR · b DFC · c DFC · d MI · e MC · f MD · g DC (the 2-3-1 board); h, i, k on the bench.
 const STARTERS = ["a", "b", "c", "d", "e", "f", "g"];
@@ -202,6 +202,101 @@ describe("positionsPlayed (ha jugado de — minutos y acciones por posición des
     expect(rows.h.positionEvents).toEqual({ DC: { ...none, yellowCards: 1 } });
     // the one going off owns t only through the stint that ends there: his card at t is his DC too
     expect(rows.g.positionEvents).toEqual({ DC: { ...none, yellowCards: 1 } });
+  });
+});
+
+describe("positionsPlayed · «Cambio de sitio» (la recolocación)", () => {
+  const swap = (minute: number, a: string, b: string, extra: Partial<MatchEvent> = {}) => ev("position_swap", minute, a, { inPlayerId: b, ...extra });
+
+  it("two players trade codes from that minute on; the ledger's minutes don't move", () => {
+    const events = [swap(20, "d", "f")];
+    const L = play(events);
+    expect(L.players.d.minutes).toBe(50);
+    const rows = positionsPlayed(L.players, events, { board: BOARD, main: MAINS });
+    expect(rows.d.positionsPlayed).toEqual({ MI: 20, MD: 30 });
+    expect(rows.f.positionsPlayed).toEqual({ MD: 20, MI: 30 });
+    expect(rows.e.positionsPlayed).toEqual({ MC: 50 });
+  });
+
+  it("a change and a recolocación at the same minute (as la mesa writes them): the one coming on takes the slot, then moves", () => {
+    const events = [sub(25, "g", "h"), swap(25, "h", "b")];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board: BOARD, main: MAINS });
+    expect(rows.h.positionsPlayed).toEqual({ DFC: 25 });
+    expect(rows.b.positionsPlayed).toEqual({ DFC: 25, DC: 25 });
+    expect(rows.g.positionsPlayed).toEqual({ DC: 25 });
+  });
+
+  it("chained at the same instant (a three-way recolocación at the break): each swap starts from the last", () => {
+    const at = { elapsedSeconds: 1500 };
+    const events = [swap(25, "d", "e", at), swap(25, "e", "f", at)];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board: BOARD, main: MAINS });
+    expect(rows.d.positionsPlayed).toEqual({ MI: 25, MC: 25 });
+    expect(rows.e.positionsPlayed).toEqual({ MC: 25, MD: 25 });
+    expect(rows.f.positionsPlayed).toEqual({ MD: 25, MI: 25 });
+  });
+
+  it("a substitute later inherits the code his man had moved to", () => {
+    const events = [swap(20, "d", "f"), sub(30, "d", "h")];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board: BOARD, main: MAINS });
+    expect(rows.d.positionsPlayed).toEqual({ MI: 20, MD: 10 });
+    expect(rows.h.positionsPlayed).toEqual({ MD: 20 });
+  });
+
+  it("actions at and after the swap count at the new position, before it at the old one", () => {
+    const events = [ev("goal", 10, "d"), swap(20, "d", "f"), ev("goal", 20, "d"), ev("yellow_card", 40, "f")];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board: BOARD, main: MAINS });
+    expect(rows.d.positionEvents).toEqual({ MI: { ...none, goals: 1 }, MD: { ...none, goals: 1 } });
+    expect(rows.f.positionEvents).toEqual({ MI: { ...none, yellowCards: 1 } });
+  });
+
+  it("with no board, the swapped estimates travel with the slot («estimado»)", () => {
+    const events = [swap(20, "b", "c")];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board: null, main: MAINS });
+    expect(rows.b).toEqual({ positionsPlayed: { LI: 20, LD: 30 }, positionEvents: {}, positionsEstimated: true });
+  });
+
+  it("Σ minutes by position still equals the ledger's minutes with seconds-precise swaps and changes", () => {
+    const at = (s: number) => ({ elapsedSeconds: s });
+    const events = [sub(12, "g", "h", at(737)), swap(18, "h", "d", at(1090)), swap(25, "b", "c", at(1500)), sub(25, "c", "i", at(1500)), swap(31, "i", "d", at(1861))];
+    const L = play(events);
+    const rows = positionsPlayed(L.players, events, { board: BOARD, main: MAINS });
+    for (const [pid, p] of Object.entries(L.players)) {
+      if (!p.played) continue;
+      const minutes = Object.values(rows[pid].positionsPlayed).reduce((s, m) => s + (m ?? 0), 0);
+      expect(Math.abs(minutes - p.minutes)).toBeLessThanOrEqual(0.02);
+    }
+    // i comes on for c at 25:00 (a DFC), then trades it with d (a DC since 18:10) at 31:01
+    expect(Object.keys(rows.i.positionsPlayed).sort()).toEqual(["DC", "DFC"].sort());
+  });
+
+  it("the acta refuses a swap with someone off the pitch, or with himself", () => {
+    const bench = calculateLedger({ starters: STARTERS, bench: ["h", "i", "k"], notCalled: [], events: [swap(10, "d", "h")], duration: 50 });
+    expect(bench.errors.join(" ")).toMatch(/cambio de sitio necesita dos jugadores en el campo/);
+    const self = calculateLedger({ starters: STARTERS, bench: ["h", "i", "k"], notCalled: [], events: [swap(10, "d", "d")], duration: 50 });
+    expect(self.errors.length).toBeGreaterThan(0);
+  });
+
+  it("swapsChanged names the players a correction recolocated differently", () => {
+    const before = [swap(20, "d", "f"), sub(30, "g", "h")];
+    expect([...swapsChanged(before, before)]).toEqual([]);
+    expect([...swapsChanged(before, [swap(21, "d", "f")])].sort()).toEqual(["d", "f"]);
+    expect([...swapsChanged(before, [swap(20, "d", "e")])].sort()).toEqual(["d", "e", "f"]);
+    expect([...swapsChanged(undefined, [swap(20, "d", "f")])].sort()).toEqual(["d", "f"]);
+  });
+
+  it("keepStoredPositions sends the recolocated players to the estimate even when their stints match", () => {
+    const L = play([]);
+    const stored = { d: { ...L.players.d, positionsPlayed: { MI: 50 } }, f: { ...L.players.f, positionsPlayed: { MD: 50 } } };
+    const players = { d: { ...L.players.d }, f: { ...L.players.f } };
+    const fallback: Record<string, PositionsRow> = { d: { positionsPlayed: { MD: 50 }, positionEvents: {}, positionsEstimated: true }, f: { positionsPlayed: { MI: 50 }, positionEvents: {}, positionsEstimated: true } };
+    keepStoredPositions(players, stored, fallback, new Set(["d"]));
+    expect(players.d.positionsPlayed).toEqual({ MD: 50 });
+    expect(players.f.positionsPlayed).toEqual({ MD: 50 });
   });
 });
 

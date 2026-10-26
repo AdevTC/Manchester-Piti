@@ -1,7 +1,8 @@
 // La alineación del partido (matches/{id}.lineup): la única verdad del siete, su sistema y dónde juega
 // cada uno. La escribe la pizarra con «Mandar a la mesa» (setMatchLineup, desde el tablero del partido)
 // hasta el pitido; la leen la mesa (Antes, En juego), el Campo de la web, la pizarra en partido y el acta.
-// En partido no se reescribe: quien entra hereda la casilla de quien sale (lineupNow, desde los eventos).
+// En partido no se reescribe: quien entra hereda la casilla de quien sale y un «Cambio de sitio» cambia la de
+// dos (lineupNow, desde los eventos).
 // Puro (sin Firebase): lo comparten las funciones y la web.
 import { z } from "zod";
 import { boardSlotCodes, boardSystem, type BoardLike } from "./boardCodes.js";
@@ -67,7 +68,7 @@ export function sameLineup(a: BoardLineup | null | undefined, b: BoardLineup | n
 }
 
 /** playerId → the code of his slot in the lineup (the acta's «Ha jugado de» for the seven; whoever comes
- *  on inherits the code of whoever goes off: positionsPlayed follows the ledger's exchanges). */
+ *  on inherits the code of whoever goes off, and a «Cambio de sitio» trades two: positionsPlayed walks it). */
 export function lineupCodeByPlayer(l: Pick<MatchLineup, "slots">): Record<string, PosCode> {
   return Object.fromEntries(l.slots.map((s) => [s.playerId, s.code]));
 }
@@ -95,22 +96,19 @@ const when = (e: LineupEvent): number => (e.period === 2 ? 1e6 : 0) + (typeof e.
 /**
  * Who is on the pitch now and where: the lineup's slots, each substitution putting the one who comes on
  * in the slot of the one who goes off (rolling: he can come back to any slot that frees), each red
- * emptying its slot until a substitution «por» the player sent off fills it (the league allows it).
- * Events in play order; a pending duplicate counts for nothing. Empty slots are left out, so the result
- * has 7 or fewer.
+ * emptying its slot until a substitution «por» the player sent off fills it (the league allows it), each
+ * «Cambio de sitio» (a recolocación) trading the slots of the two who move. Events in play order; a
+ * pending duplicate counts for nothing. Empty slots are left out, so the result has 7 or fewer.
  */
 export function lineupNow(lineup: Pick<MatchLineup, "slots">, events: readonly LineupEvent[]): LineupSlot[] {
   return lineupWalk(lineup, events).now;
 }
 
-/** One step of the walk lineupNow takes: a cambio (in a slot, or into the slot a red emptied) or a red. */
-export interface LineupStep {
-  k: "sub" | "red";
-  event: LineupEvent;
-  inId: string | null;
-  outId: string;
-  code: PosCode;
-}
+/** One step of the walk lineupNow takes: a cambio (in a slot, or into the slot a red emptied), a red, or a
+ *  «Cambio de sitio» (`aId` goes to `aCode`, the slot `bId` leaves; `bId` to `bCode`, the one `aId` leaves). */
+export type LineupStep =
+  | { k: "sub" | "red"; event: LineupEvent; inId: string | null; outId: string; code: PosCode }
+  | { k: "swap"; event: LineupEvent; aId: string; bId: string; aCode: PosCode; bCode: PosCode };
 
 /** lineupNow's walk, with each step it took (the pizarra's story of the pitch reads the same walk) and
  *  the slots a red has left empty so far, each with the player sent off from it. */
@@ -141,6 +139,14 @@ export function lineupWalk(lineup: Pick<MatchLineup, "slots">, events: readonly 
       slots[at] = null;
       gone[at] = e.playerId;
       steps.push({ k: "red", event: e, inId: null, outId: e.playerId, code });
+    } else if (e.type === "position_swap" && e.inPlayerId) {
+      const other = slots.findIndex((s) => s?.playerId === e.inPlayerId);
+      if (other < 0 || other === at) continue;
+      const a = slots[at]!;
+      const b = slots[other]!;
+      slots[at] = { ...a, playerId: b.playerId };
+      slots[other] = { ...b, playerId: a.playerId };
+      steps.push({ k: "swap", event: e, aId: a.playerId, bId: b.playerId, aCode: b.code, bCode: a.code });
     }
   }
   const vacant = gone.flatMap((outId, i) => (outId && slots[i] === null ? [{ outId, slot: { ...lineup.slots[i] } }] : []));

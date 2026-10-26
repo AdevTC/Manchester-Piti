@@ -181,11 +181,13 @@ export const MESA_STATE_TXT: Record<MesaState, string> = { "al-dia": "Mesa al d�
 
 // ── en partido: who is on the pitch now ──
 export interface FieldChange {
-  /** «sub»: inId came on for outId; «red»: outId was sent off (his slot stays empty). */
-  k: "sub" | "red";
+  /** «sub»: inId came on for outId; «red»: outId was sent off (his slot stays empty); «swap»: outId and inId
+   *  traded places (a «Cambio de sitio»), outId to `code`, inId to `code2`. */
+  k: "sub" | "red" | "swap";
   inId: string | null;
   outId: string;
   code: string;
+  code2?: string;
   minute: number | null;
 }
 
@@ -194,17 +196,25 @@ const minuteOf = (e: LineupEvent): number | null =>
 
 /**
  * The pitch now (lineupNow: the contract) and the story of how it got there, in play order: each cambio
- * with the slot it happened in (a sub for a player sent off fills the slot his red emptied), each red.
- * lineupNow's own walk (lineupWalk), so the lines and the pitch agree.
+ * with the slot it happened in (a sub for a player sent off fills the slot his red emptied), each red, each
+ * «Cambio de sitio». lineupNow's own walk (lineupWalk), so the lines and the pitch agree.
  */
 export function fieldStory(lineup: Pick<MatchLineup, "slots">, events: readonly LineupEvent[]): { now: LineupSlot[]; changes: FieldChange[] } {
   const { now, steps } = lineupWalk(lineup, events);
-  return { now, changes: steps.map((st) => ({ k: st.k, inId: st.inId, outId: st.outId, code: st.code, minute: minuteOf(st.event) })) };
+  return {
+    now,
+    changes: steps.map((st) =>
+      st.k === "swap"
+        ? { k: "swap", inId: st.bId, outId: st.aId, code: st.aCode, code2: st.bCode, minute: minuteOf(st.event) }
+        : { k: st.k, inId: st.inId, outId: st.outId, code: st.code, minute: minuteOf(st.event) },
+    ),
+  };
 }
 
-/** «Hugo entró por Sergio (MC) en el 30′» / «Roja a Dani (DFC) en el 12′». */
+/** «Hugo entró por Sergio (MC) en el 30′» / «Roja a Dani (DFC) en el 12′» / «Hugo pasa a LD y Sergio a MC en el 30′». */
 export function changeLine(c: FieldChange, name: (id: string) => string): string {
   const at = c.minute != null ? " en el " + c.minute + "′" : "";
+  if (c.k === "swap" && c.inId) return name(c.outId) + " pasa a " + c.code + " y " + name(c.inId) + " a " + (c.code2 ?? "") + at;
   return c.k === "sub" && c.inId ? name(c.inId) + " entró por " + name(c.outId) + " (" + c.code + ")" + at : "Roja a " + name(c.outId) + " (" + c.code + ")" + at;
 }
 

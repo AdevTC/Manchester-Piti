@@ -28,6 +28,7 @@ export const EVENT_LABELS = {
   corner: "Córner del Piti",
   opponent_corner: "Córner rival",
   substitution: "Cambio",
+  position_swap: "Cambio de sitio",
   assist: "Asistencia (histórico)",
   match_played: "Participación (histórico)",
   opponent_foul: "Falta del rival",
@@ -350,6 +351,13 @@ export function calculateLedger(
       incoming.exchanges.push({ minute: t, with: id, direction: "in" });
       onPitch.set(e.inPlayerId!, t);
       result.field[result.field.indexOf(id)] = e.inPlayerId!;
+      continue;
+    }
+    // «Cambio de sitio»: two of ours on the pitch trade places (a recolocación); nobody comes on or goes off, so
+    // the ledger's minutes don't move (positionsPlayed and the pitch walk read it).
+    if (e.type === "position_swap") {
+      if (!e.inPlayerId || e.inPlayerId === id || !onPitch.has(id) || !onPitch.has(e.inPlayerId))
+        fail(`Minuto ${t}: el cambio de sitio necesita dos jugadores en el campo.`);
       continue;
     }
     const card = ["yellow_card", "double_yellow", "red_card"].includes(e.type);

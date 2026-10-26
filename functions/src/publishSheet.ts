@@ -19,7 +19,7 @@ import { recomputePorra } from "./vestuario.js";
 import { boardCodeByPlayer, boardSystem } from "./boardCodes.js";
 import { findOfficialBoard } from "./officialBoard.js";
 import { resolvePositions, type PosCode } from "./positions.js";
-import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
+import { keepStoredPositions, positionsPlayed, swapsChanged, withPositions } from "./positionsPlayed.js";
 import { assertMatchNotDeleted, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 import { lineupCodeByPlayer, lineupSeven, parseMatchLineup, parsePresent, sameSeven } from "./matchLineup.js";
 import { activeMemberCount } from "./mvp.js";
@@ -243,7 +243,7 @@ export async function publishSheet(input: PublishRequest) {
         withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: lineupCodeByPlayer(lineup), main }));
         system = lineup.system;
       } else if (boardFailed && old.get("status") === "finished") {
-        keepStoredPositions(fullLedger.players, old.get("ledger"), positionsPlayed(fullLedger.players, sheet.events, { board: null, main }));
+        keepStoredPositions(fullLedger.players, old.get("ledger"), positionsPlayed(fullLedger.players, sheet.events, { board: null, main }), swapsChanged(old.get("events"), sheet.events));
         system = typeof old.get("system") === "string" ? (old.get("system") as string) : null;
       } else {
         withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: board?.codes ?? null, main }));

@@ -43,17 +43,18 @@ const addFields = {
   period: z.union([z.literal(1), z.literal(2)]).optional(),
   event: eventFields,
 };
-/** The most changes made at once (a whole seven). */
-export const MAX_MANY = 7;
+/** The most plays sent at once: a whole seven of changes, and the recolocación after them. */
+export const MAX_MANY = 14;
 const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("add"), matchId: idSchema, requestId: idSchema.optional(), ...addFields }),
-  /** A wave of changes (Descanso's «Arrancar con N cambios», the pizarra's «Hacer el cambio»): all or none,
-   *  one sequence check, idempotent by requestId (ids `live-<requestId>-<i>`). */
+  /** A wave of changes (Descanso's «Arrancar con N cambios», the pizarra's «Hacer el cambio»), with the
+   *  recolocación that goes with them (la mesa's «Recolocar»: «Cambio de sitio» plays): all or none, one
+   *  sequence check, idempotent by requestId (ids `live-<requestId>-<i>`). */
   z.object({
     action: z.literal("addMany"),
     matchId: idSchema,
     requestId: idSchema,
-    items: z.array(z.object({ ...addFields, event: eventFields.extend({ type: z.literal("substitution") }) })).min(1).max(MAX_MANY),
+    items: z.array(z.object({ ...addFields, event: eventFields.extend({ type: z.enum(["substitution", "position_swap"]) }) })).min(1).max(MAX_MANY),
   }),
   z.object({
     action: z.literal("edit"),
@@ -211,7 +212,7 @@ export const liveEvent = onCall(async (req) => {
       const queued = added.some((e) => e.queued);
       if (many) {
         answer = { eventIds: ids };
-        audit = { type: "substitution", count: added.length, minute: added[0].minute ?? null, eventIds: ids, ...(queued ? { queued: true } : {}) };
+        audit = { type: added.every((e) => e.type === added[0].type) ? added[0].type : "changes", count: added.length, minute: added[0].minute ?? null, eventIds: ids, ...(queued ? { queued: true } : {}) };
       } else {
         const [event] = added;
         answer = { eventId: event.id, ...(event.dupOf ? { dupOf: event.dupOf } : {}) };
@@ -228,10 +229,10 @@ export const liveEvent = onCall(async (req) => {
         if (p[k] === "") delete edited[k];
         else if (p[k] !== undefined) edited[k] = p[k];
       }
-      // What the new type can't carry goes: a rival play names nobody, only a change has who comes in,
-      // only a goal has an assist, only a save has an outcome.
+      // What the new type can't carry goes: a rival play names nobody, only a change has who comes in (and a
+      // «Cambio de sitio» the other one who moves), only a goal has an assist, only a save has an outcome.
       if (isRivalType(edited.type)) { delete edited.playerId; delete edited.assistPlayerId; delete edited.inPlayerId; }
-      if (edited.type !== "substitution") delete edited.inPlayerId;
+      if (edited.type !== "substitution" && edited.type !== "position_swap") delete edited.inPlayerId;
       if (!GOALS.has(edited.type)) { delete edited.assistPlayerId; delete edited.assistReviewed; }
       else if (p.assistPlayerId !== undefined) edited.assistReviewed = true;
       else if (!GOALS.has(old.type)) edited.assistReviewed = !!edited.assistPlayerId;

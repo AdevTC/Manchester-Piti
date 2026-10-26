@@ -59,6 +59,23 @@ describe("lineupNow", () => {
     expect(now.find((s) => s.code === "MC")?.playerId).toBe("b2");
     expect(now.find((s) => s.code === "DC")?.playerId).toBe("dc");
   });
+  it("un cambio de sitio intercambia las casillas de los dos, y quien entra luego hereda la nueva", () => {
+    const events = [
+      { type: "substitution", playerId: "mc", inPlayerId: "b1", period: 1, elapsedSeconds: 600 },
+      { type: "position_swap", playerId: "b1", inPlayerId: "dc", period: 1, elapsedSeconds: 600 },
+      { type: "substitution", playerId: "b1", inPlayerId: "b2", period: 2, elapsedSeconds: 1800 },
+    ];
+    const walk = lineupWalk(l, events);
+    expect(walk.now.find((s) => s.code === "MC")?.playerId).toBe("dc");
+    expect(walk.now.find((s) => s.code === "DC")?.playerId).toBe("b2");
+    expect(walk.steps.map((s) => s.k)).toEqual(["sub", "swap", "sub"]);
+    expect(walk.steps[1]).toMatchObject({ k: "swap", aId: "b1", bId: "dc", aCode: "DC", bCode: "MC" });
+  });
+  it("un cambio de sitio con alguien fuera del campo no mueve a nadie", () => {
+    const walk = lineupWalk(l, [{ type: "position_swap", playerId: "mc", inPlayerId: "b1", period: 1, elapsedSeconds: 60 }]);
+    expect(walk.now.find((s) => s.code === "MC")?.playerId).toBe("mc");
+    expect(walk.steps).toEqual([]);
+  });
 });
 
 describe("convocatoriaOf", () => {
