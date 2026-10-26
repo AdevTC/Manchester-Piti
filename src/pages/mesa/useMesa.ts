@@ -21,7 +21,7 @@ import {
   buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
   plannedSubsOf, rivalInitialsOf, rivalShortOf, withLocal, type LocalPlay, type PlayerInfo,
 } from "./model";
-import type { ClockAction, MesaActions, MesaAddOpts, MesaEditPatch, MesaNav, MesaPresence, MesaQueueState, MesaType, MesaView } from "./types";
+import type { ClockAction, MesaActions, MesaAddOpts, MesaEditPatch, MesaNav, MesaPresence, MesaQueueState, MesaType, MesaView, MesaWaveItem } from "./types";
 
 export const HEARTBEAT_MS = 30_000;
 export const FRESH_MS = 75_000;
@@ -115,8 +115,8 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
       channel,
       send: async (item: QueueItem) => {
         if (item.batch) {
-          // a wave of changes: one operation, all or none
-          await addSubs(item.matchId, item.requestId, item.batch.map((b) => ({ playerId: b.playerId ?? "", inPlayerId: b.inPlayerId ?? "", minute: b.minute, clockRevision: b.clockRevision, tappedElapsed: b.tappedElapsed, period: b.period })));
+          // a wave of changes (and swaps of place): one operation, all or none
+          await addSubs(item.matchId, item.requestId, item.batch.map((b) => ({ type: b.type === "position_swap" ? ("position_swap" as const) : ("substitution" as const), playerId: b.playerId ?? "", inPlayerId: b.inPlayerId ?? "", minute: b.minute, clockRevision: b.clockRevision, tappedElapsed: b.tappedElapsed, period: b.period })));
           return;
         }
         const p = item.payload;
@@ -232,15 +232,16 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     function snapItems(): readonly QueueItem[] {
       return queue?.getSnapshot().items ?? [];
     }
-    /** A play as the queue keeps it: the time of play now, the clock it was tapped on. */
-    const payloadNow = (type: MesaType, opts: MesaAddOpts): QueuePayload => {
+    /** A play as the queue keeps it: the time of play now (or `at`, when it was tapped), the clock it was tapped on. */
+    const payloadNow = (type: MesaType, opts: MesaAddOpts, at?: { elapsed: number; period: 1 | 2 }): QueuePayload => {
       const m = matchRef.current;
       const reading = mesaClock(m?.clock, nowRef.current, m?.duration);
+      const elapsed = at ? Math.max(0, Math.min(at.elapsed, reading.elapsedSeconds)) : reading.elapsedSeconds;
       return {
         type,
-        minute: Math.floor(reading.elapsedSeconds / 60),
-        tappedElapsed: reading.elapsedSeconds,
-        period: reading.period,
+        minute: Math.floor(elapsed / 60),
+        tappedElapsed: elapsed,
+        period: at ? at.period : reading.period,
         ...(m?.clock ? { clockRevision: m.clock.revision } : {}),
         ...(opts.playerId ? { playerId: opts.playerId } : {}),
         ...(opts.assistPlayerId ? { assistPlayerId: opts.assistPlayerId } : {}),
@@ -269,21 +270,21 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       }
     };
     return {
-      add(type: MesaType, opts: MesaAddOpts = {}) {
+      add(type: MesaType, opts: MesaAddOpts = {}, at?: { elapsed: number; period: 1 | 2 }) {
         const requestId = crypto.randomUUID();
-        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: textOf(type, opts), payload: payloadNow(type, opts) });
+        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: textOf(type, opts), payload: payloadNow(type, opts, at) });
         const id = liveId(requestId);
         setLastId(id);
         setNotice("");
         vibrate(buzzOf(type));
         return id;
       },
-      addMany(subs: readonly { playerId: string; inPlayerId: string }[]) {
-        const wave = subs.slice(0, MAX_WAVE);
+      addMany(items: readonly MesaWaveItem[], at?: { elapsed: number; period: 1 | 2 }) {
+        const wave = items.slice(0, MAX_WAVE).map((s) => ({ type: s.type ?? ("substitution" as const), opts: { playerId: s.playerId, inPlayerId: s.inPlayerId } }));
         if (!wave.length) return [];
         const requestId = crypto.randomUUID();
-        const batch = wave.map((s) => payloadNow("substitution", s));
-        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: wave.map((s) => textOf("substitution", s)).join(" · "), payload: batch[0], batch });
+        const batch = wave.map((s) => payloadNow(s.type, s.opts, at));
+        queue?.enqueue({ requestId, matchId, createdAt: Date.now(), text: wave.map((s) => textOf(s.type, s.opts)).join(" · "), payload: batch[0], batch });
         // (no lower third for a wave: «Deshacer» would only take back its last change)
         setLastId(null);
         setNotice("");

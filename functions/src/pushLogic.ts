@@ -135,6 +135,8 @@ export interface MatchLike {
   /** Aplazado: why, and the new date (ms; null/absent = por decidir). */
   postponedReason?: string;
   postponedTo?: number | null;
+  /** The notas frozen with the acta (rating/frozen.ts): «Ya están las notas» when they first appear. */
+  notas?: unknown;
 }
 
 const notDone = (m: MatchLike | undefined) => !!m && m.status !== "finished" && m.status !== "cancelled";
@@ -406,6 +408,32 @@ export interface LineupLike {
   seasonId?: string;
   /** The seven (only who stands in each slot matters to the notices). */
   slots?: unknown;
+}
+
+/** Who has a nota in a match's frozen notas (none: no notas, or a malformed field). */
+export function notaPlayers(notas: unknown): string[] {
+  const players = notas && typeof notas === "object" ? (notas as { players?: unknown }).players : null;
+  return players && typeof players === "object" ? Object.keys(players) : [];
+}
+
+/**
+ * «Ya están las notas»: the acta's notas appear (its first publication; a correction re-rates them, says
+ * nothing). Once per match (its pushLog), on the result's topic: to whoever has a nota «Mira la tuya» (their own
+ * devices, `mine`), to everyone else «Míralas». It never says the nota. It opens «El siete» of the match.
+ */
+export function notasNotice(id: string, before: MatchLike | undefined, after: MatchLike | undefined, jornada: number | null, mine: boolean): Notice | null {
+  if (!after || after.archived || after.status !== "finished") return null;
+  if (!notaPlayers(after.notas).length || notaPlayers(before?.notas).length) return null;
+  const rival = after.rival ?? "el rival";
+  const of = jornada ? `de la J${jornada}` : "del partido";
+  return {
+    topic: "final",
+    title: "Ya están las notas",
+    body: `Contra ${rival}: ya están las notas ${of}. ${mine ? "Mira la tuya" : "Míralas"} en el partido.`,
+    tag: `notas-${id}`,
+    url: matchUrl(id, "siete"),
+    log: mine ? undefined : `notas-${id}`,
+  };
 }
 
 /**

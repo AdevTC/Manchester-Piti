@@ -34,7 +34,8 @@ export function legacyObservations(match: NarratedMatch): Observation[] {
     if (e.type === 'aerial_duel') facts.subtype = 'aerial';
     if (kind === 'save') { facts.penalty = e.type === 'penalty_saved'; if (e.outcome === 'held') facts.subtype = 'held'; if (e.outcome === 'parried') facts.subtype = 'parried'; }
     if (e.type.includes('penalty_missed')) { facts.penalty = true; facts.goal = false; }
-    if (e.inPlayerId) facts.inPlayerId = e.inPlayerId;
+    // (only a change brings someone on: a «Cambio de sitio» is context, its second player no fact)
+    if (e.inPlayerId && e.type === 'substitution') facts.inPlayerId = e.inPlayerId;
     if (e.possessionSeconds != null) facts.durationSeconds = e.possessionSeconds;
     const time = e.timingUnknown ? undefined : e.elapsedSeconds != null ? { from: e.elapsedSeconds, to: e.elapsedSeconds, precision: 'exact' as const } : e.minute != null ? { from: e.minute * 60, to: e.minute * 60 + 59.999, precision: 'interval' as const } : undefined;
     return { id: e.id, canonicalEventId: e.id, kind, team: eventSide(e), actorId: e.playerId, receiverId: e.receiverId, ...(e.outcome === 'complete' && e.receiverId ? { intendedReceiverId: e.receiverId } : {}), order, period: e.period, time, facts, validity: 'valid' as const };

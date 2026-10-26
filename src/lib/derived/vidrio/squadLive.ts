@@ -138,6 +138,8 @@ export function squadLive({ day, squad, matches, mvp = [] }: SquadLiveInput): Sq
   const entered = new Map<string, number>();
   const left = new Map<string, { m: number; red: boolean }>();
   for (const st of walk.steps) {
+    // (a «Cambio de sitio» brings nobody on and takes nobody off)
+    if (st.k === "swap") continue;
     const m = minuteOf(st.event);
     if (st.inId) entered.set(st.inId, m);
     left.set(st.outId, { m, red: st.k === "red" });

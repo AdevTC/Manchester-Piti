@@ -9,7 +9,7 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { calculateLedger, dateMillis, isPendingDup, type MatchSheet } from "./matchEngine.js";
+import { calculateLedger, dateMillis, isCompleted, isPendingDup, type MatchSheet } from "./matchEngine.js";
 import { db, idSchema } from "./common.js";
 import { isYouTubeUrl } from "./matchVideo.js";
 import { eventSchema, guestsSchema, playerRefSchema } from "./eventSchema.js";
@@ -19,11 +19,15 @@ import { recomputePorra } from "./vestuario.js";
 import { boardCodeByPlayer, boardSystem } from "./boardCodes.js";
 import { findOfficialBoard } from "./officialBoard.js";
 import { resolvePositions, type PosCode } from "./positions.js";
-import { keepStoredPositions, positionsPlayed, withPositions } from "./positionsPlayed.js";
+import { keepStoredPositions, positionsPlayed, swapsChanged, withPositions } from "./positionsPlayed.js";
 import { assertMatchNotDeleted, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 import { lineupCodeByPlayer, lineupSeven, parseMatchLineup, parsePresent, sameSeven } from "./matchLineup.js";
 import { activeMemberCount } from "./mvp.js";
 import { mvpDoc, tallyVotes } from "./mvpLogic.js";
+import { notasDoc, parseStoredNotas } from "./rating/frozen.js";
+import { standingsLike } from "./rating/rival.js";
+import { frozenNotas } from "./rating/season.js";
+import type { RatingMatch, StandingsLike } from "./rating/types.js";
 
 /** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
 const exactMillis = (v: unknown): number => {
@@ -180,6 +184,23 @@ export async function publishSheet(input: PublishRequest) {
         console.error("saveMatchSheet: official board malformed, estimating by preferred position", input.id, found.id, error);
       }
   }
+  // «La nota congelada» (rating/frozen): the season's other published actas and its table, which this acta's notas
+  // are rated against — read here, like the fichas, since they only feed the rating.
+  let seasonGames: RatingMatch[] | null = null;
+  let table: StandingsLike[] = [];
+  if (!input.draft && sheet.status === "finished")
+    try {
+      const [games, standings] = await Promise.all([
+        db.collection("matches").where("seasonId", "==", sheet.seasonId).where("status", "==", "finished").get(),
+        db.doc(`standings/${sheet.seasonId}`).get(),
+      ]);
+      seasonGames = games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m));
+      const t = standingsLike(sheet.seasonId, standings.data());
+      table = t ? [t] : [];
+    } catch (error) {
+      // (the acta never waits for its notas: stored without them, the web rates it with its season)
+      console.error("saveMatchSheet: the season could not be read for the notas", input.id, error);
+    }
   const ref = db.doc(`matches/${input.id}`);
   // Who can vote the MVP (the turnout's «de 14»), counted outside the transaction.
   const eligible = !input.draft && sheet.status === "finished" ? await activeMemberCount(Date.now()) : 0;
@@ -243,13 +264,24 @@ export async function publishSheet(input: PublishRequest) {
         withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: lineupCodeByPlayer(lineup), main }));
         system = lineup.system;
       } else if (boardFailed && old.get("status") === "finished") {
-        keepStoredPositions(fullLedger.players, old.get("ledger"), positionsPlayed(fullLedger.players, sheet.events, { board: null, main }));
+        keepStoredPositions(fullLedger.players, old.get("ledger"), positionsPlayed(fullLedger.players, sheet.events, { board: null, main }), swapsChanged(old.get("events"), sheet.events));
         system = typeof old.get("system") === "string" ? (old.get("system") as string) : null;
       } else {
         withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: board?.codes ?? null, main }));
         system = board?.system ?? null;
       }
     }
+    // Each player's nota of this acta, rated with the season's actas up to it and frozen with it; a correction keeps
+    // the rival factor of its first publication. A rating that fails never blocks the acta: a correction keeps the
+    // notas it had, a first publication goes without them (the web rates it then).
+    let notas: unknown = finished ? (old.get("notas") ?? null) : null;
+    if (finished && seasonGames)
+      try {
+        const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players };
+        notas = notasDoc(frozenNotas(self, seasonGames, table, parseStoredNotas(old.get("notas"))?.rival ?? null), Date.now());
+      } catch (error) {
+        console.error("saveMatchSheet: the notas could not be rated, the acta keeps the ones it had", input.id, error);
+      }
     const votes = await tx.get(ref.collection("votes"));
     // Replace this match's contribution atomically: corrections never double count.
     const deltas = new Map<
@@ -327,6 +359,7 @@ export async function publishSheet(input: PublishRequest) {
       goalsFor: finished ? sheet.goalsFor : null,
       goalsAgainst: finished ? sheet.goalsAgainst : null,
       ledger: finished ? ledger.players : {},
+      ...(notas ? { notas } : {}),
       system,
       voteClosesAt,
       updatedAt: FieldValue.serverTimestamp(),

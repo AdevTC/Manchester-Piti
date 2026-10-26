@@ -5,6 +5,7 @@ import { POS_CODES } from "./positions";
 import { GUEST_ID_RE, GUEST_NAME_MAX, MAX_GUESTS } from "./derived/guests";
 import { MESA_NAME_MAX } from "../../functions/src/mesaLogic";
 import { parseKickoffWeather } from "../../functions/src/weatherLogic";
+import { parseStoredNotas } from "../../functions/src/rating/frozen";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -96,6 +97,12 @@ export const seasonMatchSchema = z.looseObject({
   weatherAtKickoff: z
     .unknown()
     .transform((v) => parseKickoffWeather(v) ?? undefined)
+    .optional()
+    .catch(undefined),
+  // The notas frozen with the acta (backend stamp, rating/frozen): malformed → absent, rated again on the web.
+  notas: z
+    .unknown()
+    .transform((v) => parseStoredNotas(v) ?? undefined)
     .optional()
     .catch(undefined),
 });

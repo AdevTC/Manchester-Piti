@@ -29,3 +29,15 @@
 .mesa .gate-back{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;background:linear-gradient(180deg,#d4ecfc,#6CABDD);color:var(--navy);font-weight:700;text-decoration:none}
 .mesa .gate-wait{color:var(--soft);font-size:15px}
 .mesa .mesa-placeholder{padding:24px 16px;color:var(--soft)}
+/* «Recolocar»: the shirts slide to their new places, the pair just swapped pings; the draft's lower third
+   (white key, two lines, «Hecho»/«Recolocar» as a filled pill of 44 px) */
+.mesa .enj .tok{transition:left .75s cubic-bezier(.3,1.2,.5,1),top .75s cubic-bezier(.3,1.2,.5,1),transform .18s cubic-bezier(.16,1,.3,1),opacity .25s}
+.mesa .enj .tok.moved .halo{border:2px solid #eaf5ff;background:rgba(234,245,255,.12);animation:mesa-ping 1.1s cubic-bezier(.16,1,.3,1) both}
+@keyframes mesa-ping{0%{transform:scale(.7);opacity:1}100%{transform:scale(1.35);opacity:0}}
+.mesa .enj .l3.w2{height:auto;min-height:52px}
+.mesa .enj .l3.w2 .bar{padding:4px 4px 4px 12px}
+.mesa .enj .l3.w2 .msg b{white-space:normal;font-size:14px;line-height:1.25}
+.mesa .enj .l3.w2 .msg small{white-space:normal;line-height:1.25}
+.mesa .enj .l3 .kk.w{width:78px;padding:0 4px;box-sizing:border-box;background:#eaf5ff;font-size:12.5px;font-variation-settings:'wdth' 80}
+.mesa .enj .l3 .bar.w{box-shadow:inset 0 -3px 0 #eaf5ff,inset 0 0 0 1px rgba(255,255,255,.07)}
+.mesa .enj .l3 .ud.go{height:44px;padding:0 14px;margin-right:2px;border-radius:999px;color:var(--navy);background:linear-gradient(180deg,#d4ecfc,#6CABDD);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}

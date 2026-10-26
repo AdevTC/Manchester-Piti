@@ -1,7 +1,7 @@
 // Small pure pieces of the acta's pickers: the dorsal options (on the pitch first, then the banquillo) and
-// «Lo demás» — its four groups (Tarjetas · Cambios · Penaltis · Otros), the kinds each «+» offers and the
-// checks of a new or edited event.
-import type { EventType, MatchEvent } from "../../../../functions/src/matchEngine";
+// «Lo demás» — its four groups (Tarjetas · Cambios · Penaltis · Otros), the kinds each «+» offers, who is on
+// the pitch at a minute (for a «Cambio de sitio») and the checks of a new or edited event.
+import { calculateLedger, type EventType, type MatchEvent, type MatchSheet } from "../../../../functions/src/matchEngine";
 import { guestsLast, isGuestId } from "../../../lib/derived/guests";
 
 export interface PickOption {
@@ -35,7 +35,10 @@ export const KINDS: Record<EventGroup, readonly EventKind[]> = {
     { type: "double_yellow", label: "Segunda amarilla" },
     { type: "red_card", label: "Roja directa" },
   ],
-  cam: [{ type: "substitution", label: "Cambio" }],
+  cam: [
+    { type: "substitution", label: "Cambio" },
+    { type: "position_swap", label: "Cambio de sitio" },
+  ],
   pen: [
     { type: "penalty_saved", label: "Penalti parado" },
     { type: "penalty_missed", label: "Penalti fallado" },
@@ -57,7 +60,7 @@ const CARDS = new Set<string>(["yellow_card", "double_yellow", "red_card"]);
 /** The group an event (not a goal) is listed in. */
 export function groupOfEvent(e: Pick<MatchEvent, "type">): EventGroup {
   if (CARDS.has(e.type)) return "tar";
-  if (e.type === "substitution") return "cam";
+  if (e.type === "substitution" || e.type === "position_swap") return "cam";
   if (e.type.startsWith("penalty_")) return "pen";
   return "otro";
 }
@@ -66,17 +69,36 @@ export const playerMode = (type: string) => type.startsWith("opponent_") ? "none
 /** The label over the player grid for a kind. */
 export function playerQuestion(type: string): string {
   if (type === "substitution") return "Sale del campo";
+  if (type === "position_swap") return "Cambio de sitio: ¿quiénes se cambian?";
   if (type === "goal_penalty" || type === "goal_freekick") return "¿Quién marcó?";
   if (type === "own_goal") return "¿Quién la metió en propia?";
   if (type === "penalty_saved") return "¿Quién lo paró?";
   return "¿Quién?";
 }
 
-/** Checks a new / edited event: a minute inside the match, a player, someone different coming on. */
-export function checkEvent(o: { type: string; minute: string; player: string; inPlayer: string; duration: number }): string {
+/**
+ * Who is on the pitch at `minute` (ours, by id): the convocatoria walked through the acta's plays up to that
+ * minute — the changes and the reds, as the ledger reads them —, leaving out the play being edited (`skipId`).
+ * A «Cambio de sitio» picks its two players from here.
+ */
+export function fieldAt(sheet: Pick<MatchSheet, "starters" | "bench" | "notCalled" | "events" | "duration" | "guests">, minute: number, skipId?: string): string[] {
+  const events = sheet.events.filter((e) => e.id !== skipId);
+  const duration = Math.max(sheet.duration || 50, minute);
+  const ledger = calculateLedger({ starters: sheet.starters, bench: sheet.bench, notCalled: sheet.notCalled, events, duration, guests: sheet.guests }, false, { until: minute, allowUnattributedGoals: true });
+  return ledger.field.filter((id): id is string => id !== null);
+}
+
+/** Checks a new / edited event: a minute inside the match, a player, someone different coming on; a «Cambio de
+ *  sitio» needs two different players, both on the pitch at that minute (`field`, when known). */
+export function checkEvent(o: { type: string; minute: string; player: string; inPlayer: string; duration: number; field?: readonly string[] }): string {
   const m = Number(o.minute);
   const top = Number.isFinite(o.duration) ? o.duration : 150;
   if (o.minute.trim() === "" || !Number.isInteger(m) || m < 0 || m > top) return `Pon el minuto (de 0 a ${top}).`;
+  if (o.type === "position_swap") {
+    if (!o.player || !o.inPlayer || o.inPlayer === o.player) return "Elige los dos que se cambian el sitio.";
+    if (o.field && (!o.field.includes(o.player) || !o.field.includes(o.inPlayer))) return `En el minuto ${m} los dos tienen que estar en el campo.`;
+    return "";
+  }
   if (!o.player && playerMode(o.type) === "required") return o.type === "substitution" ? "Elige quién sale del campo." : "Elige el jugador por su dorsal.";
   if (o.type === "substitution" && (!o.inPlayer || o.inPlayer === o.player)) return "Elige quién entra (otro jugador).";
   return "";

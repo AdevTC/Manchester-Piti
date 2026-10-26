@@ -63,6 +63,8 @@ const DEFS: Record<EventType, Def> = {
   penalty_committed: us("faltas", "penalti", "PENALTI"),
   // changes
   substitution: us("cambios", "cambio", "CAMBIO"),
+  // (a «Cambio de sitio» shows under «Cambios», but nobody comes on or goes off: no count of changes reads it)
+  position_swap: us("cambios", "cambio", "CAMBIO DE SITIO"),
   // the rest
   corner: us("otros", "corner", "CÓRNER"),
   opponent_corner: them("otros", "corner", "CÓRNER"),
@@ -234,6 +236,10 @@ export function eventSentence(e: Pick<MatchEvent, "type" | "playerId" | "assistP
       const inn = e.inPlayerId ? nameOf(e.inPlayerId) : "";
       if (inn && p) return say(`Entra ${inn}, sale ${p}`);
       return say(inn ? `Entra ${inn}` : p ? `Sale ${p}` : "Cambio");
+    }
+    case "position_swap": {
+      const other = e.inPlayerId ? nameOf(e.inPlayerId) : "";
+      return say(p && other ? `${p} y ${other} se cambian el sitio` : "Cambio de sitio", note);
     }
     case "corner":
       return say("Córner para el Piti", note || (p ? `Lo saca ${p}` : ""));

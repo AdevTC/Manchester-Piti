@@ -1,8 +1,9 @@
-// «Ha jugado de»: de un acta publicada (su ledger y sus eventos) y de la pizarra oficial del partido,
+/// «Ha jugado de»: de un acta publicada (su ledger y sus eventos) y de la pizarra oficial del partido,
 // cuántos minutos jugó cada uno en cada posición exacta y qué goles, asistencias y tarjetas vinieron
 // de ahí. Puro: lo usan saveMatchSheet, el relleno de actas antiguas y sus tests.
 import { boardCodeByPlayer, boardSystem, type BoardLike } from "./boardCodes.js";
-import type { MatchEvent, Participation } from "./matchEngine.js";
+import { eventSeconds } from "./matchAnalysis.js";
+import { isPendingDup, type MatchEvent, type Participation } from "./matchEngine.js";
 import { SAFE_ID } from "./officialBoard.js";
 import type { PosCode } from "./positions.js";
 
@@ -18,28 +19,39 @@ export interface PositionsRow {
   positionsEstimated: boolean;
 }
 
-type LedgerRow = Pick<Participation, "started" | "stints" | "exchanges">;
-type EventLike = Pick<MatchEvent, "type" | "playerId" | "assistPlayerId" | "minute" | "elapsedSeconds">;
+type LedgerRow = Pick<Participation, "started" | "stints">;
+type EventLike = Pick<MatchEvent, "type" | "playerId" | "assistPlayerId" | "inPlayerId" | "minute" | "elapsedSeconds" | "dupOf" | "dupOk">;
 interface Coded {
   code: PosCode;
   estimated: boolean;
 }
+/** A stretch of one player's minutes at one code (null: a slot nobody could name). */
+interface Seg {
+  from: number;
+  to: number;
+  c: Coded | null;
+}
 
 const GOALS = new Set<string>(["goal", "goal_penalty", "goal_freekick"]);
+const SENT_OFF = new Set<string>(["red_card", "double_yellow"]);
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /**
- * Per player with at least one coded stint: minutes by exact position and the goals, assists and
- * cards that fell in each. A starter on the board takes his slot's code; one off the board, or every
- * starter without a board, takes his main (estimated); a starter without a main gets no code. A stint
- * that starts later (a substitute, or a player coming back) takes the code of the stint that the
- * player he came in for ends at that minute (or, for a player sent off earlier, his last), «estimado» included; when that one has no code, his own
- * main (estimated). An event counts at the stint that contains its minute (from ≤ t < to) or, when
- * none does, at the one that ends right then (his last minute: a red card, the minute he is
- * substituted, the final whistle); elsewhere (a card on the bench) it is not attributed. At a
- * substitution minute t the one coming in owns t (his stint starts there), so his card at t counts at
- * the position he inherited; the one going off only gets t through the stint that ends there.
- * `positionsEstimated` is set only when an estimated stint gave him minutes.
+ * Per player with at least one coded stretch: minutes by exact position and the goals, assists and
+ * cards that fell in each. The match is walked in the ledger's order (calculateLedger's: by time, then as
+ * written; a pending duplicate counts for nothing). A starter on the board takes his slot's code; one off
+ * the board, or every starter without a board, takes his main (estimated); a starter without a main gets
+ * no code. Whoever comes on takes the code of the one he replaces at that moment (a sub «por» a player
+ * sent off earlier takes the code the red left empty), «estimado» included; when that one has no code, his
+ * own main (estimated). A «Cambio de sitio» (a recolocación) trades the codes of the two who move from
+ * that moment (one without a code takes his own main). An event counts at the stretch that contains its
+ * minute (from ≤ t < to) or, when none does, at the one that ends right then (his last minute: a red
+ * card, the minute he is substituted, the final whistle); elsewhere (a card on the bench) it is not
+ * attributed. At a substitution minute t the one coming in owns t (his stretch starts there), so his card
+ * at t counts at the position he inherited — or, recolocated at t, at the one he moved to; the one going
+ * off only gets t through the stretch that ends there. `positionsEstimated` is set only when an estimated
+ * stretch gave him minutes. The ledger says who started and where each one's last stint ends (the walk
+ * closes there).
  */
 export function positionsPlayed(
   ledger: Record<string, LedgerRow>,
@@ -59,53 +71,86 @@ export function positionsPlayed(
     return b ? { code: b, estimated: false } : ownMain(pid);
   };
 
-  const memo = new Map<string, Coded | null>();
-  const resolving = new Set<string>();
-  const resolve = (pid: string, i: number): Coded | null => {
-    const key = `${pid}\u0000${i}`;
-    if (memo.has(key)) return memo.get(key) ?? null;
-    if (resolving.has(key)) return null; // a malformed exchange loop: no code rather than forever
-    resolving.add(key);
-    const p = ledger[pid];
-    const stints = stintsOf(pid);
-    const s = stints[i];
-    let out: Coded | null;
-    if (p.started && s.from === 0) out = starterCode(pid);
-    else {
-      // the k-th stint of his that starts at this minute is the k-th time he came in at it
-      const k = stints.slice(0, i).filter((x) => x.from === s.from).length;
-      const ins = (Array.isArray(p.exchanges) ? p.exchanges : []).filter((x) => x.direction === "in" && x.minute === s.from);
-      const ex = ins[k];
-      const theirs = ex ? stintsOf(ex.with) : [];
-      let j = -1;
-      for (let n = theirs.length - 1; n >= 0; n--)
-        // (the one he came in for left right then; or earlier, sent off: his slot waited for him)
-        if (theirs[n].to <= s.from && !(ex?.with === pid && n === i)) {
-          j = n;
-          break;
-        }
-      const inherited = ex && j >= 0 ? resolve(ex.with, j) : null;
-      out = inherited ?? ownMain(pid);
-    }
-    resolving.delete(key);
-    memo.set(key, out);
-    return out;
+  // ---- the walk: who is on the pitch, at which code, stretch by stretch
+  const segs = new Map<string, Seg[]>();
+  const on = new Map<string, Seg>();
+  /** The code a red left empty, by who was sent off: a substitution «por» him takes it (once). */
+  const vacated = new Map<string, Coded | null>();
+  /** Sent off: never on again. */
+  const off = new Set<string>();
+  const open = (pid: string, t: number, c: Coded | null) => {
+    const seg: Seg = { from: t, to: t, c };
+    on.set(pid, seg);
+    const list = segs.get(pid);
+    if (list) list.push(seg);
+    else segs.set(pid, [seg]);
   };
+  const close = (pid: string, t: number) => {
+    const seg = on.get(pid);
+    if (!seg) return;
+    seg.to = Math.max(seg.from, t);
+    on.delete(pid);
+  };
+  for (const [pid, p] of Object.entries(ledger)) if (p?.started) open(pid, 0, starterCode(pid));
+  const timeOf = (e: EventLike): number | null => {
+    const t = e.elapsedSeconds != null ? e.elapsedSeconds / 60 : e.minute;
+    return typeof t === "number" && Number.isFinite(t) ? t : null;
+  };
+  const counted = events.filter((e) => e && !isPendingDup(e));
+  const ordered = counted.map((e, order) => ({ e, order })).sort((a, b) => eventSeconds(a.e) - eventSeconds(b.e) || a.order - b.order);
+  for (const { e } of ordered) {
+    const t = timeOf(e);
+    if (t === null || !e.playerId) continue;
+    if (e.type === "substitution") {
+      const outId = e.playerId;
+      const inId = e.inPlayerId;
+      if (!inId || inId === outId || on.has(inId) || off.has(inId) || !ledger[inId]) continue;
+      const cur = on.get(outId);
+      if (cur) {
+        close(outId, t);
+        open(inId, t, cur.c ?? ownMain(inId));
+      } else if (vacated.has(outId)) {
+        const c = vacated.get(outId) ?? null;
+        vacated.delete(outId);
+        open(inId, t, c ?? ownMain(inId));
+      }
+    } else if (SENT_OFF.has(e.type)) {
+      const cur = on.get(e.playerId);
+      if (cur) {
+        vacated.set(e.playerId, cur.c);
+        close(e.playerId, t);
+      }
+      off.add(e.playerId);
+    } else if (e.type === "position_swap") {
+      const a = e.playerId;
+      const b = e.inPlayerId;
+      const sa = on.get(a);
+      const sb = b ? on.get(b) : undefined;
+      if (!b || a === b || !sa || !sb) continue;
+      close(a, t);
+      close(b, t);
+      open(a, t, sb.c ?? ownMain(a));
+      open(b, t, sa.c ?? ownMain(b));
+    }
+  }
+  // (the final whistle: whoever is still on closes where the ledger's last stint of his ends)
+  const end = Math.max(0, ...Object.keys(ledger).flatMap((pid) => stintsOf(pid).map((s) => s.to)));
+  for (const pid of [...on.keys()]) {
+    const last = stintsOf(pid).at(-1);
+    close(pid, last ? last.to : end);
+  }
 
-  // resolve is memoised and recursive, so the order stints are visited in does not matter: a chain
-  // (a substitute for a substitute) resolves through whoever he replaced.
   const rows: Record<string, PositionsRow> = {};
   const minutes: Record<string, Partial<Record<PosCode, number>>> = {};
-  for (const pid of Object.keys(ledger))
-    stintsOf(pid).forEach((s, i) => {
-      const c = resolve(pid, i);
-      if (!c) return;
-      const length = Math.max(0, s.to - s.from);
+  for (const [pid, list] of segs)
+    for (const seg of list) {
+      if (!seg.c) continue;
+      const length = Math.max(0, seg.to - seg.from);
       rows[pid] ??= { positionsPlayed: {}, positionEvents: {}, positionsEstimated: false };
-      if (c.estimated && length > 0) rows[pid].positionsEstimated = true;
+      if (seg.c.estimated && length > 0) rows[pid].positionsEstimated = true;
       const m = (minutes[pid] ??= {});
-      m[c.code] = (m[c.code] ?? 0) + length;
-    });
+      m[seg.c.code] = (m[seg.c.code] ?? 0) + length;
+    }
   for (const [pid, m] of Object.entries(minutes)) {
     for (const [code, raw] of Object.entries(m) as [PosCode, number][]) {
       const v = round2(raw);
@@ -117,15 +162,15 @@ export function positionsPlayed(
 
   const codeAt = (pid: string | undefined, t: number): PosCode | null => {
     if (!pid || !rows[pid]) return null;
-    const stints = stintsOf(pid);
-    let i = stints.findIndex((s) => s.from <= t && t < s.to);
-    if (i < 0)
-      for (let n = stints.length - 1; n >= 0; n--)
-        if (stints[n].to === t) {
-          i = n;
+    const list = segs.get(pid) ?? [];
+    let seg = list.find((s) => s.from <= t && t < s.to);
+    if (!seg)
+      for (let n = list.length - 1; n >= 0; n--)
+        if (list[n].to === t) {
+          seg = list[n];
           break;
         }
-    return i >= 0 ? (resolve(pid, i)?.code ?? null) : null;
+    return seg?.c?.code ?? null;
   };
   const bump = (pid: string | undefined, t: number, key: keyof PositionEvents) => {
     const code = codeAt(pid, t);
@@ -134,9 +179,9 @@ export function positionsPlayed(
     const cur = (pe[code] ??= { goals: 0, assists: 0, yellowCards: 0, redCards: 0 });
     cur[key]++;
   };
-  for (const e of events) {
-    const t = e.elapsedSeconds != null ? e.elapsedSeconds / 60 : e.minute;
-    if (typeof t !== "number" || !Number.isFinite(t)) continue;
+  for (const e of counted) {
+    const t = timeOf(e);
+    if (t === null) continue;
     if (GOALS.has(e.type)) {
       bump(e.playerId, t, "goals");
       bump(e.assistPlayerId, t, "assists");
@@ -179,21 +224,46 @@ type CorrectionLedger = Record<string, PositionsLedger[string] & Partial<Pick<Pa
 /**
  * The board could not be read during a correction. A player keeps the position keys his stored row had
  * (a stored ledger from the match doc, possibly missing or odd) only when what places his minutes and
- * actions is unchanged — his stints, exchanges, goals, assists, yellow and red cards; otherwise (or with
+ * actions is unchanged — his stints, exchanges, goals, assists, yellow and red cards, and his «Cambio de
+ * sitio» plays (`moved`: whom the correction recolocated differently, swapsChanged); otherwise (or with
  * nothing stored for him) he gets `fallback`'s row: the estimate by preferred position, «estimado».
  */
-export function keepStoredPositions(players: CorrectionLedger, stored: unknown, fallback: Record<string, PositionsRow>): void {
+export function keepStoredPositions(players: CorrectionLedger, stored: unknown, fallback: Record<string, PositionsRow>, moved: ReadonlySet<string> = new Set()): void {
   clearPositions(players);
   const old = stored && typeof stored === "object" ? (stored as Record<string, unknown>) : {};
   for (const [pid, p] of Object.entries(players)) {
     const row: unknown = old[pid];
     const r = row && typeof row === "object" ? (row as Record<string, unknown>) : null;
-    if (r && ATTRIBUTION_KEYS.every((k) => same(r[k], p[k]))) {
+    if (r && !moved.has(pid) && ATTRIBUTION_KEYS.every((k) => same(r[k], p[k]))) {
       if (r.positionsPlayed && typeof r.positionsPlayed === "object") p.positionsPlayed = r.positionsPlayed as PositionsLedger[string]["positionsPlayed"];
       if (r.positionEvents && typeof r.positionEvents === "object") p.positionEvents = r.positionEvents as PositionsLedger[string]["positionEvents"];
       if (r.positionsEstimated === true) p.positionsEstimated = true;
     } else if (fallback[pid]) Object.assign(p, positionFields(fallback[pid]));
   }
+}
+
+/** Who a correction recolocated differently: the players whose «Cambio de sitio» plays (when, and with
+ *  whom) are not the same in the stored events (`before`, possibly missing or odd) and the new ones. */
+export function swapsChanged(before: unknown, after: readonly EventLike[]): Set<string> {
+  const sign = (events: readonly unknown[]) => {
+    const by = new Map<string, string[]>();
+    for (const x of events) {
+      const e = x as Partial<EventLike> | null;
+      if (!e || e.type !== "position_swap" || typeof e.playerId !== "string" || typeof e.inPlayerId !== "string") continue;
+      const at = String(e.elapsedSeconds ?? (typeof e.minute === "number" ? e.minute * 60 : "?"));
+      for (const [me, other] of [[e.playerId, e.inPlayerId], [e.inPlayerId, e.playerId]]) {
+        const list = by.get(me) ?? [];
+        list.push(`${at}:${other}`);
+        by.set(me, list);
+      }
+    }
+    return by;
+  };
+  const was = sign(Array.isArray(before) ? before : []);
+  const now = sign(after);
+  const out = new Set<string>();
+  for (const pid of new Set([...was.keys(), ...now.keys()])) if ((was.get(pid) ?? []).join("|") !== (now.get(pid) ?? []).join("|")) out.add(pid);
+  return out;
 }
 
 /** Key-order-independent equality for the plain values stored here (absent ≡ null). */

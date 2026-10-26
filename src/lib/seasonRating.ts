@@ -5,17 +5,17 @@ import { isCompleted } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { isPosCode, lineOf, resolvePositions, type Line } from "./positions";
 import { computeStats } from "./playerStats";
-import type { Standings } from "./standings";
+import type { StandingsLike } from "../../functions/src/rating/types";
 import { MIN_RATED_MINUTES, MODEL_VERSION, PROVISIONAL_MINUTES } from "./rating/constants";
 import { emptySeason, NO_STANDINGS, seasonRatings, type MatchNote, type PlusMinus, type SeasonRatings } from "./rating/season";
 import type { Group, Item } from "./rating/values";
 
-export { NO_STANDINGS, seasonRatings, type MatchNote, type SeasonRatings } from "./rating/season";
+export { matchNotas, NO_STANDINGS, seasonRatings, type MatchNote, type SeasonRatings } from "./rating/season";
 export const SEASON_RATING_VERSION = MODEL_VERSION;
 export const GLOBAL_MIN = 0;
 export const GLOBAL_MAX = 99;
 export const GLOBAL_METHOD =
-  "Cada partido tiene una nota de 0 a 10 (6,5 es un partido normal): lo que suma o resta cada acción tuya, en goles que ganas o regalas al rival, cada 50 minutos y comparado con los de tu línea. GLOBAL es la media de tus notas por 10: un partido cuenta entero desde 30 minutos y en proporción por debajo, uno sin narrar cuenta la mitad, y la media parte de tres partidos de 6,5 para que pocos partidos no decidan. Ante un rival fuerte de la clasificación lo bueno vale más y los fallos restan menos. Los votos MVP no cuentan. Sin minutos en el acta no hay nota: no se inventan.";
+  "Cada partido tiene una nota de 0 a 10 (6,5 es un partido normal): lo que suma o resta cada acción tuya, en goles que ganas o regalas al rival, cada 50 minutos y comparado con los de tu línea. Se calcula al publicar el acta, con lo jugado hasta ese día, y ya no cambia salvo que se corrija esa acta. GLOBAL es la media de tus notas por 10: un partido cuenta entero desde 30 minutos y en proporción por debajo, uno sin narrar cuenta la mitad, y la media parte de tres partidos de 6,5 para que pocos partidos no decidan. Ante un rival fuerte de la clasificación lo bueno vale más y los fallos restan menos. Los votos MVP no cuentan. Sin minutos en el acta no hay nota: no se inventan.";
 const GROUP_LABEL: Record<Group, string> = { ataque: "Ataque", pase: "Pase", defensa: "Defensa", porteria: "Portería", errores: "Errores", disciplina: "Disciplina" };
 
 export interface SeasonRatingGroup {
@@ -129,7 +129,7 @@ export function seasonRatingFrom(player: RatingPlayer, ratings: SeasonRatings, g
 }
 
 /** A player's GLOBAL over `matches` (`standings`: every season's current table, for the rival's strength). */
-export function seasonRating(player: RatingPlayer, matches: readonly ClubMatch[], standings: readonly Standings[] = NO_STANDINGS): SeasonRating {
+export function seasonRating(player: RatingPlayer, matches: readonly ClubMatch[], standings: readonly StandingsLike[] = NO_STANDINGS): SeasonRating {
   const games = ratingMatches(matches);
   return seasonRatingFrom(player, seasonRatings(games, standings), games);
 }

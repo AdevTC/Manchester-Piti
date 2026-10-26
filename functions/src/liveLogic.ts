@@ -38,6 +38,8 @@ export function liveProblem(
   if (event.assistPlayerId && (!called.has(event.assistPlayerId) || event.assistPlayerId === event.playerId)) return "La asistencia tiene que ser de otro convocado.";
   if (event.type === "substitution" && (!event.inPlayerId || !called.has(event.inPlayerId) || event.inPlayerId === event.playerId))
     return "El cambio necesita quién sale y quién entra.";
+  if (event.type === "position_swap" && (!event.inPlayerId || !called.has(event.inPlayerId) || event.inPlayerId === event.playerId))
+    return "El cambio de sitio necesita los dos jugadores que se cambian.";
   return null;
 }
 

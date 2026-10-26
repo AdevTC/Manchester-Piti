@@ -117,7 +117,8 @@ export function placeTags(items: readonly TagItem[]): TagPlace[] {
 
 // ---------- the playhead crossing a change or a mark
 export interface Crossing {
-  /** A spot whose man changed between the two minutes: who walks in, who walks off. */
+  /** A spot whose man changed between the two minutes: who walks in, who walks off (one who only moved spot, a
+   *  «Cambio de sitio», walks nowhere). */
   walks: { inId: string; outId: string }[];
   /** The minutes of the marks the playhead just passed (they pop). */
   fresh: number[];
@@ -127,9 +128,10 @@ export function crossingOf(tl: Pick<Timeline, "onPitchAt">, plays: readonly Play
   const walks: Crossing["walks"] = [];
   if (a !== b && Math.abs(b - a) <= 6) {
     const A = tl.onPitchAt(a);
+    const before = new Set(A.map((s) => s.id));
     tl.onPitchAt(b).forEach((sp, i) => {
       const was = A[i];
-      if (was && was.id !== sp.id) walks.push({ inId: sp.id, outId: was.id });
+      if (was && was.id !== sp.id && !before.has(sp.id)) walks.push({ inId: sp.id, outId: was.id });
     });
   }
   const fresh = b > a && b - a <= 4 ? plays.filter((p) => p.k !== "cambio" && a < p.m && p.m <= b).map((p) => p.m) : [];
@@ -577,19 +579,19 @@ export function sieteView(I: SieteInput): SieteView {
         if (Lg.saves) bits.push(`${Lg.saves} paradas`);
         if (Lg.shots) bits.push(`${Lg.shots}${Lg.shots === 1 ? " remate" : " remates"}`);
       }
-      const lead = m >= D ? "Esta noche: " : `Hasta el ${m}′: `;
+      const lead = m >= D ? "En el partido: " : `Hasta el ${m}′: `;
       nowTxt = bits.length ? `${lead}${bits.join(" · ")}.` : m >= D ? "No llegó a salir." : "Aún no ha salido.";
       if (onSp && onSp.cameIn != null && m < D) metaBits.push(`en el campo desde el ${onSp.cameIn}′`);
       const segsC = tl.segsAt(cid, Math.max(m, 0.01));
       if (segsC.length > 1) nowTxt = `${nowTxt.replace(/\.$/, "")} · en ${segsC.length} tramos: ${tramos(segsC)}.`;
-      seasonLabel = live || f === "final" ? "En la temporada, con esta noche" : "En la temporada";
+      seasonLabel = live || f === "final" ? "En la temporada, con este partido" : "En la temporada";
       counts = countsOf({ partidos: prior.partidos + (mins ? 1 : 0), minutos: prior.minutos + mins, goles: prior.goles + gl, asistencias: prior.asistencias + as });
     }
     const where = !played ? (lin ? "En el siete" : "En el banquillo") : onSp ? (m >= D ? "Acabó en el campo" : `En el campo, minuto ${m}`) : "Desde el banquillo";
     const kicker = !isDef
       ? where
       : mine && isPlayer
-        ? "Tú, en esta noche"
+        ? "Tú, en el partido"
         : isMvp
           ? "El MVP"
           : cid === lastScorer

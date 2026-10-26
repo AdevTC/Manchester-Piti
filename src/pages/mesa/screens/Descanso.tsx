@@ -1,9 +1,11 @@
 // La mesa · descanso (DescansoV2): the amber DESCANSO plate with the break's timer and a ticker of the half,
 // the first half in mirrored bars, «Quién ha jugado» (each player's stints and what he did) where a tap
 // picks the seven of the 2ª with its projected minutes, «Los cambios» (por quién entra cada uno, and so in
-// which position: he takes the slot of the one going off, or the one a red emptied), «Igualar minutos»,
-// and «Arrancar la 2ª».
+// which position: he takes the slot of the one going off, or the one a red emptied), «Recolocar» (two of
+// the seven swap places: tap one, then the other), «Igualar minutos», and «Arrancar la 2ª» (the changes
+// and then the swaps, one wave).
 import { useState } from "react";
+import { DRAFT_MAX, swappedPlaces, type DraftSwap } from "../recolocar";
 import type { MesaEvent, MesaPlayer, MesaScreenProps } from "../types";
 import { buzz, useNow } from "./hooks";
 import { fairSeven, fixtureTitle, fmtShort, minuteOfPlay, placesToFill, subsTo } from "./model";
@@ -27,6 +29,9 @@ export function Descanso({ view }: MesaScreenProps) {
   const [busy, setBusy] = useState(false);
   // «por quién» picked by hand: incoming id → the one going off (or sent off) whose place he takes
   const [chosen, setChosen] = useState<Record<string, string>>({});
+  // «Recolocar»: the pairs who swap places for the 2ª, in the order made, and the first of a pair picked
+  const [swaps, setSwaps] = useState<DraftSwap[]>([]);
+  const [pick, setPick] = useState<string | null>(null);
 
   const first = match.clock.period === 1 ? match.clock.elapsedSeconds : match.clock.elapsedSeconds - match.clock.periodSeconds;
   const halfMin = Math.round(match.clock.halfSeconds / 60);
@@ -69,6 +74,25 @@ export function Descanso({ view }: MesaScreenProps) {
     setChosen({ ...now, [inId]: outId, ...(other && now[inId] ? { [other.inId]: now[inId] } : {}) });
     buzz([10]);
   };
+  // where each one of the seven plays in the 2ª: his own position, or the place of the one he comes on for,
+  // then the swaps (a swap whose two are not both in the seven any more drops out)
+  const base = new Map<string, string | null>(sel.map((id) => {
+    const pair = pairs.find((x) => x.inId === id);
+    const p = byId(id);
+    return [id, pair ? places.find((x) => x.outId === pair.outId)?.code ?? null : p?.pos ?? (p?.keeper ? "POR" : null)] as const;
+  }));
+  const liveSwaps = swaps.filter(([a, b]) => base.has(a) && base.has(b));
+  const placeNow = swappedPlaces(base, liveSwaps);
+  const room = pairs.length + liveSwaps.length < DRAFT_MAX;
+  const tapPlace = (id: string) => {
+    buzz([8]);
+    if (!pick) return setPick(id);
+    if (pick === id) return setPick(null);
+    if (!room) return;
+    setSwaps([...liveSwaps, [pick, id]]);
+    setPick(null);
+  };
+  const nameOf = (id: string) => byId(id)?.name ?? id;
   const why = sel.length !== 7 ? `${sel.length} de 7` : !hasKeeper ? "falta portero" : "";
   const label = why ? "Elige el siete" : nIn ? `Arrancar con ${nIn} ${nIn === 1 ? "cambio" : "cambios"}` : "Arrancar la 2ª parte";
   // (the break's real length from the clock; until it is read, since this screen opened)
@@ -79,9 +103,12 @@ export function Descanso({ view }: MesaScreenProps) {
     buzz([20, 40, 60]);
     setBusy(true);
     try {
-      // (the whole wave in one operation: all the changes or none)
-      const subs = pairs;
-      if (subs.length) actions.addMany(subs.map((s) => ({ playerId: s.outId, inPlayerId: s.inId })));
+      // (the whole wave in one operation, all or none: the changes, then the swaps in the order made)
+      const items = [
+        ...pairs.map((s) => ({ type: "substitution" as const, playerId: s.outId, inPlayerId: s.inId })),
+        ...liveSwaps.map(([a, b]) => ({ type: "position_swap" as const, playerId: a, inPlayerId: b })),
+      ];
+      if (items.length) actions.addMany(items);
       await actions.clock("second");
     } catch {
       setBusy(false);
@@ -208,6 +235,33 @@ export function Descanso({ view }: MesaScreenProps) {
               </div>
             );
           })}
+        </section>
+      )}
+
+      {valid && (
+        <section className="chg" aria-label="Recolocar para la 2ª">
+          <div className="chh"><b>Recolocar</b><span aria-live="polite">{pick ? `¿Con quién cambia el sitio ${nameOf(pick)}? Toca a un compañero` : "toca a dos y se cambian el sitio"}</span></div>
+          <div className="opts" role="group" aria-label="Quién cambia de sitio">
+            {sel.map((id) => {
+              const code = placeNow.get(id) ?? null;
+              return (
+                <button key={id} type="button" className={pick === id ? "op on" : "op"} aria-pressed={pick === id} disabled={!room && pick !== id && !!pick} aria-label={pick && pick !== id ? `${nameOf(pick)} y ${nameOf(id)} se cambian el sitio` : `Elegir a ${nameOf(id)}${code ? ` (${code})` : ""} para cambiar de sitio`} onClick={() => tapPlace(id)}>
+                  {code && <b>{code}</b>} {nameOf(id)}
+                </button>
+              );
+            })}
+          </div>
+          {liveSwaps.length > 0 && (
+            <div className="cr">
+              <div className="cw"><span className="in">{liveSwaps.map(([a, b]) => `${nameOf(a)} ↔ ${nameOf(b)}`).join(" · ")}</span></div>
+              <div className="opts">
+                <button type="button" className="op" onClick={() => {
+                  setSwaps(liveSwaps.slice(0, -1));
+                  setPick(null);
+                }}>Deshacer</button>
+              </div>
+            </div>
+          )}
         </section>
       )}
 

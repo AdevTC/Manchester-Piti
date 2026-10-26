@@ -21,7 +21,7 @@ describe("eventMeta: every EventType", () => {
     expect(["goles", "ocasiones", "faltas", "cambios", "otros"]).toContain(m.group);
     expect(m.glyph).toBeTruthy();
     expect(m.tag).toMatch(/^[A-ZÁÉÍÓÚÑ ]+$/);
-    const said = eventSentence(ev(type, { playerId: "m", inPlayerId: type === "substitution" ? "h" : undefined }), ctx);
+    const said = eventSentence(ev(type, { playerId: "m", inPlayerId: type === "substitution" || type === "position_swap" ? "h" : undefined }), ctx);
     expect(said.title.length).toBeGreaterThan(3);
     expect(said.title).not.toMatch(/undefined|null/);
   });
@@ -75,6 +75,9 @@ describe("eventSentence", () => {
     expect(say("save", { playerId: "a", note: "Paradón" })).toMatchObject({ title: "Parada de Álex", sub: "Paradón" });
     expect(say("woodwork", { playerId: "m" }).title).toBe("Al palo, Mario");
     expect(say("substitution", { playerId: "p", inPlayerId: "h" }).title).toBe("Entra Hugo, sale Pablo");
+    // a «Cambio de sitio»: under «Cambios» to read, but no one comes on or goes off
+    expect(eventMeta("position_swap")).toMatchObject({ side: "us", group: "cambios", glyph: "cambio", tag: "CAMBIO DE SITIO", goal: null, card: null });
+    expect(say("position_swap", { playerId: "p", inPlayerId: "h" })).toMatchObject({ title: "Pablo y Hugo se cambian el sitio", people: ["p", "h"] });
     expect(say("double_yellow", { playerId: "m" })).toMatchObject({ title: "Roja a Mario", sub: "Segunda amarilla" });
     expect(say("penalty_received", { playerId: "m" })).toMatchObject({ title: "Penalti a favor", sub: "Sobre Mario" });
     expect(say("penalty_committed", { playerId: "m" })).toMatchObject({ title: "Penalti para Atlético", sub: "Lo comete Mario" });

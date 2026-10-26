@@ -708,7 +708,8 @@
 /* ---------- the pitch (vd-pitch; the lines of Campo.tsx, vertical) */
 .pp .pp-place--siete .ps-pitch{width:100%;max-width:470px;margin:0 auto;aspect-ratio:100/120;container-type:inline-size}
 .pp .pp-place--siete .ps-players{position:absolute;inset:0;margin:0;padding:0;list-style:none}
-.pp .pp-place--siete .ps-player{z-index:1;--w:clamp(36px,11cqw,64px);width:auto}
+/* (a «Cambio de sitio» moves a shirt to another spot: it glides there) */
+.pp .pp-place--siete .ps-player{z-index:1;--w:clamp(36px,11cqw,64px);width:auto;transition:left .6s var(--vd-ease),top .6s var(--vd-ease)}
 .pp .pp-place--siete .ps-pl{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:4px 6px;border:0;border-radius:14px;background:none;
   color:inherit;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background-color .2s var(--vd-ease)}
 .pp .pp-place--siete .ps-tee{--w:inherit;width:var(--w)}
@@ -877,7 +878,7 @@
 @media (prefers-reduced-motion:reduce){
   .pp .pp-place--siete .ps-player.is-walk,.pp .pp-place--siete .vd-tag.is-new,.pp .pp-place--siete .ps-card{animation:none}
   .pp .pp-place--siete .ps-leave{display:none}
-  .pp .pp-place--siete .ps-st__fill,.pp .pp-place--siete .ps-pl{transition:none}
+  .pp .pp-place--siete .ps-st__fill,.pp .pp-place--siete .ps-pl,.pp .pp-place--siete .ps-player{transition:none}
 }
 
 /* ===== screen: numeros ===== */
