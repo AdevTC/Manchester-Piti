@@ -37,9 +37,12 @@ export interface ClubMatch extends Omit<
   mesa?: MatchMesa;
   /** The weather at the kick-off hour, stamped by the backend once the acta is published («Hizo 15°»). */
   weatherAtKickoff?: KickoffWeather;
+  /** Each player's nota, frozen when the acta was published (backend-written; the rating reads it). */
+  notas?: StoredNotas;
 }
 export type { MatchMesa } from "../../functions/src/mesaLogic";
 export type { KickoffWeather } from "../../functions/src/weatherLogic";
+export type { StoredNotas } from "../../functions/src/rating/frozen";
 export function useClubData() {
   const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
   const players = useFirestoreCollection(PLAYERS_KEY, playerQuery, mapPlayer);

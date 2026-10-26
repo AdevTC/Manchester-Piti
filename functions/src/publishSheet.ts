@@ -9,7 +9,7 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { calculateLedger, dateMillis, isPendingDup, type MatchSheet } from "./matchEngine.js";
+import { calculateLedger, dateMillis, isCompleted, isPendingDup, type MatchSheet } from "./matchEngine.js";
 import { db, idSchema } from "./common.js";
 import { isYouTubeUrl } from "./matchVideo.js";
 import { eventSchema, guestsSchema, playerRefSchema } from "./eventSchema.js";
@@ -24,6 +24,10 @@ import { assertMatchNotDeleted, requireActiveMatch, runMatchTransaction } from '
 import { lineupCodeByPlayer, lineupSeven, parseMatchLineup, parsePresent, sameSeven } from "./matchLineup.js";
 import { activeMemberCount } from "./mvp.js";
 import { mvpDoc, tallyVotes } from "./mvpLogic.js";
+import { notasDoc, parseStoredNotas } from "./rating/frozen.js";
+import { standingsLike } from "./rating/rival.js";
+import { frozenNotas } from "./rating/season.js";
+import type { RatingMatch, StandingsLike } from "./rating/types.js";
 
 /** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
 const exactMillis = (v: unknown): number => {
@@ -180,6 +184,19 @@ export async function publishSheet(input: PublishRequest) {
         console.error("saveMatchSheet: official board malformed, estimating by preferred position", input.id, found.id, error);
       }
   }
+  // «La nota congelada» (rating/frozen): the season's other published actas and its table, which this acta's notas
+  // are rated against — read here, like the fichas, since they only feed the rating.
+  let seasonGames: RatingMatch[] = [];
+  let table: StandingsLike[] = [];
+  if (!input.draft && sheet.status === "finished") {
+    const [games, standings] = await Promise.all([
+      db.collection("matches").where("seasonId", "==", sheet.seasonId).where("status", "==", "finished").get(),
+      db.doc(`standings/${sheet.seasonId}`).get(),
+    ]);
+    seasonGames = games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m));
+    const t = standingsLike(sheet.seasonId, standings.data());
+    table = t ? [t] : [];
+  }
   const ref = db.doc(`matches/${input.id}`);
   // Who can vote the MVP (the turnout's «de 14»), counted outside the transaction.
   const eligible = !input.draft && sheet.status === "finished" ? await activeMemberCount(Date.now()) : 0;
@@ -250,6 +267,16 @@ export async function publishSheet(input: PublishRequest) {
         system = board?.system ?? null;
       }
     }
+    // Each player's nota of this acta, rated with the season's actas up to it and frozen with it; a correction keeps
+    // the rival factor of its first publication. A rating that fails never blocks the acta (the web rates it then).
+    let notas: ReturnType<typeof notasDoc> | null = null;
+    if (finished)
+      try {
+        const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players };
+        notas = notasDoc(frozenNotas(self, seasonGames, table, parseStoredNotas(old.get("notas"))?.rival ?? null), Date.now());
+      } catch (error) {
+        console.error("saveMatchSheet: the notas could not be rated, the acta goes without them", input.id, error);
+      }
     const votes = await tx.get(ref.collection("votes"));
     // Replace this match's contribution atomically: corrections never double count.
     const deltas = new Map<
@@ -327,6 +354,7 @@ export async function publishSheet(input: PublishRequest) {
       goalsFor: finished ? sheet.goalsFor : null,
       goalsAgainst: finished ? sheet.goalsAgainst : null,
       ledger: finished ? ledger.players : {},
+      ...(notas ? { notas } : {}),
       system,
       voteClosesAt,
       updatedAt: FieldValue.serverTimestamp(),

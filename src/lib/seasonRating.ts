@@ -15,7 +15,7 @@ export const SEASON_RATING_VERSION = MODEL_VERSION;
 export const GLOBAL_MIN = 0;
 export const GLOBAL_MAX = 99;
 export const GLOBAL_METHOD =
-  "Cada partido tiene una nota de 0 a 10 (6,5 es un partido normal): lo que suma o resta cada acción tuya, en goles que ganas o regalas al rival, cada 50 minutos y comparado con los de tu línea. GLOBAL es la media de tus notas por 10: un partido cuenta entero desde 30 minutos y en proporción por debajo, uno sin narrar cuenta la mitad, y la media parte de tres partidos de 6,5 para que pocos partidos no decidan. Ante un rival fuerte de la clasificación lo bueno vale más y los fallos restan menos. Los votos MVP no cuentan. Sin minutos en el acta no hay nota: no se inventan.";
+  "Cada partido tiene una nota de 0 a 10 (6,5 es un partido normal): lo que suma o resta cada acción tuya, en goles que ganas o regalas al rival, cada 50 minutos y comparado con los de tu línea. Se calcula al publicar el acta, con lo jugado hasta ese día, y ya no cambia salvo que se corrija esa acta. GLOBAL es la media de tus notas por 10: un partido cuenta entero desde 30 minutos y en proporción por debajo, uno sin narrar cuenta la mitad, y la media parte de tres partidos de 6,5 para que pocos partidos no decidan. Ante un rival fuerte de la clasificación lo bueno vale más y los fallos restan menos. Los votos MVP no cuentan. Sin minutos en el acta no hay nota: no se inventan.";
 const GROUP_LABEL: Record<Group, string> = { ataque: "Ataque", pase: "Pase", defensa: "Defensa", porteria: "Portería", errores: "Errores", disciplina: "Disciplina" };
 
 export interface SeasonRatingGroup {

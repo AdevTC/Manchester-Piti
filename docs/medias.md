@@ -1,13 +1,14 @@
 # Medias: GLOBAL, FOR y la nota de cada partido
 
-GLOBAL es el número de la carta del perfil, los cromos de la pizarra, la ficha de jugador, «¿Quién ha venido?» de la mesa y el cromo del admin. Todos lo leen del mismo cálculo (`src/lib/seasonRating.ts`), con los mismos partidos y la misma clasificación, así que nunca difieren. Modelo `piti-media-v1` (octubre de 2026); las decisiones se tomaron con el usuario acción por acción.
+GLOBAL es el número de la carta del perfil, los cromos de la pizarra, la ficha de jugador, «¿Quién ha venido?» de la mesa y el cromo del admin. Todos lo leen del mismo cálculo (`src/lib/seasonRating.ts`), con los mismos partidos y la misma clasificación, así que nunca difieren. Modelo `piti-media-v2` (octubre de 2026): la nota de `v1`, congelada con su acta; las decisiones se tomaron con el usuario acción por acción.
 
-El código está en `src/lib/rating/`:
+El código está en `functions/src/rating/` (la web lo lee por `src/lib/rating/`; las funciones lo usan para congelar las notas al publicar el acta):
 
 - `constants.ts`: todos los números del modelo.
 - `values.ts`: lo que vale cada acción de un partido.
 - `season.ts`: notas, GLOBAL y FOR.
 - `rival.ts`: la fuerza del rival.
+- `frozen.ts`: las notas que guarda cada acta.
 
 Cambiar un número es cambiar el modelo: sube `MODEL_VERSION` y actualiza esta página.
 
@@ -18,9 +19,17 @@ Cambiar un número es cambiar el modelo: sube `MODEL_VERSION` y actualiza esta p
 3. Se compara con la **media de su línea**: la de los otros jugadores de la línea, sin contarle a él, ponderada por los minutos que jugó en cada línea ese partido. La línea parte de 4 partidos con la media del equipo hasta que tiene muestra. Si el acta no dice dónde jugó, se le compara con el equipo.
 4. La diferencia se divide por la dispersión de la temporada (mínimo 0,15 goles cada 50′). La nota es 6,5 más esa diferencia, entre 0 y 10. **6,5 es un partido normal.**
 
+### La nota congelada
+
+La nota se calcula **al publicar el acta**, con los partidos de la temporada **hasta ese día** (las líneas, la dispersión y el volumen de narración salen de ellos) y la fuerza del rival en la clasificación de ese día. Se guarda con el acta (`matches/{id}.notas`: cada nota, el modelo y el factor del rival) y **solo cambia si se corrige esa acta**; la corrección conserva el factor del rival de la primera publicación. Lo que pase después (otras jornadas, la clasificación) ya no la mueve.
+
+- La guardan `saveMatchSheet` y la publicación de la mesa (`publishSheet`); nadie más puede escribirla.
+- Un acta sin notas de este modelo (publicada antes, o si el cálculo falló al publicar) se calcula igual en la web, con su temporada hasta ella. `functions/scripts/backfill-notas.mjs` las congela en las actas ya publicadas.
+- Si cambia la fórmula (otro `MODEL_VERSION`), las notas guardadas dejan de valer y se recalculan todas con ese relleno: nunca se mezclan modelos.
+
 ## GLOBAL y FOR (0–99)
 
-- **GLOBAL** = 10 × (Σ peso·nota + 3 × 6,5) / (Σ peso + 3). La media parte de tres partidos de 6,5 para que pocos partidos no decidan.
+- **GLOBAL** = 10 × (Σ peso·nota + 3 × 6,5) / (Σ peso + 3), con las notas congeladas de cada acta. La media parte de tres partidos de 6,5 para que pocos partidos no decidan.
 - **Peso de un partido**: 1 desde 30′ jugados y en proporción por debajo (15′ = medio partido). Un partido sin narración (solo acta y mesa) pesa la mitad.
 - **FOR**: la misma fórmula sobre sus 5 últimos partidos con nota, con colchón de un partido.
 - **Estado**:
@@ -85,7 +94,7 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 
 - **Volumen de narración**: lo narrado se multiplica por (volumen mediano de la temporada / volumen del partido). Un partido contado con menos detalle no penaliza. Lo del acta no se escala.
 - **Posesión**: las acciones defensivas se multiplican por 0,5 / (parte rival de los pases), entre 0,7 y 1,3. Defender más porque el rival tuvo el balón no es defender mejor.
-- **Rival**: se usan sus puntos por partido en la clasificación actual, ajustados con 2 partidos a la media de la liga. Ante un rival fuerte lo bueno vale hasta ×1,15 y los fallos restan hasta ÷1,15; ante uno débil, al revés. Solo se aplica si la clasificación va como mucho 2 jornadas por detrás (los amistosos no cuentan como jornada) y el nombre del rival identifica una sola fila.
+- **Rival**: se usan sus puntos por partido en la clasificación del día en que se publica el acta, ajustados con 2 partidos a la media de la liga. Ante un rival fuerte lo bueno vale hasta ×1,15 y los fallos restan hasta ÷1,15; ante uno débil, al revés. Solo se aplica si la clasificación va como mucho 2 jornadas por detrás (los amistosos no cuentan como jornada) y el nombre del rival identifica una sola fila.
 - **Plus-minus**: se mide el xG a favor menos en contra con él en el campo frente a sin él, cada 50′, pero **no cuenta** (`PLUS_MINUS_ACTIVE = false`). En la J11 se hará la prueba de mitades. Si es estable, entra con un colchón de 400′ y un tope de ±0,5 de nota; si no, se descarta.
 
 ## Reglas de datos (de GLOBAL de Adrián)
