@@ -5,7 +5,7 @@ import { isCompleted } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "./clubData";
 import { isPosCode, lineOf, resolvePositions, type Line } from "./positions";
 import { computeStats } from "./playerStats";
-import type { Standings } from "./standings";
+import type { StandingsLike } from "../../functions/src/rating/types";
 import { MIN_RATED_MINUTES, MODEL_VERSION, PROVISIONAL_MINUTES } from "./rating/constants";
 import { emptySeason, NO_STANDINGS, seasonRatings, type MatchNote, type PlusMinus, type SeasonRatings } from "./rating/season";
 import type { Group, Item } from "./rating/values";
@@ -129,7 +129,7 @@ export function seasonRatingFrom(player: RatingPlayer, ratings: SeasonRatings, g
 }
 
 /** A player's GLOBAL over `matches` (`standings`: every season's current table, for the rival's strength). */
-export function seasonRating(player: RatingPlayer, matches: readonly ClubMatch[], standings: readonly Standings[] = NO_STANDINGS): SeasonRating {
+export function seasonRating(player: RatingPlayer, matches: readonly ClubMatch[], standings: readonly StandingsLike[] = NO_STANDINGS): SeasonRating {
   const games = ratingMatches(matches);
   return seasonRatingFrom(player, seasonRatings(games, standings), games);
 }

@@ -10,6 +10,7 @@ import { MATCHES_KEY, PLAYERS_KEY, matchQuery, playerQuery } from "./publicData"
 import { nameFor, seasonShirtName, type NameSource } from "./derived/names";
 import type { MatchMesa } from "../../functions/src/mesaLogic";
 import type { KickoffWeather } from "../../functions/src/weatherLogic";
+import type { StoredNotas } from "../../functions/src/rating/frozen";
 export {
   EVENT_LABELS,
   dateMillis,
