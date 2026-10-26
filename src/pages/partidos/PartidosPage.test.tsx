@@ -118,6 +118,58 @@ it("a played jornada opens on its acta (the goals, the MVP); a postponed one say
   expect(lens().querySelector(".pa-pp")).not.toBeNull();
 });
 
+/** Production-shaped actas: the ledger's minutes (the siete its 50′, Jordi 40′ in the even jornadas, the bench 15′
+ *  and its last one 8′: under 10′, no nota). */
+const row = (minutes: number, from: number) => ({ played: true, started: from === 0, minutes, stints: [{ from, to: from + minutes }] });
+const withLedger = (ms: ClubMatch[], jordi: (j: number) => number): ClubMatch[] =>
+  ms.map((m, i) =>
+    m.status !== "finished"
+      ? m
+      : ({
+          ...m,
+          ledger: Object.fromEntries([
+            ...(m.starters ?? []).map((id) => [id, row(id === "jordi" ? jordi(i + 1) : 50, 0)]),
+            ...(m.bench ?? []).map((id, k, b) => [id, row(k === b.length - 1 ? 8 : 15, 35)]),
+          ]),
+        } as unknown as ClubMatch),
+  );
+
+it("las notas: public in the acta (the best three, every minutes row's badge); «Tú» and «La tuya» only for a player", () => {
+  data.matches = withLedger(longSeasonFixture().matches, (j) => (j % 2 ? 50 : 40));
+  route.search = { jornada: "5" };
+  const r = render(<PartidosPage />);
+  const notas = within(lens()).getByRole("list", { name: "Las notas" });
+  const rows = within(notas).getAllByRole("listitem");
+  expect(rows).toHaveLength(3);
+  // best first, each with its figure and its word for a screen reader
+  const figs = rows.map((li) => Number(li.querySelector(".nb")!.textContent!.replace(",", ".")));
+  expect([...figs].sort((a, b) => b - a)).toEqual(figs);
+  expect(rows[0]).toHaveTextContent(/Nota \d+,\d, [a-z]+/);
+  expect(within(lens()).getByRole("link", { name: "Ver todas las notas" })).toHaveAttribute("href", "/partidos/j5/siete");
+  expect(lens()).toHaveTextContent("Los minutos y la nota");
+  expect(lens().querySelectorAll(".pa-mins--notas li .nb").length).toBe(lens().querySelectorAll(".pa-mins li").length);
+  // a fan: no «Tú» anywhere
+  expect(document.querySelector(".pa-seg__tu, .pa-notas .is-me, .pa-mins .is-me")).toBeNull();
+  r.unmount();
+
+  who.member = true;
+  who.playerId = "jordi";
+  render(<PartidosPage />);
+  const mine = [...document.querySelectorAll<HTMLElement>(".pa-slot")].filter((s) => s.querySelector(".pa-seg__tu"));
+  expect(mine.length).toBeGreaterThan(0);
+  for (const s of mine) {
+    const nb = s.querySelector(".pa-seg__tu .nb")!;
+    expect(s.querySelector(".pa-seg")!.getAttribute("aria-label")).toContain(`Tu nota: ${nb.textContent}, `);
+  }
+  // only played jornadas
+  expect(document.querySelector('.pa-slot[data-j="18"] .pa-seg__tu, .pa-slot[data-j="17"] .pa-seg__tu')).toBeNull();
+  fireEvent.click(mine[0].querySelector(".pa-seg")!);
+  const me = lens().querySelector(".pa-notas .is-me")!;
+  expect(me).toHaveTextContent(/Tú/);
+  expect(me.querySelector(".nb")!.textContent).toBe(mine[0].querySelector(".pa-seg__tu .nb")!.textContent);
+  expect(lens().querySelector(".pa-mins li.is-me")).toHaveTextContent("Jordi");
+});
+
 it("filters: Próximos keeps what is still to play", () => {
   render(<PartidosPage />);
   fireEvent.click(screen.getByRole("radio", { name: "Próximos" }));

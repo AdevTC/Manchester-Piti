@@ -19,6 +19,8 @@ import { useViewer } from "../../hooks/useViewer";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { nameFor, nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
 import { useStandings } from "../../lib/useStandings";
+import { NO_STANDINGS, ratingMatches, seasonRatings } from "../../lib/seasonRating";
+import { isVisibleMatch } from "../../../functions/src/matchEngine";
 import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { mvpVoteOpen } from "../../lib/derived/memberWindows";
 import { useMvpResults } from "../vestuario/live";
@@ -258,6 +260,12 @@ export function PartidosPage() {
     sayT.current = window.setTimeout(() => setSay((s) => ({ ...s, on: false })), 2600);
   };
 
+  // ── las notas: every player's in every match of the season (public), from the season's actas and its table
+  const calendar = useMemo(() => matches.filter((m) => isVisibleMatch(m) && m.seasonId === seasonId), [matches, seasonId]);
+  const ratingTables = useMemo(() => (realStandings && !demo ? [realStandings] : NO_STANDINGS), [realStandings, demo]);
+  const ratings = useMemo(() => seasonRatings(ratingMatches(calendar), ratingTables), [calendar, ratingTables]);
+  const notaOf = useCallback((matchId: string, playerId: string) => ratings.noteOf(matchId, playerId)?.nota ?? null, [ratings]);
+
   const captain = member && !!viewer.playerId && (viewer.playerId === season?.captainPlayerId || viewer.admin);
   const myId = member ? viewer.playerId : null;
   const ctx: Ctx = useMemo(
@@ -274,8 +282,9 @@ export function PartidosPage() {
       league: f7(leaguePhrase(standings?.competition || matches.find((m) => m.seasonId === seasonId && m.competition)?.competition)),
       standings: standings ? { rows: standings.rows, prev: ("rowsPrev" in standings ? standings.rowsPrev : null) ?? null, jornada: standings.jornada, updatedAt: standings.updatedAt, by: standings.updatedBy } : null,
       matchPath: (m) => `/partidos/${m.id}`,
+      notaOf,
     }),
-    [w, q, nm, numOf, squad, myId, member, captain, seasonName, standings, matches, seasonId],
+    [w, q, nm, numOf, squad, myId, member, captain, seasonName, standings, matches, seasonId, notaOf],
   );
   const id = useMemo(() => identityView(se, ctx), [se, ctx]);
 

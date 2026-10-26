@@ -8,6 +8,7 @@ import { MONTHS_SHORT, madridDate } from "../../../lib/derived/madrid";
 import { capW as cap, grad, listW, onPitch, ourLine, pluralW as plural, scorers, signed, simulate, slugW, stretches, streaks, tableOf, type Ev, type Letter, type PMatch, type PSeason, type TRow } from "./season";
 import type { StandingRow } from "../../../lib/standings";
 import { matchVideoHref } from "../../../../functions/src/matchVideo";
+import { actaNotas, myNota, notaBadge, type NotaOf } from "./notas";
 
 export type Screen = "jornadas" | "tabla" | "balance";
 export const SCREENS: readonly Screen[] = ["jornadas", "tabla", "balance"];
@@ -37,6 +38,8 @@ export interface Ctx {
   standings: { rows: StandingRow[]; prev: StandingRow[] | null; jornada: number | null; updatedAt: number; by: string } | null;
   /** The match page of a jornada. */
   matchPath: (m: PMatch) => string;
+  /** A player's nota in a match (the season's «valoración Piti»; null without one). */
+  notaOf: NotaOf;
 }
 
 const MES = MONTHS_SHORT;
@@ -136,6 +139,8 @@ export function jornadasView(se: PSeason, st: JorState, ctx: Ctx) {
     const isSel = m === sel;
     const s = m.state;
     const pa = m.paint;
+    // (the viewer's own nota, a player's only: «Tú 4,9»)
+    const tu = s === "jugado" ? myNota(m.id, ctx.myId, ctx.notaOf) : null;
     return {
       j: m.j,
       gap: k > 0,
@@ -166,9 +171,10 @@ export function jornadasView(se: PSeason, st: JorState, ctx: Ctx) {
       pp: s === "aplazado",
       pend: s === "pendiente",
       video: !!matchVideoHref(m.match.videoUrl),
+      tu,
       rival: m.rival,
       where: whereUs(m),
-      aria: `J${m.j}, ${longDay(m.at)}, ${vs(m)}${m.rival}. ${s === "jugado" && m.letter ? `Jugado: ${scoreT(m)}, ${VERB[m.letter].toLowerCase()}` : s === "directo" ? `En directo: ${scoreT(m)}${m.minute !== null ? `, minuto ${m.minute}` : ""}` : s === "aplazado" ? "Aplazado" : s === "pendiente" ? "Pendiente del acta" : s === "hoy" ? `Hoy a las ${hhmm(m.at)}` : "Por jugar"}${matchVideoHref(m.match.videoUrl) ? ". Con vídeo en YouTube" : ""}`,
+      aria: `J${m.j}, ${longDay(m.at)}, ${vs(m)}${m.rival}. ${s === "jugado" && m.letter ? `Jugado: ${scoreT(m)}, ${VERB[m.letter].toLowerCase()}` : s === "directo" ? `En directo: ${scoreT(m)}${m.minute !== null ? `, minuto ${m.minute}` : ""}` : s === "aplazado" ? "Aplazado" : s === "pendiente" ? "Pendiente del acta" : s === "hoy" ? `Hoy a las ${hhmm(m.at)}` : "Por jugar"}${tu ? `. Tu nota: ${tu.t}, ${tu.word}` : ""}${matchVideoHref(m.match.videoUrl) ? ". Con vídeo en YouTube" : ""}`,
     };
   });
   return {
@@ -314,6 +320,9 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
   const winners = mvp?.winners ?? [];
   const closes = mvp?.closes ? `Se vota hasta el ${longDay(mvp.closes)} a las ${hhmm(mvp.closes)}.` : "";
   const mins = sel.raw.min ? Object.keys(sel.raw.min).sort((a, b) => (sel.raw.min?.[b] ?? 0) - (sel.raw.min?.[a] ?? 0)) : sel.raw.starters;
+  // las notas (public; only a played acta has them, and only who played 10′ or more)
+  const notas = actaNotas(sel.id, sel.state === "jugado" ? [...mins, ...sel.raw.starters, ...sel.raw.bench] : [], ctx.notaOf, nm, ctx.myId);
+  const notaIn = new Map(notas.rows.map((r) => [r.id, r]));
   const act = {
     gf: sel.score?.gf ?? 0,
     ga: sel.score?.ga ?? 0,
@@ -339,10 +348,14 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
       ...sel.ev.filter((e) => e.k === "y" || e.k === "rd").map((e) => ({ icon: "flag" as const, t: e.k === "rd" ? "Roja" : "Amarilla", s: `a ${e.who ? nm(e.who) : "uno de los nuestros"}, en el ${e.min}.` })),
       ...(sel.raw.wx ? [{ icon: "sun" as const, t: `Hizo ${sel.raw.wx.t}°`, s: `${sel.raw.wx.l ? `${sel.raw.wx.l.toLowerCase()}, ` : ""}al pitido.` }] : []),
     ].slice(0, 4),
-    minT: sel.raw.min ? "Quién jugó cuánto" : "El siete y el banquillo",
+    /** «Las notas»: the best three, the viewer's own under them when he is not among them, and the way to all. */
+    notas: notas.n ? { top: notas.top, mine: notas.mine, href: `${ctx.matchPath(sel)}/siete` } : null,
+    minT: notas.n ? "Los minutos y la nota" : sel.raw.min ? "Quién jugó cuánto" : "El siete y el banquillo",
     mins: mins.slice(0, ctx.w >= 1100 ? 10 : 7).map((id) => {
       const stn: [number, number][] = sel.raw.stints?.[id] ?? (sel.raw.starters.includes(id) ? [[0, sel.dur]] : [[sel.dur * 0.6, sel.dur]]);
-      return { id, n: ctx.num(id), name: nm(id), v: sel.raw.min ? (sel.raw.min[id] ?? 0) : Math.round(stn.reduce((a, s) => a + s[1] - s[0], 0)), stints: stn.map(([a, b]) => ({ x: (a / sel.dur) * 100, w: Math.max(1.5, ((b - a) / sel.dur) * 100) })) };
+      // (a match with notas: each row its badge; under 10′, «—», sin nota)
+      const nota = notas.n ? (notaIn.get(id) ?? notaBadge(null)) : null;
+      return { id, n: ctx.num(id), name: nm(id), me: id === ctx.myId, nota, v: sel.raw.min ? (sel.raw.min[id] ?? 0) : Math.round(stn.reduce((a, s) => a + s[1] - s[0], 0)), stints: stn.map(([a, b]) => ({ x: (a / sel.dur) * 100, w: Math.max(1.5, ((b - a) / sel.dur) * 100) })) };
     }),
     minS: sel.raw.min ? `Cada barra, un rato en el campo: ${plural(Object.keys(sel.raw.min).length, "jugador")} para ${sel.dur} minutos.` : "Sin los minutos de la mesa en este partido: el siete, entero.",
   };

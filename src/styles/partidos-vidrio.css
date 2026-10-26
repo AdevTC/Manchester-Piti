@@ -165,6 +165,13 @@
 /* «Vídeo»: the jornada has its match on YouTube (Encuentro) */
 .pa .pa-seg__vid{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:7px;font-size:12px;font-weight:700;color:#fff;background:rgba(8,18,39,.55);white-space:nowrap}
 .pa .pa-seg__pp{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:8px;font-size:12.5px;font-weight:700;border:1.5px dashed rgba(255,255,255,.8);background:rgba(8,18,39,.45);white-space:nowrap}
+/* «Tú 4,9»: the viewer's own nota on a played jornada (a player's only), beside the vídeo — in a row on a phone's
+   wide tile, stacked under the score on the narrower tiles of a tablet and up; with both, the vídeo is its icon */
+.pa .pa-seg__xtra{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:3px}
+.pa .pa-seg__tu{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 2px 0 7px;border-radius:8px;font-size:11.5px;font-weight:720;color:#fff;background:rgba(8,18,39,.62);box-shadow:inset 0 0 0 1px rgba(234,243,252,.25);text-shadow:none;white-space:nowrap}
+.pa .pa-seg__tu .nb{box-shadow:none}
+.pa .pa-seg__vid.is-icon{width:24px;padding:0;justify-content:center}
+.pa .pa-seg__vid.is-icon .pa-seg__vidt{display:none}
 .pa .pa-cur{position:absolute;top:-10px;bottom:-10px;left:-6px;right:-6px;z-index:0;--vd-r:28px;pointer-events:none;--vd-g-tint:rgba(255,255,255,.015);--vd-g-sheen:rgba(255,255,255,.10);view-transition-name:pa-cur;-webkit-backdrop-filter:none;backdrop-filter:none}
 .pa .pa-seg--live .pa-cur{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1),0 0 0 1px rgba(108,171,221,.35),0 18px 50px -14px rgba(108,171,221,.75);animation:pa-breathe 2.8s ease-in-out infinite}
 @keyframes pa-breathe{0%,100%{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1),0 0 0 1px rgba(108,171,221,.3),0 18px 50px -14px rgba(108,171,221,.6)}50%{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1),0 0 0 4px rgba(108,171,221,.16),0 18px 60px -10px rgba(108,171,221,.9)}}
@@ -326,6 +333,19 @@
 :root[data-theme="light"] .pa .pa-mins__bar i{background:linear-gradient(90deg,#4F8CC0,#2C6A9E)}
 .pa .pa-mins__v{font-weight:650;font-size:13px;text-align:right;font-feature-settings:'tnum' 1;color:var(--vd-g-ink2)}
 .pa .pa-acta__side .pa-sub{margin-top:8px}
+/* las notas: under the MVP the best three and yours («La tuya»), and each minutes row with its badge (the figure
+   always printed, its band's word for a screen reader) */
+.pa .pa-notas{margin-top:14px;display:flex;flex-direction:column}
+.pa .pa-notas li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-height:40px;border-bottom:1px solid var(--vd-rule);font-size:14.5px}
+.pa .pa-notas__who{display:flex;align-items:center;gap:6px;min-width:0}
+.pa .pa-notas__who b{font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pa .pa-notas li.is-me{border-bottom:0;margin-top:6px;padding:6px 6px 6px 10px;border-radius:12px;background:rgba(108,171,221,.12);box-shadow:inset 0 0 0 1px rgba(159,208,242,.4)}
+:root[data-theme="light"] .pa .pa-notas li.is-me{background:rgba(44,106,158,.08);box-shadow:inset 0 0 0 1px rgba(44,106,158,.4)}
+.pa .pa-me{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:6px;background:#6CABDD;color:#0C1733;font-size:11px;font-weight:740;flex:none}
+.pa .pa-notas__all{align-self:flex-start;margin-top:12px}
+.pa .pa-mins--notas li{grid-template-columns:26px minmax(0,96px) minmax(0,1fr) 34px 36px}
+.pa .pa-mins--notas .nb{justify-self:end}
+.pa .pa-mins li.is-me b{color:var(--vd-celeste-ink)}
 .pa .pa-pp{display:grid;gap:16px;align-items:center}
 .pa .pa-pp__big{font-weight:800;font-variation-settings:'wdth' 100;font-size:58px;letter-spacing:-.045em;line-height:1.05;color:transparent;-webkit-text-stroke:1.5px var(--vd-g-ink);padding:.04em 0}
 .pa .pa-pp__txt{display:flex;flex-direction:column;gap:8px}
@@ -603,6 +623,7 @@
   .pa .pa-slot{flex:1 1 0}
   .pa .pa-gap small{display:block}
   .pa .pa-seg__d--s{display:block}
+  .pa .pa-seg__xtra{flex-direction:column;align-items:flex-end}
   .pa .pa-lens{--vd-r:var(--vd-r-lens,38px);padding:24px}
   .pa .pa-lh__end{flex-wrap:nowrap}
   .pa .pa-ltabs{flex:0 1 300px;width:300px}
@@ -652,6 +673,7 @@
   .pa .pa-pre__venue{grid-column:auto;display:flex;align-items:stretch}
   .pa .pa-dir,.pa .pa-acta{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,.9fr);gap:0}
   .pa .pa-dir__side,.pa .pa-acta__side{grid-column:auto}
+  .pa .pa-mins--notas li{grid-template-columns:22px minmax(0,84px) minmax(0,1fr) 32px 36px;gap:6px}
   .pa .pa-big--time{font-size:84px}
   .pa .pa-big--score{font-size:96px}
   .pa .pa-tb__grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:44px}
@@ -678,6 +700,7 @@
   .pa .pa-seg__j{font-size:21px}
   .pa .pa-lens{padding:30px 32px}
   .pa .pa-pre>.pa-col,.pa .pa-dir>.pa-col,.pa .pa-acta>.pa-col{padding:0 40px}
+  .pa .pa-mins--notas li{grid-template-columns:26px minmax(0,110px) minmax(0,1fr) 34px 36px;gap:8px}
   .pa .pa-big--time{font-size:104px}
   .pa .pa-big--score{font-size:120px}
   .pa .pa-pitch{height:250px}
@@ -730,6 +753,8 @@ html[data-pa-calm]::view-transition-group(*),html[data-pa-calm]::view-transition
 .pa .pa-tb__main .pa-k{color:var(--vd-ink-strong)}
 
 @container (min-width:1440px){.pa .pa-count{display:block}}
+/* a small phone: the minutes with their nota give the name a little less room */
+@container (max-width:429px){.pa .pa-mins--notas li{grid-template-columns:22px minmax(0,84px) minmax(0,1fr) 32px 36px;gap:6px}}
 @container (max-width:519px){
   .pa .pa-tbl__r.is-ghost{grid-template-rows:auto auto;padding:6px 0}
   .pa .pa-tbl__r.is-ghost>.pa-tbl__vs{grid-column:2 / -1;grid-row:2;justify-content:flex-start;padding-left:36px;margin-top:2px}
