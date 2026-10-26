@@ -6,9 +6,10 @@
    they win over the Celeste base (vestuario.css, search.css, notices.css) in whatever order the sheets load. */
 header.vx-top{font-family:var(--vd-sans);view-transition-name:vd-top}
 /* desktop: the board's bar (V-Sistema .vs-top, V-Integracion .vv-top): 22px 40px, the capsule centred between
-   two equal sides */
+   two equal sides; a side never shrinks below its content, so on a compact desktop («Buscar · Ctrl K» and «Entrar»
+   wider than half of what the capsule leaves) the capsule moves off centre instead of sliding under the actions */
 @container (min-width:1100px){
-  header.vx-top{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);padding:22px 40px 0;align-items:center}
+  header.vx-top{display:grid;grid-template-columns:minmax(max-content,1fr) auto minmax(max-content,1fr);padding:22px 40px 0;align-items:center}
   header.vx-top .vx-brand{justify-self:start}
   header.vx-top .vx-actions{justify-self:end}
 }
