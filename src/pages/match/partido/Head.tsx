@@ -8,6 +8,8 @@ import { Link } from "@tanstack/react-router";
 import { Lens, LIVE_MORPH, useLiveDock } from "../../../components/vidrio";
 import type { PageCtx } from "./ctx";
 import { Go, Icon, RivalCrest } from "./bits";
+import { SocialIcon } from "../../../components/vidrio/SocialIcon";
+import { matchVideoHref } from "../../../../functions/src/matchVideo";
 import type { Play } from "./model";
 import { playheadTip, ribbonMarks, ribbonPaths, tardeOf } from "./moviola";
 
@@ -374,6 +376,15 @@ function LensActs({ p }: { p: HeadProps }) {
         <Icon name="bell" />
         {p.avisos.label}
       </button>,
+    );
+  // El vídeo del partido (Encuentro): the whole match on YouTube, in another tab
+  const video = matchVideoHref(p.c.match.videoUrl);
+  if (video)
+    items.push(
+      <a key="video" className="vd-glass vd-press vd-btn vd-btn--sm pp-video" href={video} target="_blank" rel="noopener noreferrer" aria-label="Ver el partido en YouTube (se abre en otra pestaña)">
+        <SocialIcon name="youtube" className="pp-i" />
+        Ver el partido en YouTube
+      </a>,
     );
   if (p.pip)
     items.push(

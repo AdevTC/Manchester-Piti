@@ -10,6 +10,7 @@ import { AdIcon } from "../ui/icons";
 import { ConfirmModal } from "../ui/layers";
 import { joinDate, splitDate } from "../acta/dates";
 import { changeSeason, okHttps, POSTPONED_REASON_MAX, score, type MatchSheet } from "../acta/sheetModel";
+import { isYouTubeUrl } from "../../../../functions/src/matchVideo";
 import { joinVenue, splitVenue } from "./workspaceModel";
 import { plural } from "../../../lib/derived/words";
 
@@ -98,6 +99,7 @@ export function TabEncuentro({
   const when = splitDate(sheet.date);
   const venue = splitVenue(sheet.venue);
   const logo = sheet.rivalLogoUrl ?? "";
+  const video = (sheet.videoUrl ?? "").trim();
   const called = sheet.starters.length + sheet.bench.length + sheet.notCalled.length;
   const { gf, ga } = score(sheet);
   const options = seasons.filter((s) => !s.archived || s.id === sheet.seasonId);
@@ -237,6 +239,27 @@ export function TabEncuentro({
                 </span>
               )
             ) : null}
+          </div>
+          <div className="fld">
+            <label htmlFor={`${id}-vd`}>Vídeo del partido (YouTube, opcional)</label>
+            <input id={`${id}-vd`} className={`inp${video && !isYouTubeUrl(video) ? " bad" : ""}`} type="url" value={sheet.videoUrl ?? ""} placeholder="https://www.youtube.com/watch?v=…" onChange={(e) => set("videoUrl", e.target.value)} aria-invalid={(!!video && !isYouTubeUrl(video)) || undefined} aria-describedby={`${id}-vdk`} />
+            {video ? (
+              isYouTubeUrl(video) ? (
+                <span id={`${id}-vdk`} className="okk" style={{ fontSize: 13 }}>
+                  <AdIcon name="check" size={13} />
+                  Sale «Ver el partido en YouTube» en su página
+                </span>
+              ) : (
+                <span id={`${id}-vdk`} className="bad" style={{ fontSize: 13 }}>
+                  <AdIcon name="x" size={13} />
+                  No es un enlace de un vídeo de YouTube
+                </span>
+              )
+            ) : (
+              <p id={`${id}-vdk`} className="hint">
+                Pega el enlace del vídeo y su página tendrá el botón para verlo.
+              </p>
+            )}
           </div>
           <div className="fld">
             <label htmlFor={`${id}-nt`}>Nota interna para el equipo</label>

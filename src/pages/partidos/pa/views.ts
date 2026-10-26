@@ -7,6 +7,7 @@ import { clockTime as hhmm, daysBetween, distanceText, longDay, shortDay, tinyDa
 import { MONTHS_SHORT, madridDate } from "../../../lib/derived/madrid";
 import { capW as cap, grad, listW, onPitch, ourLine, pluralW as plural, scorers, signed, simulate, slugW, stretches, streaks, tableOf, type Ev, type Letter, type PMatch, type PSeason, type TRow } from "./season";
 import type { StandingRow } from "../../../lib/standings";
+import { matchVideoHref } from "../../../../functions/src/matchVideo";
 
 export type Screen = "jornadas" | "tabla" | "balance";
 export const SCREENS: readonly Screen[] = ["jornadas", "tabla", "balance"];
@@ -164,9 +165,10 @@ export function jornadasView(se: PSeason, st: JorState, ctx: Ctx) {
       lc: (m.letter ?? "").toLowerCase(),
       pp: s === "aplazado",
       pend: s === "pendiente",
+      video: !!matchVideoHref(m.match.videoUrl),
       rival: m.rival,
       where: whereUs(m),
-      aria: `J${m.j}, ${longDay(m.at)}, ${vs(m)}${m.rival}. ${s === "jugado" && m.letter ? `Jugado: ${scoreT(m)}, ${VERB[m.letter].toLowerCase()}` : s === "directo" ? `En directo: ${scoreT(m)}${m.minute !== null ? `, minuto ${m.minute}` : ""}` : s === "aplazado" ? "Aplazado" : s === "pendiente" ? "Pendiente del acta" : s === "hoy" ? `Hoy a las ${hhmm(m.at)}` : "Por jugar"}`,
+      aria: `J${m.j}, ${longDay(m.at)}, ${vs(m)}${m.rival}. ${s === "jugado" && m.letter ? `Jugado: ${scoreT(m)}, ${VERB[m.letter].toLowerCase()}` : s === "directo" ? `En directo: ${scoreT(m)}${m.minute !== null ? `, minuto ${m.minute}` : ""}` : s === "aplazado" ? "Aplazado" : s === "pendiente" ? "Pendiente del acta" : s === "hoy" ? `Hoy a las ${hhmm(m.at)}` : "Por jugar"}${matchVideoHref(m.match.videoUrl) ? ". Con vídeo en YouTube" : ""}`,
     };
   });
   return {
@@ -227,6 +229,8 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
     }),
     only: lt.length ? "" : sel.state === "aplazado" ? "Aplazado" : sel.state === "pendiente" ? "Sin acta" : "Previa",
     href: ctx.matchPath(sel),
+    /** El vídeo del partido (YouTube), null without one. */
+    video: matchVideoHref(sel.match.videoUrl),
     usWhere: whereUs(sel),
     themWhere: sel.home ? "Fuera" : "En casa",
   };
@@ -839,7 +843,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
       fc.note = "El primer gol de la temporada saldrá aquí, con la camiseta de quien lo marque, el minuto y el pase.";
       fc.noteIcon = "ball";
     }
-    fc.door = "Todos los jugadores, en Números";
+    fc.door = "Todos los jugadores, en Estadísticas";
     fc.doorPath = "/numeros/jugadores";
   } else if (facet === "minutos") {
     if (stintsOne?.raw.min) {
@@ -955,7 +959,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
     const mxCap = desk ? (ctx.w >= 1800 ? 15 : 8) : 6;
     growTo(mxRows.length, `los ${mxRows.length}`, mxCap);
     fc.mx = mxRows.slice(0, st.all ? 99 : mxCap);
-    fc.door = "Rival a rival, en Números";
+    fc.door = "Rival a rival, en Estadísticas";
     fc.doorPath = "/numeros/rivales";
   }
   return {

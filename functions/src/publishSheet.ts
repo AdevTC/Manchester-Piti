@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { calculateLedger, dateMillis, isPendingDup, type MatchSheet } from "./matchEngine.js";
 import { db, idSchema } from "./common.js";
+import { isYouTubeUrl } from "./matchVideo.js";
 import { eventSchema, guestsSchema, playerRefSchema } from "./eventSchema.js";
 import { guestRefsProblem, memberIds, withoutGuests } from "./guests.js";
 import { readyClock } from "./matchClock.js";
@@ -72,6 +73,7 @@ export const sheetSchema = z.object({
   goalsAgainst: z.number().int().min(0).max(100).optional(),
   report: z.string().max(10000),
   photoUrl: url.optional(),
+  videoUrl: z.union([z.literal(""), z.string().max(300).refine(isYouTubeUrl, "El vídeo tiene que ser un enlace de YouTube.")]).optional(),
   gallery: z.array(url).max(20).optional(),
   meetingNote: z.string().max(500).optional(),
   kit: z.enum(["home", "away"]).optional(),

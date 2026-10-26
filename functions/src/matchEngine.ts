@@ -117,6 +117,8 @@ export interface MatchSheet {
   goalsAgainst?: number;
   report: string;
   photoUrl?: string;
+  /** El vídeo del partido: its YouTube link (matchVideo.ts), «Ver el partido en YouTube» on its page. */
+  videoUrl?: string;
   voteClosesAt?: number;
   gallery?: string[];
   meetingNote?: string;

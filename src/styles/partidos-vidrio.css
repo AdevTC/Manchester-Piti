@@ -162,6 +162,8 @@
 .pa .pa-seg__score .vd-live{font-size:12.8px;font-weight:650;gap:4px}
 .pa .pa-seg__let{font-style:normal;text-shadow:none}
 .pa .pa-seg__cd{font-size:12.5px;font-weight:600;line-height:1.2;text-align:right;color:#FFE3B5;max-width:76px}
+/* «Vídeo»: the jornada has its match on YouTube (Encuentro) */
+.pa .pa-seg__vid{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:7px;font-size:12px;font-weight:700;color:#fff;background:rgba(8,18,39,.55);white-space:nowrap}
 .pa .pa-seg__pp{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:8px;font-size:12.5px;font-weight:700;border:1.5px dashed rgba(255,255,255,.8);background:rgba(8,18,39,.45);white-space:nowrap}
 .pa .pa-cur{position:absolute;top:-10px;bottom:-10px;left:-6px;right:-6px;z-index:0;--vd-r:28px;pointer-events:none;--vd-g-tint:rgba(255,255,255,.015);--vd-g-sheen:rgba(255,255,255,.10);view-transition-name:pa-cur;-webkit-backdrop-filter:none;backdrop-filter:none}
 .pa .pa-seg--live .pa-cur{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1),0 0 0 1px rgba(108,171,221,.35),0 18px 50px -14px rgba(108,171,221,.75);animation:pa-breathe 2.8s ease-in-out infinite}
