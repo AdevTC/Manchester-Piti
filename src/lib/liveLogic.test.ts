@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { liveProblem } from "../../functions/src/liveLogic";
+import { duplicateOf, liveProblem } from "../../functions/src/liveLogic";
+import type { MatchEvent } from "../../functions/src/matchEngine";
 
 const MIN = 60_000;
 const KICKOFF = Date.UTC(2026, 10, 8, 11);
@@ -32,5 +33,13 @@ describe("modo banda rules", () => {
   });
   it("the minute has to fit the match", () => {
     expect(liveProblem(match, { ...goal, minute: 66 }, KICKOFF)).toMatch(/no cabe/);
+  });
+});
+
+describe("duplicateOf: the same «Cambio de sitio» from either side", () => {
+  it("A↔B by one scorer and B↔A by the other within the window is a possible duplicate", () => {
+    const swapA = { id: "s1", type: "position_swap", playerId: "a", inPlayerId: "b", elapsedSeconds: 600, minute: 10, byUid: "u1" } as MatchEvent;
+    expect(duplicateOf([swapA], { type: "position_swap", playerId: "b", inPlayerId: "a", elapsedSeconds: 610, minute: 10 }, "u2")).toBe("s1");
+    expect(duplicateOf([swapA], { type: "position_swap", playerId: "a", inPlayerId: "c", elapsedSeconds: 610, minute: 10 }, "u2")).toBeUndefined();
   });
 });

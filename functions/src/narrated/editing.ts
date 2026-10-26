@@ -166,7 +166,7 @@ export function editNarratedObservation<T extends { events: MatchEvent[]; analys
         const outcome = result === 'failed' ? 'incomplete' : result === 'pending' ? 'unknown' : result;
         if (outcome !== 'goal') Object.assign(next, { outcome });
       }
-      if (next.type !== 'substitution') delete next.inPlayerId;
+      if (next.type !== 'substitution' && next.type !== 'position_swap') delete next.inPlayerId;
       if (!['goal', 'goal_penalty', 'goal_freekick'].includes(next.type)) { delete next.assistPlayerId; delete next.assistReviewed; }
       if (observation.team === 'opponent') { delete next.playerId; delete next.receiverId; }
       if (typeChanged && observation.kind !== 'pass' && observation.kind !== 'restart') { delete next.receiverId; delete next.keyPass; delete next.delivery; }

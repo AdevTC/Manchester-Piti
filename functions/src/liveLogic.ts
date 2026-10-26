@@ -1,5 +1,5 @@
 // Pure rules of the "modo banda" (functions/src/live.ts), apart so the app's tests can run them.
-import { calculateLedger, type MatchEvent } from "./matchEngine.js";
+import { calculateLedger, isPendingDup, type MatchEvent } from "./matchEngine.js";
 import { eventSeconds } from "./matchAnalysis.js";
 import { isUnknownGuest, type MatchGuest } from "./guests.js";
 import { MESA_TYPES } from "./liveRules.js";
@@ -49,3 +49,18 @@ export function liveSequenceProblem(match: { duration?: number; starters?: strin
   return calculateLedger({ starters: match.starters ?? [], bench: match.bench ?? [], notCalled: [], guests: match.guests, events, duration }, false, { allowUnattributedGoals: true }).errors[0] ?? null;
 }
 
+/** How far (seconds of play) two scorers' same play can be and still be asked «¿Es la misma jugada?». */
+export const DUP_WINDOW_SECONDS = 30;
+
+/**
+ * The earlier play a new one may duplicate: same type, same player (or both without one), written by
+ * another scorer, not already declared «Son dos», within DUP_WINDOW_SECONDS of play. The closest wins.
+ */
+export function duplicateOf(events: readonly MatchEvent[], play: Pick<MatchEvent, "type" | "playerId" | "inPlayerId" | "elapsedSeconds" | "minute">, byUid: string): string | undefined {
+  const at = eventSeconds(play);
+  // (a «Cambio de sitio» is the same whichever of the two it starts from)
+  const who = (e: Pick<MatchEvent, "type" | "playerId" | "inPlayerId">) => (e.type === "position_swap" ? [e.playerId ?? "", e.inPlayerId ?? ""].sort().join("|") : (e.playerId ?? ""));
+  return events
+    .filter((e) => e.type === play.type && who(e) === who(play) && typeof e.byUid === "string" && e.byUid !== byUid && e.dupOk !== true && !isPendingDup(e) && Math.abs(eventSeconds(e) - at) <= DUP_WINDOW_SECONDS)
+    .sort((a, b) => Math.abs(eventSeconds(a) - at) - Math.abs(eventSeconds(b) - at))[0]?.id;
+}

@@ -205,6 +205,17 @@ describe("positionsPlayed (ha jugado de — minutos y acciones por posición des
   });
 });
 
+describe("positionsPlayed · a stored acta without its guests' rows (the backfill)", () => {
+  it("whoever came on for a guest the ledger doesn't hold plays at his own main, estimated", () => {
+    const events = [sub(20, "guest:g1", "h")];
+    const L = calculateLedger({ starters: ["a", "b", "c", "d", "e", "f", "guest:g1"], bench: ["h", "i", "k"], notCalled: [], guests: [{ id: "g1", name: "Rafa" }], events, duration: 50 });
+    expect(L.errors).toEqual([]);
+    const stored = Object.fromEntries(Object.entries(L.players).filter(([id]) => !id.startsWith("guest:")));
+    const rows = positionsPlayed(stored, events, { board: null, main: MAINS });
+    expect(rows.h).toEqual({ positionsPlayed: { ED: 30 }, positionEvents: {}, positionsEstimated: true });
+  });
+});
+
 describe("positionsPlayed · «Cambio de sitio» (la recolocación)", () => {
   const swap = (minute: number, a: string, b: string, extra: Partial<MatchEvent> = {}) => ev("position_swap", minute, a, { inPlayerId: b, ...extra });
 
@@ -284,6 +295,8 @@ describe("positionsPlayed · «Cambio de sitio» (la recolocación)", () => {
   it("swapsChanged names the players a correction recolocated differently", () => {
     const before = [swap(20, "d", "f"), sub(30, "g", "h")];
     expect([...swapsChanged(before, before)]).toEqual([]);
+    // (the same swaps in another order are the same recolocación)
+    expect([...swapsChanged([swap(20, "d", "f"), swap(25, "d", "e")], [swap(25, "d", "e"), swap(20, "d", "f")])]).toEqual([]);
     expect([...swapsChanged(before, [swap(21, "d", "f")])].sort()).toEqual(["d", "f"]);
     expect([...swapsChanged(before, [swap(20, "d", "e")])].sort()).toEqual(["d", "e", "f"]);
     expect([...swapsChanged(undefined, [swap(20, "d", "f")])].sort()).toEqual(["d", "f"]);

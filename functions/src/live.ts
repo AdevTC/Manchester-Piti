@@ -8,14 +8,13 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { isPendingDup, minuteOfPlay, type MatchEvent } from "./matchEngine.js";
-import { eventSeconds } from "./matchAnalysis.js";
+import { minuteOfPlay, type MatchEvent } from "./matchEngine.js";
 import { db, idSchema, parse, memberAs } from "./common.js";
 import { playerRefSchema } from "./eventSchema.js";
 import type { MatchGuest } from "./guests.js";
 import { requireScorer } from "./liveClock.js";
 import { clockReading, type MatchClock } from "./matchClock.js";
-import { LIVE_TYPES, isRivalType, liveProblem, liveSequenceProblem } from "./liveLogic.js";
+import { duplicateOf, LIVE_TYPES, isRivalType, liveProblem, liveSequenceProblem } from "./liveLogic.js";
 import { allowedAtBreak } from "./liveRules.js";
 import { requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 import { synchronizeCanonicalAnalysis } from './narrated/editing.js';
@@ -87,8 +86,6 @@ const millis = (v: unknown): number => {
 /** Unique live ids; undo uses append order, including events recorded in the same millisecond. */
 const liveId = (now: number) => `live-${now.toString(36).padStart(9, "0")}-${randomUUID()}`;
 const GOALS = new Set<string>(["goal", "goal_penalty", "goal_freekick"]);
-/** How far (seconds of play) two scorers' same play can be and still be asked «¿Es la misma jugada?». */
-export const DUP_WINDOW_SECONDS = 30;
 /** A queued play's tapped time may run this far past its half's end (the phone's clock estimate). */
 const TAP_SLACK_SECONDS = 5;
 /** The object without its `undefined` keys: Firestore refuses them. */
@@ -101,16 +98,6 @@ const withoutTwin = (events: MatchEvent[], goneId: string): MatchEvent[] =>
     return rest;
   });
 
-/**
- * The earlier play a new one may duplicate: same type, same player (or both without one), written by
- * another scorer, not already declared «Son dos», within DUP_WINDOW_SECONDS of play. The closest wins.
- */
-export function duplicateOf(events: readonly MatchEvent[], play: Pick<MatchEvent, "type" | "playerId" | "elapsedSeconds" | "minute">, byUid: string): string | undefined {
-  const at = eventSeconds(play);
-  return events
-    .filter((e) => e.type === play.type && (e.playerId ?? "") === (play.playerId ?? "") && typeof e.byUid === "string" && e.byUid !== byUid && e.dupOk !== true && !isPendingDup(e) && Math.abs(eventSeconds(e) - at) <= DUP_WINDOW_SECONDS)
-    .sort((a, b) => Math.abs(eventSeconds(a) - at) - Math.abs(eventSeconds(b) - at))[0]?.id;
-}
 
 /** A queued play's seconds of play, checked against its half's window on the clock (holds excluded). */
 export function queuedElapsed(clock: MatchClock, now: number, tapped: number, asked?: 1 | 2): { elapsed: number; period: 1 | 2 } | string {

@@ -16,8 +16,9 @@ describe("«Ya están las notas»", () => {
   it("without a jornada: «del partido»", () => {
     expect(notasNotice("m1", undefined, played, null, false)!.body).toBe("Contra Orduña fc: ya están las notas del partido. Míralas en el partido.");
   });
-  it("a correction (notas already there), an archived match, or no notas: nothing", () => {
+  it("a correction (notas already there, or written later by the backfill), an archived match, or no notas: nothing", () => {
     expect(notasNotice("m1", played, played, 1, false)).toBeNull();
+    expect(notasNotice("m1", { ...played, notas: undefined }, played, 1, false)).toBeNull();
     expect(notasNotice("m1", undefined, { ...played, archived: true }, 1, false)).toBeNull();
     expect(notasNotice("m1", undefined, { ...played, notas: { ...notas, players: {} } }, 1, false)).toBeNull();
     expect(notasNotice("m1", undefined, { ...played, status: "scheduled" }, 1, false)).toBeNull();
