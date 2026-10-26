@@ -11,6 +11,7 @@ import { isAnalysisAction } from "../../../../functions/src/matchAnalysis";
 import { dateMillis, EVENT_LABELS, type EventType, type MatchEvent, type MatchSheet } from "../../../../functions/src/matchEngine";
 import { opponentInitials } from "../../../lib/clubAnalytics";
 import { reconcileEventPeriods, synchronizeCanonicalAnalysis } from "../../../../functions/src/narrated/editing";
+import { isYouTubeUrl } from "../../../../functions/src/matchVideo";
 
 export type { MatchEvent, MatchSheet };
 
@@ -75,6 +76,7 @@ export function defaultSheet(seasonId = "", over: Partial<MatchSheet> = {}): Mat
     events: [],
     report: "",
     photoUrl: "",
+    videoUrl: "",
     gallery: [],
     meetingNote: "",
     ...over,
@@ -131,6 +133,7 @@ export function fromMatch(m: MatchLike, note = ""): MatchSheet {
     events,
     report: m.report ?? "",
     photoUrl: m.photoUrl ?? "",
+    videoUrl: m.videoUrl ?? "",
     gallery: [...(m.gallery ?? [])],
     meetingNote: m.meetingNote ?? note,
     // Aplazado: its reason and new date (ms; null = por decidir), kept through every save while postponed.
@@ -324,6 +327,7 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
   if (!Number.isInteger(sheet.duration) || sheet.duration < 1 || sheet.duration > 150) return { ok: false, error: "La duración va de 1 a 150 minutos." };
   if (!okHttps(sheet.rivalLogoUrl)) return { ok: false, error: "El escudo del rival tiene que ser un enlace https://." };
   if (!okHttps(sheet.photoUrl)) return { ok: false, error: "La foto del partido tiene que ser un enlace https://." };
+  if ((sheet.videoUrl ?? "").trim() && !isYouTubeUrl(sheet.videoUrl)) return { ok: false, error: "El vídeo del partido tiene que ser un enlace de YouTube." };
   if ((sheet.gallery ?? []).some((u) => !okHttps(u) || !u.trim())) return { ok: false, error: "Hay fotos en la galería que no son https://: quítalas o corrígelas." };
   if ((sheet.gallery ?? []).length > 20) return { ok: false, error: "La galería admite hasta 20 fotos." };
   if (!/^[A-Za-z0-9]{0,3}$/.test((sheet.rivalInitials ?? "").trim())) return { ok: false, error: "Las iniciales son hasta 3 letras o números." };
@@ -382,6 +386,7 @@ export function toPayload(sheet: MatchSheet, draft: boolean, nameOf: NameOf, riv
     goalsAgainst: ga,
     report: sheet.report,
     photoUrl: (sheet.photoUrl ?? "").trim(),
+    videoUrl: (sheet.videoUrl ?? "").trim(),
     gallery,
     meetingNote: sheet.meetingNote ?? "",
     // Aplazado: the reason (≤ 140) and the new date, only while postponed (the backend drops them otherwise).

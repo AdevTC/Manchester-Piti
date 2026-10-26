@@ -92,6 +92,7 @@ export const publishLive = onCall(PUBLICATION_RESOURCES, async (req) => {
     events,
     report: m.report ?? "",
     photoUrl: m.photoUrl,
+    videoUrl: m.videoUrl,
     gallery: m.gallery,
     meetingNote: priv.get("meetingNote"),
     kit: m.kit,

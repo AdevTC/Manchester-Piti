@@ -6,6 +6,7 @@ import type { PMatch } from "./season";
 import type { Filt, Lente, jornadasView, lensView } from "./views";
 import { Ic, ShirtImg } from "./Icon";
 import { SunCurve } from "./Drawings";
+import { SocialIcon } from "../../../components/vidrio/SocialIcon";
 
 const crest = "/crest-128.webp";
 
@@ -125,6 +126,12 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
               <Ic name="share" />
               <span>El cartel</span>
             </button>
+            {lens.video && (
+              <a className="vd-glass vd-btn vd-btn--sm vd-press pa-video" href={lens.video} target="_blank" rel="noopener noreferrer" aria-label="Ver el partido en YouTube (se abre en otra pestaña)">
+                <SocialIcon name="youtube" className="pa-i" />
+                <span>Vídeo</span>
+              </a>
+            )}
             <a className="vd-glass vd-btn vd-btn--sm vd-btn--pri vd-press pa-open" href={lens.href} onClick={p.goHref(lens.href)}>
               Abrir el partido
               <Ic name="chev-r" />
@@ -450,6 +457,12 @@ function Tile({ t, onPick, onKey }: { t: TileV; onPick: (j: number) => void; onK
             )}
             {t.pp && <span className="pa-seg__pp">Aplazado</span>}
             {t.pend && <span className="pa-seg__pp">Sin acta</span>}
+            {t.video && (
+              <span className="pa-seg__vid">
+                <SocialIcon name="youtube" size={14} />
+                Vídeo
+              </span>
+            )}
           </span>
           <span className="pa-seg__bot" aria-hidden="true">
             <b>{t.rival}</b>

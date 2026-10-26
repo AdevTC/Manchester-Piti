@@ -202,6 +202,9 @@ describe("toPayload (what saveMatchSheet receives)", () => {
     expect(toPayload({ ...j7(), photoUrl: "http://x.jpg" }, true, nameOf)).toMatchObject({ ok: false, error: "La foto del partido tiene que ser un enlace https://." });
     expect(toPayload({ ...j7(), gallery: ["https://a.jpg", "ftp://b"] }, true, nameOf)).toMatchObject({ ok: false });
     expect(toPayload({ ...j7(), rivalLogoUrl: "logo.png" }, true, nameOf)).toMatchObject({ ok: false, error: "El escudo del rival tiene que ser un enlace https://." });
+    expect(toPayload({ ...j7(), videoUrl: "https://vimeo.com/1" }, true, nameOf)).toMatchObject({ ok: false, error: "El vídeo del partido tiene que ser un enlace de YouTube." });
+    const withVideo = toPayload({ ...j7(), videoUrl: " https://youtu.be/abc123 " }, true, nameOf);
+    expect(withVideo.ok && withVideo.sheet.videoUrl).toBe("https://youtu.be/abc123");
     expect(toPayload({ ...j7(), duration: NaN }, true, nameOf)).toMatchObject({ ok: false, error: "La duración va de 1 a 150 minutos." });
     const noMin = setScorer(j7(), "open-g0", "huberoski");
     expect(toPayload(noMin, true, nameOf)).toEqual({ ok: false, error: "Pon el minuto del gol 3 (HUBEROSKI).", eventId: "open-g0" });
