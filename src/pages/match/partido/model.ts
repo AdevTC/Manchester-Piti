@@ -2,12 +2,13 @@
 // moment of the match day (antes … pendiente), its plays in minute order (the board's two lines: «Gol de
 // Alcides» · «Recortamos: 1–7.»), the score at any minute of the moviola, who stood where minute by minute
 // (the acta's stints, rolling substitutions included: a player coming on takes the spot of the one he
-// replaces), the night's marks per player, the pressure line (the narrated analysis, else the plays), the match
+// replaces, a «Cambio de sitio» trades two spots), the night's marks per player, the pressure line (the narrated analysis, else the plays), the match
 // in numbers up to a minute, the light of each minute (the sun over Palomeras) and the result's words.
 // No React, no Firebase: the page passes the match, the names and the clock.
 import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
 import { dateMillis, isCompleted, matchPhase } from "../../../lib/clubData";
 import { eventMinute } from "../../../lib/partidos";
+import { eventSeconds } from "../../../../functions/src/matchAnalysis";
 import { settled } from "../../../lib/eventMeta";
 import { kickoffState } from "../../../lib/derived/kickoff";
 import { parseMatchLineup } from "../../../lib/matchLineup";
@@ -263,15 +264,149 @@ export function lineupOf(match: ClubMatch): Lineup {
   };
 }
 
+/** One stretch of a player in one spot: from–to in minutes of play, the spot's code. */
+export interface PosSeg {
+  from: number;
+  to: number;
+  code: string;
+}
+
+/** The changes of one minute (the one shown), with the recolocación that came with them. */
+export interface ChangeGroup {
+  /** The minute shown (the plays': football's, 1-based for a live-stamped one). */
+  m: number;
+  /** The first whole minute of the moviola that shows it (25 for a change at the break, shown as the 26′). */
+  f: number;
+  /** After the break. */
+  second: boolean;
+  /** The score when it happened. */
+  sc: Score;
+  subs: { inId: string; outId: string }[];
+  /** «Cambio de sitio»: whoever ended the minute in another spot, from which code to which. */
+  moves: { id: string; from: string | null; to: string }[];
+}
+
 export interface Timeline {
   stints: Record<string, Stint[]>;
   onPitchAt(m: number): Spot[];
   segsAt(id: string, m: number): Stint[];
   stintsAt(m: number): StintRow[];
   tagsAt(m: number): Record<string, Tag[]>;
+  /** Where each one played, stretch by stretch, up to the edge. */
+  posSegs: Record<string, PosSeg[]>;
+  /** The changes and recolocaciones, minute by minute. */
+  groups: ChangeGroup[];
 }
 
-/** The pitch minute by minute from each player's stints (the acta's ledger, else the plays walked up to `upto`). */
+const SENT_OFF = new Set(["red_card", "double_yellow"]);
+/**
+ * The pitch walked from the events in play order (the ledger's): a change puts who comes on in the spot of the one
+ * who goes off (a change «por» a player sent off fills the spot his red emptied, once), a red empties its spot, a
+ * «Cambio de sitio» trades two spots. The frame of each whole minute shows every event up to it (a change at the
+ * break, 25:00, is already in the 25′). `upto` stops a match being played at its edge.
+ */
+export function pitchWalk(lineup: Pick<Lineup, "slots">, events: readonly MatchEvent[], duration: number, upto: number | null): Pick<Timeline, "posSegs" | "groups"> & { frames: Spot[][] } {
+  const end = Math.max(0, Math.min(duration, upto ?? duration));
+  const halfS = (duration / 2) * 60;
+  const evs = settled([...events])
+    .map((e, i) => ({ e, i, s: eventSeconds(e), m: eventMinute(e) ?? 0 }))
+    .filter((x) => x.s / 60 <= end)
+    .sort((a, b) => a.s - b.s || a.i - b.i);
+  const cur: (Spot | null)[] = lineup.slots.map((s) => ({ id: s.id, code: s.code, x: s.x, y: s.y, cameIn: null }));
+  /** Sent off → the spot his red emptied (a change «por» him takes it). */
+  const gone = new Map<string, number>();
+  const posSegs: Record<string, PosSeg[]> = {};
+  const open = new Map<string, PosSeg>();
+  const start = (id: string, t: number, code: string) => {
+    const g = { from: t, to: t, code };
+    open.set(id, g);
+    (posSegs[id] ??= []).push(g);
+  };
+  const stop = (id: string, t: number) => {
+    const g = open.get(id);
+    if (!g) return;
+    g.to = Math.max(g.from, t);
+    open.delete(id);
+  };
+  for (const s of cur) if (s) start(s.id, 0, s.code);
+  const at = (id: string | undefined) => (id ? cur.findIndex((s) => s?.id === id) : -1);
+
+  const groups: ChangeGroup[] = [];
+  /** The open group's players before it touched them (their code then), to read the recolocación at its end. */
+  let before = new Map<string, string | null>();
+  const close = () => {
+    const g = groups.at(-1);
+    if (!g) return;
+    for (const [id, from] of before) {
+      const i = at(id);
+      if (i >= 0 && cur[i]!.code !== from) g.moves.push({ id, from, to: cur[i]!.code });
+    }
+    before = new Map();
+  };
+  const groupFor = (m: number, f: number, s: number, period: number | undefined, sc: Score): ChangeGroup => {
+    const last = groups.at(-1);
+    if (last && last.m === m) return last;
+    close();
+    const g: ChangeGroup = { m, f, second: period === 2 || s >= halfS, sc, subs: [], moves: [] };
+    groups.push(g);
+    return g;
+  };
+
+  const frames: Spot[][] = [];
+  let k = 0;
+  let us = 0;
+  let them = 0;
+  for (let t = 0; t <= duration; t++) {
+    while (k < evs.length && Math.ceil(evs[k].s / 60 - 1e-9) <= t) {
+      const { e, s, m } = evs[k++];
+      const time = s / 60;
+      const f = Math.max(0, Math.ceil(time - 1e-9));
+      if (OUR_GOALS.has(e.type)) us++;
+      else if (THEIR_GOALS.has(e.type)) them++;
+      if (!e.playerId) continue;
+      const a = at(e.playerId);
+      if (e.type === "substitution" && e.inPlayerId && at(e.inPlayerId) < 0) {
+        const slot = a >= 0 ? a : gone.has(e.playerId) && cur[gone.get(e.playerId)!] === null ? gone.get(e.playerId)! : -1;
+        if (slot < 0) continue;
+        const base = a >= 0 ? cur[a]! : { ...lineup.slots[slot], id: e.playerId, cameIn: null };
+        const g = groupFor(m, f, s, e.period, { us, them });
+        if (a >= 0) stop(e.playerId, time);
+        else gone.delete(e.playerId);
+        cur[slot] = { id: e.inPlayerId, code: base.code, x: base.x, y: base.y, cameIn: f };
+        start(e.inPlayerId, time, base.code);
+        g.subs.push({ inId: e.inPlayerId, outId: e.playerId });
+      } else if (SENT_OFF.has(e.type) && a >= 0) {
+        stop(e.playerId, time);
+        cur[a] = null;
+        gone.set(e.playerId, a);
+      } else if (e.type === "position_swap" && e.inPlayerId && a >= 0) {
+        const b = at(e.inPlayerId);
+        if (b < 0 || b === a) continue;
+        groupFor(m, f, s, e.period, { us, them });
+        const A = cur[a]!;
+        const B = cur[b]!;
+        for (const x of [A, B]) if (!before.has(x.id)) before.set(x.id, x.code);
+        stop(A.id, time);
+        stop(B.id, time);
+        cur[a] = { ...A, id: B.id, cameIn: B.cameIn };
+        cur[b] = { ...B, id: A.id, cameIn: A.cameIn };
+        start(B.id, time, A.code);
+        start(A.id, time, B.code);
+      }
+    }
+    frames.push(cur.filter((s): s is Spot => s !== null).map((s) => ({ ...s })));
+  }
+  close();
+  for (const id of [...open.keys()]) stop(id, end);
+  for (const id of Object.keys(posSegs)) {
+    posSegs[id] = posSegs[id].filter((g) => g.to > g.from);
+    if (!posSegs[id].length) delete posSegs[id];
+  }
+  return { frames, posSegs, groups };
+}
+
+/** The pitch minute by minute (the walk of the events: changes, reds, «Cambio de sitio»), each player's stints (the
+ *  acta's ledger, else the plays walked up to `upto`) and the marks of the night. */
 export function timelineOf(match: ClubMatch, lineup: Lineup, plays: readonly Play[], duration: number, upto: number, nameOf: (id: string) => string): Timeline {
   const done = match.status === "finished";
   const rot = rotationOf(match, match.events ?? [], nameOf, done ? undefined : Math.max(0, upto));
@@ -279,29 +414,8 @@ export function timelineOf(match: ClubMatch, lineup: Lineup, plays: readonly Pla
   for (const r of rot.rows) stints[r.id] = r.stints.filter((s) => s.to > s.from || s.from >= duration);
   // before a whistle (or without any acta) the seven stands for the whole match
   if (!Object.keys(stints).length) for (const s of lineup.slots) stints[s.id] = [{ from: 0, to: duration }];
-  const onIds = (t: number) => {
-    const tt = Math.min(t, duration - 0.5);
-    const out = new Set<string>();
-    for (const [id, gs] of Object.entries(stints)) if (gs.some((g) => g.from <= tt && tt < g.to)) out.add(id);
-    return out;
-  };
-  // the pitch at each whole minute: whoever comes on takes the spot of the one he replaces
-  const cur: Spot[] = lineup.slots.map((s) => ({ id: s.id, code: s.code, x: s.x, y: s.y, cameIn: null }));
-  const tl: Spot[][] = [cur.map((c) => ({ ...c }))];
-  for (let t = 1; t <= duration; t++) {
-    const now = onIds(t);
-    const here = new Set(cur.map((c) => c.id));
-    const free = cur.filter((c) => !now.has(c.id));
-    for (const id of [...now].filter((x) => !here.has(x))) {
-      const ev = plays.find((p) => p.k === "cambio" && p.who === id && Math.abs(p.m - t) <= 1);
-      const spot = (ev && free.find((c) => c.id === ev.out)) ?? free[0];
-      if (!spot) continue;
-      free.splice(free.indexOf(spot), 1);
-      spot.id = id;
-      spot.cameIn = t;
-    }
-    tl.push(cur.map((c) => ({ ...c })));
-  }
+  const walk = pitchWalk(lineup, match.events ?? [], duration, done ? null : Math.max(0, upto));
+  const tl = walk.frames;
   const onPitchAt = (m: number) => (tl[Math.max(0, Math.min(duration, Math.round(m)))] ?? tl[0]).map((c) => ({ ...c }));
   const segsAt = (id: string, m: number) =>
     (stints[id] ?? [])
@@ -345,7 +459,7 @@ export function timelineOf(match: ClubMatch, lineup: Lineup, plays: readonly Pla
       }
     return t;
   };
-  return { stints, onPitchAt, segsAt, stintsAt, tagsAt };
+  return { stints, onPitchAt, segsAt, stintsAt, tagsAt, posSegs: walk.posSegs, groups: walk.groups };
 }
 
 // ---------- the pressure line (the moviola's ribbon and the acta's signature)

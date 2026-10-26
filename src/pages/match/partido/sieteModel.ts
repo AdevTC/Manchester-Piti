@@ -117,7 +117,8 @@ export function placeTags(items: readonly TagItem[]): TagPlace[] {
 
 // ---------- the playhead crossing a change or a mark
 export interface Crossing {
-  /** A spot whose man changed between the two minutes: who walks in, who walks off. */
+  /** A spot whose man changed between the two minutes: who walks in, who walks off (one who only moved spot, a
+   *  «Cambio de sitio», walks nowhere). */
   walks: { inId: string; outId: string }[];
   /** The minutes of the marks the playhead just passed (they pop). */
   fresh: number[];
@@ -127,9 +128,10 @@ export function crossingOf(tl: Pick<Timeline, "onPitchAt">, plays: readonly Play
   const walks: Crossing["walks"] = [];
   if (a !== b && Math.abs(b - a) <= 6) {
     const A = tl.onPitchAt(a);
+    const before = new Set(A.map((s) => s.id));
     tl.onPitchAt(b).forEach((sp, i) => {
       const was = A[i];
-      if (was && was.id !== sp.id) walks.push({ inId: sp.id, outId: was.id });
+      if (was && was.id !== sp.id && !before.has(sp.id)) walks.push({ inId: sp.id, outId: was.id });
     });
   }
   const fresh = b > a && b - a <= 4 ? plays.filter((p) => p.k !== "cambio" && a < p.m && p.m <= b).map((p) => p.m) : [];
