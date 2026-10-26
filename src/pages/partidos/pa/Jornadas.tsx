@@ -4,6 +4,7 @@
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode, Ref } from "react";
 import type { PMatch } from "./season";
 import type { Filt, Lente, jornadasView, lensView } from "./views";
+import type { NotaBadge } from "./notas";
 import { Ic, ShirtImg } from "./Icon";
 import { SunCurve } from "./Drawings";
 import { SocialIcon } from "../../../components/vidrio/SocialIcon";
@@ -358,6 +359,35 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
                   </a>
                 )}
               </div>
+              {act.notas && (
+                <>
+                  <ul className="pa-notas" aria-label="Las notas">
+                    {act.notas.top.map((r) => (
+                      <li key={r.id} className={r.me ? "is-me" : undefined}>
+                        <span className="pa-notas__who">
+                          <b>{r.name}</b>
+                          {r.me && <span className="pa-me">Tú</span>}
+                        </span>
+                        <Nota b={r} lg />
+                      </li>
+                    ))}
+                    {act.notas.mine && (
+                      <li className="is-me">
+                        <span className="pa-notas__who">
+                          <b>La tuya</b>
+                          <span className="pa-me" aria-hidden="true">
+                            Tú
+                          </span>
+                        </span>
+                        <Nota b={act.notas.mine} lg />
+                      </li>
+                    )}
+                  </ul>
+                  <a className="vd-glass vd-btn vd-btn--sm vd-press pa-notas__all" href={act.notas.href} onClick={p.goHref(act.notas.href)}>
+                    Ver todas las notas
+                  </a>
+                </>
+              )}
               <p className="pa-k">{act.cronT}</p>
               <p className="pa-cron">{act.cron}</p>
               <ul className="pa-facts">
@@ -373,9 +403,9 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
             </div>
             <div className="pa-col pa-acta__side">
               <p className="pa-k">{act.minT}</p>
-              <ol className="pa-mins">
+              <ol className={`pa-mins${act.notas ? " pa-mins--notas" : ""}`}>
                 {act.mins.map((r) => (
-                  <li key={r.id}>
+                  <li key={r.id} className={r.me ? "is-me" : undefined}>
                     <span className="pa-mins__n">{r.n}</span>
                     <b>{r.name}</b>
                     <span className="pa-mins__bar" aria-hidden="true">
@@ -384,6 +414,7 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
                       ))}
                     </span>
                     <span className="pa-mins__v">{r.v}′</span>
+                    {r.nota && <Nota b={r.nota} />}
                   </li>
                 ))}
               </ol>
@@ -409,6 +440,18 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
         )}
       </article>
     </div>
+  );
+}
+
+/** A nota's badge: the figure on its band's colour, and the band's word for a screen reader. */
+function Nota({ b, lg }: { b: NotaBadge; lg?: boolean }) {
+  return (
+    <>
+      <span className={`nb nb--${b.k}${lg ? " nb--lg" : ""}`} aria-hidden="true">
+        {b.t}
+      </span>
+      <span className="vd-vh">{b.aria}</span>
+    </>
   );
 }
 
@@ -457,10 +500,19 @@ function Tile({ t, onPick, onKey }: { t: TileV; onPick: (j: number) => void; onK
             )}
             {t.pp && <span className="pa-seg__pp">Aplazado</span>}
             {t.pend && <span className="pa-seg__pp">Sin acta</span>}
-            {t.video && (
-              <span className="pa-seg__vid">
-                <SocialIcon name="youtube" size={14} />
-                Vídeo
+            {(t.tu || t.video) && (
+              <span className="pa-seg__xtra">
+                {t.tu && (
+                  <span className="pa-seg__tu">
+                    Tú<span className={`nb nb--${t.tu.k}`}>{t.tu.t}</span>
+                  </span>
+                )}
+                {t.video && (
+                  <span className={`pa-seg__vid${t.tu ? " is-icon" : ""}`}>
+                    <SocialIcon name="youtube" size={14} />
+                    <span className="pa-seg__vidt">Vídeo</span>
+                  </span>
+                )}
               </span>
             )}
           </span>
