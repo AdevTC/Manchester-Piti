@@ -1,7 +1,7 @@
 // «Lo demás»: adding or editing a card, a change, a penalty or anything else, with the same dorsal picker
 // as the goals (the v2 Popover in place under its group; a bottom sheet on phones): the kind (when the
-// group has several), the minute, the player by dorsal — a change asks who leaves and who comes on —, and
-// Añadir / Guardar · Cancelar · Quitar.
+// group has several), the minute, the player by dorsal — a change asks who leaves and who comes on, a «Cambio
+// de sitio» the two on the pitch at that minute who trade places —, and Añadir / Guardar · Cancelar · Quitar.
 import { isGuestId } from "../../../lib/derived/guests";
 import "../kit/guests.css";
 import { useId, useRef, useState, type RefObject } from "react";
@@ -19,6 +19,8 @@ export interface EventPanelProps {
   duration: number;
   field: PickOption[];
   bench: PickOption[];
+  /** Who is on the pitch at a minute (a «Cambio de sitio» picks its two from here). */
+  fieldAt: (minute: number) => PickOption[];
   anchorRef: RefObject<HTMLElement | null>;
   onSave: (e: MatchEvent) => void;
   onRemove: (e: MatchEvent) => void;
@@ -36,15 +38,19 @@ export function EventPanel(p: EventPanelProps) {
   const [error, setError] = useState("");
   const minuteRef = useRef<HTMLInputElement>(null);
   const sub = type === "substitution";
+  const swap = type === "position_swap";
   const all = [...p.field, ...p.bench];
+  // (the swap's pitch: who is on it at the minute written; none until there is one)
+  const minuteOk = minute.trim() !== "" && Number.isInteger(Number(minute)) && Number(minute) <= p.duration;
+  const swapField = swap && minuteOk ? p.fieldAt(Number(minute)) : [];
 
   const save = () => {
-    const why = checkEvent({ type, minute, player, inPlayer, duration: p.duration });
+    const why = checkEvent({ type, minute, player, inPlayer, duration: p.duration, field: swap && minuteOk ? swapField.map((o) => o.id) : undefined });
     if (why) {
       setError(why);
       return;
     }
-    p.onSave({ ...ev, id: ev?.id ?? p.newId, type, minute: Number(minute), elapsedSeconds: ev?.minute === Number(minute) ? ev.elapsedSeconds : undefined, playerId: player && playerMode(type) !== "none" ? player : undefined, inPlayerId: sub ? inPlayer : undefined });
+    p.onSave({ ...ev, id: ev?.id ?? p.newId, type, minute: Number(minute), elapsedSeconds: ev?.minute === Number(minute) ? ev.elapsedSeconds : undefined, playerId: player && playerMode(type) !== "none" ? player : undefined, inPlayerId: sub || swap ? inPlayer : undefined });
   };
   const grid = (list: PickOption[], value: string, set: (v: string) => void, isBench: boolean, verb: string, skip?: string) => (
     <div className="pg">
@@ -129,6 +135,21 @@ export function EventPanel(p: EventPanelProps) {
       {playerMode(type) === "optional" && <button type="button" className="btn sm line" aria-pressed={!player} onClick={() => setPlayer("")}>Equipo · sin jugador</button>}
       {playerMode(type) === "none" ? null : !all.length ? (
         <p className="pk-lb">Aún no hay convocados: los jugadores salen de la convocatoria.</p>
+      ) : swap ? (
+        !minuteOk ? (
+          <p className="pk-lb">Cambio de sitio: pon el minuto y te enseño quién estaba en el campo.</p>
+        ) : (
+          <>
+            <p className="pk-lb">{playerQuestion(type)}</p>
+            {grid(swapField, player, pick(setPlayer), false, "Se cambia")}
+            {player ? (
+              <>
+                <p className="pk-lb">Con quién se cambia</p>
+                {grid(swapField, inPlayer, pick(setInPlayer), false, "Se cambia con", player)}
+              </>
+            ) : null}
+          </>
+        )
       ) : sub ? (
         <>
           {players(player, pick(setPlayer), "Sale", "Sale del campo")}

@@ -43,6 +43,8 @@ export function liveLog(events: readonly MatchEvent[] | undefined, rival: string
       const detail = !e.playerId ? "falta el goleador" : [how, e.assistPlayerId ? `pase de ${nm(e.assistPlayerId)}` : ""].filter(Boolean).join(" · ");
       return { ...base, cls: "", icon: "ball", text: liveLine("goal", e.playerId && nm(e.playerId)), detail };
     }
+    // a «Cambio de sitio»: two on the pitch trade places, nobody comes on or goes off
+    if (e.type === "position_swap") return { ...base, cls: "", icon: "swap", text: `Cambio de sitio · ${nm(e.playerId)} ↔ ${nm(e.inPlayerId)}`, detail: "" };
     if (e.type === "own_goal") return { ...base, cls: "rv", icon: "ball", text: liveLine("opponent_goal", rival), detail: `en propia de ${nm(e.playerId)}` };
     if (!isLiveActionType(e.type)) return { ...base, cls: "", icon: null, text: `${OTHER[e.type] ?? "Jugada"} · ${nm(e.playerId)}`, detail: "" };
     const act = liveAction(e.type);

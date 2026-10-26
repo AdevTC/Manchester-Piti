@@ -16,7 +16,7 @@ import { addOurGoal, addRivalGoal, goalRows, newId, otherEvents, removeEvent, ri
 import { EventPanel } from "./EventPanel";
 import { GuestPanel } from "../kit/GuestPanel";
 import { addGuest, guestInUse, removeGuest } from "../acta/guests";
-import { GROUPS, groupOfEvent, kindLabel, pickOptions, type EventGroup } from "./pickModel";
+import { fieldAt, GROUPS, groupOfEvent, kindLabel, pickOptions, type EventGroup } from "./pickModel";
 import { ScorerPicker } from "./ScorerPicker";
 import { cuentaOf, goalSub, goalWho, type Phase } from "./workspaceModel";
 
@@ -157,7 +157,12 @@ function ActaEditor({ matchId, sheet, update, review, rival, j, info, onGoConvoc
     const editing = open?.k === "ev" && open.editId;
     update((s) => upsertEvent(s, e));
     setOpen(null);
-    const who = e.type === "substitution" ? `Entra ${nameOf(e.inPlayerId ?? "")}, sale ${nameOf(e.playerId ?? "")}` : `${kindLabel(e.type)} · ${nameOf(e.playerId ?? "")}`;
+    const who =
+      e.type === "substitution"
+        ? `Entra ${nameOf(e.inPlayerId ?? "")}, sale ${nameOf(e.playerId ?? "")}`
+        : e.type === "position_swap"
+          ? `Cambio de sitio · ${nameOf(e.playerId ?? "")} ↔ ${nameOf(e.inPlayerId ?? "")}`
+          : `${kindLabel(e.type)} · ${nameOf(e.playerId ?? "")}`;
     toast.show({ tag: j, message: `${editing ? "Corregido" : "Apuntado"}: ${who} · ${e.minute}′` });
   };
 
@@ -342,6 +347,7 @@ function ActaEditor({ matchId, sheet, update, review, rival, j, info, onGoConvoc
                       duration={sheet.duration}
                       field={field}
                       bench={bench}
+                      fieldAt={(m) => pickOptions(fieldAt(sheet, m, here.editId ?? undefined), info)}
                       anchorRef={anchorRef}
                       onSave={saveEvent}
                       onRemove={(e) => {

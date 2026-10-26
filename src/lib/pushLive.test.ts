@@ -51,6 +51,12 @@ describe("the clock's whistles: descanso, 2ª parte and the provisional final", 
     expect(noticesFor("j8", done, { ...done, clock: { phase: "ended" } }, nameOf, NOW)).toEqual([]);
     expect(noticesFor("j8", at("first"), { ...at("halftime"), archived: true }, nameOf, NOW)).toEqual([]);
   });
+  it("a live «Cambio de sitio» (or a change) sends nothing: only goals, cards and whistles push", () => {
+    const swap = { id: "w", type: "position_swap", minute: 30, playerId: "e", inPlayerId: "a" };
+    const sub = { id: "s", type: "substitution", minute: 31, playerId: "a", inPlayerId: "h" };
+    expect(noticesFor("j8", at("second"), { ...at("second"), events: [...live.events, swap] }, nameOf, NOW)).toEqual([]);
+    expect(noticesFor("j8", at("halftime"), { ...at("halftime"), events: [...live.events, swap, sub] }, nameOf, NOW)).toEqual([]);
+  });
 });
 
 describe("«Gol anulado»", () => {
