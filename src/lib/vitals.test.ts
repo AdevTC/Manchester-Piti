@@ -6,7 +6,7 @@ import { attributionOf, deviceOf, pageOf, recordOf } from "./vitals";
 describe("pages group by their kind, ids folded", () => {
   it.each([
     ["/", "/"],
-    ["/numeros/", "/numeros"],
+    ["/estadisticas/", "/estadisticas"],
     ["/jugadores/alcides/temporada", "/jugadores/:id/temporada"],
     ["/partidos/j1/siete", "/partidos/:id/siete"],
     ["/partidos/tabla", "/partidos/tabla"],
@@ -77,7 +77,7 @@ describe("the device is a class, never an identifier", () => {
 describe("what the function accepts", () => {
   const device = { os: "ios", touch: true, w: 390, dpr: 3, ssr: false, sw: true };
   it("a report as the phones send it", () => {
-    const body = JSON.stringify({ d: device, m: [{ n: "LCP", v: 1800, r: "good", p: "/", nt: "navigate", a: { el: "h1", ttfb: 200 } }, { n: "VT", v: 48, p: "/numeros", a: { kind: "page", from: "/", slow: 0, dur: 420 } }] });
+    const body = JSON.stringify({ d: device, m: [{ n: "LCP", v: 1800, r: "good", p: "/", nt: "navigate", a: { el: "h1", ttfb: 200 } }, { n: "VT", v: 48, p: "/estadisticas", a: { kind: "page", from: "/", slow: 0, dur: 420 } }] });
     expect(parseVitals(body)?.m).toHaveLength(2);
   });
   it.each([

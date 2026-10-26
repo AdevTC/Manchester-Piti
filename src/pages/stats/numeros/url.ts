@@ -1,4 +1,4 @@
-// «Números»: the address of every screen and sheet (NU-Main «La dirección»): /numeros/<sección>[/<vista>] and the
+// «Números»: the address of every screen and sheet (NU-Main «La dirección»): /estadisticas/<sección>[/<vista>] and the
 // boards' Spanish parameters — temporada · hasta · campo · partidos · jugadores · buscar for the time bar on every
 // screen, ranking · jugador · estrella · puesto · equipo · parte · familia · fuera-del-audio · metrica · rival · ver ·
 // q for the screens, hoja for a sheet that has no address of its own. Pure.
@@ -14,13 +14,13 @@ export interface Screen {
   recView: RecView;
   /** /juego/tabla and /juego/catalogo grow in place. */
   grow: Grow | null;
-  /** /numeros/y-si: the simulator's sheet over Temporada. */
+  /** /estadisticas/y-si: the simulator's sheet over Temporada. */
   ysi: boolean;
 }
 
 const trim = (p: string) => (p.length > 1 ? p.replace(/\/+$/, "") : p);
 
-/** The screen at a /numeros address. */
+/** The screen at a /estadisticas address. */
 export function screenAt(pathname: string): Screen {
   const seg = trim(pathname).split("/").slice(2);
   const s: Screen = { place: "temporada", campoView: "pases", recView: "rachas", grow: null, ysi: false };
@@ -52,11 +52,11 @@ export function screenAt(pathname: string): Screen {
 
 /** The path of a screen (with its view and what grows on its own address). */
 export function pathOf(st: Pick<NuState, "place" | "campoView" | "recView" | "grow" | "sheet">): string {
-  if (st.place === "temporada") return st.sheet === "ysi" ? "/numeros/y-si" : "/numeros";
-  if (st.place === "campo") return st.campoView === "pases" ? "/numeros/campo" : `/numeros/campo/${st.campoView}`;
-  if (st.place === "juego") return st.grow === "mesa" ? "/numeros/juego/tabla" : st.grow === "catalogo" ? "/numeros/juego/catalogo" : st.grow === "graficas" ? "/numeros/juego/graficas" : "/numeros/juego";
-  if (st.place === "records") return st.recView === "rachas" ? "/numeros/records" : `/numeros/records/${st.recView}`;
-  return `/numeros/${st.place}`;
+  if (st.place === "temporada") return st.sheet === "ysi" ? "/estadisticas/y-si" : "/estadisticas";
+  if (st.place === "campo") return st.campoView === "pases" ? "/estadisticas/campo" : `/estadisticas/campo/${st.campoView}`;
+  if (st.place === "juego") return st.grow === "mesa" ? "/estadisticas/juego/tabla" : st.grow === "catalogo" ? "/estadisticas/juego/catalogo" : st.grow === "graficas" ? "/estadisticas/juego/graficas" : "/estadisticas/juego";
+  if (st.place === "records") return st.recView === "rachas" ? "/estadisticas/records" : `/estadisticas/records/${st.recView}`;
+  return `/estadisticas/${st.place}`;
 }
 
 /** ?ranking=: the quick five by their word, any other of the 38 by its label («amarillas»). */

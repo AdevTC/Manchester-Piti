@@ -36,8 +36,8 @@ it("a fan: one way into the vestuario («Entrar»), separate from the five publi
   expect(door).toHaveAttribute("href", "/vestuario");
   expect(door).toHaveTextContent("Entrar");
   const nav = within(header.getByRole("navigation", { name: "Navegación principal" }));
-  expect(nav.getAllByRole("link").map((a) => a.textContent)).toEqual(["Inicio", "Partidos", "Plantilla", "Números", "Club"]);
-  expect(nav.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/numeros", "/club"]);
+  expect(nav.getAllByRole("link").map((a) => a.textContent)).toEqual(["Inicio", "Partidos", "Plantilla", "Estadísticas", "Club"]);
+  expect(nav.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/estadisticas", "/club"]);
   expect(nav.getByRole("link", { name: "Inicio" })).toHaveAttribute("aria-current", "page");
   expect(header.getByRole("link", { name: "Manchester Piti, inicio" })).toHaveAttribute("href", "/");
   // page extras stay; the theme switch pages pass there moves out of the bar
@@ -79,8 +79,8 @@ it("a member gets his avatar («J Jordi») instead of «Entrar»: «Tú» for a 
 it("the tab bar: the five pages, each with its label, and /club lit", () => {
   render(<CelesteDock active="club" />);
   const links = within(screen.getByRole("navigation", { name: "Navegación móvil" })).getAllByRole("link");
-  expect(links.map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/numeros", "/club"]);
-  expect(links.map((a) => a.textContent)).toEqual(["Inicio", "Partidos", "Plantilla", "Números", "Club"]);
+  expect(links.map((a) => a.getAttribute("href"))).toEqual(["/", "/partidos", "/plantilla", "/estadisticas", "/club"]);
+  expect(links.map((a) => a.textContent)).toEqual(["Inicio", "Partidos", "Plantilla", "Estadísticas", "Club"]);
   const club = links[4];
   expect(club).toHaveAttribute("aria-current", "page");
   expect(club).toHaveClass("on");

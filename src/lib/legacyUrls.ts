@@ -3,7 +3,8 @@
 // page (/#temporada, /club#cl-kits, /vestuario#vx-caja, /profile#ajustes…). One pure table for every layer:
 // the router redirects with it in the browser (hashes included, with replace), the server render answers
 // 308 with it (api/render.js, through entry-server) and its tests pin each row. Parameters carry over;
-// the ones a new page names in Spanish are renamed (season → temporada on Números).
+// the ones a new page names in Spanish are renamed (season → temporada on Estadísticas). /numeros, the
+// section's name before Estadísticas, moves screen by screen to /estadisticas.
 import { defaultParseSearch, defaultStringifySearch } from "@tanstack/react-router";
 
 type Search = Record<string, unknown>;
@@ -26,7 +27,7 @@ export const matchPath = (id: string, tab?: unknown): string => {
   return `/partidos/${id}${screen ? `/${screen}` : ""}`;
 };
 
-const HOME_HASH: Record<string, string> = { hoy: "/", temporada: "/numeros", club: "/club", tu: "/hoy/lo-tuyo" };
+const HOME_HASH: Record<string, string> = { hoy: "/", temporada: "/estadisticas", club: "/club", tu: "/hoy/lo-tuyo" };
 const CLUB_HASH: Record<string, string> = {
   "cl-trophies": "/club/vitrina",
   "cl-crest": "/club/vitrina/escudo",
@@ -73,10 +74,10 @@ export const vestuarioHashPath = (hash: string): string | undefined => VESTUARIO
 /** Numbers' Spanish names for /stats' parameters (the time bar's and El juego's). */
 const STATS_RENAME: Record<string, string> = { family: "familia", metric: "metrica", q: "q", matches: "partidos", players: "jugadores" };
 const STATS_SECTION: Record<string, string> = {
-  individual: "/numeros/records/marcas",
-  streaks: "/numeros/records",
-  team: "/numeros/records/marcas",
-  evolution: "/numeros/records/evolucion",
+  individual: "/estadisticas/records/marcas",
+  streaks: "/estadisticas/records",
+  team: "/estadisticas/records/marcas",
+  evolution: "/estadisticas/records/evolucion",
 };
 const omit = (search: Search, ...keys: string[]): Search => Object.fromEntries(Object.entries(search).filter(([k]) => !keys.includes(k)));
 const list = (v: unknown): string | undefined =>
@@ -90,17 +91,17 @@ function statsPath(search: Search): string {
       return "/plantilla/cara-a-cara";
     case "players":
     case "minutes":
-      return "/numeros/jugadores";
+      return "/estadisticas/jugadores";
     case "positions":
-      return "/numeros/campo/puestos";
+      return "/estadisticas/campo/puestos";
     case "rivals":
-      return "/numeros/rivales";
+      return "/estadisticas/rivales";
     case "explore":
       return STATS_SECTION[typeof section === "string" ? section : ""] ?? STATS_SECTION.individual;
     case "game":
-      return analysis === "catalog" ? "/numeros/juego/catalogo" : "/numeros/juego";
+      return analysis === "catalog" ? "/estadisticas/juego/catalogo" : "/estadisticas/juego";
     default:
-      return "/numeros";
+      return "/estadisticas";
   }
 }
 
@@ -159,9 +160,14 @@ export function legacyTarget(rawPathname: string, search: Search, rawHash = ""):
     const to = fromStats(search);
     return keep(to.pathname, to.search);
   }
-  // a Números screen asked with the old ?view=: today's page still writes it (until Números lands) and keeps
-  // reading its own parameters, so only the screen moves
-  if ((seg[0] === "numeros" || pathname === "/plantilla/cara-a-cara") && "view" in search) {
+  // Números is Estadísticas now: each /numeros screen at the same place under /estadisticas (an old ?view= too)
+  if (seg[0] === "numeros") {
+    const to = `/estadisticas${pathname.slice("/numeros".length)}`;
+    return legacyTarget(to, search, rawHash) ?? keep(to);
+  }
+  // an Estadísticas screen asked with the old ?view=: today's page still writes it (until Estadísticas lands) and
+  // keeps reading its own parameters, so only the screen moves
+  if ((seg[0] === "estadisticas" || pathname === "/plantilla/cara-a-cara") && "view" in search) {
     const to = statsPath(search);
     if (to === "/plantilla/cara-a-cara") return keep(to, without("view", "section", "tab", "analysis"));
     const rest = without("view", "section", "tab", "analysis", "a", "b");

@@ -93,8 +93,8 @@ test("Números · El juego: De un vistazo, la tabla de trabajo con su total, los
   try {
     // The full analysis lives in Números: the match's Números screen opens El juego with this match selected.
     await page.goto(`/partidos/${f.id}/numeros`);
-    await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego\?/);
+    await page.getByRole("link", { name: "Abrir el análisis en Estadísticas" }).click();
+    await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
     expect(new URL(page.url()).searchParams.get("partidos")).toBe(f.id);
     const all = sample(f.observations);
     // Complete coverage certifies the pass total, including its split by half.
@@ -107,7 +107,7 @@ test("Números · El juego: De un vistazo, la tabla de trabajo con su total, los
     await expect(page.locator(".nu-conn li").first()).toContainText("Pablo E2E → Dani");
     // The workspace grows in place with its own address; its total row is the narrated total
     const workspace = await openTable(page);
-    await expect(page).toHaveURL(/\/numeros\/juego\/tabla\?/);
+    await expect(page).toHaveURL(/\/estadisticas\/juego\/tabla\?/);
     const rows = workspace.locator(".nu-ws__r:not(.nu-ws__r--h):not(.nu-ws__r--f)");
     await expect(rows).toHaveCount(f.participantCount);
     await expect(totalOf(workspace, 1)).toHaveText(String(all.attempts));
@@ -174,9 +174,9 @@ test("Números · las gráficas conservan la mitad y la tabla personalizada cons
   test.setTimeout(100_000);
   const f = await fixture();
   try {
-    await page.goto(`/numeros/juego?temporada=${f.seasonId}&partidos=${f.id}`);
+    await page.goto(`/estadisticas/juego?temporada=${f.seasonId}&partidos=${f.id}`);
     await page.getByRole("button", { name: /^Gráficas del juego/ }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego\/graficas\?/);
+    await expect(page).toHaveURL(/\/estadisticas\/juego\/graficas\?/);
     const charts = page.getByRole("region", { name: "Gráficas del juego", exact: true });
     await expect(charts.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
     await expect(charts.locator(".sc-meta")).toContainText("4 pases completados");

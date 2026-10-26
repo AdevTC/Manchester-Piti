@@ -60,7 +60,7 @@ const nameOf = (p: PlayerAnalysis) => nameFor(p);
 export function StatsPage() {
   const { matches, players, loading, error } = useClubData();
   const { seasons, selectedSeasonId, loadingSeasons } = useSeason();
-  // (each view is a /numeros screen now, and Comparar is /plantilla/cara-a-cara: lib/interimScreens says which)
+  // (each view is a /estadisticas screen now, and Comparar is /plantilla/cara-a-cara: lib/interimScreens says which)
   const pathname = useLocation({ select: (l) => l.pathname });
   const search = useSearch({ strict: false }) as StatsSearch;
   const navigate = useNavigate();
@@ -148,7 +148,7 @@ export function StatsPage() {
       />
       <section className="st-hero vd-pg-head vd-reg-1" aria-labelledby="st-t">
         <h1 className="st-h1" id="st-t">
-          Números
+          Estadísticas
         </h1>
         <p className="vd-lede">{numerosLede(nowSeasonName, playedNow, !!liveScore)}</p>
       </section>

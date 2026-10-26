@@ -73,14 +73,14 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     // The canonical goal survives an observations-only import, while the new passes reach the numbers.
     await expect(page.getByRole("img", { name: /^Manchester Piti 1, .+ 0$/ })).toBeVisible();
     // The analysis lives in Números now: the match's Números screen opens El juego with this match.
-    await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego\?/);
+    await page.getByRole("link", { name: "Abrir el análisis en Estadísticas" }).click();
+    await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
     expect(new URL(page.url()).searchParams.get("partidos")).toBe(id);
     await expect(page.locator(".nu-conn").getByRole("listitem").filter({ hasText: `${names[2]} → ${names[3]}` })).toContainText("1");
     await expect(page.locator("body")).not.toContainText(privateQuote);
     // the catalogue grows in place; a statistic opens its card with its value and who did it
     await page.getByRole("button", { name: /^Catálogo de estadísticas/ }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego\/catalogo\?/);
+    await expect(page).toHaveURL(/\/estadisticas\/juego\/catalogo\?/);
     await page.getByRole("searchbox", { name: "Buscar estadística" }).fill("Pases intentados");
     await page.locator(".nu-cat").getByRole("button", { name: /Pases intentados/ }).first().click();
     const detail = page.getByRole("dialog", { name: /Pases intentados/ });

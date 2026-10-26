@@ -62,7 +62,7 @@ describe("SearchPanel (TU boards, tu-sr)", () => {
     // the preview: the rival's initials, its record and its meetings, its address and «Ver los partidos»
     const pv = screen.getByRole("complementary", { name: "Vista previa" });
     expect(pv).toHaveTextContent("1 derrota.");
-    expect(pv).toHaveTextContent("/numeros/rivales?rival=orduna-fc");
+    expect(pv).toHaveTextContent("/estadisticas/rivales?rival=orduna-fc");
     expect(within(pv).getByRole("button", { name: "Ver los partidos" })).toBeInTheDocument();
   });
 

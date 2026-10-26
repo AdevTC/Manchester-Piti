@@ -93,8 +93,8 @@ describe("sectionOf", () => {
   it("maps paths to their section", () => {
     expect(sectionOf("/")).toEqual({ active: "inicio", sub: "Manchester Piti" });
     expect(sectionOf("/jugadores/erik").active).toBe("plantilla");
-    expect(sectionOf("/numeros").active).toBe("stats");
-    expect(sectionOf("/numeros/records/marcas").active).toBe("stats");
+    expect(sectionOf("/estadisticas").active).toBe("stats");
+    expect(sectionOf("/estadisticas/records/marcas").active).toBe("stats");
     expect(sectionOf("/partidos/j1/siete").active).toBe("partidos");
     expect(sectionOf("/plantilla/cara-a-cara").active).toBe("plantilla");
     expect(sectionOf("/club/historia").active).toBe("club");

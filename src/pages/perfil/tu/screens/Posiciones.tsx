@@ -95,7 +95,7 @@ export function Posiciones(p: ScreenProps) {
   const more = [
     ...(pending ? [{ t: "Retirar la propuesta", icon: "close" as const, go: () => void withdraw() }] : []),
     ...(draft ? [{ t: "Volver a lo de tu ficha", icon: "replay" as const, go: () => setDraft(null) }] : []),
-    { t: "Las posiciones del equipo", icon: "chart" as const, go: () => void navigate({ to: "/numeros/campo/puestos" }) },
+    { t: "Las posiciones del equipo", icon: "chart" as const, go: () => void navigate({ to: "/estadisticas/campo/puestos" }) },
   ];
   const tap = (c: PosCode) => {
     if (!info?.inSeason) return;

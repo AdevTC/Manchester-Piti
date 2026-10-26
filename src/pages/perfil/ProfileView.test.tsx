@@ -447,7 +447,7 @@ describe("Temporada", () => {
     const numbers = screen.getByRole("heading", { name: "Tus números" }).closest(".bk") as HTMLElement;
     expect(within(numbers).getByRole("link", { name: /Ver tus estadísticas/ })).toHaveAttribute("href", "/jugadores/adri?season=t1");
     const where = screen.getByRole("heading", { name: "Dónde has jugado" }).closest(".bk") as HTMLElement;
-    expect(within(where).getByRole("link", { name: /Ver las posiciones del equipo/ })).toHaveAttribute("href", "/numeros/campo/puestos?temporada=t1");
+    expect(within(where).getByRole("link", { name: /Ver las posiciones del equipo/ })).toHaveAttribute("href", "/estadisticas/campo/puestos?temporada=t1");
   });
   it("pendiente: aún sin enlace a sus estadísticas", () => {
     noIntro();

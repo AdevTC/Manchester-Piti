@@ -18,14 +18,14 @@ export const PAGES = [
   /^\/hoy\/(campo|jugadas)$/,
   /^\/camiseta$/,
   /^\/partidos(\/(tabla|balance))?$/,
-  /^\/numeros(\/(y-si|jugadores|campo(\/(puestos|sistemas))?|juego(\/(tabla|catalogo))?|rivales|records(\/(marcas|cromos|evolucion))?))?$/,
+  /^\/estadisticas(\/(y-si|jugadores|campo(\/(puestos|sistemas))?|juego(\/(tabla|catalogo))?|rivales|records(\/(marcas|cromos|evolucion))?))?$/,
   /^\/plantilla(\/(album|cara-a-cara))?$/,
   /^\/jugadores\/[A-Za-z0-9_-]+(\/(temporada|jornadas|juego|analisis|cromo))?$/,
   /^\/club(\/(vitrina(\/[A-Za-z0-9_-]+)?|historia|equipo(\/camiseta)?|gente))?$/,
 ];
 const isPage = (path) => PAGES.some((re) => re.test(path));
 /** What vercel.json's rewrites add to the query: `p`, and Vercel also appends each named segment of the
- *  source (`/matches/:id`, `/hoy/:screen`, `/numeros/:path*`…). None of them is the visitor's: a redirect that
+ *  source (`/matches/:id`, `/hoy/:screen`, `/estadisticas/:path*`…). None of them is the visitor's: a redirect that
  *  kept them would send `/partidos/<id>/siete?id=<id>`. */
 const REWRITE_PARAMS = ["p", "id", "screen", "path"];
 /** The page the rewrite asks for (`p`) and the visitor's own query (the rewrite keeps it next to `p`). The

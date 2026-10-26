@@ -229,7 +229,7 @@ const SECTIONS: [string, string, string, string, string, TuIconName, boolean][] 
   ["partidos", "Partidos", "Calendario y resultados", "/partidos", "calendario resultados jornadas", "fixtures", false],
   ["tabla", "Clasificación", "La tabla de la liga", "/partidos/tabla", "tabla liga puntos clasificacion", "chart", false],
   ["plantilla", "Plantilla", "Los 16 del equipo", "/plantilla", "equipo jugadores dorsales", "shirt", false],
-  ["numeros", "Números", "La temporada en números", "/numeros", "estadisticas stats goleadores", "chart", false],
+  ["numeros", "Estadísticas", "La temporada en números", "/estadisticas", "estadisticas stats goleadores", "chart", false],
   ["club", "Club", "La vitrina, la historia y el equipo", "/club", "historia escudo vitrina", "shield", false],
   ["camiseta", "Ponte la del Piti", "Tu nombre y tu dorsal en la camiseta", "/club/equipo/camiseta", "camiseta equipacion dorsal", "shirt", false],
   ["vestuario", "Vestuario", "La zona del equipo", "/vestuario", "entrar equipo puerta", "lock", false],
@@ -311,7 +311,7 @@ export function buildEntries({ viewer, dia, players, games, next, vote }: SrInpu
   }
   for (const r of rivals.values()) {
     const rec = r.n ? [r.G ? pl(r.G, "victoria", "victorias") : "", r.E ? pl(r.E, "empate", "empates") : "", r.P ? pl(r.P, "derrota", "derrotas") : ""].filter(Boolean).join(", ") : "Aún sin jugar";
-    const href = `/numeros/rivales?rival=${rivalSlug(r.name)}`;
+    const href = `/estadisticas/rivales?rival=${rivalSlug(r.name)}`;
     out.push({ id: `r:${r.name}`, kind: "rival", title: r.name, detail: `Rival · ${rec}`, kw: `${r.name} rival equipo`, ini: initials(r.name), pv: { line: `${rec}.`, list: r.list.join(" · "), url: href }, go: { to: "href", href } });
   }
 

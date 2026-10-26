@@ -661,7 +661,7 @@ export function NumerosPage() {
         <div className="nu-main" id="nu-main">
           <header className="nu-id">
             <div className="nu-id__t">
-              <h1 className="nu-h1">Números</h1>
+              <h1 className="nu-h1">Estadísticas</h1>
               <p className="nu-lede">{v.lede}</p>
             </div>
             <div className="nu-id__acts">
@@ -751,7 +751,7 @@ export function NumerosPage() {
             {time.offNote && <p className="nu-time__note">{time.offNote}</p>}
           </div>
 
-          <nav className={`vd-glass nu-rail${slim ? " is-slim" : ""}`} aria-label="Secciones de Números">
+          <nav className={`vd-glass nu-rail${slim ? " is-slim" : ""}`} aria-label="Secciones de Estadísticas">
             {slim && (
               <button type="button" className="nu-slim" onClick={() => window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" })}>
                 <I name="cal" />
@@ -760,7 +760,7 @@ export function NumerosPage() {
                 <span className="vd-vh">: volver a la barra del tiempo</span>
               </button>
             )}
-            <div className="nu-rail__in" role="tablist" aria-orientation="vertical" aria-label="Secciones de Números">
+            <div className="nu-rail__in" role="tablist" aria-orientation="vertical" aria-label="Secciones de Estadísticas">
               {v.rail.map((s) => (
                 <button key={s.id} type="button" role="tab" id={`nu-tab-${s.id}`} aria-controls="nu-screen" aria-selected={s.on} tabIndex={s.on ? 0 : -1} className="nu-rail__b" onClick={() => go(s.id)} onKeyDown={railKey} title={s.title}>
                   {s.on && <span className="nu-rail__bead" aria-hidden="true" />}

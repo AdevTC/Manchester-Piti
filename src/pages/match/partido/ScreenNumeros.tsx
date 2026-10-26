@@ -282,7 +282,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                   ))}
                 </ul>
                 <div className="ppn-nums__foot">
-                  <p className="ppn-note">{figures?.partial ? "Cobertura parcial: solo cuentan las acciones confirmadas. — indica que faltan datos para esa cifra." : "Las cifras usan las mismas reglas y jugadas que Números y las gráficas."}</p>
+                  <p className="ppn-note">{figures?.partial ? "Cobertura parcial: solo cuentan las acciones confirmadas. — indica que faltan datos para esa cifra." : "Las cifras usan las mismas reglas y jugadas que Estadísticas y las gráficas."}</p>
                   {saveNote && (
                     <p className="ppn-save">
                       <Icon name="glove" />
@@ -314,9 +314,9 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                     </li>
                   ))}
                 </ul>
-                <Go className="vd-glass vd-press vd-btn vd-btn--sm ppn-open" href={`/numeros/juego?temporada=todas&partidos=${encodeURIComponent(match.id)}`}>
+                <Go className="vd-glass vd-press vd-btn vd-btn--sm ppn-open" href={`/estadisticas/juego?temporada=todas&partidos=${encodeURIComponent(match.id)}`}>
                   <Icon name="chart" />
-                  Abrir el análisis en Números
+                  Abrir el análisis en Estadísticas
                 </Go>
               </section>
             )}

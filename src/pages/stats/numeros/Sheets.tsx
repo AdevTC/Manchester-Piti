@@ -51,7 +51,7 @@ export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef,
             <Close onClose={onClose} />
           </header>
           <label className="nu-field">
-            <span className="vd-vh">Buscar en Números</span>
+            <span className="vd-vh">Buscar en Estadísticas</span>
             <input className="vd-input nu-find__in" type="search" value={s.q} onChange={(e) => s.setQ(e.target.value)} placeholder="Alcides, Orduña, pases, minutos, racha…" />
           </label>
         </div>

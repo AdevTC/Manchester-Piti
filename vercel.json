@@ -84,6 +84,14 @@
       "destination": "/api/render?p=/partidos/:screen"
     },
     {
+      "source": "/estadisticas",
+      "destination": "/api/render?p=/estadisticas"
+    },
+    {
+      "source": "/estadisticas/:path*",
+      "destination": "/api/render?p=/estadisticas/:path*"
+    },
+    {
       "source": "/numeros",
       "destination": "/api/render?p=/numeros"
     },

@@ -8,7 +8,7 @@ const moves = (from: string, to: string) => it(`${from} → ${to}`, () => expect
 
 describe("Inicio: the home's old places", () => {
   moves("/#hoy", "/");
-  moves("/#temporada", "/numeros");
+  moves("/#temporada", "/estadisticas");
   moves("/#club", "/club");
   moves("/#tu", "/hoy/lo-tuyo");
   moves("/#t%C3%BA", "/hoy/lo-tuyo");
@@ -37,6 +37,12 @@ describe("the match: /matches → /partidos", () => {
   moves("/matches/j1?tab=vestuario#vx-mvp", "/partidos/j1/vestuario#vx-mvp");
   // (an old ?tab= that reached the new address: a link written before the screens)
   moves("/partidos/j1?tab=campo", "/partidos/j1/siete");
+  // (Números was the section's name: every /numeros screen moves to the same one under /estadisticas)
+  moves("/numeros", "/estadisticas");
+  moves("/numeros/", "/estadisticas");
+  moves("/numeros/campo/puestos?temporada=t1", "/estadisticas/campo/puestos?temporada=t1");
+  moves("/numeros/juego/catalogo?partidos=m1&metrica=070", "/estadisticas/juego/catalogo?partidos=m1&metrica=070");
+  moves("/numeros/jugadores?view=minutes", "/estadisticas/jugadores?ranking=minutos&ver=todo");
   it("the new addresses stay", () => {
     for (const href of ["/partidos/j1", "/partidos/j1/siete", "/partidos/j1/mesa", "/partidos/j1?min=21", "/partidos/j1?hoja=cartel"]) expect(legacyHref(href), href).toBeNull();
   });
@@ -57,37 +63,37 @@ describe("Partidos: the old ?view=", () => {
 });
 
 describe("Números: /stats and its English parameters", () => {
-  moves("/stats", "/numeros");
-  moves("/stats?view=summary", "/numeros");
-  moves("/stats?view=players", "/numeros/jugadores");
-  moves("/stats?view=minutes", "/numeros/jugadores?ranking=minutos&ver=todo");
-  moves("/stats?view=positions&season=t1", "/numeros/campo/puestos?temporada=t1");
-  moves("/stats?view=rivals", "/numeros/rivales");
+  moves("/stats", "/estadisticas");
+  moves("/stats?view=summary", "/estadisticas");
+  moves("/stats?view=players", "/estadisticas/jugadores");
+  moves("/stats?view=minutes", "/estadisticas/jugadores?ranking=minutos&ver=todo");
+  moves("/stats?view=positions&season=t1", "/estadisticas/campo/puestos?temporada=t1");
+  moves("/stats?view=rivals", "/estadisticas/rivales");
   moves("/stats?view=compare&a=alcides&b=erik", "/plantilla/cara-a-cara?a=alcides&b=erik");
   moves("/stats?tab=compare", "/plantilla/cara-a-cara");
   moves("/stats?view=compare&a=alcides&season=t1", "/plantilla/cara-a-cara?a=alcides&season=t1");
-  moves("/stats?view=explore", "/numeros/records/marcas");
-  moves("/stats?view=explore&section=individual", "/numeros/records/marcas");
-  moves("/stats?view=explore&section=streaks", "/numeros/records");
-  moves("/stats?view=explore&section=team", "/numeros/records/marcas");
-  moves("/stats?view=explore&section=evolution", "/numeros/records/evolucion");
-  moves("/stats?view=game", "/numeros/juego");
-  moves("/stats?view=game&analysis=catalog", "/numeros/juego/catalogo");
+  moves("/stats?view=explore", "/estadisticas/records/marcas");
+  moves("/stats?view=explore&section=individual", "/estadisticas/records/marcas");
+  moves("/stats?view=explore&section=streaks", "/estadisticas/records");
+  moves("/stats?view=explore&section=team", "/estadisticas/records/marcas");
+  moves("/stats?view=explore&section=evolution", "/estadisticas/records/evolucion");
+  moves("/stats?view=game", "/estadisticas/juego");
+  moves("/stats?view=game&analysis=catalog", "/estadisticas/juego/catalogo");
   moves(
     "/stats?view=game&analysis=catalog&family=pase&metric=070&q=centro&excluded=true&team=opponent&period=2",
-    "/numeros/juego/catalogo?familia=pase&metrica=070&q=centro&equipo=rival&parte=2&fuera-del-audio=1",
+    "/estadisticas/juego/catalogo?familia=pase&metrica=070&q=centro&equipo=rival&parte=2&fuera-del-audio=1",
   );
-  moves("/stats?season=all", "/numeros?temporada=todas");
-  moves("/stats?seasons=a,b", "/numeros?temporada=a%2Cb");
+  moves("/stats?season=all", "/estadisticas?temporada=todas");
+  moves("/stats?seasons=a,b", "/estadisticas?temporada=a%2Cb");
   // (the router writes lists as JSON: both forms read the same)
-  moves(`/stats?view=game&matches=${encodeURIComponent('["m1","m2"]')}&players=${encodeURIComponent('["alcides"]')}`, "/numeros/juego?partidos=m1%2Cm2&jugadores=alcides");
-  moves("/stats?view=players&utm_source=wa", "/numeros/jugadores?utm_source=wa");
+  moves(`/stats?view=game&matches=${encodeURIComponent('["m1","m2"]')}&players=${encodeURIComponent('["alcides"]')}`, "/estadisticas/juego?partidos=m1%2Cm2&jugadores=alcides");
+  moves("/stats?view=players&utm_source=wa", "/estadisticas/jugadores?utm_source=wa");
   // (today's page still writes ?view= on its own screens until Números lands: only the screen moves)
-  moves("/numeros/jugadores?view=game&family=pase", "/numeros/juego?family=pase");
-  moves("/numeros?view=compare&a=x", "/plantilla/cara-a-cara?a=x");
-  moves("/numeros/jugadores?view=minutes", "/numeros/jugadores?ranking=minutos&ver=todo");
+  moves("/estadisticas/jugadores?view=game&family=pase", "/estadisticas/juego?family=pase");
+  moves("/estadisticas?view=compare&a=x", "/plantilla/cara-a-cara?a=x");
+  moves("/estadisticas/jugadores?view=minutes", "/estadisticas/jugadores?ranking=minutos&ver=todo");
   it("the new addresses stay", () => {
-    for (const href of ["/numeros", "/numeros/campo/puestos?temporada=temporada-1", "/numeros/juego?partidos=m1&temporada=todas"]) expect(legacyHref(href), href).toBeNull();
+    for (const href of ["/estadisticas", "/estadisticas/campo/puestos?temporada=temporada-1", "/estadisticas/juego?partidos=m1&temporada=todas"]) expect(legacyHref(href), href).toBeNull();
   });
 });
 

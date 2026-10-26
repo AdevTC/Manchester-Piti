@@ -44,7 +44,7 @@ test("las direcciones viejas llegan a las nuevas", async ({ page }) => {
     ["/matches/preview-finished?tab=campo", /\/partidos\/preview-finished\/siete$/],
     ["/matches", /\/partidos$/],
     ["/#club", /\/club$/],
-    ["/#temporada", /\/numeros$/],
+    ["/#temporada", /\/estadisticas$/],
   ] as const) {
     await page.goto("/plantilla");
     await page.goto(from);
@@ -63,7 +63,7 @@ test("cabecera sin accesos duplicados ni etiquetas partidas en escritorio compac
       const nav = header.getByRole("navigation", { name: "Navegación principal" });
       await expect(nav).toBeVisible();
       await expect(nav.getByRole("link", { name: "Club", exact: true })).toBeVisible();
-      await expect(nav.getByRole("link", { name: "Números", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "Estadísticas", exact: true })).toBeVisible();
       expect(await header.evaluate((element) => {
         const children = [...element.children].map((child) => child.getBoundingClientRect());
         const links = [...element.querySelectorAll(".vx-nav a")];
@@ -84,7 +84,7 @@ test("jugador, datos de temporada y reparto real de minutos", async ({
   await expect(four.locator("b")).toHaveText("40′");
   await expect(page.locator(".pl-nums").getByText("40′", { exact: true })).toBeVisible();
   // Números: each player's minutes of the season, in Jugadores › «Todos los jugadores», columns «Minutos»
-  await page.goto("/numeros/jugadores?temporada=preview-season&ranking=minutos&ver=todo");
+  await page.goto("/estadisticas/jugadores?temporada=preview-season&ranking=minutos&ver=todo");
   const all = page.getByRole("region", { name: "Todos los jugadores" });
   await all.getByRole("radiogroup", { name: "Qué columnas ver" }).getByRole("radio", { name: "Minutos" }).click();
   const table = all.getByRole("table", { name: "Todos los jugadores" });
@@ -125,7 +125,7 @@ test("navegación móvil sin desbordamiento", async ({ page }) => {
     await expect(page.locator(".vx-top").getByRole("link", { name: "Entrar al vestuario" })).toBeVisible();
     // the boards' tab bar: five pages, each with its label
     await expect(nav.getByRole("link")).toHaveCount(5);
-    await expect(nav.getByRole("link", { name: "Números" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Estadísticas" })).toBeVisible();
     await nav.getByRole("link", { name: "Plantilla" }).click();
     await expect(page.getByLabel("Buscar jugador")).toBeVisible();
     expect(await page.locator(".vx-top").evaluate((element) => [...element.children].every((child) => child.getBoundingClientRect().right <= innerWidth))).toBe(true);

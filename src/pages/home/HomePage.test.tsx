@@ -157,7 +157,7 @@ describe("Inicio, la portada", () => {
     render(<HomePage />);
     expect(screen.getByRole("heading", { name: "Desde la grada" })).toBeInTheDocument();
     const doors = screen.getByRole("region", { name: "Por la casa" });
-    expect(within(doors).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["Partidos", "Plantilla", "Números", "Club", "El vestuario", "Ponte la del Piti"]);
+    expect(within(doors).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["Partidos", "Plantilla", "Estadísticas", "Club", "El vestuario", "Ponte la del Piti"]);
   });
 
   it("«Síguenos» closes the page: the club's Instagram and YouTube, in another tab", () => {

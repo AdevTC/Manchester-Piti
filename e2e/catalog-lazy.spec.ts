@@ -61,7 +61,7 @@ test("Catálogo: carga 24 al acercarse, reinicia filtros y conserva contexto al 
   const f = await fixture();
   try {
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(`/numeros/juego/catalogo?temporada=${f.seasonId}&partidos=${f.id}`);
+    await page.goto(`/estadisticas/juego/catalogo?temporada=${f.seasonId}&partidos=${f.id}`);
     const list = page.getByRole("list", { name: "Estadísticas del catálogo", exact: true });
     const rows = list.locator(":scope > li");
     await expect(rows).toHaveCount(24);
@@ -119,7 +119,7 @@ test("Catálogo: Mostrar más sigue disponible sin IntersectionObserver", async 
   await page.addInitScript(() => Object.defineProperty(window, "IntersectionObserver", { value: undefined, configurable: true }));
   const f = await fixture();
   try {
-    await page.goto(`/numeros/juego/catalogo?temporada=${f.seasonId}&partidos=${f.id}`);
+    await page.goto(`/estadisticas/juego/catalogo?temporada=${f.seasonId}&partidos=${f.id}`);
     const rows = page.getByRole("list", { name: "Estadísticas del catálogo", exact: true }).locator(":scope > li");
     await expect(rows).toHaveCount(24);
     await page.getByRole("button", { name: /^Mostrar más \(24 de/ }).click();

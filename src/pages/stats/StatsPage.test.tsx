@@ -5,8 +5,8 @@ import type { ClubMatch } from "../../lib/clubData";
 import { statsSearchSchema } from "../../router";
 import type { ExploreSectionId, StatsView } from "../../lib/interimScreens";
 
-// Números (today's /stats page on the /numeros screens): the «Posiciones» tab (after «Minutos», its own
-// address, /numeros/campo/puestos) and the Resumen constellation placed by exact position. Data, season and
+// Números (today's /stats page on the /estadisticas screens): the «Posiciones» tab (after «Minutos», its own
+// address, /estadisticas/campo/puestos) and the Resumen constellation placed by exact position. Data, season and
 // router are stubbed: no Firebase. The stubbed address is the screen of the stubbed search's old view.
 
 const search = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
@@ -84,12 +84,12 @@ describe("StatsPage · Posiciones", () => {
     expect(screen.getByRole("region", { name: "El récord de cada sistema" })).toHaveTextContent("2-3-1 · Clásico");
   });
 
-  it("clicking «Posiciones» navigates to its screen, /numeros/campo/puestos", () => {
+  it("clicking «Posiciones» navigates to its screen, /estadisticas/campo/puestos", () => {
     search.value = { view: "summary" };
     render(<StatsPage />);
     fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de estadísticas" })).getByRole("button", { name: "Posiciones" }));
     const call = navigate.mock.lastCall?.[0] as { to: string; search: (prev: Record<string, unknown>) => Record<string, unknown> };
-    expect(call.to).toBe("/numeros/campo/puestos");
+    expect(call.to).toBe("/estadisticas/campo/puestos");
     expect(call.search({ season: "t1", view: "summary" })).toStrictEqual({ season: "t1" });
   });
 

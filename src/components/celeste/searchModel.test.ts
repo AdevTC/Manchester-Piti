@@ -55,7 +55,7 @@ describe("what each viewer finds (Main board, «Quién ve qué»)", () => {
   });
   it("where things lead: rivals to Números › Rivales, «Al calendario» to the calendar block, the shirt to the club", () => {
     const all = buildEntries(input(JUGADOR));
-    expect(all.find((e) => e.id === "r:Orduña fc")?.go).toEqual({ to: "href", href: "/numeros/rivales?rival=orduna-fc" });
+    expect(all.find((e) => e.id === "r:Orduña fc")?.go).toEqual({ to: "href", href: "/estadisticas/rivales?rival=orduna-fc" });
     expect(all.find((e) => e.id === "a:calendario")?.go).toEqual({ to: "href", href: "/avisos/a-medida", anchor: "tu-cal" });
     expect(all.find((e) => e.id === "a:camiseta")?.go).toEqual({ to: "href", href: "/club/equipo/camiseta" });
     expect(all.find((e) => e.id === "f:amedida")?.go).toEqual({ to: "href", href: "/avisos/a-medida" });

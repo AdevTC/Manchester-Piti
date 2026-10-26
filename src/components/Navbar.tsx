@@ -13,7 +13,7 @@ const links = [
   { to: "/", name: "Inicio", icon: Home },
   { to: "/partidos", name: "Partidos", icon: CalendarDays },
   { to: "/plantilla", name: "Plantilla", icon: Users },
-  { to: "/numeros", name: "Estadísticas", icon: ChartNoAxesColumnIncreasing },
+  { to: "/estadisticas", name: "Estadísticas", icon: ChartNoAxesColumnIncreasing },
 ] as const;
 export function Navbar() {
   const path = useRouterState({ select: (s) => s.location.pathname });

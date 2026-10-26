@@ -48,7 +48,7 @@ export function DondeHasJugado({ played, positions, seasonId, seasonName, nudge,
           <Ic n="right" />
         </button>
       )}
-      <Link className="btn sm bk-go" to="/numeros/campo/puestos" search={{ ...(seasonId && seasonId !== "all" ? { temporada: seasonId } : {}) }}>
+      <Link className="btn sm bk-go" to="/estadisticas/campo/puestos" search={{ ...(seasonId && seasonId !== "all" ? { temporada: seasonId } : {}) }}>
         Ver las posiciones del equipo
         <Ic n="right" />
       </Link>

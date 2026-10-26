@@ -89,8 +89,8 @@ await test("Tabla and Balance are their own server-rendered addresses; Jornadas 
     const jornadas = await page("/partidos");
     assert.ok(jornadas.includes("data-ssr"));
     assert.ok(jornadas.includes("pa pa--jornadas"), "Jornadas at /partidos");
-    for (const path of ["/numeros", "/numeros/jugadores", "/club/historia", "/plantilla/album"]) assert.ok((await page(path)).includes("data-ssr"), `${path} is server-rendered`);
-    assert.ok(!(await page("/numeros/nada")).includes("data-ssr"), "an unknown screen gets the plain shell");
+    for (const path of ["/estadisticas", "/estadisticas/jugadores", "/club/historia", "/plantilla/album"]) assert.ok((await page(path)).includes("data-ssr"), `${path} is server-rendered`);
+    assert.ok(!(await page("/estadisticas/nada")).includes("data-ssr"), "an unknown screen gets the plain shell");
   } finally {
     globalThis.fetch = fetchBefore;
   }
@@ -105,15 +105,16 @@ await test("the old addresses answer a permanent redirect with their parameters,
     for (const [request, location] of [
       ["p=/partidos&view=tabla&temporada=t0", "/partidos/tabla?temporada=t0"],
       ["p=/partidos&view=numeros", "/partidos/balance"],
-      ["p=/stats", "/numeros"],
-      ["p=/stats&view=players&season=t1", "/numeros/jugadores?temporada=t1"],
+      ["p=/stats", "/estadisticas"],
+      ["p=/stats&view=players&season=t1", "/estadisticas/jugadores?temporada=t1"],
       ["p=/stats&view=compare&a=alcides&b=erik", "/plantilla/cara-a-cara?a=alcides&b=erik"],
       ["p=/matches/j1", "/partidos/j1"],
       ["p=/matches/j1&tab=campo", "/partidos/j1/siete"],
       ["p=/matches/j1&tab=vestuario", "/partidos/j1/vestuario"],
       // (as Vercel calls it: the rewrite also appends its named segments, never part of the new address)
       ["p=/matches/j1&id=j1&tab=campo", "/partidos/j1/siete"],
-      ["p=/numeros/jugadores&path=jugadores&view=minutes", "/numeros/jugadores?ranking=minutos&ver=todo"],
+      ["p=/numeros/records/marcas&path=records/marcas", "/estadisticas/records/marcas"],
+      ["p=/estadisticas/jugadores&path=jugadores&view=minutes", "/estadisticas/jugadores?ranking=minutos&ver=todo"],
     ]) {
       const response = await GET(new Request(`https://piti.test/api/render?${request}`));
       assert.equal(response.status, 308, request);

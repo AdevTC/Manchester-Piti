@@ -4,16 +4,16 @@ import { anchorAt, statsViewAt, statsViewPath, type StatsView } from "./interimS
 // Until each redesign lands, a new address opens today's page on what its old ?view=, ?tab= or #hash opened.
 describe("Números: the view of each screen", () => {
   it("reads it from the address", () => {
-    expect(statsViewAt("/numeros", {})).toEqual({ view: "summary" });
-    expect(statsViewAt("/numeros/y-si", {})).toEqual({ view: "summary" });
-    expect(statsViewAt("/numeros/jugadores", {})).toEqual({ view: "players" });
-    expect(statsViewAt("/numeros/jugadores", { ranking: "minutos" })).toEqual({ view: "minutes" });
-    expect(statsViewAt("/numeros/campo/puestos", {})).toEqual({ view: "positions" });
-    expect(statsViewAt("/numeros/juego/catalogo", {})).toEqual({ view: "game" });
-    expect(statsViewAt("/numeros/rivales/", {})).toEqual({ view: "rivals" });
-    expect(statsViewAt("/numeros/records", {})).toEqual({ view: "explore", section: "streaks" });
-    expect(statsViewAt("/numeros/records/marcas", {})).toEqual({ view: "explore", section: "individual" });
-    expect(statsViewAt("/numeros/records/evolucion", {})).toEqual({ view: "explore", section: "evolution" });
+    expect(statsViewAt("/estadisticas", {})).toEqual({ view: "summary" });
+    expect(statsViewAt("/estadisticas/y-si", {})).toEqual({ view: "summary" });
+    expect(statsViewAt("/estadisticas/jugadores", {})).toEqual({ view: "players" });
+    expect(statsViewAt("/estadisticas/jugadores", { ranking: "minutos" })).toEqual({ view: "minutes" });
+    expect(statsViewAt("/estadisticas/campo/puestos", {})).toEqual({ view: "positions" });
+    expect(statsViewAt("/estadisticas/juego/catalogo", {})).toEqual({ view: "game" });
+    expect(statsViewAt("/estadisticas/rivales/", {})).toEqual({ view: "rivals" });
+    expect(statsViewAt("/estadisticas/records", {})).toEqual({ view: "explore", section: "streaks" });
+    expect(statsViewAt("/estadisticas/records/marcas", {})).toEqual({ view: "explore", section: "individual" });
+    expect(statsViewAt("/estadisticas/records/evolucion", {})).toEqual({ view: "explore", section: "evolution" });
   });
   it("each view's tab goes to a screen that reads back as that view", () => {
     const views: StatsView[] = ["summary", "players", "positions", "rivals", "game", "explore"];

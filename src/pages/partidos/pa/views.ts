@@ -844,7 +844,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
       fc.noteIcon = "ball";
     }
     fc.door = "Todos los jugadores, en Estadísticas";
-    fc.doorPath = "/numeros/jugadores";
+    fc.doorPath = "/estadisticas/jugadores";
   } else if (facet === "minutos") {
     if (stintsOne?.raw.min) {
       const mm = stintsOne;
@@ -906,7 +906,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
       ];
     }
     fc.door = "Rachas y marcas, en Récords";
-    fc.doorPath = "/numeros/records";
+    fc.doorPath = "/estadisticas/records";
   } else if (facet === "porteria") {
     const gaSum = scopeMs.reduce((a, m) => a + (m.score?.ga ?? 0), 0);
     fc.line = scopeMs.length ? `${plural(gaSum, "gol encajado", "goles encajados")} en ${plural(scopeMs.length, "partido")}.` : "Por estrenar.";
@@ -937,7 +937,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
     fc.whenAria = `Goles por tramos de cinco minutos. Nuestros: ${stre.us.join(", ")}. Suyos: ${stre.them.join(", ")}.`;
     if (usT + thT > 0) fc.stretch = stre.us.map((u, i) => ({ u: Math.round((u / stMax) * 44), d: Math.round((stre.them[i] / stMax) * 44) }));
     fc.door = "Cómo se juega, en El juego";
-    fc.doorPath = "/numeros/juego";
+    fc.doorPath = "/estadisticas/juego";
   } else {
     const mxRows = rivals.map((rv) => {
       const gs = ms.filter((m) => m.rival === rv);
@@ -960,7 +960,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
     growTo(mxRows.length, `los ${mxRows.length}`, mxCap);
     fc.mx = mxRows.slice(0, st.all ? 99 : mxCap);
     fc.door = "Rival a rival, en Estadísticas";
-    fc.doorPath = "/numeros/rivales";
+    fc.doorPath = "/estadisticas/rivales";
   }
   return {
     picked,

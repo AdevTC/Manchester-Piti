@@ -100,7 +100,7 @@ export function Temporada(p: ScreenProps) {
   const act: Act | null = started ? { t: "Ver tus cromos", icon: "play", go: () => go({ page: "perfil", sec: "temporada", open: "cromos" }) } : null;
   const more = [
     { t: "Tu página pública", icon: "arrow" as const, go: () => void navigate({ to: "/jugadores/$playerId/temporada", params: { playerId: pid } }) },
-    { t: "Los números del equipo", icon: "chart" as const, go: () => void navigate({ to: "/numeros" }) },
+    { t: "Los números del equipo", icon: "chart" as const, go: () => void navigate({ to: "/estadisticas" }) },
   ];
   return (
     <Screen title="Temporada" desc={secDesc("temporada", "jugador", false)} act={act} more={more}>

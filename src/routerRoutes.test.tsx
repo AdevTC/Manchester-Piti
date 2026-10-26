@@ -63,7 +63,7 @@ describe("every new address resolves", () => {
     partidos: ["/partidos", "/partidos/tabla", "/partidos/balance"],
     "el partido": ["/partidos/j1", "/partidos/j1/siete", "/partidos/j1/numeros", "/partidos/j1/vestuario"],
     "la mesa": ["/partidos/j1/mesa"],
-    números: ["/numeros", "/numeros/y-si", "/numeros/jugadores", "/numeros/campo", "/numeros/campo/puestos", "/numeros/campo/sistemas", "/numeros/juego", "/numeros/juego/tabla", "/numeros/juego/graficas", "/numeros/juego/catalogo", "/numeros/rivales", "/numeros/records", "/numeros/records/marcas", "/numeros/records/cromos", "/numeros/records/evolucion"],
+    números: ["/estadisticas", "/estadisticas/y-si", "/estadisticas/jugadores", "/estadisticas/campo", "/estadisticas/campo/puestos", "/estadisticas/campo/sistemas", "/estadisticas/juego", "/estadisticas/juego/tabla", "/estadisticas/juego/graficas", "/estadisticas/juego/catalogo", "/estadisticas/rivales", "/estadisticas/records", "/estadisticas/records/marcas", "/estadisticas/records/cromos", "/estadisticas/records/evolucion"],
     "la percha": ["/plantilla", "/plantilla/album", "/plantilla/cara-a-cara", "/jugadores/alcides", "/jugadores/alcides/temporada", "/jugadores/alcides/jornadas", "/jugadores/alcides/juego", "/jugadores/alcides/analisis", "/jugadores/alcides/cromo"],
     "el club": ["/club", "/club/vitrina", "/club/vitrina/escudo", "/club/historia", "/club/equipo", "/club/equipo/camiseta", "/club/gente"],
     "el vestuario": ["/vestuario", "/vestuario/caja", "/vestuario/encuestas", "/vestuario/encuestas/p1", "/vestuario/ausencias", "/vestuario/turnos", "/vestuario/entrenos", "/vestuario/tablon", "/vestuario/puerta", "/vestuario/ficha"],
@@ -72,7 +72,7 @@ describe("every new address resolves", () => {
   };
   it("none falls to the 404", () => {
     for (const path of Object.values(AREAS).flat()) expect(leaf(path), path).not.toBe("/$");
-    expect(leaf("/numeros/nada")).toBe("/$");
+    expect(leaf("/estadisticas/nada")).toBe("/$");
     expect(leaf("/partidos/j1/nada")).toBe("/$");
   });
   it.each(Object.entries(AREAS).flatMap(([page, paths]) => paths.map((path) => [path, page])))("%s opens %s", async (path, page) => {
@@ -116,12 +116,13 @@ describe("every old address redirects, with its parameters, replacing the old en
     ["/admin/en-juego/j1", "/partidos/j1/mesa", "la mesa"],
     ["/matches", "/partidos", "partidos"],
     ["/partidos?view=numeros&temporada=t0", "/partidos/balance?temporada=t0", "partidos"],
-    ["/stats?view=positions&season=t1", "/numeros/campo/puestos?temporada=t1", "números"],
+    ["/stats?view=positions&season=t1", "/estadisticas/campo/puestos?temporada=t1", "números"],
     ["/stats?view=compare&a=alcides&b=erik", "/plantilla/cara-a-cara?a=alcides&b=erik", "la percha"],
     ["/profile#temporada", "/perfil/temporada", "tu página"],
     ["/club#cl-kits", "/club/equipo", "el club"],
     ["/vestuario#vx-caja", "/vestuario/caja", "el vestuario"],
-    ["/#temporada", "/numeros", "números"],
+    ["/#temporada", "/estadisticas", "números"],
+    ["/numeros/rivales?temporada=t1", "/estadisticas/rivales?temporada=t1", "números"],
     ["/jugadores", "/plantilla", "la percha"],
     ["/jugadores/alcides/posiciones", "/jugadores/alcides/juego", "la percha"],
   ])("%s → %s", async (from, to, page) => {
@@ -198,11 +199,11 @@ describe("tu página: /perfil and /avisos are one page", () => {
 });
 
 describe("Números' old ?view=minutes keeps its ranking", () => {
-  it("/numeros/jugadores?view=minutes → /numeros/jugadores?ranking=minutos&ver=todo", async () => {
-    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/numeros/jugadores?view=minutes"] }));
+  it("/estadisticas/jugadores?view=minutes → /estadisticas/jugadores?ranking=minutos&ver=todo", async () => {
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/estadisticas/jugadores?view=minutes"] }));
     render(<RouterProvider router={router} />);
     expect(await screen.findByRole("heading", { level: 1, name: "números" })).toBeInTheDocument();
-    await waitFor(() => expect(router.state.location.href).toBe("/numeros/jugadores?ranking=minutos&ver=todo"));
+    await waitFor(() => expect(router.state.location.href).toBe("/estadisticas/jugadores?ranking=minutos&ver=todo"));
   });
 });
 

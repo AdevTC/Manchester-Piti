@@ -88,8 +88,8 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
     await expect(page.getByText(quote, { exact: true })).toBeVisible();
     // The match's Números says the acta's numbers and opens its full analysis in Números.
     await page.goto(`/partidos/${matchId}/numeros`);
-    await page.getByRole('link', { name: 'Abrir el análisis en Números' }).click();
-    await expect(page).toHaveURL(/\/numeros\/juego\?/);
+    await page.getByRole('link', { name: 'Abrir el análisis en Estadísticas' }).click();
+    await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
     await expect(page.getByRole('list', { name: 'Indicadores de la selección' }).getByRole('button', { name: /Pases intentados/ }).locator('.nu-fig__v')).toHaveText('1');
     await page.goto(`/admin/partidos/${matchId}?tab=acta`);
     const pass = page.locator('.ae-review-events > li').filter({ has: page.getByText('Pase', { exact: true }) });
@@ -98,7 +98,7 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
     await expect.poll(savedNumbers).toEqual({ minutes: 3, passes: 0 });
     await page.reload();
     await expect(page.getByRole('heading', { name: '1 observaciones del análisis' })).toBeVisible();
-    await page.goto(`/numeros/juego?temporada=todas&partidos=${matchId}`);
+    await page.goto(`/estadisticas/juego?temporada=todas&partidos=${matchId}`);
     await expect(page.getByRole('list', { name: 'Indicadores de la selección' }).getByRole('button', { name: /Pases intentados/ }).locator('.nu-fig__v')).toHaveText('0');
   } catch (error) {
     console.error('Fallo previo a la limpieza de la fixture:', error);

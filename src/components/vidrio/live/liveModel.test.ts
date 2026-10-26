@@ -122,7 +122,7 @@ describe("small rules", () => {
   it("the float's resting spot per page: Inicio under the bar, low where the top-right is the page's own", () => {
     expect(floatHome("/")).toBe("centre");
     for (const p of ["/partidos", "/partidos/balance", "/partidos/j3", "/partidos/j3/vestuario", "/perfil", "/perfil/ajustes"]) expect(floatHome(p)).toBe("bottom-right");
-    for (const p of ["/numeros", "/numeros/jugadores", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
+    for (const p of ["/estadisticas", "/estadisticas/jugadores", "/plantilla", "/club", "/vestuario", "/jugadores/erik"]) expect(floatHome(p)).toBe("right");
   });
 
   it("«Sacar el marcador» rests bottom-right, above the float where the float rests there too", () => {

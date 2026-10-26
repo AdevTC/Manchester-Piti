@@ -642,8 +642,8 @@ export function PlantillaPage() {
                     ))}
                   </ol>
                   <p className="pl-body">{home.pi.assists}</p>
-                  <Link className="vd-link pl-linkbtn" to="/numeros/jugadores">
-                    La tabla entera, en Números
+                  <Link className="vd-link pl-linkbtn" to="/estadisticas/jugadores">
+                    La tabla entera, en Estadísticas
                   </Link>
                 </section>
                 <section className="pl-col pl-col--more" aria-label="Más de la plantilla">

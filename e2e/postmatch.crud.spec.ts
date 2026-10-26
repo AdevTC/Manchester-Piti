@@ -29,8 +29,8 @@ test('resumen personal en el vestuario del partido y cobertura sin confundir cer
   await summary.scrollIntoViewIfNeeded();await page.screenshot({path:testInfo.outputPath('postmatch-mobile.png')});
   // The analysis lives in Números: the match's Números screen opens it for this match.
   await page.goto('/partidos/preview-balance/numeros');
-  await page.getByRole('link',{name:'Abrir el análisis en Números'}).click();
-  await expect(page).toHaveURL(/\/numeros\/juego\?/);
+  await page.getByRole('link',{name:'Abrir el análisis en Estadísticas'}).click();
+  await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
   // Coverage belongs to each figure: one recorded pass is partial; a figure the acta never narrated says «–».
   const cards=page.getByRole('list',{name:'Indicadores de la selección'});
   const attempts=cards.getByRole('button',{name:/Pases intentados/});
@@ -43,7 +43,7 @@ test('resumen personal en el vestuario del partido y cobertura sin confundir cer
   await expect(detail.locator('.nu-ev').getByRole('listitem')).toHaveCount(1);
   await page.screenshot({path:testInfo.outputPath('coverage-mobile.png')});
   // The previous acta explicitly covers the whole game: here no passes really is zero, a number and not «–».
-  await page.goto('/numeros/juego?temporada=todas&partidos=preview-balance-previous');
+  await page.goto('/estadisticas/juego?temporada=todas&partidos=preview-balance-previous');
   await expect(attempts.locator('.nu-fig__v')).toHaveText('0');
 });
 

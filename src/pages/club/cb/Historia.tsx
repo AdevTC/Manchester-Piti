@@ -367,7 +367,7 @@ export function Historia({ S, pieces, seasonLine, last, moments, story, meta, cr
             <Go className="vd-link" href="/partidos">
               La temporada en Partidos
             </Go>
-            <Go className="vd-link" href="/numeros">
+            <Go className="vd-link" href="/estadisticas">
               Sus números
             </Go>
           </p>

@@ -316,7 +316,7 @@ export function Portada(p: PortadaProps) {
           <li className="in-door in-door--numeros">
             <PageLink to="numeros" className="in-door__a">
               <span className="in-door__t">
-                <b>Números</b>
+                <b>Estadísticas</b>
                 <span>{doors.numeros}</span>
               </span>
               <span className="in-big" aria-hidden="true">

@@ -57,7 +57,7 @@ describe("RootLayout · the 404 route", () => {
   it("the catch-all never takes an address the app has", () => {
     const router = createAppRouter(createMemoryHistory({ initialEntries: ["/"] }));
     const leaf = (path: string) => router.matchRoutes(path, {}).at(-1)?.routeId;
-    for (const path of ["/", "/partidos", "/numeros", "/plantilla", "/club", "/vestuario", "/pizarra", "/perfil", "/partidos/j1", "/jugadores/erik", "/admin", "/admin/partidos/j1", "/invitacion/abc"])
+    for (const path of ["/", "/partidos", "/estadisticas", "/plantilla", "/club", "/vestuario", "/pizarra", "/perfil", "/partidos/j1", "/jugadores/erik", "/admin", "/admin/partidos/j1", "/invitacion/abc"])
       expect(leaf(path), path).not.toBe("/$");
     expect(leaf("/partido")).toBe("/$");
     expect(leaf("/adminx")).toBe("/$");

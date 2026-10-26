@@ -57,7 +57,7 @@ export function RootLayout() {
   const adminApp = adminPath && (checking || (!door && admin));
   // A member who is not a captain, on /admin: a Celeste page that sends him back to the vestuario.
   const adminDoor = adminPath && !checking && !door && !admin;
-  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/numeros", "/club", "/jugadores", "/buscar", "/perfil", "/avisos"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/estadisticas", "/club", "/jugadores", "/buscar", "/perfil", "/avisos"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (

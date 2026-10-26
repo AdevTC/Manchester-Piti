@@ -19,7 +19,7 @@ export function PageLink({ to, ...p }: LinkBits & { to: Page }) {
     case "plantilla":
       return <Link to="/plantilla" {...p} />;
     case "numeros":
-      return <Link to="/numeros" {...p} />;
+      return <Link to="/estadisticas" {...p} />;
     case "club":
       return <Link to="/club" {...p} />;
     case "vestuario":

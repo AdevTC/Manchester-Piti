@@ -39,8 +39,8 @@ test("la portada «Vidrio»: el titular y la lente, las pantallas, la temporada,
   await expect(page).toHaveURL(/\/partidos$/);
   await expect(page.getByRole("slider", { name: /^La temporada entera/ })).toBeVisible();
   await page.goto("/#temporada");
-  await expect(page).toHaveURL(/\/numeros$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Números" })).toBeVisible();
+  await expect(page).toHaveURL(/\/estadisticas$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Estadísticas" })).toBeVisible();
 
   // «Ponte la del Piti»: the fan's name goes on the shirt, and a fan is invited into the vestuario.
   await page.goto("/");

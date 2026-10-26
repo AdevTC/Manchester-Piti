@@ -38,8 +38,8 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await expect(page.getByText(/Acta .* corregida · web al día/)).toBeVisible();
   // The full analysis lives in Números now: the match's Números screen opens El juego for this match.
   await page.goto("/partidos/preview-finished/numeros");
-  await page.getByRole("link", { name: "Abrir el análisis en Números" }).click();
-  await expect(page).toHaveURL(/\/numeros\/juego\?/);
+  await page.getByRole("link", { name: "Abrir el análisis en Estadísticas" }).click();
+  await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
   expect(new URL(page.url()).searchParams.get("partidos")).toBe("preview-finished");
   // «Quién conecta con quién»: the corrected pass, Marcos → Pablo
   const pairs = page.locator(".nu-conn");

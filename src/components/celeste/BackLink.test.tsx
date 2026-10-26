@@ -30,7 +30,7 @@ function setup(url: string) {
   });
   const siete = createRoute({ getParentRoute: () => root, path: "/partidos/$matchId/siete", component: () => <BackLink className="fc-back" to="/partidos" label="Partidos" /> });
   const router = createRouter({
-    routeTree: root.addChildren([page("/", "inicio"), page("/numeros", "stats"), page("/partidos", "partidos"), match, siete]),
+    routeTree: root.addChildren([page("/", "inicio"), page("/estadisticas", "stats"), page("/partidos", "partidos"), match, siete]),
     history: createMemoryHistory({ initialEntries: [url] }),
   });
   render(<RouterProvider router={router} />);
@@ -54,7 +54,7 @@ describe("BackLink", () => {
   });
 
   it("came from the stats: «Volver» goes back there (a history step, not a new entry)", async () => {
-    const router = setup("/numeros");
+    const router = setup("/estadisticas");
     expect(await screen.findByRole("heading", { name: "stats" })).toBeInTheDocument();
     await act(() => router.navigate({ to: "/partidos/$matchId", params: { matchId: "j1" } }));
     const back = await screen.findByRole("link", { name: "Volver" });
@@ -63,7 +63,7 @@ describe("BackLink", () => {
     const length = router.history.length;
     fireEvent.click(back);
     expect(await screen.findByRole("heading", { name: "stats" })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/numeros");
+    expect(router.state.location.pathname).toBe("/estadisticas");
     expect(router.history.length).toBe(length);
   });
 
@@ -96,7 +96,7 @@ describe("BackLink", () => {
   });
 
   it("a modified click (new tab) is left to the browser: no history step", async () => {
-    const router = setup("/numeros");
+    const router = setup("/estadisticas");
     expect(await screen.findByRole("heading", { name: "stats" })).toBeInTheDocument();
     await act(() => router.navigate({ to: "/partidos/$matchId", params: { matchId: "j1" } }));
     const back = await screen.findByRole("link", { name: "Volver" });

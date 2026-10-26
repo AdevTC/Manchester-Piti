@@ -266,11 +266,11 @@ const mesaRoute = createRoute({
   component: lazyRouteComponent(() => import("./pages/mesa/Mesa"), "Mesa"),
 });
 
-// ── Números: one address per screen, under the time bar (the screens only name themselves: NumerosPage reads
+// ── Estadísticas: one address per screen, under the time bar (the screens only name themselves: NumerosPage reads
 // the address).
 const statsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/numeros",
+  path: "/estadisticas",
   validateSearch: numerosSearchSchema,
   component: lazyRouteComponent(() => import("./pages/stats/NumerosPage"), "NumerosPage"),
 });

@@ -1,4 +1,4 @@
-// Until a page's Vidrio redesign lands, its new addresses (/numeros/jugadores, /partidos/<id>/siete,
+// Until a page's Vidrio redesign lands, its new addresses (/estadisticas/jugadores, /partidos/<id>/siete,
 // /perfil/ajustes, /club/historia…) render today's page, which still picks its view, tab or block from the
 // old ?view=, ?tab= or #hash. These say which one each new address means, so an old link redirected here
 // (a push notice, a bookmark) still opens what it used to. Each page session drops its part when its page
@@ -14,44 +14,44 @@ export type ExploreSectionId = "individual" | "streaks" | "team" | "evolution";
  *  statsViewPath. Números reads its own address (pages/stats/numeros/url.ts); Plantilla renders its own cara a cara. */
 export function statsViewAt(pathname: string, search: Search): { view: StatsView; section?: ExploreSectionId } {
   const p = trim(pathname);
-  if (p === "/numeros/jugadores") return { view: search.ranking === "minutos" ? "minutes" : "players" };
-  if (p.startsWith("/numeros/campo")) return { view: "positions" };
-  if (p.startsWith("/numeros/juego")) return { view: "game" };
-  if (p === "/numeros/rivales") return { view: "rivals" };
-  if (p === "/numeros/records") return { view: "explore", section: "streaks" };
-  if (p === "/numeros/records/evolucion") return { view: "explore", section: "evolution" };
-  if (p.startsWith("/numeros/records")) return { view: "explore", section: "individual" };
+  if (p === "/estadisticas/jugadores") return { view: search.ranking === "minutos" ? "minutes" : "players" };
+  if (p.startsWith("/estadisticas/campo")) return { view: "positions" };
+  if (p.startsWith("/estadisticas/juego")) return { view: "game" };
+  if (p === "/estadisticas/rivales") return { view: "rivals" };
+  if (p === "/estadisticas/records") return { view: "explore", section: "streaks" };
+  if (p === "/estadisticas/records/evolucion") return { view: "explore", section: "evolution" };
+  if (p.startsWith("/estadisticas/records")) return { view: "explore", section: "individual" };
   return { view: "summary" };
 }
 
 /** The address of today's Números view (the page's own tabs move between screens). */
 export type StatsScreenPath =
-  | "/numeros"
-  | "/numeros/jugadores"
-  | "/numeros/campo/puestos"
-  | "/numeros/rivales"
-  | "/numeros/juego"
-  | "/numeros/records"
-  | "/numeros/records/marcas"
-  | "/numeros/records/evolucion"
+  | "/estadisticas"
+  | "/estadisticas/jugadores"
+  | "/estadisticas/campo/puestos"
+  | "/estadisticas/rivales"
+  | "/estadisticas/juego"
+  | "/estadisticas/records"
+  | "/estadisticas/records/marcas"
+  | "/estadisticas/records/evolucion"
   | "/plantilla/cara-a-cara";
 export function statsViewPath(view: StatsView, section?: ExploreSectionId): StatsScreenPath {
   switch (view) {
     case "players":
     case "minutes":
-      return "/numeros/jugadores";
+      return "/estadisticas/jugadores";
     case "positions":
-      return "/numeros/campo/puestos";
+      return "/estadisticas/campo/puestos";
     case "rivals":
-      return "/numeros/rivales";
+      return "/estadisticas/rivales";
     case "compare":
       return "/plantilla/cara-a-cara";
     case "game":
-      return "/numeros/juego";
+      return "/estadisticas/juego";
     case "explore":
-      return section === "streaks" ? "/numeros/records" : section === "evolution" ? "/numeros/records/evolucion" : "/numeros/records/marcas";
+      return section === "streaks" ? "/estadisticas/records" : section === "evolution" ? "/estadisticas/records/evolucion" : "/estadisticas/records/marcas";
     default:
-      return "/numeros";
+      return "/estadisticas";
   }
 }
 
