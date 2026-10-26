@@ -1015,7 +1015,7 @@ function RivalButton({ r, sheet }: { r: RivRow; sheet?: boolean }) {
           </li>
         ))}
       </ol>
-      {r.live && <span className="vd-live nu-rivb__n">Esta noche, en directo</span>}
+      {r.live && <span className="vd-live nu-rivb__n">{r.live}</span>}
       {r.next && <span className="nu-rivb__n">{r.next}</span>}
     </button>
   );
@@ -1075,11 +1075,11 @@ export function Rivales({ v, grow, onClose }: { v: V; grow: boolean; onClose: ()
   if (grow)
     return (
       <GrowWin id="nu-g-riv" title="Todos los rivales" onClose={onClose}>
-        <p className="nu-grow__note">{r.n} rivales en la liga. Primero, el de esta noche.</p>
+        <p className="nu-grow__note">{r.growNote}</p>
         <ul className="nu-rivs">
           {r.rows.map((x) => (
             <li key={x.key}>
-              <RivalButton r={{ ...x, live: false }} sheet />
+              <RivalButton r={{ ...x, live: "" }} sheet />
             </li>
           ))}
         </ul>

@@ -7,7 +7,7 @@ import type { ClubMatch } from "../../../lib/clubData";
 import type { StandingRow } from "../../../lib/standings";
 import { projectTable, tableFocus } from "../../../lib/derived/vidrio/table";
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
-import { madridDate, madridTime, MONTHS_SHORT } from "../../../lib/derived/madrid";
+import { madridDate, madridTime, MONTHS_SHORT, tonightWord } from "../../../lib/derived/madrid";
 import { andList } from "./model";
 import type { ResultWords, Score } from "./model";
 
@@ -139,7 +139,7 @@ function viewItems(rows: readonly NRow[], all: boolean, opts: { marks?: boolean;
 export function tableView(
   mo: Moment,
   rows: readonly StandingRow[],
-  o: { rival: string; score: Score; pick: Letter | null; all: boolean; jornada: number | null; tableJornada: number | null; already: boolean; allZero: boolean },
+  o: { rival: string; score: Score; pick: Letter | null; all: boolean; jornada: number | null; tableJornada: number | null; already: boolean; allZero: boolean; kickoff: number | null },
 ): TableView {
   const j = o.jornada ? `la J${o.jornada}` : "la jornada";
   let title = "La clasificación";
@@ -156,7 +156,7 @@ export function tableView(
       sub = `Con un ${gf}–${ga}, por ejemplo; los demás, sin jugar`;
     } else {
       list = rowsAsIs(rows, null);
-      sub = o.allZero ? "Todos a cero: la liga empieza esta noche" : `Como está, antes de ${j}`;
+      sub = o.allZero ? `Todos a cero: la liga empieza ${tonightWord(o.kickoff)}` : `Como está, antes de ${j}`;
     }
   } else if (mo.played && !mo.done && !o.already) {
     list = rowsProjected(rows, o.rival, o.score.us, o.score.them);

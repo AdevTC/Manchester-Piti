@@ -178,12 +178,18 @@ describe("La portada: the bands", () => {
 
 describe("Los minutos and Jugada a jugada", () => {
   it("one row per player, the most minutes first, his stints as bars and his changes", () => {
-    const v = campoOf(ctx("acta"), { open: "jordi", captain: "alcides", system: "3-2-1", meet: null, coverage: null });
+    const v = campoOf(ctx("acta"), { open: "jordi", captain: "alcides", system: "3-2-1", meet: null, coverage: null, evening: true });
     expect(v.rows.map((r) => r.id)).toEqual(["alcides", "erik", "jordi", "evans", "fer"]);
     const j = v.rows.find((r) => r.id === "jordi");
     expect(j).toMatchObject({ minText: "40′", open: true, me: true });
     expect(j?.ex).toEqual([{ m: 10, dir: "Entra", with: "por Evans", withId: "evans", cls: "is-in" }]);
     expect(v.spots.find((s) => s.id === "erik")).toMatchObject({ left: 18 });
+  });
+
+  it("before the whistle: «El siete de esta noche» only for an evening kick-off", () => {
+    const i = { open: null, captain: null, system: "3-2-1", meet: null, coverage: null };
+    expect(campoOf(ctx("antes"), { ...i, evening: true }).h).toBe("El siete de esta noche");
+    expect(campoOf(ctx("antes"), { ...i, evening: false }).h).toBe("El siete de hoy");
   });
 
   it("the two halves, newest first, filtered", () => {

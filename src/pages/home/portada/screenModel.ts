@@ -74,6 +74,8 @@ export interface CampoIn {
   system: string;
   meet: string | null;
   coverage: string | null;
+  /** The kick-off is in the evening («El siete de esta noche»; else «de hoy»). */
+  evening: boolean;
 }
 
 export function campoOf(c: Ctx, i: CampoIn): CampoView {
@@ -192,7 +194,7 @@ export function campoOf(c: Ctx, i: CampoIn): CampoView {
   const notCalled = P?.match.notCalled ?? [];
   if (member(c.quien) && notCalled.length) lists.push({ k: hasGame ? "No convocados:" : "No vienen:", v: `${andList(notCalled.map(nm))}.` });
   if (!member(c.quien)) lists.push({ k: "Quién falta y por qué", v: "es cosa del vestuario." });
-  const h = pre ? "El siete de esta noche" : live ? "En el campo" : f === "aplazado" ? "La convocatoria" : f === "pendiente" ? "El siete que salió" : "Acabaron en el campo";
+  const h = pre ? (i.evening ? "El siete de esta noche" : "El siete de hoy") : live ? "En el campo" : f === "aplazado" ? "La convocatoria" : f === "pendiente" ? "El siete que salió" : "Acabaron en el campo";
   const J = c.M?.j ? `J${c.M.j}` : "";
   return {
     h,

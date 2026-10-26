@@ -5,7 +5,7 @@
 import { dateMillis, matchPhase } from "../../../../functions/src/matchEngine";
 import type { MatchdayModel } from "../matchday";
 import { AWAITING_ACTA } from "../kickoff";
-import { madridDate, madridTime, MONTHS_SHORT } from "../madrid";
+import { madridDate, madridTime, MONTHS_SHORT, tonightWord } from "../madrid";
 import { capital, plural, scoreText } from "../words";
 
 const DAY = 86_400_000;
@@ -108,9 +108,7 @@ export function placeHints(input: PlaceHintsInput): PlaceHints {
       season.played > 0
         ? `${season.played} de ${plural(season.total, "jornada", "jornadas")}`
         : ahead && input.day.kickoff !== null
-          ? Number(madridTime(input.day.kickoff).slice(0, 2)) >= 16
-            ? "Empieza esta noche"
-            : "Empieza hoy"
+          ? `Empieza ${tonightWord(input.day.kickoff)}`
           : "Empieza la temporada";
   } else temporada = "Sin calendario todavía";
 

@@ -8,6 +8,7 @@ import { NARRATED_METRICS } from "../../../../functions/src/narrated/catalogInde
 import type { AnalysisFilters, MetricResult } from "../../../../functions/src/narrated/types";
 import { NU_GLOSS, NU_MET, NU_METRICS } from "./glossary";
 import type { CatRow } from "./catalog";
+import { tonightWord, TonightWord } from "../../../lib/derived/madrid";
 import { clock, dec, list, pct, posWith, result, slug, strip, table, type Moment, type ND, type NMatch, type NSeasonData, type PRow, type Se, type TRow } from "./nd";
 
 export const PLACES = ["temporada", "jugadores", "campo", "juego", "rivales", "records"] as const;
@@ -413,7 +414,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ? se.closed
         ? `${tbl.length} equipos.`
         : withLive && liveM
-          ? `Con el ${fmtRes(liveM)} de esta noche; la fila del Piti, discontinua hasta el acta.`
+          ? `Con el ${fmtRes(liveM)} de ${tonightWord(liveM.time)}; la fila del Piti, discontinua hasta el acta.`
           : `Después de la J${edge}, ${tbl.length} equipos.`
       : "La tabla de la liga es la de hoy; el filtro solo cambia los números del Piti.",
     rows: focusRows, all: tbl.map(trow), n: tbl.length, more: tbl.length > 8, seeAll: `Ver la tabla entera (${tbl.length})`, summary: `${tbl.length} equipos; vas ${pos}`,
@@ -1040,7 +1041,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
           const x = result(m) ?? "e";
           return { key: m.id, l: x.toUpperCase(), cls: `vd-form__l--${x}` };
         }),
-        next: nx ? (nx.st === "live" ? "" : nx.st === "apl" ? `J${nx.j}, aplazado` : `J${nx.j} · ${nx.day}`) : "", live: !!(nx && nx.st === "live"),
+        next: nx ? (nx.st === "live" ? "" : nx.st === "apl" ? `J${nx.j}, aplazado` : `J${nx.j} · ${nx.day}`) : "", live: nx && nx.st === "live" ? `${TonightWord(nx.time)}, en directo` : "",
         cls: r.rival === selRival ? "is-picked" : "", on: r.rival === selRival,
         pick: () => {
           act.set({ rival: r.rival });
@@ -1066,7 +1067,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         .join(", ") || "Nadie todavía",
       big: bw ? `${fmtRes(bw)}, J${bw.j}` : "Aún ninguna",
       first: RR.games[0] ? `J${RR.games[0].j}, ${RR.games[0].day}` : "Por estrenar",
-      next: RR.next ? (RR.next.st === "live" ? "Esta noche, en directo" : `J${RR.next.j} · ${RR.next.day}, ${RR.next.time}${RR.next.st === "apl" ? " (aplazado)" : ""}`) : "Ninguno en esta temporada",
+      next: RR.next ? (RR.next.st === "live" ? `${TonightWord(RR.next.time)}, en directo` : `J${RR.next.j} · ${RR.next.day}, ${RR.next.time}${RR.next.st === "apl" ? " (aplazado)" : ""}`) : "Ninguno en esta temporada",
       noGames: RR.games.length === 0,
     };
   };
@@ -1077,7 +1078,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     kick: `Rivales · ${rv.length} en la liga`,
     title:
       liveM && withLive
-        ? `Esta noche, ${liveM.rival}`
+        ? `${TonightWord(liveM.time)}, ${liveM.rival}`
         : best.length === 1 && best[0].pj === 1
           ? `${best[0].rival}, ${fmtRes(best[0].games[0])} en la J${best[0].games[0].j}`
           : bestPpg === 3
@@ -1087,7 +1088,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
               : "Por estrenar",
     sub: `El cara a cara con cada rival en el período.${best.length > 1 ? ` El que más se nos atraganta: ${best[best.length - 1].rival}.` : ""}${unplayedR ? ` ${unplayedR}${unplayedR === 1 ? " rival, por estrenar." : " rivales, por estrenar."}` : ""}`,
     rows: rvRows, phoneRows: rvRows.slice(0, 7), more: Math.max(0, rvRows.length - 7), moreT: `Todos los rivales (${rvRows.length})`,
-    q: st.rq, setQ: (v: string) => act.set({ rq: v }), empty: rvRows.length === 0, n: rv.length, openAll: () => act.grow("rivales"),
+    q: st.rq, setQ: (v: string) => act.set({ rq: v }), empty: rvRows.length === 0, n: rv.length, growNote: `${rv.length} rivales en la liga.${rv[0]?.next?.st === "live" ? ` Primero, el de ${tonightWord(rv[0].next.time)}.` : ""}`, openAll: () => act.grow("rivales"),
     d: dossier(selRival), sel: selRival, i: info("rivalesb"),
   };
 
@@ -1324,7 +1325,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       act.set({ ysi: {} });
       act.say("De vuelta a lo real.");
     },
-    note: `El resto de equipos se queda como está hoy${withLive && liveM ? `; el ${fmtRes(liveM)} de esta noche cuenta como si acaba así.` : "."}`,
+    note: `El resto de equipos se queda como está hoy${withLive && liveM ? `; el ${fmtRes(liveM)} de ${tonightWord(liveM.time)} cuenta como si acaba así.` : "."}`,
   };
 
   // ---------- the questions people ask, per screen (the nav teaches) and search across everything

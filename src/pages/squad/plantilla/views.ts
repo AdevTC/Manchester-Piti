@@ -2,6 +2,7 @@
 // model (model.ts). Pure: the page passes the state of the screen, who looks and the squad; it wires the handlers.
 import type { ClubMatch } from "../../../lib/clubData";
 import { dateMillis } from "../../../lib/clubData";
+import { TonightWord } from "../../../lib/derived/madrid";
 import { exchangeMinute } from "../../../lib/partidos";
 import { hasAnalysisActions } from "../../../lib/technicalAnalysis";
 import type { Achievement } from "../../../lib/derived/achievements";
@@ -338,8 +339,7 @@ export function ledeView(S: Squad, D: DayInput, loading: boolean, error: boolean
     const seven = (m.starters ?? []).length;
     const bench = (m.bench ?? []).filter((id) => !(m.starters ?? []).includes(id)).length;
     const ko = dateMillis(m.date);
-    const hour = Number.isFinite(ko) ? Number(madrid(ko, { hour: "numeric", hourCycle: "h23" })) : 12;
-    const when = hour >= 19 ? "Esta noche" : "Hoy";
+    const when = TonightWord(ko);
     const line = seven ? `${when}, ${word(seven)} en el siete y ${bench ? `${word(bench)} en el banquillo` : "nadie en el banquillo"}.` : `${when} jugamos contra ${rival}.`;
     return { l: `${line}${seven ? ` Contra ${rival}${Number.isFinite(ko) ? ` a las ${clock(ko)}` : ""}, ${m.home !== false ? "en casa" : "fuera"}.` : ""}`, s: line };
   }

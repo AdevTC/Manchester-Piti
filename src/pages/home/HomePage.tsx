@@ -26,7 +26,7 @@ import { mvpVoteOpen } from "../../lib/derived/memberWindows";
 import { jornadaOf as jornadaOfMatch } from "../../lib/derived/jornada";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { mapsUrl, venueName } from "../../lib/derived/venue";
-import { madridDate, madridTime } from "../../lib/derived/madrid";
+import { isEveningKickoff, madridDate, madridTime } from "../../lib/derived/madrid";
 import { sunTimes } from "../../lib/derived/sun";
 import { scoreOf } from "../../lib/partidos";
 import { mesaOf } from "../../lib/derived/mesa";
@@ -480,7 +480,8 @@ export function HomePage() {
   const place = useVenuePlace(pm ? venueName(pm.venue ?? "") || (pm.home !== false ? "CDM Palomeras" : null) : null);
   const venueWords = pm ? `${venueName(pm.venue ?? "") || (pm.home !== false ? "CDM Palomeras" : `Campo de ${pm.rival ?? "el rival"}`)}${place?.district ? ` · ${place.district}` : ""}` : "";
   const system = lineup?.system ?? pm?.system ?? "3-2-1";
-  const night = nightOf(ctx, { venue: venueWords, published: lineup ? `Publicado ${publishedWhen(lineup.setAt, now)} desde la pizarra` : null, meet, mesaName: pm ? (mesaOf(pm)?.name ?? null) : null, system, kit: pm?.kit === "away" ? "away" : "home", evening: ko !== null && Number(madridTime(ko).slice(0, 2)) >= 16 });
+  const evening = ko !== null && isEveningKickoff(ko);
+  const night = nightOf(ctx, { venue: venueWords, published: lineup ? `Publicado ${publishedWhen(lineup.setAt, now)} desde la pizarra` : null, meet, mesaName: pm ? (mesaOf(pm)?.name ?? null) : null, system, kit: pm?.kit === "away" ? "away" : "home", evening });
 
   // the doors
   const strip = useMemo(() => seasonStrip(matches, seasonId, seasonNow), [matches, seasonId, seasonNow]);
@@ -523,7 +524,7 @@ export function HomePage() {
 
   // the screens
   const [jf, setJf] = useState<JugFilter>(0);
-  const campo = campoOf(ctx, { open: nav.jugador, captain: (pm as ClubMatch & { captainId?: string } | null)?.captainId ?? season?.captainPlayerId ?? null, system, meet, coverage: pm?.analysisCoverage === "partial" ? "Minutos de la narración, con cobertura parcial: el acta los da por buenos mientras no se corrijan." : null });
+  const campo = campoOf(ctx, { open: nav.jugador, captain: (pm as ClubMatch & { captainId?: string } | null)?.captainId ?? season?.captainPlayerId ?? null, system, meet, evening, coverage: pm?.analysisCoverage === "partial" ? "Minutos de la narración, con cobertura parcial: el acta los da por buenos mientras no se corrijan." : null });
   const jugadas = jugadasOf(ctx, jf);
   const album = useMemo(() => (kind === "jugador" && meId ? albumOf(meId, matches, squad.map((s) => s.id), seasonId) : null), [kind, meId, matches, squad, seasonId]);
   const mineSlot = meId ? P?.lineup.find((s) => s.id === meId) : undefined;

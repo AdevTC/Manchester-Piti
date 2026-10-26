@@ -13,6 +13,7 @@ import { dateMillis, isVisibleMatch } from "../../../../functions/src/matchEngin
 import { lineupWalk, parseMatchLineup, type LineupSlot } from "../../matchLineup";
 import { playerGame } from "../../clubAnalytics";
 import { rotationOf } from "./rotation";
+import { TonightWord } from "../madrid";
 
 export type SquadStage = "pre" | "live" | "after";
 /** on: in the seven / on the pitch / MVP (celeste dot) · bench: called up, left, played · off: not today (dimmed). */
@@ -152,9 +153,7 @@ export function squadLive({ day, squad, matches, mvp = [] }: SquadLiveInput): Sq
       const called = bench.includes(id);
       rows.set(id, { status: inSeven ? "En el siete" : called ? "Convocado" : "No juega hoy", tone: inSeven ? "on" : called ? "bench" : "off", tags: [] });
     }
-    const at = day.kickoff ?? dateMillis(match.date);
-    const hour = Number.isFinite(at) ? Number(new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "numeric", hourCycle: "h23" }).format(at)) : 12;
-    const when = hour >= 19 ? "Esta noche" : "Hoy";
+    const when = TonightWord(day.kickoff ?? dateMillis(match.date));
     const b = bench.length;
     const benchWords = b ? `${word(b)} en el banquillo` : "nadie en el banquillo";
     const line = `${when}, ${word(seven.length)} en el siete y ${benchWords}.`;

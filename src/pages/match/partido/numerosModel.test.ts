@@ -30,7 +30,7 @@ const TABLE: StandingRow[] = [
   row("Entrepibas F.C.", 1, 0, 0, 1, 0, 2),
 ];
 const MO = (o: Partial<Moment>): Moment => ({ pre: false, live: false, played: false, done: false, final: false, off: null, dragged: false, minute: 0, edge: 0, duration: 50, ...o });
-const base = { rival: "Orduña fc", score: { us: 0, them: 0 }, pick: null, all: false, jornada: 2, tableJornada: 1, already: false, allZero: false } as const;
+const base = { rival: "Orduña fc", score: { us: 0, them: 0 }, pick: null, all: false, jornada: 2, tableJornada: 1, already: false, allZero: false, kickoff: null } as const;
 const R18 = resultWords({ us: 1, them: 8 }, { us: 0, them: 5 });
 
 describe("tableView", () => {
@@ -200,5 +200,13 @@ describe("the rival", () => {
   });
   it("signed numbers use a true minus", () => {
     expect([signed(2), signed(-7), signed(0)]).toEqual(["+2", "−7", "0"]);
+  });
+});
+
+describe("tableView, a league still at zero", () => {
+  it("says «hoy» for a morning kick-off and «esta noche» for an evening one", () => {
+    const zero = { ...base, allZero: true };
+    expect(tableView(MO({ pre: true }), TABLE, { ...zero, kickoff: Date.UTC(2026, 9, 25, 10, 0) }).sub).toBe("Todos a cero: la liga empieza hoy");
+    expect(tableView(MO({ pre: true }), TABLE, { ...zero, kickoff: Date.UTC(2026, 9, 25, 20, 30) }).sub).toBe("Todos a cero: la liga empieza esta noche");
   });
 });
