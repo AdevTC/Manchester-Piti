@@ -126,9 +126,13 @@ gets «Avisos a medida» only) and the account — a member's avatar pill («J J
 the same five pages labelled and tightens while scrolling down. The theme switch left the top bar: a
 `<ThemeToggle/>` passed in `actions` renders nothing there (chromeSlot); it lives in the account sheet and the
 footer. Props unchanged (`sub` is kept but not shown: the bar names the club). `live?: boolean` on both (default:
-`useLiveNow()`): «Partidos» gets `.vd-livedot` and «, en directo». Moving between pages from the capsule or the tab
-bar runs the choreography (celeste/pageTransition: html[data-vd-dir] + [data-vd-page]); mark your page's regions
-with `region(n)` to get them in order, and put `morph(LIVE_MORPH)` on whatever shows tonight's score.
+`useLiveNow()`): «Partidos» gets `.vd-livedot` and «, en directo». Moving between pages runs the choreography
+(celeste/pageTransition: html[data-vd-dir] + [data-vd-page], the leaving page's content and regions marked
+[data-vd-out]): from the capsule or the tab bar, from any other page's link and on the browser's back and forward (the
+router's default, `pageChangeTypes`). Mark your page's regions with `region(n)` to get them in order, and put
+`morph(LIVE_MORPH)` on whatever shows tonight's score. A view-transition-name your page keeps on for its own changes
+of screen must be listed in chrome.css's page-change rule (or be written on the element itself), or it lingers over
+the next page.
 
 ## Reading pieces and small controls
 

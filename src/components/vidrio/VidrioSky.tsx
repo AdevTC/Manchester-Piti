@@ -51,12 +51,22 @@ export function VidrioSky({ light, floodlit, weather, reduced, gold, cold, heigh
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, w, h);
       paintDiscs(g, bokehDiscs(sky, w, h));
+      cv.dataset.on = "";
     };
-    draw();
-    if (isShot() || typeof ResizeObserver !== "function") return;
-    const ro = new ResizeObserver(draw);
+    if (isShot() || typeof ResizeObserver !== "function") {
+      draw();
+      return;
+    }
+    // (the discs light up once the page is in: painted at the first idle moment, not inside a change of page,
+    // where the screen holds still until the next page is ready; they fade in, styles/vidrio/sky.css)
+    const idle = typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(draw, { timeout: 700 }) : window.setTimeout(draw, 150);
+    const ro = new ResizeObserver(() => width && draw());
     ro.observe(host);
-    return () => ro.disconnect();
+    return () => {
+      if (typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idle);
+      else window.clearTimeout(idle);
+      ro.disconnect();
+    };
   }, [sky, height]);
 
   // The drift only runs while its layer is on screen and the tab is shown ([data-vd-off] pauses it where it is).

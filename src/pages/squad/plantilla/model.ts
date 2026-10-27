@@ -24,6 +24,8 @@ import { minutesOf } from "../../../lib/derived/minutesOf";
 import type { PlayerDoc } from "../../../lib/schemas";
 import { ratingMatches, seasonRatings, type SeasonRatings } from "../../../lib/seasonRating";
 import type { Standings } from "../../../lib/standings";
+import { dateFormat } from "../../../lib/intlCache";
+import { remember } from "../../../lib/remember";
 
 const DAY = 86_400_000;
 export const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -149,7 +151,7 @@ const parts = (b: string) => {
   return { y, m: m - 1, d };
 };
 const madridDay = (now: number) => {
-  const f = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const f = dateFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
   return parts(f);
 };
 const dayNum = (y: number, m: number, d: number) => Math.floor(Date.UTC(y, m, d) / DAY);
@@ -244,7 +246,10 @@ export interface Ctx {
 /** The heavy part of a period, which only the data changes (no clock): its games, every player's acta numbers,
  *  one narrated analysis for the whole squad and the notas (`standings`: every season's league table). */
 export type PeriodBase = Pick<Ctx, "games" | "rows" | "tech" | "passes" | "jornada" | "ratings">;
-export function periodBase(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[], standings: readonly Standings[]): PeriodBase {
+/** A period's analysis without its MVPs (kept by its data: lib/remember, so a visit back to the plantilla — or the
+ *  page re-rendering on its way out — does not work it out again; read only). */
+export const periodBase = remember(computePeriodBase);
+function computePeriodBase(players: readonly PlayerDoc[], matches: readonly ClubMatch[], seasonId: string | "all", seasons: readonly { id: string }[], standings: readonly Standings[]): PeriodBase {
   const games = chronological(matches.filter((m) => isVisibleMatch(m) && (seasonId === "all" || m.seasonId === seasonId)));
   const tech = technicalAnalysis(games);
   const rows = new Map<string, PlayerAnalysis>();

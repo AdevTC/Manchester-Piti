@@ -1,4 +1,5 @@
 import { scoreText } from "../../lib/derived/words";
+import { dateFormat } from "../../lib/intlCache";
 // The floating score's words, pure: what the compact drop says in each state and its accessible name.
 // (P5 added the member's own states of the match day: «¿Vas hoy?», «Hoy anotas tú», the whistle's wait and
 // «Vota al MVP».)
@@ -24,7 +25,7 @@ export interface FloatMatch {
   crest?: string;
 }
 
-const hhmm = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false }).format(ms);
+const hhmm = (ms: number) => dateFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false }).format(ms);
 
 /** «en 2 h 14 min», «en 14 min», «ya» (kick-off passed). */
 export function untilText(kickoff: number, now: number): string {

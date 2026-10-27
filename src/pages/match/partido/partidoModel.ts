@@ -172,7 +172,8 @@ export function asiOf(o: { fase: Fase; us: number; them: number; m: number; tabl
 // ---------- after: the MVP
 const WEEKDAY = new Intl.DateTimeFormat("es-ES", { weekday: "long", timeZone: "Europe/Madrid" });
 const DAYMONTH = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" });
-const dayKey = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(ms);
+const DAYKEY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" });
+const dayKey = (ms: number) => DAYKEY.format(ms);
 /** «hoy a las 21:54» · «mañana a las 21:54» · «el viernes a las 21:54» · «el 30 de octubre a las 21:54». */
 export function closesWords(at: number, now: number): string {
   const days = Math.round((Date.parse(dayKey(at)) - Date.parse(dayKey(now))) / 86_400_000);

@@ -6,6 +6,7 @@ import type { ClubMatch } from "../../../lib/clubData";
 import type { NMatch, Tramo } from "./nd";
 import { periodInterval } from "../../../../functions/src/narrated/operators";
 import { NARRATED_METRIC_BY_ID } from "../../../../functions/src/narrated/catalogIndex";
+import { remember } from "../../../lib/remember";
 
 const cache = new WeakMap<ClubMatch, Map<string, { matches: readonly ClubMatch[]; results: Map<string, MetricResult> }>>();
 /** Results accumulate on demand for each immutable sample and scope. Opening another
@@ -35,8 +36,11 @@ export function numerosMatches(matches: readonly NMatch[]): ClubMatch[] {
   });
 }
 
-/** Shared compatibility rules handle void actions, linked canonicals, aggregates and each pass profile. */
-export function numerosActions(matches: readonly ClubMatch[], filters: AnalysisFilters = {}) {
+/** Shared compatibility rules handle void actions, linked canonicals, aggregates and each pass profile. Kept by
+ *  matches and filters (lib/remember): every match of the season and the page's own scope ask for theirs again on
+ *  each visit and on each change of address; read only. */
+export const numerosActions = remember(computeNumerosActions, 64);
+function computeNumerosActions(matches: readonly ClubMatch[], filters: AnalysisFilters = {}) {
   const context = prepareNarrated(matches, filters);
   const scopedIds = new Set(context.all.map(e => e.evidenceId));
   const events = context.matches.flatMap(m => technicalEvents(m.match).filter(e => scopedIds.has(`${m.match.id}:${e.id}`)).map(e => ({ ...e, id: `${m.match.id}:${e.id}` })));

@@ -10,6 +10,7 @@ import type { LRow, NMatch, NSeasonData, SquadP, StandRow } from "./nd";
 import { slug } from "./nd";
 import { numerosActions } from "./analysis";
 import type { TechnicalStats } from "../../../../functions/src/matchAnalysis";
+import { dateFormat } from "../../../lib/intlCache";
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MON = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -27,7 +28,7 @@ const GOAL = new Set(["goal", "goal_penalty", "goal_freekick"]);
 export function madridWhen(ms: number | null): { day: string; long: string; month: number; time: string } {
   if (ms == null || !Number.isFinite(ms)) return { day: "Fecha por confirmar", long: "fecha por confirmar", month: 0, time: "--:--" };
   const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    dateFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
       .formatToParts(ms)
       .map((p) => [p.type, p.value]),
   );

@@ -12,7 +12,9 @@ import { seedPublicData } from './lib/publicSeed'
 import { serverNow, setPaintedAt } from './lib/serverTime'
 import { createAppRouter } from './router'
 import { startAppUpdates } from './lib/appUpdate'
-import { tapsSkipTransitions } from './components/celeste/pageTransition'
+import { followHistory, tapsSkipTransitions } from './components/celeste/pageTransition'
+import { warmSections } from './lib/warmSections'
+import { navProgress } from './components/celeste/navProgress'
 
 // The data bundle (inside a server-rendered page, or downloading since the HTML): the page paints from it
 // without Firebase, which loads after the first paint (lib/fb) and gets the same documents in its local cache
@@ -23,8 +25,12 @@ primeFromBundle(inline?.text, (bytes) => {
 })
 
 const router = createAppRouter()
+// (back and forward animate as a change of page does: the history says which way, before the router hears it)
+followHistory(router.history)
 // (a tap during a page change finishes it and lands where it was meant to)
 tapsSkipTransitions()
+// (a change of page that has to wait for its code shows the line across the top)
+navProgress(router)
 
 // The service worker (built only for production) and the move to a new deploy at a safe moment.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) startAppUpdates({ router, busy: () => queryClient.isMutating() > 0 })
@@ -41,9 +47,11 @@ const animateFromNextPage = () => {
   })
 }
 
-// How the site feels on the visitors' phones (lib/vitals): loaded once the page is up, never before.
+// How the site feels on the visitors' phones (lib/vitals): loaded once the page is up, never before. Then the other
+// sections are warmed at idle moments, so the first tap on each is as quick as the second.
 const measure = () => {
   if (import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATOR !== '1') void import('./lib/vitals').then((m) => m.startVitals())
+  warmSections(router)
 }
 
 if (html.hasAttribute('data-ssr') && inline?.at) {

@@ -41,6 +41,7 @@ import {
   type PStats,
 } from "./model";
 import { POS_CODES, type Line } from "../../../lib/positions";
+import { dateFormat } from "../../../lib/intlCache";
 
 export const SECS = ["ficha", "temporada", "jornadas", "juego", "analisis", "cromo"] as const;
 export type Sec = (typeof SECS)[number];
@@ -55,7 +56,7 @@ const dot = (s: string) => s.replace(/\.\.$/, ".");
 const f1 = (v: number) => v.toFixed(1).replace(".", ",");
 const pctx = (a: number, b: number) => (b ? `${String(Math.round((a / b) * 1000) / 10).replace(".", ",")} %` : "—");
 const many = (n: number, one?: string, other?: string) => (n === 1 ? `uno${one ? ` ${one}` : ""}` : n ? `${n}${other ? ` ${other}` : ""}` : `ninguno${one ? ` ${one}` : ""}`);
-const madrid = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", ...o }).format(ms);
+const madrid = (ms: number, o: Intl.DateTimeFormatOptions) => dateFormat("es-ES", { timeZone: "Europe/Madrid", ...o }).format(ms);
 export const clock = (ms: number) => madrid(ms, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const NUMW = ["ninguno", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis"];
 const word = (n: number) => NUMW[n] ?? String(n);
@@ -684,7 +685,7 @@ export function playerView(S: Squad, st: ViewState, who: Who, lines: Map<string,
   const med = medals(focus, S.matches, ctx, S.seasons);
   const par = partner(focus, S.ids, ctx);
   const clearedAt = fp.sanctionClearedAt && !fp.sanction ? new Date(fp.sanctionClearedAt) : null;
-  const clearedTxt = clearedAt ? `${Number(new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric" }).format(clearedAt))} de ${MONTHS_L[Number(new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Madrid", month: "numeric" }).format(clearedAt)) - 1]}` : "";
+  const clearedTxt = clearedAt ? `${Number(dateFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric" }).format(clearedAt))} de ${MONTHS_L[Number(dateFormat("en-US", { timeZone: "Europe/Madrid", month: "numeric" }).format(clearedAt)) - 1]}` : "";
   const fi = {
     facts: [
       { t: "Edad", v: ag != null ? `${ag} años` : "—", x: "", cls: ag == null ? "is-none" : "" },
@@ -840,7 +841,7 @@ export function playerView(S: Squad, st: ViewState, who: Who, lines: Map<string,
     review: !(me === focus || admin)
       ? ""
       : fp.review
-        ? `${{ aprobada: "El capitán aprobó la propuesta", ajustada: "El capitán ajustó la propuesta", rechazada: "El capitán no aceptó la propuesta" }[fp.review.status]}${fp.review.at ? ` el ${new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "long" }).format(fp.review.at)}` : ""}.`
+        ? `${{ aprobada: "El capitán aprobó la propuesta", ajustada: "El capitán ajustó la propuesta", rechazada: "El capitán no aceptó la propuesta" }[fp.review.status]}${fp.review.at ? ` el ${dateFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "long" }).format(fp.review.at)}` : ""}.`
         : me === focus
           ? "Aún no has propuesto las tuyas: dile al capitán dónde te gusta jugar."
           : "Sin propuesta suya todavía.",

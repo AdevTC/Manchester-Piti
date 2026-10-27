@@ -1,12 +1,13 @@
 import type { MatchNote, SeasonRating } from "../lib/seasonRating";
 import { LINE_NAMES } from "../lib/positions";
 import { FULL_MATCH_MINUTES } from "../lib/rating/constants";
+import { dateFormat, numberFormat } from "../lib/intlCache";
 import "./season-rating-details.css";
 
-const number = (n: number, digits = 1) => n.toLocaleString("es", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const number = (n: number, digits = 1) => numberFormat("es", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
 // (in goals: two decimals, three for the small ones so a +0,004 pass never reads «+0,00»)
 const signed = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "") + number(Math.abs(n), Math.abs(n) > 0 && Math.abs(n) < 0.01 ? 3 : 2);
-const day = (ms: number) => (Number.isFinite(ms) ? new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short" }).format(ms) : "");
+const day = (ms: number) => (Number.isFinite(ms) ? dateFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short" }).format(ms) : "");
 /** How much a match counts in GLOBAL, and why not entero. */
 function counts(n: MatchNote): string {
   const why = [n.minutes < FULL_MATCH_MINUTES ? `menos de ${FULL_MATCH_MINUTES}′` : "", n.narrated ? "" : "sin narrar"].filter(Boolean).join(" y ");

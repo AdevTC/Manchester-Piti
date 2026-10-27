@@ -18,6 +18,7 @@ import {
 import { matchSearchSchema } from "./lib/matchTabs";
 import { analysisSearchFields, statsScopeSearchFields } from "./lib/analysisSearch";
 import { legacyHref } from "./lib/legacyUrls";
+import { pageChangeTransition } from "./components/celeste/pageTransition";
 
 // Root-level search schema: `season` is inherited by all child routes so any
 // page can be deep-linked with ?season=<id>. Uses .optional() (not .default)
@@ -600,6 +601,9 @@ export const createAppRouter = (history?: RouterHistory) =>
     routeTree,
     history,
     defaultPreload: "intent",
+    // Every change of page gets the choreography, the browser's back and forward included (components/celeste/
+    // pageTransition decides: changes inside a page keep their own, the first load none).
+    defaultViewTransition: pageChangeTransition(),
     scrollRestoration: true,
     context: { shown: { page: null } },
     // Per-route boundaries (Phase 4). No route has a loader (the pages are realtime and

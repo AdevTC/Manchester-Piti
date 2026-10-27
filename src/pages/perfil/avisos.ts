@@ -4,6 +4,7 @@
 import { dateMillis, matchPhase, type ClubMatch } from "../../lib/clubData";
 import type { PushState, Topic } from "../../lib/push";
 import { jornadaLabel, jornadaNumbers } from "../../lib/derived/jornada";
+import { dateFormat } from "../../lib/intlCache";
 
 /** The design's four device states (pf-g «avisos» tweak). */
 export type DeviceKind = "listo" | "iphone" | "denegado" | "no-soportado";
@@ -148,7 +149,7 @@ export interface UpcomingRow {
   meta: string;
 }
 const TZ = "Europe/Madrid";
-const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o });
+const fmt = (o: Intl.DateTimeFormatOptions) => dateFormat("es-ES", { timeZone: TZ, ...o });
 const clean = (s: string) => s.replace(/\.$/, "").toLowerCase();
 /** The next matches still to play (scheduled or on now), soonest first, as the calendar list shows them. */
 export function upcomingRows(matches: readonly ClubMatch[], now: number, n = 3): UpcomingRow[] {

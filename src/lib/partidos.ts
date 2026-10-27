@@ -10,6 +10,7 @@ import { resultLetter, type ResultLetter } from "./derived/result";
 import { capital } from "./derived/words";
 import { eventMetaOf, eventSentence, goalOrdinal, isMesaType, settled } from "./eventMeta";
 import { eventSeconds } from "../../functions/src/matchAnalysis";
+import { dateFormat } from "./intlCache";
 
 export type Result = ResultLetter;
 export type Filter = "all" | "next" | "results";
@@ -157,7 +158,7 @@ export function exchangeMinute(events: readonly MatchEvent[] | undefined, player
 /** The offset from a stored live minute (liveMinute's count) to the shown one: +1 on a clock, 0 without one. */
 export const shownOffset = (m: Pick<ClubMatch, "clock">): number => (m.clock ? 1 : 0);
 
-const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
+const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => dateFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
 /** Date pieces for a calendar row: "DOM", "8", "NOV", "12:00", "domingo, 8 nov" (and "Domingo, 8 nov" to open a line). */
 export function dateParts(date: unknown) {
   const ms = dateMillis(date);
