@@ -152,7 +152,7 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 
 - Con la temporada: P(gol de penalti) = 0,78; las probabilidades de gol de los remates a puerta para el portero, con los remates de los dos equipos; los pesos de la parte del equipo.
 - En la J11: la prueba de mitades del plus-minus; que la media de los porteros no quede por encima de 6,5 (si pasa, fijar su referencia con la temporada).
-- Pedir a la narración: la colocación del remate a puerta (o «parada de mérito» / «imparable»), los pases nuestros que entran en el área, los puñetazos y salidas del portero, la ocasión clarísima con un criterio declarado, más zonas y la clasificación con goles. Las reglas de esta página ya los valoran cuando llegan.
+- Pedir a la narración: la colocación del remate a puerta (o «parada de mérito» / «imparable»: necesita un dato y números nuevos), la ocasión clarísima en cuanto el club declare su criterio (`bigChanceCriterion` en el perfil; sin él, el prompt pide no marcarla) y la clasificación con goles. Desde el 27 de octubre de 2026 el prompt (`alwaysRecord` en `src/lib/narrationPrompt.ts`) ya pide los pases que entran en el área, los puñetazos y salidas del portero y las zonas; las reglas de esta página los valoran cuando llegan.
 
 ## Fuentes
 

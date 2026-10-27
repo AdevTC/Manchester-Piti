@@ -1,6 +1,6 @@
 # Análisis narrado: contrato de importación
 
-El audio y su interpretación se entregan al asistente fuera de la web. En el acta, **Copiar prompt y contexto** exporta la plantilla actual, sus identificadores, el reloj, los eventos, el perfil, el catálogo viable y el vocabulario operativo. La web recibe únicamente JSON y no graba ni transcribe audio.
+El audio y su interpretación se entregan al asistente fuera de la web. En el acta, **Copiar prompt y contexto** exporta la plantilla actual, sus identificadores, el reloj, los eventos, el perfil, el catálogo viable, el vocabulario operativo y, en `alwaysRecord`, los datos que se piden en cada jugada con su criterio y un ejemplo (la ocasión clarísima, solo si el perfil declara `bigChanceCriterion`). La web recibe únicamente JSON y no graba ni transcribe audio.
 
 ## Recorrido en la web
 
