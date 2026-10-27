@@ -114,7 +114,8 @@ describe('narrated v2 validation and privacy', () => {
   });
   type Ask = { ask: string; facts: string[]; kind?: string; subtypes?: string[]; when: string; examples?: { narration: string; observations: Record<string, unknown>[] }[] };
   const asks = (s = sheet): Ask[] => JSON.parse(narrationContext('match', s, [])).alwaysRecord.items;
-  const withCriterion = (bigChanceCriterion: string) => ({ ...sheet, analysis: { ...analysis(), profile: { ...DEFAULT_ANALYSIS_PROFILE, parameters: { ...DEFAULT_ANALYSIS_PROFILE.parameters, bigChanceCriterion } } } });
+  const withParameters = (parameters: typeof DEFAULT_ANALYSIS_PROFILE.parameters) => ({ ...sheet, analysis: { ...analysis(), profile: { ...DEFAULT_ANALYSIS_PROFILE, parameters } } });
+  const withCriterion = (bigChanceCriterion: string) => withParameters({ ...DEFAULT_ANALYSIS_PROFILE.parameters, bigChanceCriterion });
   it('asks for the play details the rating reads, in the vocabulary and with examples that validate', () => {
     const items = asks(withCriterion('Mano a mano o portería vacía'));
     expect(items.flatMap(i => i.facts)).toEqual(expect.arrayContaining(['entersArea', 'subtype', 'firstControl', 'zone', 'bigChance']));
@@ -128,7 +129,14 @@ describe('narrated v2 validation and privacy', () => {
     expect(keeperFacts).toEqual(expect.arrayContaining([expect.objectContaining({ subtype: 'punch', firstControl: 'us' }), expect.objectContaining({ subtype: 'cross_exit', outcome: 'failed' })]));
   });
   it('asks for big chances only under the club criterion declared in the profile', () => {
-    const off = asks().find(i => i.facts.includes('bigChance'))!;
+    // a match without an analysis is narrated under the default profile, which declares Opta's
+    const { bigChanceCriterion, ...undeclared } = DEFAULT_ANALYSIS_PROFILE.parameters;
+    const fresh = asks().find(i => i.facts.includes('bigChance'))!;
+    expect(fresh.when).toContain(`«${String(bigChanceCriterion)}»`);
+    expect(fresh.when).toContain('mano a mano con el portero');
+    expect(fresh.examples?.length).toBeGreaterThan(0);
+    // an analysis keeps the profile it was narrated with: one narrated before the criterion asks for no big chances
+    const off = asks(withParameters(undeclared)).find(i => i.facts.includes('bigChance'))!;
     expect(off.when).toMatch(/no marques bigChance/);
     expect(off.examples).toBeUndefined();
     const on = asks(withCriterion('Ocasión clarísima v1: mano a mano o portería vacía')).find(i => i.facts.includes('bigChance'))!;
