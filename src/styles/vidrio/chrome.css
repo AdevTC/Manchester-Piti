@@ -151,6 +151,8 @@ html[data-vd-page][data-vd-dir="up"]::view-transition-new(vd-page){animation-nam
 /* (the arriving page is a group of its own, so the browser stacks it after the bars, which were already there: they
    stay over it, as on the page — the tab bar vanished under the next page's content while it came in) */
 html[data-vd-page]::view-transition-group(vd-top),html[data-vd-page]::view-transition-group(vd-dock){animation:none;z-index:2}
+/* (and the live score flying between the float and a lens, for the same reason: over both pages, under the bars) */
+html[data-vd-page]::view-transition-group(*.vd-morph){z-index:1}
 /* (reduced motion's crossfade, transitions.css, leaves them out too: no motion is still none, and a fade-in that waits
    for its start would leave the screen without bars for a moment) */
 html[data-vd-page]::view-transition-old(vd-top),html[data-vd-page]::view-transition-old(vd-dock){animation:none!important;opacity:0}
