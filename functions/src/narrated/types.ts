@@ -116,8 +116,13 @@ export interface MetricResult {
   reason: string;
   groups?: { key: string; value: number }[];
 }
+/** Version 2 declares the club's big-chance criterion, Opta's (the one Sofascore applies). A stored analysis keeps the
+ *  profile it was narrated with. */
 export const DEFAULT_ANALYSIS_PROFILE: AnalysisProfile = {
-  id: 'piti-narration', version: 1, playersPerSide: 7, periodMinutes: [25, 25], baseMinutes: 50,
+  id: 'piti-narration', version: 2, playersPerSide: 7, periodMinutes: [25, 25], baseMinutes: 50,
   passes: { crosses: true, restarts: true, throwIns: false, keeperHands: false, deflection: 'fail' },
-  parameters: { quickRecoverySeconds: 5, windowSeconds: 300, offside: false, assistPolicy: 'strict', temporalToleranceSeconds: 0 },
+  parameters: {
+    quickRecoverySeconds: 5, windowSeconds: 300, offside: false, assistPolicy: 'strict', temporalToleranceSeconds: 0,
+    bigChanceCriterion: 'Ocasión clarísima (Opta) v1: situación en la que se espera razonablemente que el jugador marque, normalmente un mano a mano con el portero o un remate desde muy cerca, con el camino a la portería despejado y poca o moderada presión sobre el rematador. Los penaltis siempre lo son.',
+  },
 };

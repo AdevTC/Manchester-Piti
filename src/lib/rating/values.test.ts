@@ -252,15 +252,20 @@ describe("discipline and the narration's judgement", () => {
     expect(item(match([o("judgement")]), "Error señalado en la narración")).toBeUndefined();
   });
   it("a big chance counts only with the club's declared criterion: created +0,1, missed −0,1", () => {
-    const told = (criterion: boolean) => {
+    const told = (parameters: typeof DEFAULT_ANALYSIS_PROFILE.parameters) => {
       const kp = o("pass", { outcome: "complete", keyPass: true });
       const m = match([kp, o("shot", { bigChance: true }, { actorId: "b", links: { pass: kp.id } })]);
-      if (criterion) m.analysis = { ...m.analysis!, profile: { ...DEFAULT_ANALYSIS_PROFILE, parameters: { ...DEFAULT_ANALYSIS_PROFILE.parameters, bigChanceCriterion: "xG ≥ 0,35 del club" } } };
+      m.analysis = { ...m.analysis!, profile: { ...DEFAULT_ANALYSIS_PROFILE, parameters } };
       return m;
     };
-    expect(item(told(false), "Ocasión clarísima creada")).toBeUndefined();
-    expect(item(told(true), "Ocasión clarísima creada")!.value).toBeCloseTo(0.1);
-    expect(item(told(true), "Ocasión clarísima fallada", "b")!.value).toBeCloseTo(-0.1);
+    // an analysis narrated before the criterion keeps its profile without one
+    const { bigChanceCriterion, ...undeclared } = DEFAULT_ANALYSIS_PROFILE.parameters;
+    expect(item(told(undeclared), "Ocasión clarísima creada")).toBeUndefined();
+    expect(item(told({ ...undeclared, bigChanceCriterion: "  " }), "Ocasión clarísima creada")).toBeUndefined();
+    // the default profile declares Opta's
+    expect(bigChanceCriterion).toMatch(/^Ocasión clarísima \(Opta\) v1: /);
+    expect(item(told(DEFAULT_ANALYSIS_PROFILE.parameters), "Ocasión clarísima creada")!.value).toBeCloseTo(0.1);
+    expect(item(told(DEFAULT_ANALYSIS_PROFILE.parameters), "Ocasión clarísima fallada", "b")!.value).toBeCloseTo(-0.1);
   });
 });
 

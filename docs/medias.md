@@ -100,7 +100,7 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 | Error que acaba en gol | −0,1 y la ocasión que regala (la del gol × F7), además de la acción fallada (ver abajo) |
 | Error señalado que acaba en remate | la ocasión que regala (Opta: «error leading to shot») |
 | Error señalado por la narración | −0,05 (solo «error»: una cobertura no resta) |
-| Ocasión clarísima (solo con el criterio del club declarado) | creada +0,1 / fallada −0,1 (Sofascore) |
+| Ocasión clarísima (solo con el criterio del club declarado en el perfil: el de Opta desde el perfil v2) | creada +0,1 / fallada −0,1 (Sofascore) |
 | Falta cometida / recibida | −0,01 / +0,01; una falta táctica, 0 |
 | Amarilla | −0,05 (en la liga no supone exclusión) |
 | Expulsión (roja o doble amarilla, una vez) | −0,1 − 1,0 × la parte del partido que quedaba (StatsBomb: una roja en el minuto 1 ≈ 1,08 goles); sin minuto, cuando acabó su último tramo |
@@ -152,7 +152,8 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 
 - Con la temporada: P(gol de penalti) = 0,78; las probabilidades de gol de los remates a puerta para el portero, con los remates de los dos equipos; los pesos de la parte del equipo.
 - En la J11: la prueba de mitades del plus-minus; que la media de los porteros no quede por encima de 6,5 (si pasa, fijar su referencia con la temporada).
-- Pedir a la narración: la colocación del remate a puerta (o «parada de mérito» / «imparable»: necesita un dato y números nuevos), la ocasión clarísima en cuanto el club declare su criterio (`bigChanceCriterion` en el perfil; sin él, el prompt pide no marcarla) y la clasificación con goles. Desde el 27 de octubre de 2026 el prompt (`alwaysRecord` en `src/lib/narrationPrompt.ts`) ya pide los pases que entran en el área, los puñetazos y salidas del portero y las zonas; las reglas de esta página los valoran cuando llegan.
+- Pedir a la narración: la colocación del remate a puerta (o «parada de mérito» / «imparable»: necesita un dato y números nuevos) y la clasificación con goles. Desde el 27 de octubre de 2026 el prompt (`alwaysRecord` en `src/lib/narrationPrompt.ts`) ya pide los pases que entran en el área, los puñetazos y salidas del portero y las zonas; las reglas de esta página los valoran cuando llegan.
+- La ocasión clarísima: desde el 27 de octubre de 2026 el perfil por defecto (`piti-narration` v2, en `functions/src/narrated/types.ts`) declara como `bigChanceCriterion` el criterio de Opta, el que aplica Sofascore: «Ocasión clarísima (Opta) v1: situación en la que se espera razonablemente que el jugador marque, normalmente un mano a mano con el portero o un remate desde muy cerca, con el camino a la portería despejado y poca o moderada presión sobre el rematador. Los penaltis siempre lo son.» El prompt de un partido nuevo la pide con ese texto. Un análisis ya guardado conserva el perfil con el que se narró, así que la J1, narrada antes, no cambia. Un penalti no suma por esta regla: ya cuenta como penalti.
 
 ## Fuentes
 
