@@ -93,8 +93,8 @@ describe("GLOBAL de temporada: datos honestos", () => {
   };
   it("credits a conceded goal to no keeper without proof of who was in goal", () => {
     expect(item(faced(), "Goles evitados")).toBeUndefined();
-    // one save and one goal faced, each a 42 % chance: 0,84 expected − 1 conceded
-    expect(item(faced([obs("gk", "lineup", { role: "GK", intervalStart: 0, intervalEnd: 3000 })]), "Goles evitados")).toMatchObject({ n: 2, value: expect.closeTo(-0.16, 5) });
+    // one save and one goal faced, each a 42 % chance: 0,84 expected − 1 conceded, shrunk with 15 shots of zero
+    expect(item(faced([obs("gk", "lineup", { role: "GK", intervalStart: 0, intervalEnd: 3000 })]), "Goles evitados")).toMatchObject({ n: 2, value: expect.closeTo((-0.16 * 2) / 17, 5) });
   });
   it("recognises a certified full-match keeper but never a merely preferred or estimated position", () => {
     expect(item(faced([], { positionsPlayed: { POR: 50 } }), "Goles evitados")).toBeDefined();

@@ -3,7 +3,7 @@ import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
 import type { MatchNote } from "../../../lib/rating/season";
 import { lineupOf, playsOf, timelineOf } from "./model";
 import type { Person, Viewer } from "./ctx";
-import { actaPlayers, benchRows, cambiosRows, cambiosSub, fichaOf, headOf, lineText, rankRows, seasonLineOf, swarmOf, tokensAt, type ActaPlayer } from "./sieteActaModel";
+import { actaPlayers, benchRows, cambiosRows, cambiosSub, fichaOf, headOf, positionText, rankRows, seasonLineOf, swarmOf, teamItems, tokensAt, type ActaPlayer } from "./sieteActaModel";
 
 // A published acta with a lineup from the pizarra: a change at 12:17, two at the break with a recolocación, and a
 // «Cambio de sitio» alone in the second half.
@@ -95,9 +95,11 @@ describe("the players and the pitch", () => {
     expect(rows[1].marks.map((k) => k.k)).toEqual(["asis"]);
   });
   it("the line a nota is compared with", () => {
-    expect(lineText({ DEF: 1 })).toBe("con los defensas");
-    expect(lineText({ DEF: 0.5, MED: 0.5 })).toBe("con defensas y medios, según sus minutos en cada sitio");
-    expect(lineText({})).toBe("con todo el equipo");
+    expect(positionText({ "DEF-banda": 1 })).toBe("con los laterales");
+    expect(positionText({ "DEF-centro": 0.5, "MED-centro": 0.5 })).toBe("con centrales y mediocentros, según sus minutos en cada sitio");
+    expect(positionText({})).toBe("con todo el equipo");
+    expect(teamItems({ on: 43, for: 1, against: 6.16 }, { value: -0.62, for: 0.32, against: 6.16, normalFor: 3.87, normalAgainst: 3.87 }, true, 50)).toBe("Con él en el campo, a favor 1 y en contra 6,2 (lo que se esperaba con un portero normal); en un partido normal, 3,9 cada uno en sus minutos. En un rato corto también cuenta el partido entero");
+    expect(teamItems({ on: 50, for: 1, against: 8 }, { value: -0.7, for: 1, against: 8, normalFor: 4.5, normalAgainst: 4.5 }, false, 50)).toBe("Con él en el campo, a favor 1 y en contra 8; en un partido normal, 4,5 cada uno en sus minutos");
   });
 });
 
@@ -136,14 +138,14 @@ describe("las notas", () => {
 
 describe("la ficha", () => {
   it("where he played: the start, the recolocaciones, the changes he was in", () => {
-    const f = fichaOf({ p: by("m"), groups: tl.groups, values: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
+    const f = fichaOf({ p: by("m"), groups: tl.groups, values: null, team: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
     expect(f.kicker).toBe("Titular · empezó de mediocentro");
     expect(f.where).toEqual([{ name: "Mediocentro", min: 25 }, { name: "Punta", min: 25 }]);
     expect(f.whereNote).toBe("Empezó de mediocentro. En el 26′ pasó a punta.");
     expect(f.chLink).toBe("Ver sus cambios (1)");
-    const h = fichaOf({ p: by("h"), groups: tl.groups, values: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
+    const h = fichaOf({ p: by("h"), groups: tl.groups, values: null, team: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
     expect(h.whereNote).toBe("Salió desde el banquillo. En el 26′ entró y se puso de mediocentro.");
-    const l = fichaOf({ p: by("l"), groups: tl.groups, values: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
+    const l = fichaOf({ p: by("l"), groups: tl.groups, values: null, team: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
     expect(l.whereNote).toBe("Empezó de lateral izquierdo. En el 36′ pasó a lateral derecho.");
   });
   it("his season with this match: GLOBAL before and after, the jornadas around it", () => {
@@ -153,7 +155,7 @@ describe("la ficha", () => {
     expect(s.glBefore).toBe(Math.round((10 * (6.5 + 7.5 + 3 * 6.5)) / 5));
     expect(s.gl).toBe(Math.round((10 * (6.5 + 7.5 + 8.4 + 3 * 6.5)) / 6));
     expect(s.jj.map((x) => x.id)).toEqual(["g1", "g2", "m1", "g4", "g5"]);
-    const f = fichaOf({ p: by("m"), groups: tl.groups, values: null, season: s, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
+    const f = fichaOf({ p: by("m"), groups: tl.groups, values: null, team: null, season: s, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
     expect(f.seasNote).toBe(`Con este partido, de ${s.glBefore} a ${s.gl}.`);
     expect(f.jj.map((x) => x.nota)).toEqual(["6,5", "7,5", "8,4", "·", "·"]);
   });

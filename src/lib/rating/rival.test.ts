@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../clubData";
 import type { Standings } from "../standings";
 import { RIVAL_MAX } from "./constants";
-import { rivalFactor } from "./rival";
+import { rivalFactor, rivalGoals } from "./rival";
 
 const US = "MANCHESTER PITI";
-const table = (rows: [string, number, number][], o: Partial<Standings> = {}): Standings => ({
+const table = (rows: [string, number, number, number?, number?][], o: Partial<Standings> = {}): Standings => ({
   id: "s",
   competition: "Liga",
   jornada: null,
   updatedAt: 0,
   updatedBy: "",
-  rows: rows.map(([team, pj, pts]) => ({ team, pj, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts, isUs: team === US })),
+  rows: rows.map(([team, pj, pts, gf = 0, gc = 0]) => ({ team, pj, g: 0, e: 0, p: 0, gf, gc, pts, isUs: team === US })),
   ...o,
 });
 let n = 0;
@@ -49,6 +49,18 @@ describe("the rival's strength from the current table", () => {
     const league = [game("Orduña"), game("Rayo Bilbao"), game("Débiles"), game("Orduña")];
     expect(rivalFactor([behind], [...league, game("Débiles")])(league[0])).toBe(1);
     expect(rivalFactor([behind], [...league, game("Débiles", { competition: "Amistoso" })])(league[0])).toBeGreaterThan(1);
+  });
+  it("its goals: what a rival scores a match is what we usually concede (shrunk with two matches to the league's), per 50′", () => {
+    const goals = table([["Goleadores", 6, 9, 30, 6], ["Seguros", 6, 9, 6, 30], ["Otros", 6, 9, 18, 18], [US, 6, 9, 10, 10]]);
+    const m = game("Goleadores"), short = game("Seguros", { duration: 40 });
+    const g = rivalGoals([goals], [m, short]);
+    expect(g(m)).toEqual({ against: 4.5, for: 1.5 });
+    // a 40′ match: their goals a match are 1,25 times as many per 50′
+    expect(g(short)!.against).toBeCloseTo(((6 + 2 * 3) / 8) * 1.25, 10);
+    const scoreless = game("A");
+    expect(rivalGoals([table([["A", 6, 9], ["B", 6, 9], [US, 6, 9]])], [scoreless])(scoreless)).toBeNull();
+    expect(rivalGoals([goals], [m])(game("Nadie"))).toBeNull();
+    // a table whose goal columns were left empty (all 0) sets no normal
   });
   it("another season's table, or one with fewer than two rivals, adjusts nothing", () => {
     const m = game("Orduña");

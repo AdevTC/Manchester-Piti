@@ -16,12 +16,21 @@ export interface StandingsRowLike {
   isUs: boolean;
   pj: number;
   pts: number;
+  /** Goals scored and conceded (a table may lack them: then the rival's goals adjust nothing). */
+  gf?: number;
+  gc?: number;
 }
 /** The league table of a season (`standings/{seasonId}`; the doc id is the season's). */
 export interface StandingsLike {
   id: string;
   jornada: number | null;
   rows: readonly StandingsRowLike[];
+}
+
+/** A normal match's goals per 50′ each way, for us and against us: what the team's part of a nota measures from. */
+export interface Normal {
+  for: number;
+  against: number;
 }
 
 /** A match's length in minutes (50 when the acta has none). */

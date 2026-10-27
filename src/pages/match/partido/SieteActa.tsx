@@ -12,8 +12,7 @@ import { dateMillis, isVisibleMatch, type Participation } from "../../../../func
 import { useReducedMotion } from "../../../components/vidrio";
 import { jornadaOf } from "../../../lib/derived/jornada";
 import { PROVISIONAL_MINUTES } from "../../../lib/rating/constants";
-import { matchValue } from "../../../lib/rating/values";
-import { NO_STANDINGS, ratingMatches, seasonRatings } from "../../../lib/seasonRating";
+import { NO_STANDINGS, ratedMatch, ratingMatches, seasonRatings } from "../../../lib/seasonRating";
 import { useStandings } from "../../../lib/useStandings";
 import { mvpWinners, voteLeft } from "../../../lib/vestuario";
 import type { PageCtx } from "./ctx";
@@ -69,8 +68,11 @@ export function SieteActa({ c }: { c: PageCtx }) {
     () => c.matches.filter((m) => isVisibleMatch(m) && !!match.seasonId && m.seasonId === match.seasonId && m.status !== "cancelled").sort((a, b) => dateMillis(a.date) - dateMillis(b.date)),
     [c.matches, match.seasonId],
   );
-  const ratings = useMemo(() => seasonRatings(ratingMatches(seasonGames), standings ? [standings] : NO_STANDINGS), [seasonGames, standings]);
-  const values = useMemo(() => matchValue(match), [match]);
+  const table = useMemo(() => (standings ? [standings] : NO_STANDINGS), [standings]);
+  const ratings = useMemo(() => seasonRatings(ratingMatches(seasonGames), table), [seasonGames, table]);
+  // (this match as its notas are rated: its values at the season's F7 calibration, and each one's team part)
+  const rated = useMemo(() => ratedMatch(match, ratingMatches(seasonGames), table), [match, seasonGames, table]);
+  const values = rated.values;
   const mvpIds = useMemo(() => mvpWinners(match, c.mvp, c.now), [match, c.mvp, c.now]);
   const ledger = (match.ledger as Record<string, Participation> | undefined) ?? null;
   const P = useMemo(
@@ -370,13 +372,14 @@ export function SieteActa({ c }: { c: PageCtx }) {
       p: fp,
       groups: tl.groups,
       values,
+      team: rated.team.get(fp.id) ?? null,
       season: fp.guest ? null : seasonLineOf(fp.id, match.id, notes, games),
       duration: D,
       published,
       positionsPlayed: (ledger?.[fp.id]?.positionsPlayed as Partial<Record<string, number>> | undefined) ?? null,
       provisionalMinutes: PROVISIONAL_MINUTES,
     });
-  }, [fp, ratings, tl.groups, values, match.id, games, D, published, ledger]);
+  }, [fp, ratings, tl.groups, values, rated, match.id, games, D, published, ledger]);
   const neighbour = (dir: 1 | -1) => {
     if (!sel) return "";
     const i = stepOrder.indexOf(sel);
@@ -696,7 +699,7 @@ export function SieteActa({ c }: { c: PageCtx }) {
                 {card.groups.length > 0 && (
                   <section className="sn-cs">
                     <h4>De dónde sale</h4>
-                    <p className="sn-small">Lo que sumaron y restaron sus acciones, en goles. Su nota compara ese total, cada 50 minutos, {card.lineShort}.</p>
+                    <p className="sn-small">Lo que sumaron y restaron sus acciones y el equipo con él en el campo, en goles: 0,65 son un punto de nota. Lo que se repite cuenta cada 50 minutos, comparado {card.lineShort}; goles, penaltis, tarjetas y errores que acaban en gol, enteros.</p>
                     <ul className="sn-src">
                       {card.groups.map((g) => (
                         <li key={g.key}>

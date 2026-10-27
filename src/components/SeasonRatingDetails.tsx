@@ -22,7 +22,7 @@ export function SeasonRatingDetails({ rating }: { rating: SeasonRating }) {
       <summary>Cómo se calcula GLOBAL</summary>
       <div className="season-rating-details__body">
         <p>{rating.summary}.</p>
-        <p>Cada nota te compara con los de la línea en la que jugaste ese partido{rating.role && rating.roleSource === "played" ? ` (sobre todo, ${LINE_NAMES[rating.role].plural.toLowerCase()})` : ""} o, si el acta no lo dice, con todo el equipo.</p>
+        <p>Cada nota te compara con los que jugaron tu puesto{rating.role && rating.roleSource === "played" ? ` (sobre todo, ${LINE_NAMES[rating.role].plural.toLowerCase()})` : ""}: un lateral con los laterales, un central con los centrales; si el acta no dice dónde jugaste, con todo el equipo.</p>
         {notes.length ? (
           <dl aria-label="Tus notas por partido">
             {notes.map((n) => (

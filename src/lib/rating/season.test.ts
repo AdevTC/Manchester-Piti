@@ -4,7 +4,8 @@ import { DEFAULT_ANALYSIS_PROFILE, type Observation } from "../../../functions/s
 import type { ClubMatch } from "../clubData";
 import type { Standings } from "../standings";
 import { PLUS_MINUS_ACTIVE } from "./constants";
-import { notesMean, seasonRatings, type MatchNote } from "./season";
+import { frozenNotas, notesMean, ratedMatch, seasonRatings, teamPart, type MatchNote } from "./season";
+import type { PlayerMatchValue } from "./values";
 
 // The season from each match's values (docs/medias.md): the notas, GLOBAL and FOR.
 
@@ -42,17 +43,37 @@ describe("GLOBAL: the notas' mean over a cushion", () => {
   });
 });
 
+/** Recoveries of ours (the volume of play), by `by`. */
+const recoveries = (count: number, by: string, from = 0): Observation[] => Array.from({ length: count }, (_, i) => ({ id: `r${by}${from + i}`, kind: "recovery", team: "us", actorId: by, order: 500 + from + i, validity: "valid", facts: {} }));
+/** A narrated match (30 actions worth nothing by someone not in the acta, so it counts as told) with `observations`. */
+const told = (ledger: Record<string, Participation>, observations: Observation[], extra: Partial<ClubMatch> = {}): ClubMatch => {
+  const filler = Array.from({ length: 30 }, (_, i): Observation => ({ id: `x${i}`, kind: "carry", team: "us", actorId: "x", order: 900 + i, validity: "valid", facts: {} }));
+  return match(ledger, { analysis: { version: 2, revision: 1, profile: DEFAULT_ANALYSIS_PROFILE, observations: [...observations, ...filler], coverage: [{ family: "*", team: "us", state: "complete" }] }, ...extra });
+};
+
 describe("a match's nota", () => {
-  it("is his value per 50′ against the reference, in the season's spread, with 10′ of the reference as a cushion", () => {
-    // a scores in 10′, b, c and d play 50′ with nothing: a is measured against 0 (the others), they against a's 5 per 50′ / 3
-    const m = match({ a: row(10, { goals: 1 }), b: row(50), c: row(50), d: row(50) });
+  it("is his volume of play per 50′ against his position's normal, with 10′ of it as a cushion, over 0,65 goals a point", () => {
+    // a makes 5 recoveries (0,15) in 25′; b and c, 50′ with nothing
+    const m = told({ a: row(25), b: row(50), c: row(50) }, recoveries(5, "a"));
     const r = seasonRatings([m]);
-    const devA = (1 * 50) / 20; // the cushion halves a 10′ goal: 2,5 per 50′, not 5
-    const mu = 5 / 3;
-    const devB = (((mu * 10) / 50) * 50) / 60 - mu;
-    const sd = Math.sqrt((devA ** 2 + 3 * devB ** 2) / 4);
-    expect(r.noteOf(m.id, "a")!.nota).toBeCloseTo(6.5 + devA / sd, 10);
-    expect(r.noteOf(m.id, "b")!.nota).toBeCloseTo(6.5 + devB / sd, 10);
+    // a against b and c (nothing): 0,15 per 35′ cushioned
+    expect(r.noteOf(m.id, "a")!.nota).toBeCloseTo(6.5 + (0.15 * 50) / 35 / 0.65, 10);
+    // b against a and c: 0,15 in their 75′ is 0,1 per 50′
+    const mu = (0.15 * 50) / 75;
+    expect(r.noteOf(m.id, "b")!.nota).toBeCloseTo(6.5 + ((((mu * 10) / 50) * 50) / 60 - mu) / 0.65, 10);
+    // a match without narration: its few actions as they are, never against the narrated ones nor setting their normal
+    const mesa = match({ a: row(50), b: row(50) }, { events: [{ id: "l", type: "possession_lost", playerId: "a", minute: 5 }] });
+    const both = seasonRatings([m, mesa]);
+    expect(both.noteOf(mesa.id, "b")!.nota).toBe(6.5);
+    expect(both.noteOf(mesa.id, "a")!.nota).toBeCloseTo(6.5 + (-0.03 * 50) / 60 / 0.65, 10);
+    expect(both.noteOf(m.id, "b")!.nota).toBe(r.noteOf(m.id, "b")!.nota);
+  });
+  it("counts what happens once whole: a goal is +1 / 0,65 in 10′ or in 50′, and moves nobody else", () => {
+    const short = match({ a: row(10, { goals: 1 }), b: row(50), c: row(50) });
+    const long = match({ a: row(50, { goals: 1 }), b: row(50), c: row(50) });
+    expect(seasonRatings([short]).noteOf(short.id, "a")!.nota).toBeCloseTo(6.5 + 1 / 0.65, 10);
+    expect(seasonRatings([long]).noteOf(long.id, "a")!.nota).toBeCloseTo(6.5 + 1 / 0.65, 10);
+    expect(seasonRatings([short]).noteOf(short.id, "b")!.nota).toBe(6.5);
   });
   it("needs 10 minutes; unknown minutes give none (counted as played)", () => {
     const m = match({ a: row(9, { goals: 1 }), b: row(50), c: { ...row(0), minutes: undefined as unknown as number } });
@@ -70,18 +91,60 @@ describe("a match's nota", () => {
     expect(r.noteOf(acta.id, "a")!.weight).toBe(0.25);
     expect(r.noteOf(acta.id, "b")!.weight).toBe(0.5);
   });
-  it("compares each player with his own line (the others in it, his matches left out)", () => {
-    // two defenders who do nothing and two forwards who score every match
-    const lines = (def: boolean) => (def ? { positionsPlayed: { DFC: 50 } } : {});
-    const season = (placed: boolean) => {
-      const games = Array.from({ length: 3 }, () => match({ d1: row(50, lines(placed)), d2: row(50, lines(placed)), f1: row(50, { goals: 1, positionsPlayed: { DC: 50 } }), f2: row(50, { goals: 1, positionsPlayed: { DC: 50 } }) }));
+  it("compares each player with the others who played his position (a centre-back with centre-backs), his matches left out", () => {
+    // two centre-backs who do nothing and two full-backs who win five balls every match
+    const season = (code: "DFC" | "LI") => {
+      const games = Array.from({ length: 3 }, (_, j) =>
+        told({ d1: row(50, { positionsPlayed: { [code]: 50 } }), d2: row(50, { positionsPlayed: { DFC: 50 } }), w1: row(50, { positionsPlayed: { LI: 50 } }), w2: row(50, { positionsPlayed: { LD: 50 } }) }, [...recoveries(5, "w1", 10 * j), ...recoveries(5, "w2", 10 * j)]),
+      );
       return seasonRatings(games).players.get("d1")!.exact!;
     };
-    // placed in defence, he is measured against defenders, not against the forwards' goals
-    expect(season(true)).toBeGreaterThan(season(false));
-    // a lone scorer is measured against the others, never against himself
-    const lone = seasonRatings([match({ f: row(50, { goals: 1, positionsPlayed: { DC: 50 } }), d: row(50, { positionsPlayed: { DFC: 50 } }) })]);
-    expect(lone.players.get("f")!.notes[0].nota).toBeGreaterThan(6.5);
+    // as a centre-back he is measured against centre-backs, not against the full-backs' volume
+    expect(season("DFC")).toBeGreaterThan(season("LI"));
+  });
+  it("the keeper counts as he is: only other keepers set a keeper's normal", () => {
+    const keeperNota = (outfield: number) => {
+      const m = told({ k: row(50, { positionsPlayed: { POR: 50 } }), a: row(50, { positionsPlayed: { MC: 50 } }) }, [...recoveries(2, "k"), ...recoveries(outfield, "a", 10)]);
+      return seasonRatings([m]).noteOf(m.id, "k")!.nota;
+    };
+    expect(keeperNota(0)).toBeCloseTo(6.5 + (0.06 * 50) / 60 / 0.65, 10);
+    expect(keeperNota(8)).toBe(keeperNota(0));
+  });
+});
+
+describe("the team while he was on the pitch", () => {
+  it("the goals against weigh on the back, the goals for on the front, against a normal match of the season", () => {
+    // 0–0 and then 0–4: a normal match has 1 goal a side per 50′
+    const j1 = match({ d: row(50, { positionsPlayed: { DFC: 50 } }), f: row(50, { positionsPlayed: { DC: 50 } }) });
+    const j2 = match({ d: row(50, { positionsPlayed: { DFC: 50 } }), f: row(50, { positionsPlayed: { DC: 50 } }) }, { goalsAgainst: 4 });
+    const r = seasonRatings([j1, j2]);
+    expect(r.noteOf(j2.id, "d")!.nota).toBeCloseTo(6.5 - 0.15 * (4 - 1) + 0.05 * (0 - 1), 10);
+    expect(r.noteOf(j2.id, "f")!.nota).toBeCloseTo(6.5 - 0.05 * (4 - 1) + 0.15 * (0 - 1), 10);
+    // the first match was rated with itself (a 0–0 is a normal match then)
+    expect(r.noteOf(j1.id, "d")!.nota).toBe(6.5);
+  });
+  it("a short stint is pulled toward the whole match's (25′ of it); the acta's unplaced player weighs as a midfielder", () => {
+    const pv = (lines: PlayerMatchValue["lines"]) => ({ lines, team: { on: 10, for: 0, against: 2, matchFor: 0, matchAgainst: 4 } }) as PlayerMatchValue;
+    const ga = ((2 + (25 * 4) / 50) * 10) / 35;
+    expect(teamPart(pv({ DEF: 1 }), { for: 1, against: 1 }, 50).value).toBeCloseTo(-0.15 * (ga - 0.2) + 0.05 * (0 - 0.2), 10);
+    expect(teamPart(pv({}), { for: 1, against: 1 }, 50).value).toBeCloseTo(teamPart(pv({ MED: 1 }), { for: 1, against: 1 }, 50).value, 10);
+    expect(teamPart(pv({ POR: 1 }), { for: 1, against: 1 }, 50).value).toBeCloseTo(-0.05 * (ga - 0.2), 10);
+    // a hat-trick is not his again through the cushion: the whole match without his goals
+    const scorer = { lines: { DEL: 1 }, team: { on: 50, for: 0, against: 0, matchFor: 0, matchAgainst: 0 } } as PlayerMatchValue;
+    expect(teamPart(scorer, { for: 1, against: 1 }, 50)).toMatchObject({ for: 0, against: 0 });
+  });
+  it("a table with goals sets the normal match against that rival, and the acta stores it", () => {
+    const rows = ([["Goleadores", 30, 6], ["Seguros", 6, 30], ["Otros", 18, 18]] as const).map(([team, gf, gc]) => ({ team, pj: 6, g: 0, e: 0, p: 0, gf, gc, pts: 9, isUs: false }));
+    const table: Standings = { id: "s", competition: "Liga", jornada: 1, updatedAt: 0, updatedBy: "", rows: [...rows, { team: "Piti", pj: 1, g: 0, e: 0, p: 1, gf: 0, gc: 4, pts: 0, isUs: true }] };
+    const ledger = () => ({ d: row(50, { positionsPlayed: { DFC: 50 } }), f: row(50, { positionsPlayed: { DC: 50 } }) });
+    const vsScorers = match(ledger(), { rival: "Goleadores", goalsAgainst: 4 });
+    const frozen = frozenNotas(vsScorers, [vsScorers], [table]);
+    // they score (30 + 2 · 3) / 8 = 4,5 a match and concede (6 + 2 · 3) / 8 = 1,5
+    expect(frozen.normal).toEqual({ against: 4.5, for: 1.5 });
+    expect(frozen.players.d.nota).toBeCloseTo(6.5 - 0.15 * (4 - 4.5) + 0.05 * (0 - 1.5), 10);
+    // a correction keeps it, and the acta's ficha explains the same
+    expect(frozenNotas(vsScorers, [vsScorers], [table], null, { for: 1, against: 1 }).normal).toEqual({ for: 1, against: 1 });
+    expect(ratedMatch(vsScorers, [vsScorers], [table]).team.get("d")).toMatchObject({ normalAgainst: 4.5, normalFor: 1.5 });
   });
 });
 

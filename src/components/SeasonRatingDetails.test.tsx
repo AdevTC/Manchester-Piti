@@ -35,7 +35,7 @@ describe("GLOBAL: explicación de la temporada", () => {
     expect(screen.getByLabelText("De dónde sale")).toHaveTextContent("Ataque +1,00 goles");
     expect(screen.getByLabelText("De dónde sale")).toHaveTextContent("Gol +1,00");
     expect(screen.getByText(rating.explanation)).toBeInTheDocument();
-    expect(screen.getByText(/Modelo piti-media-v2/)).toHaveTextContent("no una valoración profesional validada");
+    expect(screen.getByText(/Modelo piti-media-v3/)).toHaveTextContent("no una valoración profesional validada");
   });
   it("without a nota yet: says what is missing, no made-up numbers", () => {
     const rating = seasonRating({ id: "p" }, [game("a", 4, { p: row(5) })]);
