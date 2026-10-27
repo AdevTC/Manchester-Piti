@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analysisProblem, narratedAnalysisSchema, narrationSourcesSchema, observationSchema } from '../../functions/src/narrated/schema';
+import { NARRATION_SUBTYPES } from '../../functions/src/narrated/contract';
+import { NARRATED_FACT_TYPES } from '../../functions/src/narrated/facts';
 import { DEFAULT_ANALYSIS_PROFILE, type NarratedAnalysis, type Observation } from '../../functions/src/narrated/types';
 import { narrationSnapshot, publicNarrationEvents } from '../../functions/src/narrated/privateSources';
 import { previewNarration, correctNarrationObservation, resolveNarrationQuestion, narrationContext } from './narration';
@@ -109,5 +111,28 @@ describe('narrated v2 validation and privacy', () => {
     expect(context.subtypesByKind.run).toContain('overlap');
     expect(context.optionalParameters).toHaveProperty('keeperCleanSheetPolicy');
     expect(JSON.stringify(context).length).toBeLessThan(90000);
+  });
+  type Ask = { ask: string; facts: string[]; kind?: string; subtypes?: string[]; when: string; examples?: { narration: string; observations: Record<string, unknown>[] }[] };
+  const asks = (s = sheet): Ask[] => JSON.parse(narrationContext('match', s, [])).alwaysRecord.items;
+  const withCriterion = (bigChanceCriterion: string) => ({ ...sheet, analysis: { ...analysis(), profile: { ...DEFAULT_ANALYSIS_PROFILE, parameters: { ...DEFAULT_ANALYSIS_PROFILE.parameters, bigChanceCriterion } } } });
+  it('asks for the play details the rating reads, in the vocabulary and with examples that validate', () => {
+    const items = asks(withCriterion('Mano a mano o portería vacía'));
+    expect(items.flatMap(i => i.facts)).toEqual(expect.arrayContaining(['entersArea', 'subtype', 'firstControl', 'zone', 'bigChance']));
+    for (const item of items) {
+      for (const fact of item.facts) expect(NARRATED_FACT_TYPES).toHaveProperty(fact);
+      for (const subtype of item.subtypes ?? []) expect(NARRATION_SUBTYPES[item.kind!]).toContain(subtype);
+      for (const example of item.examples ?? []) for (const o of example.observations) expect(observationSchema.safeParse({ id: 'example', order: 1, ...o }).success).toBe(true);
+    }
+    expect(items.find(i => i.kind === 'keeper')?.subtypes).toEqual(expect.arrayContaining(['punch', 'cross_exit']));
+    const keeperFacts = items.find(i => i.kind === 'keeper')!.examples!.map(e => e.observations[0].facts);
+    expect(keeperFacts).toEqual(expect.arrayContaining([expect.objectContaining({ subtype: 'punch', firstControl: 'us' }), expect.objectContaining({ subtype: 'cross_exit', outcome: 'failed' })]));
+  });
+  it('asks for big chances only under the club criterion declared in the profile', () => {
+    const off = asks().find(i => i.facts.includes('bigChance'))!;
+    expect(off.when).toMatch(/no marques bigChance/);
+    expect(off.examples).toBeUndefined();
+    const on = asks(withCriterion('Ocasión clarísima v1: mano a mano o portería vacía')).find(i => i.facts.includes('bigChance'))!;
+    expect(on.when).toContain('«Ocasión clarísima v1: mano a mano o portería vacía»');
+    expect(asks(withCriterion('  ')).find(i => i.facts.includes('bigChance'))!.when).toMatch(/no marques bigChance/);
   });
 });
