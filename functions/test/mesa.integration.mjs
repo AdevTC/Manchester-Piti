@@ -227,7 +227,7 @@ assert.equal(m.events.find((e) => e.id === "live-r1").editedByUid, pablo.uid); c
 assert.equal(m.rivalShort, "ATL"); checks++;
 assert.equal(typeof m.voteClosesAt, "number"); checks++;
 // the notas, frozen with the acta (rating/frozen.ts): this model's, with the rival factor used
-assert.equal(m.notas?.model, "piti-media-v2"); assert.equal(typeof m.notas.rival, "number"); assert.ok(Object.keys(m.notas.players).length > 0); checks += 3;
+assert.equal(m.notas?.model, "piti-media-v3"); assert.equal(typeof m.notas.rival, "number"); assert.ok(Object.keys(m.notas.players).length > 0); checks += 3;
 const totals = await db.collection("playerSeasonStats").where("seasonId", "==", seasonId).get();
 assert.equal(totals.docs.find((d) => d.get("playerId") === ids[5]).get("totals").goals, 1); checks++;
 // published: la mesa can't change it any more, nor publish it twice

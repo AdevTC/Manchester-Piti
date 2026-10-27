@@ -7,9 +7,9 @@ import type { Participation } from "../../../../functions/src/matchEngine";
 import type { TechnicalStats } from "../../../../functions/src/matchAnalysis";
 import { isPosCode, lineOf, positionLabel, type Line } from "../../../lib/positions";
 import { notaBand, notaText, type NotaBand } from "../../../lib/rating/semaforo";
-import type { Group, MatchValue } from "../../../lib/rating/values";
-import { notesMean, type MatchNote } from "../../../lib/rating/season";
-import { FORM_CUSHION, FORM_MATCHES } from "../../../lib/rating/constants";
+import type { Group, MatchValue, Role } from "../../../lib/rating/values";
+import { notesMean, type MatchNote, type TeamPart } from "../../../lib/rating/season";
+import { FORM_CUSHION, FORM_MATCHES, NOTE_SCALE } from "../../../lib/rating/constants";
 import { andList as and, type ChangeGroup, type Lineup, type Play, type PosSeg, type Spot, type Stint, type Tag } from "./model";
 import type { Person, Viewer } from "./ctx";
 
@@ -58,7 +58,7 @@ export interface ActaPlayer {
   /** A guest («guest:g1»): no ficha, no nota. */
   guest: boolean;
   keeper: boolean;
-  /** «con los defensas» (the line his nota is compared with). */
+  /** «con los laterales» (the position his nota is compared with). */
   line: string;
   stats: ActaStats;
   stints: Stint[];
@@ -81,13 +81,13 @@ export interface PlayersInput {
   duration: number;
 }
 
-const LINE_WORD: Record<Line, string> = { POR: "porteros", DEF: "defensas", MED: "medios", DEL: "delanteros" };
-/** «con los defensas»; «con defensas y medios, según sus minutos en cada sitio»; «con todo el equipo». */
-export function lineText(lines: Partial<Record<Line, number>>): string {
-  const e = (Object.entries(lines) as [Line, number][]).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+const POSITION_WORD: Record<Role, string> = { POR: "porteros", "DEF-centro": "centrales", "DEF-banda": "laterales", "MED-centro": "mediocentros", "MED-banda": "interiores", "DEL-centro": "puntas", "DEL-banda": "extremos" };
+/** «con los laterales»; «con centrales y laterales, según sus minutos en cada sitio»; «con todo el equipo». */
+export function positionText(roles: Partial<Record<Role, number>>): string {
+  const e = (Object.entries(roles) as [Role, number][]).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   if (!e.length) return "con todo el equipo";
-  if (e.length === 1 || e[0][1] >= 0.85) return `con los ${LINE_WORD[e[0][0]]}`;
-  return `con ${and(e.map(([l]) => LINE_WORD[l]))}, según sus minutos en cada sitio`;
+  if (e.length === 1 || e[0][1] >= 0.85) return `con los ${POSITION_WORD[e[0][0]]}`;
+  return `con ${and(e.map(([r]) => POSITION_WORD[r]))}, según sus minutos en cada sitio`;
 }
 
 /** Everyone who stood on the pitch: the seven in slot order, then the rest as they came on. */
@@ -105,6 +105,7 @@ export function actaPlayers(I: PlayersInput): ActaPlayer[] {
     const nota = id.startsWith("guest:") ? null : I.notaOf(id);
     const b = notaBand(nota);
     const lines = I.values?.players.get(id)?.lines ?? {};
+    const roles = I.values?.players.get(id)?.roles ?? {};
     const slot = I.lineup.slots.find((s) => s.id === id);
     return {
       id,
@@ -123,7 +124,7 @@ export function actaPlayers(I: PlayersInput): ActaPlayer[] {
       mvp: mvp.has(id),
       guest: id.startsWith("guest:"),
       keeper: (lines.POR ?? 0) >= 0.5,
-      line: lineText(lines),
+      line: positionText(roles),
       stats: {
         goals: row?.goals ?? 0,
         assists: row?.assists ?? 0,
@@ -505,11 +506,21 @@ export interface FichaView {
   closeLabel: string;
 }
 const GROUP_NAME: Record<Group, string> = { ataque: "Ataque", pase: "Pase", defensa: "Defensa", porteria: "Portería", errores: "Errores", disciplina: "Disciplina" };
+const one = (n: number) => n.toLocaleString("es", { maximumFractionDigits: 1 });
+/** «A favor 1 y en contra 6,2 (lo que se esperaba con un portero normal); en un partido normal, 3,9 cada uno en sus
+ *  minutos»: what happened with him on the pitch, and what his nota measures it from. */
+export function teamItems(on: { on: number; for: number; against: number }, t: TeamPart, expected: boolean, duration: number): string {
+  const normal = Math.abs(t.normalFor - t.normalAgainst) < 0.05 ? `${one(t.normalFor)} cada uno` : `${one(t.normalFor)} a favor y ${one(t.normalAgainst)} en contra`;
+  // (a stint short of the whole match is pulled toward it: say so, or the sign may not follow from these figures)
+  return `Con él en el campo, a favor ${one(on.for)} y en contra ${one(on.against)}${expected ? " (lo que se esperaba con un portero normal)" : ""}; en un partido normal, ${normal} en sus minutos${on.on < duration ? ". En un rato corto también cuenta el partido entero" : ""}`;
+}
 
 export interface FichaInput {
   p: ActaPlayer;
   groups: readonly ChangeGroup[];
   values: MatchValue | null;
+  /** What the team did with him on the pitch, as his nota counts it (null: not known). */
+  team: TeamPart | null;
   season: SeasonLine | null;
   duration: number;
   published: boolean;
@@ -551,7 +562,7 @@ export function fichaOf(I: FichaInput): FichaView {
     p.keeper ? { l: "Paradas", v: String(st.saves), s: "" } : { l: "A puerta", v: String(st.shotsOnTarget), s: st.shots ? `de ${plural(st.shots, "remate", "remates")}` : "" },
     p.keeper ? { l: "Despejes", v: String(st.clearances), s: "" } : { l: "Recuperaciones", v: String(st.recoveries), s: "" },
   ];
-  // what his actions were worth, by kind
+  // what his actions were worth, by kind; and the team with him on the pitch, its part of his nota in goals too
   const items = I.values?.players.get(p.id)?.items ?? [];
   const sums = new Map<Group, { sum: number; items: typeof items }>();
   for (const it of items) {
@@ -560,17 +571,20 @@ export function fichaOf(I: FichaInput): FichaView {
     g.items.push(it);
     sums.set(it.group, g);
   }
-  const maxAbs = Math.max(0.0001, ...[...sums.values()].map((g) => Math.abs(g.sum)));
-  const groups = [...sums.entries()]
-    .sort((a, b) => Math.abs(b[1].sum) - Math.abs(a[1].sum))
-    .map(([group, g]) => {
-      const its = [...g.items].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
-      const txt = its
-        .slice(0, 5)
-        .map((it) => `${it.label}${it.n > 1 ? ` ×${it.n}` : ""} ${signed(it.value)}`)
-        .join(" · ");
-      return { key: group, name: GROUP_NAME[group] ?? group, v: signed(g.sum), dir: g.sum >= 0 ? ("is-pos" as const) : ("is-neg" as const), w: r2((Math.abs(g.sum) / maxAbs) * 50), items: `${txt}${its.length > 5 ? ` · y ${its.length - 5} más` : ""}` };
-    });
+  const rows = [...sums.entries()].map(([group, g]) => {
+    const its = [...g.items].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+    const txt = its
+      .slice(0, 5)
+      .map((it) => `${it.label}${it.n > 1 ? ` ×${it.n}` : ""} ${signed(it.value)}`)
+      .join(" · ");
+    return { key: group as string, name: GROUP_NAME[group] ?? group, sum: g.sum, items: `${txt}${its.length > 5 ? ` · y ${its.length - 5} más` : ""}` };
+  });
+  const on = I.values?.players.get(p.id)?.team;
+  if (I.team && on && p.nota !== null) rows.push({ key: "equipo", name: "Equipo", sum: I.team.value * NOTE_SCALE, items: teamItems(on, I.team, I.values?.team.expected ?? false, I.duration) });
+  const maxAbs = Math.max(0.0001, ...rows.map((g) => Math.abs(g.sum)));
+  const groups = rows
+    .sort((a, b) => Math.abs(b.sum) - Math.abs(a.sum))
+    .map((g) => ({ key: g.key, name: g.name, v: signed(g.sum), dir: g.sum >= 0 ? ("is-pos" as const) : ("is-neg" as const), w: r2((Math.abs(g.sum) / maxAbs) * 50), items: g.items }));
   // his season, with this match
   const s = I.season;
   let seasNote = "";

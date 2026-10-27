@@ -80,10 +80,11 @@ describe("playerPositions", () => {
 });
 
 describe("playerPositions: cards and tiny lines", () => {
+  // (0–0s: the team's part of each nota is nothing, so only his own events move it)
   const three = (first: Partial<Row>) => [
-    match(1, { ana: row(50, { positionsPlayed: { MCD: 50 }, ...first }) }),
-    match(2, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }),
-    match(3, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }),
+    match(1, { ana: row(50, { positionsPlayed: { MCD: 50 }, ...first }) }, { goalsFor: 0 }),
+    match(2, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }, { goalsFor: 0 }),
+    match(3, { ana: row(50, { positionsPlayed: { MCD: 50 } }) }, { goalsFor: 0 }),
   ];
   const rate = (first: Partial<Row>) => {
     const gs = three(first);

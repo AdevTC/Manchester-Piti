@@ -107,7 +107,7 @@ async function backfill(db, write, expect, m) {
       }
       // un acta rara no para el resto: se cuenta y se sigue
       try {
-        const notas = m.notasDoc(m.frozenNotas(g.match, games.map((x) => x.match), table, m.parseStoredNotas(g.match.notas)?.rival ?? null), now);
+        const notas = m.notasDoc(m.frozenNotas(g.match, games.map((x) => x.match), table, m.parseStoredNotas(g.match.notas)?.rival ?? null, m.parseStoredNotas(g.match.notas)?.normal ?? null), now);
         g.match = { ...g.match, notas };
         games[games.indexOf(g)] = g;
         plan.push({ doc: g.doc, notas, seasonId, table: !!t });

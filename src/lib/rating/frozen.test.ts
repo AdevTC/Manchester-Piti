@@ -19,6 +19,11 @@ describe("the stored notas", () => {
     expect(doc).toEqual({ model: MODEL_VERSION, rival: 1.046, at: 123, players: { a: { nota: 7.432, minutes: 50, weight: 1, narrated: true } } });
     expect(parseStoredNotas({ ...doc, players: { ...doc.players, "b/c": { nota: 5, minutes: 50, weight: 1, narrated: true }, d: { nota: 12, minutes: 50, weight: 1, narrated: true } } })?.players).toEqual(doc.players);
     expect(parseStoredNotas(null)).toBeNull();
+    // the rival's normal match, when the table gave it
+    const withNormal = notasDoc({ ...stored({}), normal: { for: 1.23456, against: 4.5 } }, 1);
+    expect(withNormal.normal).toEqual({ for: 1.235, against: 4.5 });
+    expect(parseStoredNotas(withNormal)?.normal).toEqual({ for: 1.235, against: 4.5 });
+    expect(parseStoredNotas({ ...withNormal, normal: { for: -1, against: 2 } })).not.toHaveProperty("normal");
     expect(parseStoredNotas({ model: MODEL_VERSION, rival: "x", players: {} })).toBeNull();
   });
   it("another model's notas are rated again", () => {
