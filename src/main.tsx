@@ -48,10 +48,12 @@ const animateFromNextPage = () => {
 }
 
 // How the site feels on the visitors' phones (lib/vitals): loaded once the page is up, never before. Then the other
-// sections are warmed at idle moments, so the first tap on each is as quick as the second.
+// sections are warmed at idle moments, so the first tap on each is as quick as the second. Only in the built site:
+// on Vite's dev server every module is a request of its own, and warming five sections after each load floods the
+// page (and the e2e, which runs there) with hundreds of them.
 const measure = () => {
   if (import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATOR !== '1') void import('./lib/vitals').then((m) => m.startVitals())
-  warmSections(router)
+  if (import.meta.env.PROD) warmSections(router)
 }
 
 if (html.hasAttribute('data-ssr') && inline?.at) {
