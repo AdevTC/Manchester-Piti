@@ -11,17 +11,30 @@ export async function enterVestuario(page: Page) {
 
 // ── Emulator-only fixtures (demo project, loopback): a spec sets up the state it needs itself. ──
 const EMULATOR = "demo-manchester-piti";
-/** An ID token for the seeded preview admin, from the Auth emulator. */
-export async function emulatorAdminToken(): Promise<string> {
+/** The seeded preview admin as the Auth emulator knows it: its uid and an ID token. */
+async function emulatorAdmin(): Promise<{ uid: string; token: string }> {
   const b64 = (data: unknown) => Buffer.from(JSON.stringify(data)).toString("base64url");
   const fake = `${b64({ alg: "none", typ: "JWT" })}.${b64({ sub: "preview-admin", email: "admin@piti.test", email_verified: true, name: "Administrador de pruebas", aud: "demo", iss: "https://accounts.google.com" })}.`;
   const response = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=demo", {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ postBody: new URLSearchParams({ id_token: fake, providerId: "google.com" }).toString(), requestUri: "http://localhost", returnSecureToken: true }),
   });
   const user: unknown = await response.json();
-  const token = (user as { idToken?: unknown }).idToken;
-  if (typeof token !== "string") throw new Error("La cuenta del emulador no está disponible.");
-  return token;
+  const { idToken: token, localId: uid } = user as { idToken?: unknown; localId?: unknown };
+  if (typeof token !== "string" || typeof uid !== "string") throw new Error("La cuenta del emulador no está disponible.");
+  return { uid, token };
+}
+/** An ID token for the seeded preview admin, from the Auth emulator. */
+export async function emulatorAdminToken(): Promise<string> {
+  return (await emulatorAdmin()).token;
+}
+/** Deletes the preview admin's porra for a match (having none is fine): a spec that saves one starts from nothing,
+ * and so does its retry, whatever the failed attempt left saved. */
+export async function clearAdminPorra(matchId: string): Promise<void> {
+  const { uid } = await emulatorAdmin();
+  const response = await fetch(`http://127.0.0.1:8080/v1/projects/${EMULATOR}/databases/(default)/documents/matchPrivate/${matchId}/predictions/${uid}`, {
+    method: "DELETE", headers: { authorization: "Bearer owner" },
+  });
+  if (!response.ok && response.status !== 404) throw new Error(`No se ha podido borrar la porra: HTTP ${response.status}`);
 }
 /** Calls a callable function on the Functions emulator as the given user. */
 export async function callFunction(token: string, name: string, data: unknown): Promise<unknown> {

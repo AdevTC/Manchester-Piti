@@ -1,12 +1,18 @@
 import { execFileSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
-import { enterVestuario } from "./helpers";
+import { clearAdminPorra, enterVestuario } from "./helpers";
 
 // The porra is for the seeded next match («preview-next», open until kick-off). Other specs play, re-date or
 // add matches: the preview seed (idempotent) puts that fixture back as the next one, scheduled and open.
 test.beforeAll(() => execFileSync(process.execPath, ["functions/test/seed-preview.mjs"], { stdio: "inherit" }));
+// Every attempt starts with no porra saved. A retry used to meet what its failed attempt left: the same 1–0 its
+// first save sets, so the button read «Porra guardada» (disabled) and the retry waited for «Guardar» until it timed out.
+test.beforeEach(() => clearAdminPorra("preview-next"));
 
 test("la porra conserva goleador y asistencia al recargar el partido, también en móvil", async ({ page }) => {
+  // (four page loads, two saves through the functions emulator, three screenshots: 24–32 s on CI against the
+  // default 30, so it gets triple)
+  test.slow();
   await enterVestuario(page);
   // The porra lives on the match's Vestuario screen (CL- boards: the vestuario keeps «¿Vas?» and its blocks).
   await page.goto("/partidos/preview-next/vestuario");
