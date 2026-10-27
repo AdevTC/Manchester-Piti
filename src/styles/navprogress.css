@@ -1,0 +1,12 @@
+/* The line across the top while a change of page waits (components/celeste/navProgress): celeste with a glow, filling
+   slowly from the left (a scale, on the compositor), then running to the end and fading. Every page, the Sala de
+   control too (the colours fall back where the Vidrio tokens are not loaded). */
+.vd-navprogress{position:fixed;z-index:2147483000;top:0;left:0;right:0;height:3px;pointer-events:none;transform-origin:0 50%;transform:scaleX(0);opacity:0;
+  background:linear-gradient(90deg,rgba(108,171,221,0),var(--vd-celeste,#6CABDD) 28%,var(--vd-hielo,#EAF3FC));box-shadow:0 0 14px var(--vd-glow,rgba(108,171,221,.46))}
+:root[data-theme="light"] .vd-navprogress{background:linear-gradient(90deg,rgba(44,106,158,0),#2C6A9E 28%,#6CABDD);box-shadow:0 0 10px rgba(44,106,158,.35)}
+.vd-navprogress[data-on]{opacity:1;transform:scaleX(.86);transition:transform 2.6s cubic-bezier(.08,.6,.25,1),opacity .2s}
+.vd-navprogress[data-done]{opacity:0;transform:scaleX(1);transition:transform .22s cubic-bezier(.2,.8,.2,1),opacity .3s .14s}
+@media (prefers-reduced-motion:reduce){
+  .vd-navprogress[data-on]{transform:scaleX(1);transition:opacity .2s}
+  .vd-navprogress[data-done]{transition:opacity .2s}
+}

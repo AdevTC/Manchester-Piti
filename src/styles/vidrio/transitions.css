@@ -10,6 +10,14 @@
 .vd-reg-4{view-transition-name:vd-reg-4;view-transition-class:vd-reg vd-r4}
 .vd-reg-5{view-transition-name:vd-reg-5;view-transition-class:vd-reg vd-r5}
 .vd-reg-6{view-transition-name:vd-reg-6;view-transition-class:vd-reg vd-r6}
+/* (a change of page: the leaving page's regions are their own groups, never paired with the arriving page's —
+   each leaves from where it is; components/celeste/pageTransition) */
+.vd-reg-1[data-vd-out]{view-transition-name:vd-reg-1-out}
+.vd-reg-2[data-vd-out]{view-transition-name:vd-reg-2-out}
+.vd-reg-3[data-vd-out]{view-transition-name:vd-reg-3-out}
+.vd-reg-4[data-vd-out]{view-transition-name:vd-reg-4-out}
+.vd-reg-5[data-vd-out]{view-transition-name:vd-reg-5-out}
+.vd-reg-6[data-vd-out]{view-transition-name:vd-reg-6-out}
 .vd-morph{view-transition-class:vd-morph}
 ::view-transition-group(*.vd-reg){animation:none}
 ::view-transition-image-pair(*.vd-reg){isolation:auto}

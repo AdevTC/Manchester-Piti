@@ -8,6 +8,7 @@ import { proposalDiff, proposalState, type ProposalState } from "../../lib/posit
 import { resolveShirt } from "../../lib/derived/seasonPlayers";
 import type { FichaState } from "./card";
 import type { SquadShirt } from "./rules";
+import { dateFormat } from "../../lib/intlCache";
 
 // (the squad, porra and positions pieces moved to lib/derived/seasonPlayers; re-exported for the perfil)
 export { porraLine, positionsPlayed, resolveShirt, seasonPlayers, type PorraLine } from "../../lib/derived/seasonPlayers";
@@ -81,7 +82,7 @@ export function canSendPositions(draft: PositionSet, info: PositionsInfo): boole
 
 /** «sep 2026», in club time. */
 export function monthYear(ms: number): string {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, month: "numeric", year: "numeric" }).formatToParts(ms);
+  const parts = dateFormat("en-GB", { timeZone: TZ, month: "numeric", year: "numeric" }).formatToParts(ms);
   const m = Number(parts.find((x) => x.type === "month")?.value ?? "1");
   const y = parts.find((x) => x.type === "year")?.value ?? "";
   return `${MONTHS[m - 1]} ${y}`;

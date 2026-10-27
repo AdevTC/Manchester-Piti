@@ -3,13 +3,16 @@ import { eventSide, analyseActions, emptyTechnical, isAnalysisAction, ratio, typ
 import type { ClubMatch } from "./clubData";
 import { isVisibleMatch } from "../../functions/src/matchEngine";
 import { guestLabel, isGuestId } from "./derived/guests";
+import { remember } from "./remember";
 export const TECH_LABELS: Record<keyof TechnicalStats, string> = { passes: "Pases intentados", passesCompleted: "Pases completados", passesFailed: "Pases fallados", passesUnknown: "Pases sin resultado", passesReceived: "Pases recibidos", keyPasses: "Pases clave", longPasses: "Pases largos", longPassesCompleted: "Largos completados", crosses: "Centros", crossesCompleted: "Centros completados", shots: "Remates", shotsOnTarget: "A puerta", shotsOffTarget: "Fuera", shotsBlocked: "Remates bloqueados", shotsWoodwork: "Al palo", shotGoals: "Goles de remate", shotAssists: "Asistencias de gol", chancesCreated: "Ocasiones", turnovers: "Pérdidas", recoveries: "Recuperaciones", interceptions: "Intercepciones", tackles: "Entradas", tacklesWon: "Entradas ganadas", tacklesUnknown: "Entradas sin resultado", clearances: "Despejes", blocks: "Bloqueos", saves: "Paradas", dribbles: "Regates", dribblesWon: "Regates ganados", duels: "Duelos", duelsWon: "Duelos ganados", aerialDuels: "Duelos aéreos", aerialDuelsWon: "Duelos aéreos ganados", fouls: "Faltas cometidas", foulsReceived: "Faltas recibidas", throwIns: "Saques de banda", goalKicks: "Saques de puerta", kickoffs: "Saques de centro", offsides: "Fueras de juego", carries: "Conducciones", touches: "Controles", cornersTaken: "Córners", possessionsSeconds: "Segundos de posesión", recordedActions: "Acciones registradas" };
-export function technicalAnalysis(matches: readonly ClubMatch[]) {
+function computeTechnicalAnalysis(matches: readonly ClubMatch[]) {
   matches = matches.filter(isVisibleMatch);
   const events = matches.flatMap(m => technicalEvents(m).map(e => ({ ...e, id: `${m.id}__${e.id}` })));
   const result = analyseActions(events);
   return { ...result, events, games: matches.length, complete: matches.filter(m => m.analysisCoverage === "complete").length, unknownTime: events.filter(e => e.timingUnknown).length };
 }
+/** The narrated actions of these matches, added up (kept by matches: lib/remember; read only). */
+export const technicalAnalysis = remember(computeTechnicalAnalysis);
 /** Who took a shot, as the shot map says it: a guest is «Rafa (invitado)» (plain text, no ficha). */
 export function shooterName(e: AnalysisEvent, matchOf: (eventId: string) => ClubMatch | undefined, memberName: (id: string) => string): string {
   if (!e.playerId) return eventSide(e) === "opponent" ? "El rival" : "El Piti";

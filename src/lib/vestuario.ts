@@ -6,6 +6,7 @@ import { chronological, playerGame } from "./clubAnalytics";
 import { achievements } from "./derived/achievements";
 import { isGuestId } from "./derived/guests";
 import { capital, plural } from "./derived/words";
+import { dateFormat } from "./intlCache";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -27,7 +28,7 @@ export function currentSeasonId(
 
 function madridHour(now: number) {
   return Number(
-    new Intl.DateTimeFormat("es-ES", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now),
+    dateFormat("es-ES", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(now),
   );
 }
 export function greeting(now: number) {
@@ -37,12 +38,12 @@ export function greeting(now: number) {
 /** "Sábado, 16:00" in club time. */
 export function kickoffLabel(date: unknown) {
   const ms = dateMillis(date);
-  const day = new Intl.DateTimeFormat("es-ES", { timeZone: TZ, weekday: "long" }).format(ms);
-  const time = new Intl.DateTimeFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(ms);
+  const day = dateFormat("es-ES", { timeZone: TZ, weekday: "long" }).format(ms);
+  const time = dateFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(ms);
   return `${capital(day)}, ${time}`;
 }
 export function slotParts(ms: number) {
-  const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
+  const f = (o: Intl.DateTimeFormatOptions) => dateFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
   return { day: capital(f({ weekday: "long" })), date: f({ day: "numeric" }), month: f({ month: "short" }), time: f({ hour: "2-digit", minute: "2-digit" }) };
 }
 /** "3 d 14 h 22 min" until `target`; "¡Ya!" once it has passed. */
@@ -307,7 +308,7 @@ export interface TrainingSlot {
 }
 /** "21:00–22:30" in club time (just "21:00" for single-time slots). */
 export function slotTime(slot: { at: number; end?: number }) {
-  const f = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(ms);
+  const f = (ms: number) => dateFormat("es-ES", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(ms);
   return slot.end ? `${f(slot.at)}–${f(slot.end)}` : f(slot.at);
 }
 /** Vote standing: the most voted slots and those with enough players to train. */

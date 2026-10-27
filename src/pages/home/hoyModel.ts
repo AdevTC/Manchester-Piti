@@ -22,6 +22,7 @@ import type { ViewerKind } from "../../lib/derived/vidrio/viewer";
 import type { StripSegment } from "../../lib/derived/vidrio/strip";
 import { minutesTag } from "../../lib/derived/vidrio/squadLive";
 import { andList, dayWord, heroCopy, isLive, niceName, weekday, type CopyCtx } from "./inicioModel";
+import { dateFormat } from "../../lib/intlCache";
 
 const MIN = 60_000;
 /** An en dash that never breaks a score across lines. */
@@ -787,7 +788,7 @@ export function publishedWhen(at: number, now: number): string {
   if (d <= 0) return "hoy";
   if (d === 1) return "ayer";
   if (d < 7) return `el ${weekday(at)}`;
-  return `el ${Number(madridDate(at).slice(8))} de ${new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", month: "long" }).format(at)}`;
+  return `el ${Number(madridDate(at).slice(8))} de ${dateFormat("es-ES", { timeZone: "Europe/Madrid", month: "long" }).format(at)}`;
 }
 
 // ───────────────────────── the season's form and tiles ─────────────────────────

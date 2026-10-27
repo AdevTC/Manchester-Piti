@@ -17,6 +17,7 @@ import { parseMatchLineup } from "../../../lib/matchLineup";
 import { lineupField } from "../../../lib/derived/lineupField";
 import { lineOf, LINES } from "../../../lib/positions";
 import { venueName } from "../model";
+import { dateFormat } from "../../../lib/intlCache";
 
 const MIN = 60_000;
 const DAY = 86_400_000;
@@ -80,7 +81,7 @@ export function paintOf(seg: Pick<StripSegment, "light" | "at">): SegmentPaint {
 
 // ───────────────────────── dates in words ─────────────────────────
 
-const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
+const fmt = (ms: number, o: Intl.DateTimeFormatOptions) => dateFormat("es-ES", { timeZone: TZ, ...o }).format(ms);
 const time = (ms: number) => fmt(ms, { hour: "2-digit", minute: "2-digit" });
 const monthShort = (ms: number) => MONTHS_SHORT[Number(madridDate(ms).slice(5, 7)) - 1] ?? "";
 const dayNum = (ms: number) => Number(madridDate(ms).slice(8, 10));

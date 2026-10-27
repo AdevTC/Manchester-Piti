@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { dateMillis } from "../../functions/src/matchEngine";
 import { venueQueries, wmo, type Sky } from "../../functions/src/weatherLogic";
+import { dateFormat } from "./intlCache";
 
 const TZ = "Europe/Madrid";
 const MADRID = { latitude: 40.4168, longitude: -3.7038, name: "Madrid" };
@@ -15,7 +16,7 @@ export { wmo };
 /** The kick-off hour in Madrid time, as Open-Meteo's start_hour wants it: "2026-11-08T12:00". */
 export function kickoffHour(ms: number) {
   const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" })
+    dateFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" })
       .formatToParts(ms)
       .map((x) => [x.type, x.value]),
   );

@@ -38,6 +38,7 @@ import "../../../styles/vidrio/glass.css";
 import "../../../styles/vidrio/components.css";
 import "../../../styles/vidrio/reading.css";
 import "../../../styles/vidrio/transitions.css";
+import { dateFormat } from "../../../lib/intlCache";
 import "../../../styles/vidrio-paginas.css";
 import "../../../styles/squad.css";
 
@@ -916,7 +917,7 @@ function stageOf(day: MatchdayModel, now: number): "pre" | "live" | "after" | nu
   if (!day.match) return null;
   if (phase === "antes" || phase === "pitido") return "pre";
   if (phase === "directo1" || phase === "descanso" || phase === "directo2") return "live";
-  const ymd = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(ms);
+  const ymd = (ms: number) => dateFormat("en-CA", { timeZone: "Europe/Madrid" }).format(ms);
   if (phase === "final" || (phase === "acta" && day.kickoff != null && ymd(day.kickoff) === ymd(now))) return "after";
   return null;
 }

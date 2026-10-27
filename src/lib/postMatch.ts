@@ -4,6 +4,7 @@ import { computeStats } from './playerStats';
 import { minutesOf, totalMinutes, timedGames } from './derived/minutesOf';
 import { scorePrediction, type Prediction } from '../../functions/src/predictions';
 import { sortPorra, type PorraRow } from '../../functions/src/vestuarioLogic';
+import { dateFormat } from './intlCache';
 
 export function personalMatchSummary(match: ClubMatch, matches: readonly ClubMatch[], playerId: string) {
   const season = matches.filter(m => isCompleted(m) && m.seasonId === match.seasonId && dateMillis(m.date) <= dateMillis(match.date));
@@ -26,7 +27,7 @@ export type HistoricalPrediction = Prediction & { matchId: string; uid: string; 
 export function monthOf(date: unknown) {
   const ms = dateMillis(date);
   if (!Number.isFinite(ms)) return 'sin-fecha';
-  const p = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit' }).formatToParts(ms);
+  const p = dateFormat('en', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit' }).formatToParts(ms);
   return `${p.find(v=>v.type==='year')!.value}-${p.find(v=>v.type==='month')!.value}`;
 }
 export function porraHistory(matches: readonly ClubMatch[], predictions: readonly HistoricalPrediction[], uid: string, month = '') {

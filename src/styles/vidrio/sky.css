@@ -16,7 +16,9 @@
   radial-gradient(34% 30% at 6% 0,var(--bank-halo) 0,transparent 72%),
   radial-gradient(34% 30% at 94% 0,var(--bank-halo) 0,transparent 72%),
   radial-gradient(70% 40% at 50% 64%,var(--pitch-glow) 0,transparent 70%)}
-.vd-sky__bokeh{position:absolute;left:0;top:0;width:100%;height:100%;display:block;filter:blur(1.4px)}
+.vd-sky__bokeh{position:absolute;left:0;top:0;width:100%;height:100%;display:block;filter:blur(1.4px);opacity:0;transition:opacity .9s var(--vd-ease)}
+/* (painted at the first idle moment after the page is in, the discs come up like the stadium's lights) */
+.vd-sky__bokeh[data-on]{opacity:1}
 .vd-sky__rays{height:var(--h);opacity:var(--ray-a,.6);mix-blend-mode:screen;background:
   conic-gradient(from 148deg at 8% -4%,transparent 0deg,var(--ray) 6deg,transparent 13deg,transparent 19deg,var(--ray) 23deg,transparent 30deg),
   conic-gradient(from 182deg at 92% -4%,transparent 0deg,var(--ray) 7deg,transparent 14deg,transparent 21deg,var(--ray) 25deg,transparent 32deg);
@@ -61,5 +63,5 @@
   --bank:rgba(255,255,255,.0);--bank-halo:rgba(255,255,255,.0);--bank-a:0;--pitch-glow:rgba(255,255,255,.35);--ray:rgba(255,255,255,.35);--ray-a:.5;
   --haze:rgba(255,255,255,.6);--haze-y:58%;--turf1:#8DC59B;--turf2:#97CDA4;--turf-a:.35;--vig:rgba(160,195,230,.25);--grain-a:.08;--veil:transparent}
 :root[data-theme="light"] .vd-sky{background:#EEF6FD}
-:root[data-theme="light"] .vd-sky__bokeh{opacity:.55}
-@media (prefers-reduced-motion:reduce){.vd-sky__drift{animation:none!important}}
+:root[data-theme="light"] .vd-sky__bokeh[data-on]{opacity:.55}
+@media (prefers-reduced-motion:reduce){.vd-sky__drift{animation:none!important}.vd-sky__bokeh{transition:none}}

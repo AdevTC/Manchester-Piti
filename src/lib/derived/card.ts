@@ -20,6 +20,7 @@ import { buildSquad, type SquadPlayer } from "../../pages/pizarra/v2/ratings";
 import type { SeasonRating } from "../seasonRating";
 import type { Standings } from "../standings";
 import { TIER_ORO, TIER_PLATA } from "../rating/constants";
+import { dateFormat } from "../intlCache";
 
 const TZ = "Europe/Madrid";
 const GOAL_TYPES = new Set(["goal", "goal_penalty", "goal_freekick"]);
@@ -265,7 +266,7 @@ export function tickerFor(s: { state: FichaState; name: string; number: string; 
   return { tone: s.state === "vinculada" ? "ok" : s.state === "pendiente" ? "warn" : "off", text: `${sr} ·`, sr };
 }
 
-const firstDate = (ms: number) => new Intl.DateTimeFormat("es-ES", { timeZone: TZ, day: "numeric", month: "long" }).format(ms);
+const firstDate = (ms: number) => dateFormat("es-ES", { timeZone: TZ, day: "numeric", month: "long" }).format(ms);
 export function tierWhy(key: TierKey, first: { dateMs: number; rival: string } | null): string {
   switch (key) {
     case "racha":

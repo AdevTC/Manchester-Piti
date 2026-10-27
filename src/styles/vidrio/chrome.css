@@ -31,10 +31,11 @@ header.vx-top .vx-nav .vx-nav-in a{position:relative;z-index:2;display:inline-fl
 header.vx-top .vx-nav .vx-nav-in a:hover{color:var(--vd-g-ink)}
 header.vx-top .vx-nav .vx-nav-in a.on{color:var(--vd-g-ink);font-weight:650;background:none;box-shadow:none}
 header.vx-top .vx-nav .vx-nav-in a:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:-2px}
-/* (the bead slides with a transform from the capsule's padding edge, the same place `left` put it, so the slide
-   runs on the compositor instead of laying the bead out every frame) */
-:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-bead{position:absolute;z-index:1;top:6px;bottom:6px;left:0;width:var(--vd-bw,0);border-radius:999px;pointer-events:none;transform:translateX(var(--vd-bx,6px));
-  background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);transition:transform .62s var(--vd-spring),width .62s var(--vd-spring)}
+/* (the bead slides with `translate` from the capsule's padding edge, the same place `left` put it, so the slide
+   runs on the compositor instead of laying the bead out every frame; `translate`, not `transform`, so the drop's
+   stretch while it travels — its `scale`, Chrome.tsx useBead — happens around the bead itself) */
+:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) .vd-bead{position:absolute;z-index:1;top:6px;bottom:6px;left:0;width:var(--vd-bw,0);border-radius:999px;pointer-events:none;translate:var(--vd-bx,6px) 0;
+  background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);transition:translate .62s var(--vd-spring),width .62s var(--vd-spring)}
 nav.vx-dock .vx-dock-in .vd-bead{top:5px;bottom:5px}
 :is(.vx-nav-in,.vx-dock-in)[data-vd-bead-still] .vd-bead{transition:none}
 /* the chrome's live dot: its ring is the glass.css vd-live-ring7 layer (scale and fade, no repaint each frame);
@@ -121,23 +122,46 @@ nav.vx-dock.vd-glass{left:14px;right:14px;bottom:calc(10px + env(safe-area-inset
   background:linear-gradient(165deg,var(--vd-g-sheen),rgba(255,255,255,.02) 40%,rgba(255,255,255,0) 62%),var(--vd-g-tint);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 0 0 .5px rgba(255,255,255,.16)}
 .vx .vx-foot-theme .mp-theme-toggle:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
 
-/* moving between pages (components/celeste/pageTransition): the page leaves (160 ms), the shared objects
-   (the bead, the floating score, the top bar, the tab bar) stay or morph, the next page comes in from the
-   direction of travel (220 ms). The regions a page marks (vd-reg-n) keep their own order (transitions.css).
-   Only the page's content (its main) leaves and comes in; the sky, the ground and the footer swap at once under
-   it, so the gap between the two never shows the bare html ground (it was a flash of another colour). */
+/* moving between pages (components/celeste/pageTransition): the page leaves (160 ms), the shared objects (the
+   floating score ↔ the lenses) morph, the next page comes in from the direction of travel (220 ms). The regions a
+   page marks (vd-reg-n) keep their own order (transitions.css).
+   - What travels is the page's content (its main), its regions and the shared objects only. A page's own names (its
+     screens, beads, tiles) stay out of it: they belong to its changes of screen, and here the page that leaves
+     would linger in pieces over the one that comes (Partidos' screen faded for 900 ms), each one captured apart.
+     They are listed by class (and any name written on the element itself), not with a rule on every element:
+     switching that one on and off restyled whole pages, twice per change.
+   - The page that leaves is marked [data-vd-out] (its names end in -out) and the one that comes is not: two groups,
+     each where it is, so the leaving page never jumps to the top of the arriving one.
+   - The top bar and the tab bar stay: the arriving page's bar shows at once and its bead slides (no crossfade of two
+     bars with two beads).
+   - The sky, the ground and the footer swap at once under it, so the gap between the two never shows the bare html
+     ground (it was a flash of another colour). */
+html[data-vd-page] :is(.in-screen,.in-subhead,.pp-tab__ind,.pp-screen,.sn-pitchcol,.sn-banq,.sn-cam,.sn-main,.sn-card,.nu-time__j b,.nu-rail__bead,.nu-screen,.nu-screen__title,.nu-grow,.pa-tab__bead,.pa-screen,.pa-cur,.pa-ftab__bead,.pa-fpanel,.pl-percha,.pl-hero__img,.tu-nav__bead,.tu-card,.tu-tu,.tu-bell,.tu-sr,.tu-share,.tu-story__in,[style*="view-transition-name"]:not(.vd-morph)){view-transition-name:none!important}
 html[data-vd-page] .vx > :is(main,.nu-main){view-transition-name:vd-page}
+html[data-vd-page] .vx > :is(main,.nu-main)[data-vd-out]{view-transition-name:vd-page-out}
+html[data-vd-page]::view-transition-group(root){animation:none}
 html[data-vd-page]::view-transition-old(root){animation:none;opacity:0}
 html[data-vd-page]::view-transition-new(root){animation:none}
-html[data-vd-page]::view-transition-group(vd-page){animation:none}
-html[data-vd-page]::view-transition-old(vd-page),html[data-vd-page]::view-transition-new(vd-page){height:100%;width:100%;object-fit:none;object-position:50% 0}
-html[data-vd-page][data-vd-dir]::view-transition-old(vd-page){animation:vd-x-out-l var(--vd-d-exit) var(--vd-ease) both}
+html[data-vd-page][data-vd-dir]::view-transition-old(vd-page-out){animation:vd-x-out-l var(--vd-d-exit) var(--vd-ease) both}
 html[data-vd-page][data-vd-dir]::view-transition-new(vd-page){animation:vd-x-in-r var(--vd-d-enter) var(--vd-d-exit) var(--vd-ease) both}
-html[data-vd-page][data-vd-dir="left"]::view-transition-old(vd-page){animation-name:vd-x-out-r}
+html[data-vd-page][data-vd-dir="left"]::view-transition-old(vd-page-out){animation-name:vd-x-out-r}
 html[data-vd-page][data-vd-dir="left"]::view-transition-new(vd-page){animation-name:vd-x-in-l}
-html[data-vd-page]::view-transition-group(vd-top),html[data-vd-page]::view-transition-group(vd-dock){animation-duration:.3s}
-html[data-vd-page]::view-transition-old(vd-top),html[data-vd-page]::view-transition-old(vd-dock){animation:vd-x-fade-out .3s linear both}
-html[data-vd-page]::view-transition-new(vd-top),html[data-vd-page]::view-transition-new(vd-dock){animation:vd-x-fade-in .3s linear both}
+html[data-vd-page][data-vd-dir="up"]::view-transition-old(vd-page-out){animation-name:vd-x-out-d}
+html[data-vd-page][data-vd-dir="up"]::view-transition-new(vd-page){animation-name:vd-x-in-u}
+/* (the arriving page is a group of its own, so the browser stacks it after the bars, which were already there: they
+   stay over it, as on the page — the tab bar vanished under the next page's content while it came in) */
+html[data-vd-page]::view-transition-group(vd-top),html[data-vd-page]::view-transition-group(vd-dock){animation:none;z-index:2}
+/* (reduced motion's crossfade, transitions.css, leaves them out too: no motion is still none, and a fade-in that waits
+   for its start would leave the screen without bars for a moment) */
+html[data-vd-page]::view-transition-old(vd-top),html[data-vd-page]::view-transition-old(vd-dock){animation:none!important;opacity:0}
+html[data-vd-page]::view-transition-new(vd-top),html[data-vd-page]::view-transition-new(vd-dock){animation:none!important}
+/* the tab tapped answers at once, before the next page is in (the screen holds still while it is put together) */
+:is(header.vx-top .vx-nav-in,nav.vx-dock .vx-dock-in) a[data-vd-go]{color:var(--vd-g-ink)}
+nav.vx-dock.vd-glass .vx-dock-in a[data-vd-go] svg{color:var(--vd-celeste)}
+:root[data-theme="light"] nav.vx-dock.vd-glass .vx-dock-in a[data-vd-go] svg{color:#2C6A9E}
+nav.vx-dock.vd-glass .vx-dock-in a .ico{transition:transform .5s var(--vd-spring)}
+nav.vx-dock.vd-glass .vx-dock-in a:active .ico,nav.vx-dock.vd-glass .vx-dock-in a[data-vd-go] .ico{transform:scale(.88);transition-duration:.12s}
+header.vx-top .vx-nav .vx-nav-in a:active{transform:scale(.96);transition:color .3s,transform .12s}
 
 @media (prefers-reduced-transparency:reduce){
   header.vx-top .vx-nav .vx-nav-in,nav.vx-dock.vd-glass,header.vx-top .vx-actions :is(.mp-theme-toggle,.sr-btn,.nt-bell),.vd-acct{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--vd-solid)}
