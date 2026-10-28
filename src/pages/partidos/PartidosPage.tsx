@@ -700,8 +700,8 @@ export function PartidosPage() {
                     all={all}
                     preset={preset}
                     captain={captain}
-                    publishHref="/admin/clasificacion"
-                    onPublish={goHref("/admin/clasificacion")}
+                    publishHref="/admin/club/clasificacion"
+                    onPublish={goHref("/admin/club/clasificacion")}
                     onAsi={() => transition(null, reduced, () => flushSync(() => setAsi((a) => !a)))}
                     onAll={() => transition(null, reduced, () => flushSync(() => setAll((a) => !a)))}
                     onPickSim={(mid, l) =>
