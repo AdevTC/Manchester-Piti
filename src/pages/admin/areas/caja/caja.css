@@ -2,55 +2,55 @@
    from the board's caja.css (piti-diseno/src/admin/src/admin/caja.css) inside the sala's SalaScreen (sala.css). Every
    text ≥ 11.5 px (B-SH-17). ===== */
 .cj .sc-shead .sc-primary .vd-btn{min-width:200px}
-.cj-arch{margin:-6px 0 12px}
-.cj-back{min-height:32px;font-size:13.5px;text-decoration:none}
+.cj .cj-arch{margin:-6px 0 12px}
+.cj .cj-back{min-height:32px;font-size:13.5px;text-decoration:none}
 
 /* the phone and tablet tabs */
-.cj-tabs{position:sticky;top:0;z-index:4;margin:0 0 10px}
+.cj .cj-tabs{position:sticky;top:0;z-index:4;margin:0 0 10px}
 
 /* regions */
-.cj-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
-.cj-reg{min-width:0;padding:6px 0 18px}
-.cj-reg__h{margin-top:4px}
-.cj-sub{margin:18px 0 6px}
-.cj-empty,.cj-clear{padding:12px 0}
-.cj-clear::before{content:"✓ ";color:var(--vd-celeste-ink);font-weight:800}
-.cj-hint{margin:8px 0 0}
-.cj-more{margin-top:8px}
+.cj .cj-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.cj .cj-reg{min-width:0;padding:6px 0 18px}
+.cj .cj-reg__h{margin-top:4px}
+.cj .cj-sub{margin:18px 0 6px}
+.cj .cj-empty,.cj .cj-clear{padding:12px 0}
+.cj .cj-clear::before{content:"✓ ";color:var(--vd-celeste-ink);font-weight:800}
+.cj .cj-hint{margin:8px 0 0}
+.cj .cj-more{margin-top:8px}
 
 /* el bote */
-.cj-bote__n{margin:2px 0 10px;font-size:64px;line-height:.95}
-.cj-facts .sc-row{min-height:60px}
-.cj-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin:16px 0 14px}
-.cj-acts .vd-btn{justify-content:flex-start;padding:8px 14px;height:auto;min-height:48px;min-width:0;white-space:normal;text-align:left;line-height:1.2}
-.cj-acts__l{display:grid;gap:1px;min-width:0}
-.cj-acts__l small{font-size:12.5px;font-weight:560;opacity:.8;overflow-wrap:anywhere}
-.cj-acts__main{grid-column:1/-1;justify-content:center!important}
-.cj-note{margin:6px 0 0}
+.cj .cj-bote__n{margin:2px 0 10px;font-size:64px;line-height:.95}
+.cj .cj-facts .sc-row{min-height:60px}
+.cj .cj-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin:16px 0 14px}
+.cj .cj-acts .vd-btn{justify-content:flex-start;padding:8px 14px;height:auto;min-height:48px;min-width:0;white-space:normal;text-align:left;line-height:1.2}
+.cj .cj-acts__l{display:grid;gap:1px;min-width:0}
+.cj .cj-acts__l small{font-size:12.5px;font-weight:560;opacity:.8;overflow-wrap:anywhere}
+.cj .cj-acts__main{grid-column:1/-1;justify-content:center!important}
+.cj .cj-note{margin:6px 0 0}
 
 /* saldos: shirt, name, the balance in icon + word */
-.cj-bal__r{grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;min-height:58px;padding:5px 2px}
-.cj-bal__v{display:inline-flex;align-items:center;gap:6px;font-size:14.5px;font-weight:650;white-space:nowrap;color:var(--vd-ink2);font-feature-settings:'tnum' 1}
-.cj-bal__v .sc-i{width:17px;height:17px}
-.cj-bal__r.is-debe .cj-bal__v{color:var(--vd-ink-strong);font-weight:760}
-.cj-bal__r.is-debe .cj-bal__v .sc-i{color:var(--vd-amarilla)}
-.cj-bal__r.is-favor .cj-bal__v{color:var(--vd-celeste-ink)}
-.cj-bal__pay{width:44px;height:44px}
-.cj-bal__out{font-size:12.5px}
+.cj .cj-bal__r{grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;min-height:58px;padding:5px 2px}
+.cj .cj-bal__v{display:inline-flex;align-items:center;gap:6px;font-size:14.5px;font-weight:650;white-space:nowrap;color:var(--vd-ink2);font-feature-settings:'tnum' 1}
+.cj .cj-bal__v .sc-i{width:17px;height:17px}
+.cj .cj-bal__r.is-debe .cj-bal__v{color:var(--vd-ink-strong);font-weight:760}
+.cj .cj-bal__r.is-debe .cj-bal__v .sc-i{color:var(--vd-amarilla)}
+.cj .cj-bal__r.is-favor .cj-bal__v{color:var(--vd-celeste-ink)}
+.cj .cj-bal__pay{width:44px;height:44px}
+.cj .cj-bal__out{font-size:12.5px}
 
 /* pagos avisados */
-.cj-claim{grid-template-columns:auto minmax(0,1fr);gap:6px 10px;padding:10px 2px}
-.cj-claim__a{grid-column:2;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start}
+.cj .cj-claim{grid-template-columns:auto minmax(0,1fr);gap:6px 10px;padding:10px 2px}
+.cj .cj-claim__a{grid-column:2;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start}
 
 /* the ledger */
-.cj-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 10px}
-.cj-filters .vd-input{height:46px}
-.cj-mov{grid-template-columns:70px minmax(0,1fr) auto auto;gap:10px;min-height:56px}
-.cj-mov__d{font-size:13px;color:var(--vd-ink2);white-space:nowrap}
-.cj-mov__a{font-weight:760;font-feature-settings:'tnum' 1;white-space:nowrap;color:var(--vd-ink-strong)}
-.cj-mov.is-gasto .cj-mov__a,.cj-mov.is-cargo .cj-mov__a{color:var(--vd-ink)}
-.cj-mov.is-void .sc-row__t b,.cj-mov.is-void .cj-mov__a{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--vd-ink2)}
-.cj-mov.is-void{opacity:.78}
+.cj .cj-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 10px}
+.cj .cj-filters .vd-input{height:46px}
+.cj .cj-mov{grid-template-columns:70px minmax(0,1fr) auto auto;gap:10px;min-height:56px}
+.cj .cj-mov__d{font-size:13px;color:var(--vd-ink2);white-space:nowrap}
+.cj .cj-mov__a{font-weight:760;font-feature-settings:'tnum' 1;white-space:nowrap;color:var(--vd-ink-strong)}
+.cj .cj-mov.is-gasto .cj-mov__a,.cj .cj-mov.is-cargo .cj-mov__a{color:var(--vd-ink)}
+.cj .cj-mov.is-void .sc-row__t b,.cj .cj-mov.is-void .cj-mov__a{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--vd-ink2)}
+.cj .cj-mov.is-void{opacity:.78}
 
 /* the sheets */
 .cj-sh-lede{margin:0 0 14px;color:var(--vd-g-ink2)}
@@ -68,58 +68,60 @@
 .cj-sh-err::before{content:"! ";color:var(--vd-roja);font-weight:900}
 
 /* the cost of a match */
-.cj-coste{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
-.cj-coste__m{display:grid;gap:10px;align-content:start;padding:4px 0 16px}
-.cj-coste__pick{max-width:420px}
-.cj-coste__pick .vd-input{height:46px}
-.cj-total{max-width:320px}
-.cj-done{margin:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:15px;color:var(--vd-ink)}
-.cj-rep{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;min-height:54px}
-.cj-rep__v{font-weight:760;font-feature-settings:'tnum' 1;color:var(--vd-ink-strong)}
+.cj .cj-coste{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.cj .cj-coste__m{display:grid;gap:10px;align-content:start;padding:4px 0 16px}
+.cj .cj-coste__pick{max-width:420px}
+.cj .cj-coste__pick .vd-input{height:46px}
+.cj .cj-total{max-width:320px}
+.cj .cj-done{margin:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:15px;color:var(--vd-ink)}
+.cj .cj-rep{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;min-height:54px}
+.cj .cj-rep__v{font-weight:760;font-feature-settings:'tnum' 1;color:var(--vd-ink-strong)}
 
 /* phone and tablet: one region at a time under the tabs; the primary pinned above the dock */
 @container (max-width:1099px){
   /* the frame's head already goes back to the caja: no hidden link that still takes the focus */
   .cj .cj-back{display:none}
   /* one «Cobrar cuota» below 1100: the pinned one; the screen fills the scroller so the pin sits at its foot */
-  .cj-acts__main{display:none}
-  .cj{display:flex;flex-direction:column;min-height:100%}
+  .cj .cj-acts__main{display:none}
+  .cj.sc-screen--fit{height:auto;min-height:100%}
   .cj>.sc-screen__body{flex:1 0 auto}
-  .cj-part:not(.is-tab){display:none}
+  .cj .cj-tlede{margin:0 0 14px}
+  .cj .cj-part:not(.is-tab){display:none}
 }
 @container (max-width:699px){
-  .cj-bote__n{font-size:54px}
-  .cj-mov{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}
-  .cj-mov__d{grid-column:1/-1}
-  .cj-mov__x{grid-column:1/-1;justify-self:start}
-  .cj-claim{grid-template-columns:auto minmax(0,1fr)}
-  .cj-claim__a{grid-column:1/-1;justify-content:stretch}
-  .cj-claim__a .vd-btn{flex:1}
-  .cj-filters{grid-template-columns:minmax(0,1fr)}
+  .cj .cj-tlede{display:none}
+  .cj .cj-bote__n{font-size:54px}
+  .cj .cj-mov{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}
+  .cj .cj-mov__d{grid-column:1/-1}
+  .cj .cj-mov__x{grid-column:1/-1;justify-self:start}
+  .cj .cj-claim{grid-template-columns:auto minmax(0,1fr)}
+  .cj .cj-claim__a{grid-column:1/-1;justify-content:stretch}
+  .cj .cj-claim__a .vd-btn{flex:1}
+  .cj .cj-filters{grid-template-columns:minmax(0,1fr)}
 }
 
 /* desktop: one screen, three regions that scroll inside (el bote y las acciones · saldos · avisos y movimientos) */
 @container (min-width:1100px){
-  .cj-tabs{display:none}
-  .cj-grid{height:100%;min-height:0;grid-template-columns:minmax(300px,.8fr) minmax(300px,.95fr) minmax(0,1.45fr);gap:36px}
-  .cj-reg{height:100%;min-height:0;overflow:auto;scrollbar-width:thin;box-sizing:border-box;padding-right:6px}
-  .cj-reg__h{position:sticky;top:0;z-index:2;padding:6px 0;margin:0 0 6px;background:var(--sc-th-bg,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-  .cj-col3{padding-top:0}
-  .cj-libro{margin-top:18px;padding-top:6px;border-top:1px solid var(--vd-rule)}
-  .cj-coste{height:100%;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:40px;min-height:0}
-  .cj-coste__m,.cj-coste__r{overflow:auto;scrollbar-width:thin;min-height:0}
+  .cj .cj-tabs,.cj .cj-tlede{display:none}
+  .cj .cj-grid{height:100%;min-height:0;grid-template-columns:minmax(300px,.8fr) minmax(300px,.95fr) minmax(0,1.45fr);gap:36px}
+  .cj .cj-reg{height:100%;min-height:0;overflow:auto;scrollbar-width:thin;box-sizing:border-box;padding-right:6px}
+  .cj .cj-reg__h{position:sticky;top:0;z-index:2;padding:6px 0;margin:0 0 6px;background:var(--sc-th-bg,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+  .cj .cj-col3{padding-top:0}
+  .cj .cj-libro{margin-top:18px;padding-top:6px;border-top:1px solid var(--vd-rule)}
+  .cj .cj-coste{height:100%;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:40px;min-height:0}
+  .cj .cj-coste__m,.cj .cj-coste__r{overflow:auto;scrollbar-width:thin;min-height:0}
 }
 @container (min-width:1800px){
-  .cj-grid{grid-template-columns:minmax(360px,.8fr) minmax(380px,.95fr) minmax(0,1.5fr);gap:56px}
-  .cj-bote__n{font-size:88px}
-  .cj-mov{grid-template-columns:96px minmax(0,1fr) auto auto}
-  .cj-libro .sc-row__t,.cj-bal .sc-row__t{max-width:80ch}
+  .cj .cj-grid{grid-template-columns:minmax(360px,.8fr) minmax(380px,.95fr) minmax(0,1.5fr);gap:56px}
+  .cj .cj-bote__n{font-size:88px}
+  .cj .cj-mov{grid-template-columns:96px minmax(0,1fr) auto auto}
+  .cj .cj-libro .sc-row__t,.cj .cj-bal .sc-row__t{max-width:80ch}
 }
 /* a 2560 screen: the book gets its own column beside the notices (more columns, never a strip of nothing) */
 @container (min-width:2300px){
-  .cj-grid{grid-template-columns:minmax(380px,.75fr) minmax(400px,.85fr) minmax(0,1fr) minmax(0,1.35fr);gap:56px}
-  .cj-col3{display:contents}
-  .cj-avisos,.cj-libro{height:100%;min-height:0;overflow:auto;scrollbar-width:thin;box-sizing:border-box;padding-right:6px}
-  .cj-libro{margin-top:0;padding-top:0;border-top:0}
-  .cj-coste{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:64px}
+  .cj .cj-grid{grid-template-columns:minmax(380px,.75fr) minmax(400px,.85fr) minmax(0,1fr) minmax(0,1.35fr);gap:56px}
+  .cj .cj-col3{display:contents}
+  .cj .cj-avisos,.cj .cj-libro{height:100%;min-height:0;overflow:auto;scrollbar-width:thin;box-sizing:border-box;padding-right:6px}
+  .cj .cj-libro{margin-top:0;padding-top:0;border-top:0}
+  .cj .cj-coste{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:64px}
 }

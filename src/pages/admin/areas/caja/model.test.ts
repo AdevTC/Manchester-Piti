@@ -82,7 +82,15 @@ describe("caja model", () => {
   });
 
   it("the cost of a match: what is charged, the played matches newest first, the one to charge, the usual total", () => {
-    const ms = [match({ id: "j1", jornada: 1 }), match({ id: "j2", jornada: 2, date: Date.UTC(2026, 10, 1, 10), status: "scheduled" }), match({ id: "j3", jornada: 3, date: Date.UTC(2026, 10, 8, 10), status: "scheduled" }), match({ id: "jx", status: "cancelled" })];
+    const ms = [
+      match({ id: "j1", jornada: 1 }),
+      // (la mesa ended it, the acta still to publish: it counts)
+      match({ id: "j2", jornada: 2, date: Date.UTC(2026, 10, 1, 10), status: "scheduled", events: [{ id: "e1", type: "goal", minute: 3, playerId: "a" }] }),
+      match({ id: "j3", jornada: 3, date: Date.UTC(2026, 10, 8, 10), status: "scheduled" }),
+      // (past its hour, never on la mesa: «¿Se jugó?», no cost yet)
+      match({ id: "jp", jornada: 4, date: Date.UTC(2026, 10, 1, 18), status: "scheduled" }),
+      match({ id: "jx", status: "cancelled" }),
+    ];
     const movs = [mov({ id: "1", matchId: "j1", amount: 727, date: "2026-10-26" }), mov({ id: "2", matchId: "j1", amount: 728, date: "2026-10-26" }), mov({ id: "3", matchId: "j1", amount: 5000, void: true })];
     expect(chargedOf(movs, "j1")).toEqual({ n: 2, total: 1455, date: "2026-10-26" });
     expect(costMatches(ms, "t1", NOW).map((m) => m.id)).toEqual(["j2", "j1"]);

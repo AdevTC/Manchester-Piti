@@ -33,6 +33,7 @@ import { AjustesSheet, AnularSheet, CuotaSheet, MovSheet, RechazarSheet, type Fr
 import { chargedOf, costMatches, costTarget, cuotaLine, dayWeek, euros, filterBook, bookPage, howLine, KIND_WORD, lastCostTotal, owedLines, resolvedLines, saldoRows, numberIn, saldoText, signedAmount, splitLine, squadOf, WHO_ALL, WHO_BOTE } from "./model";
 import { CajaGlyph, RowShirt } from "./parts";
 import { useCajaBook } from "./useCajaBook";
+import "../../../../styles/vidrio/components.css";
 import "./caja.css";
 
 type Tab = "resumen" | "saldos" | "movs" | "avisos";
@@ -192,6 +193,12 @@ function CajaHome({ seasonId }: { seasonId: string }) {
           <ScreenLoading label="Cargando la caja" />
         ) : (
           <>
+            {/* (the tablet's line under the frame's head, as on the board; readers have it in the screen's head) */}
+            {!desktop && (
+              <p className="sc-lede cj-tlede" aria-hidden="true">
+                Cuotas, campo y árbitro, y el bote · todos los socios lo ven igual en su caja del vestuario.
+              </p>
+            )}
             {season.archived && <p className="cj-arch sc-small">«{season.name}» está archivada: su caja se puede leer y anotar, pero la web no la enseña.</p>}
             {!desktop && (
               <div className="vd-seg vd-glass cj-tabs" role="tablist" aria-label="Partes de la caja" style={{ "--n": TABS.length, "--i": tabI } as CSSProperties} onKeyDown={onTabKey}>

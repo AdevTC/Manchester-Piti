@@ -2,7 +2,6 @@
 // (board caja.js), over the money logic that already works (lib/derived/caja, cajaClaims). Every sum here is
 // derived/caja's — the same the vestuario's «La caja» reads — so the sala and the vestuario add up the same; this
 // file only says them (whole euros without «,00», the day with its weekday, the balances by dorsal…).
-import { dateMillis } from "../../../../lib/clubData";
 import {
   balanceRows,
   balanceText,
@@ -18,6 +17,7 @@ import type { PlayerDoc } from "../../../../lib/schemas";
 import { relativeTime } from "../../../../lib/derived/notices";
 import { plural } from "../../../../lib/derived/words";
 import { shortDate, type AdminMatch } from "../../data/adminLogic";
+import { carrilPhase } from "../../partido/carril";
 
 // ───────────────────────── money and days in words ─────────────────────────
 const WHOLE = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -131,12 +131,13 @@ export function resolvedLines(claims: readonly CajaClaim[], nameOf: (playerId: s
 }
 
 // ───────────────────────── the cost of a match ─────────────────────────
-/** A match counts as played for its cost once it finished or its kick-off passed (never cancelled or postponed). */
+/** A match counts as played for its cost once its acta says so or la mesa ended it (the carril's «final» or
+ *  «publicado»); one that never reached la mesa («¿Se jugó?», B-HOY-11) is not, nor a cancelled or postponed one. */
 export const isPlayed = (m: AdminMatch, now: number): boolean => {
   if (m.status === "cancelled" || m.status === "postponed") return false;
   if (m.status === "finished") return true;
-  const t = dateMillis(m.date);
-  return Number.isFinite(t) && t <= now;
+  const ph = carrilPhase(m, now);
+  return ph === "final" || ph === "publicado";
 };
 /** What is charged of a match: its non-void cargos (derived/caja's chargedAlready counts the same). */
 export function chargedOf(movs: readonly CajaMov[], matchId: string): { n: number; total: number; date: string } {
