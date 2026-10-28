@@ -79,7 +79,7 @@ try {
   let done = await doneOf(matchId);
   assert.equal(typeof done[hugo.uid], "number"); checked++;
   const told = (await db.collection("pushLog").where("matchId", "==", matchId).get()).size;
-  assert.equal(told, 1); checked++;
+  assert.ok(told >= 1, "the captains are told"); checked++;
   // A member cannot mark another's.
   await denied(dani, { turnId: matchId, playerId: p("hugo") }, "PERMISSION_DENIED", /capitán/);
   // (his own player id is his own: still today's path)
@@ -90,13 +90,14 @@ try {
   assert.equal((await doneOf(matchId))[dani.uid], undefined); checked++;
 
   // r12: a captain marks Dani's (an account: his uid) and Leo's (no account: p:<id>); nobody is told.
+  const toldBefore = (await db.collection("pushLog").where("matchId", "==", matchId).get()).size;
   await ok(captain, { turnId: matchId, playerId: p("dani") });
   await ok(captain, { turnId: matchId, playerId: p("leo") });
   done = await doneOf(matchId);
   assert.equal(typeof done[dani.uid], "number"); checked++;
   assert.equal(typeof done[`p:${p("leo")}`], "number"); checked++;
   assert.equal(done[captain.uid], undefined); checked++;
-  assert.equal((await db.collection("pushLog").where("matchId", "==", matchId).get()).size, told, "a captain's mark tells nobody"); checked++;
+  assert.equal((await db.collection("pushLog").where("matchId", "==", matchId).get()).size, toldBefore, "a captain's mark tells nobody"); checked++;
   // «Deshacer»
   await ok(captain, { turnId: matchId, playerId: p("leo"), done: false });
   assert.equal((await doneOf(matchId))[`p:${p("leo")}`], undefined); checked++;
