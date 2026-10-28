@@ -1,0 +1,394 @@
+/* ===== r12 · Partidos › Acta, Publicar y Después (prefix ac-), ported from the board's acta.css
+   (piti-diseno/src/admin/src/admin/acta.css). Rows and rules on the light field; glass only on what is touched
+   (buttons, fields, the picker, the editors, the confirmation). Desktop: the acta in two columns that scroll inside
+   (lo apuntado | ¿cuadra? y la cuenta) with the foot pinned; 1800+: the minutes of each player get their own column.
+   Phone: one column, the primary action pinned at the thumb. The nota's traffic light is the system's (.nb, Vidrio
+   components.css). Rules that must win over sala.css carry `.sc` (production can put this file first: prod-css-order). ===== */
+.ac{display:block;min-width:0;box-sizing:border-box}
+/* the station fills the match (≥ 1100 the page never scrolls: its columns do, law 7) */
+@container (min-width:1100px){
+  .sc .sc-screen.sc-match:has(>.sc-match__body>.ac){height:100%;padding-bottom:0}
+  .sc .sc-match:has(>.sc-match__body>.ac)>.sc-match__body{flex:1;min-height:0;padding-bottom:4px}
+}
+/* the foot is the station's own tray (sala.css hides .sc-primary--pin on the desktop) */
+.sc .ac .ac-foot{display:flex}
+.ac-none{margin:4px 0 10px;font-size:14.5px;color:var(--vd-ink2)}
+.ac-sec{min-width:0}
+.ac-sec .sc-sec__h{align-items:center}
+.ac-sub-h{margin:16px 0 6px;font-size:14px;font-weight:700;color:var(--vd-ink)}
+.ac-link{display:inline-flex;align-items:center;min-height:44px;padding:0;border:0;background:none;font:inherit;font-size:14px;font-weight:650;color:var(--vd-celeste-ink);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.ac-link--mal{color:var(--vd-ink-strong);text-decoration-color:var(--vd-roja)}
+.ac-err{margin:6px 0;font-size:13.5px;font-weight:650;color:var(--vd-ink-strong)}
+.ac-err::before{content:"! ";color:var(--vd-roja);font-weight:900}
+.ac-url{overflow-wrap:anywhere;font-weight:560}
+.ac-empty{max-width:640px;padding:22px 0;display:grid;gap:10px;justify-items:start}
+.ac .vd-btn .sc-i{width:17px;height:17px;margin-right:4px}
+.ac [aria-disabled="true"]{opacity:.55}
+
+/* the acta's own navigation: lo apuntado · análisis narrado · historial */
+.ac-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:2px 0 8px;border-bottom:1px solid var(--vd-rule)}
+.ac-tab{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14.5px;font-weight:620;color:var(--vd-ink2);text-decoration:none;box-shadow:inset 0 -2px 0 transparent}
+.ac-tab:hover{color:var(--vd-ink-strong)}
+.ac-tab.is-on{color:var(--vd-ink-strong);box-shadow:inset 0 -2px 0 var(--vd-celeste)}
+
+/* segmented controls: the pressed one carries the tint (and aria-pressed says it) */
+.ac-seg{height:48px}
+.ac-seg--2{--n:2}.ac-seg--3{--n:3}
+.ac-seg .vd-seg__b{border:0;background:none;color:var(--vd-g-ink2);cursor:pointer;min-height:40px}
+.ac-seg .vd-seg__b[aria-pressed="true"]{background:var(--vd-pri);color:var(--vd-g-ink);font-weight:700;box-shadow:inset 0 0 0 1px rgba(108,171,221,.5)}
+:root[data-theme="light"] .ac-seg .vd-seg__b[aria-pressed="true"]{color:var(--vd-hielo)}
+.ac-fieldrow{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin:6px 0 12px}
+.ac-lbl{margin:0;font-size:13.5px;font-weight:650;color:var(--vd-ink)}
+
+/* ---------- J2: «¿Cómo acabó?» ---------- */
+.ac-pend{display:grid;gap:14px;max-width:720px;padding:10px 0 24px}
+.ac-pend__score{display:flex;align-items:center;gap:14px 26px;flex-wrap:wrap;padding:14px 0;border-top:1px solid var(--vd-rule);border-bottom:1px solid var(--vd-rule)}
+.ac-pend__dash{font-size:44px;font-weight:800;color:var(--vd-ink2)}
+.ac-step{display:grid;gap:8px;justify-items:center}
+.ac-step__t{margin:0;font-size:15px;font-weight:720;color:var(--vd-ink-strong)}
+.ac-step__ctl{display:flex;align-items:center;gap:14px}
+.ac-step__ctl .vd-ibtn{font-size:24px;font-weight:700;color:var(--vd-g-ink)}
+.ac-step__n{min-width:64px;text-align:center;font-size:72px}
+.ac-pend__a{display:flex;gap:10px 18px;align-items:center;flex-wrap:wrap}
+
+/* ---------- the banners over the acta: clash, mirror, la mesa, draft ---------- */
+.ac-bars{display:grid;gap:8px}
+.ac-bars:empty{display:none}
+.ac-bar{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:10px 14px;border-radius:16px;background:rgba(108,171,221,.1);box-shadow:inset 0 0 0 1px rgba(108,171,221,.4)}
+.ac-bar.is-mal{background:rgba(229,72,77,.1);box-shadow:inset 0 0 0 1.5px var(--vd-roja)}
+.ac-bar__t{flex:1 1 320px;margin:0;display:grid;gap:2px;min-width:0}
+.ac-bar__t b{font-size:15px;color:var(--vd-ink-strong)}
+.ac-bar__t span{font-size:13.5px;color:var(--vd-ink)}
+.ac-bar__a{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center}
+.ac-bar__list{flex:1 1 100%;margin:2px 0 0;padding:8px 0 0 18px;border-top:1px solid var(--vd-rule);font-size:14px;color:var(--vd-ink)}
+.ac-bar__list li{margin:2px 0}
+
+/* ---------- goals: ours and theirs ---------- */
+.ac-goals,.ac-against{border-top:1px solid var(--vd-rule)}
+.ac-goal{border-bottom:1px solid var(--vd-rule)}
+.ac-goal__row{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:10px;min-height:60px;padding:6px 0}
+.ac-goal.is-falta{box-shadow:inset 3px 0 0 var(--vd-celeste);background:linear-gradient(90deg,rgba(108,171,221,.14),rgba(108,171,221,0) 70%)}
+.ac-goal.is-falta .ac-goal__row{padding-left:8px}
+.ac-min{position:relative;display:block}
+.ac-min__in.vd-input{height:46px;padding:0 22px 0 12px;font-size:18px;font-weight:720;font-feature-settings:'tnum' 1;text-align:right}
+.ac-min__u{position:absolute;right:10px;top:50%;transform:translateY(-55%);font-size:17px;font-weight:700;color:var(--vd-g-ink2);pointer-events:none}
+.ac-who{display:flex;align-items:center;gap:10px;min-height:52px;min-width:0;padding:4px 8px;border:0;border-radius:14px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.ac-who:hover{background:rgba(108,171,221,.08)}
+.ac-who[aria-expanded="true"]{background:rgba(108,171,221,.14)}
+.ac-who__t{flex:1;min-width:0;display:grid;gap:2px}
+.ac-who__t b{font-size:16px;font-weight:700;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.ac-who__t span{font-size:13.5px;color:var(--vd-ink2)}
+.ac-goals .ac-goal:not(.is-falta) .ac-who__t b{color:var(--vd-oro)}
+:root[data-theme="light"] .ac-goals .ac-goal:not(.is-falta) .ac-who__t b{color:var(--vd-ink-strong)}
+.ac-goal.is-falta .ac-who__t b{color:var(--vd-ink-strong)}
+.ac-who__pen{color:var(--vd-ink2);width:18px;height:18px}
+.ac-goal--them .ac-goal__row{grid-template-columns:76px minmax(0,1fr) minmax(140px,220px) auto}
+.ac-them__t{display:grid;gap:2px;min-width:0}
+.ac-them__t b{font-size:15.5px;font-weight:680;color:var(--vd-rival)}
+.ac-them__t span{font-size:13.5px;color:var(--vd-ink2)}
+.ac-goal--them.is-falta .ac-them__t span{color:var(--vd-ink-strong);font-weight:650}
+.ac-them__sel .vd-input{height:44px;font-size:14px}
+
+/* the scorer picker, in its row */
+.ac-pick{margin:4px 0 12px;padding:12px 14px 10px;border-radius:22px;display:grid;gap:8px;color:var(--vd-g-ink);--vd-r:22px}
+.ac-pick__h{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px}
+.ac-pick__h .sc-h3{color:var(--vd-g-ink)}
+.ac-pick__h .sc-small{grid-column:1;color:var(--vd-g-ink2)}
+.ac-pick__h .vd-ibtn{grid-column:2;grid-row:1/3}
+.ac-pick__note{margin:0;font-size:13.5px;color:var(--vd-g-ink)}
+.ac-pick__dorsal{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:620;color:var(--vd-g-ink2)}
+.ac-pick__dorsal .vd-input{width:110px;height:44px;font-size:17px;font-weight:700;text-align:center}
+.ac-pick__gt{margin:4px 0 0;font-size:12.5px;font-weight:700;color:var(--vd-g-ink2)}
+.ac-pick__grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.ac-pp{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:6px;align-items:center;min-height:56px;padding:4px 8px;border:0;border-radius:14px;background:rgba(108,171,221,.08);box-shadow:inset 0 0 0 1px var(--vd-rule);color:var(--vd-g-ink);font:inherit;text-align:left;cursor:pointer}
+.ac-pp:hover,.ac-pp:focus-visible{background:rgba(108,171,221,.2)}
+.ac-pp .sc-shirt{grid-row:1/3}
+.ac-pp b{font-size:15px;color:var(--vd-g-ink)}
+.ac-pp span{font-size:11.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--vd-g-ink2)}
+.ac-pick__f{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding-top:8px;border-top:1px solid var(--vd-rule)}
+
+/* «Lo demás»: plays and their editor */
+.ac-plays .ac-play{grid-template-columns:52px minmax(0,1fr) auto;min-height:48px}
+.ac-play__m{font-family:var(--font-mono);font-size:14px;color:var(--vd-ink2)}
+.ac-play.is-suyo .sc-row__t b{color:var(--vd-rival)}
+.ac-ed{margin:8px 0 12px;padding:14px;border-radius:22px;display:grid;gap:10px;color:var(--vd-g-ink);--vd-r:22px}
+.ac-ed .sc-h3{color:var(--vd-g-ink)}
+.ac-ed .sc-field>span:first-child{color:var(--vd-g-ink)}
+.ac-ed .sc-small,.ac-ed .sc-field small{color:var(--vd-g-ink2)}
+.ac-ed .ac-err{color:var(--vd-g-ink)}
+.ac-ed__team{align-self:end;margin:0;font-size:13.5px;color:var(--vd-g-ink2)}
+.ac-guest{grid-template-columns:auto minmax(0,1fr) auto}
+.ac-inline{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-top:10px}
+.ac-inline .sc-field{flex:1 1 220px}
+.ac-switch{color:var(--vd-g-ink)}
+
+/* the minutes of each player: one bar per player */
+.ac-mins__from{margin:-4px 0 8px}
+.ac-axis{position:relative;height:16px;margin:0 46px 2px calc(34px + 10px + 104px + 10px);font-size:11.5px;color:var(--vd-ink2)}
+.ac-axis span{position:absolute;top:0;transform:translateX(-50%)}
+.ac-axis span:first-child{transform:none}.ac-axis span:last-child{transform:translateX(-100%)}
+.ac-bars-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--vd-rule)}
+.ac-mrow{display:grid;grid-template-columns:34px 104px minmax(0,1fr) 36px;align-items:center;gap:10px;min-height:44px;border-bottom:1px solid var(--vd-rule)}
+.ac-mrow__n{display:grid;min-width:0}
+.ac-mrow__n b{font-size:13.5px;font-weight:680;color:var(--vd-ink-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-mrow__n span{font-size:12px;color:var(--vd-ink2)}
+.ac-track{position:relative;height:12px;border-radius:6px;background:var(--vd-rule)}
+.ac-span{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--vd-celeste)}
+.ac-mrow__m{font-size:14px;font-weight:760;font-feature-settings:'tnum' 1;text-align:right;color:var(--vd-ink-strong)}
+.ac-chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.ac-chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:4px 12px;border:0;border-radius:14px;background:rgba(108,171,221,.08);box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+.ac-chip b{font-family:var(--font-mono);font-weight:500;color:var(--vd-ink2)}
+.ac-chip:hover{background:rgba(108,171,221,.18)}
+.ac-chip.is-mal{box-shadow:inset 0 0 0 1.5px var(--vd-roja)}
+.ac-chip.is-mal::before{content:"!";font-weight:900;color:var(--vd-roja)}
+.ac-mins__a{margin-top:10px}
+
+/* ---------- the right column: la cuenta and ¿cuadra? ---------- */
+.ac-side{display:grid;align-content:start;gap:4px;min-width:0}
+.ac-cuenta{padding:14px 0 12px;border-bottom:1px solid var(--vd-rule)}
+.ac-cuenta__score{margin:8px 0 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ac-us{font-weight:760;font-size:16px;letter-spacing:.02em;color:var(--vd-ink-strong)}
+.ac-cuenta__score .sc-score{font-size:52px}
+.ac-dl{margin:0;display:grid}
+.ac-dl div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--vd-rule);font-size:14.5px}
+.ac-dl dt{color:var(--vd-ink)}
+.ac-dl dt small{color:var(--vd-ink2);font-size:12.5px}
+.ac-dl dd{margin:0;font-weight:760;font-feature-settings:'tnum' 1;color:var(--vd-ink-strong)}
+.ac-dots{list-style:none;margin:8px 0 0;padding:0;display:flex;gap:6px;flex-wrap:wrap}
+.ac-dot{width:14px;height:14px;border-radius:50%;box-sizing:border-box}
+.ac-dot.is-ok{background:var(--vd-oro)}
+.ac-dot.is-pase{background:var(--vd-oro);box-shadow:0 0 0 3px rgba(255,198,89,.3)}
+.ac-dot.is-falta{border:2px dashed var(--vd-celeste)}
+.ac-chk{padding:14px 0}
+.ac-checks{list-style:none;margin:0;padding:0;border-top:1px solid var(--vd-rule)}
+.ac-check{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--vd-rule);margin:0}
+.ac-check__i,.ac-fix .ac-check__i{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:13px;font-weight:900;box-sizing:border-box}
+.ac-check.is-ok .ac-check__i{color:var(--vd-celeste-ink);box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+.ac-check.is-mal .ac-check__i,.ac-check__i.is-mal{color:var(--vd-hielo);background:var(--vd-roja)}
+.ac-check.is-info .ac-check__i,.ac-check__i.is-info{color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-rule2);font-style:italic;font-family:Georgia,serif}
+.ac-check__t{display:grid;gap:2px;min-width:0}
+.ac-check__t b{font-size:14.5px;font-weight:650;color:var(--vd-ink-strong)}
+.ac-check__t>span{font-size:13px;color:var(--vd-ink2)}
+.ac-check__t .ac-link{min-height:36px;justify-self:start}
+.ac-check__w{font-size:12px;font-weight:700;color:var(--vd-ink2);padding-top:3px}
+.ac-check.is-mal .ac-check__w{color:var(--vd-ink-strong)}
+
+/* ---------- the foot: save line + the primary action ---------- */
+.ac-foot{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--vd-rule)}
+.ac-foot__s{flex:1 1 260px;margin:0;display:grid;gap:1px;min-width:0}
+.ac-foot__line{font-size:14px;font-weight:720;color:var(--vd-ink-strong)}
+.ac-foot__s>span{font-size:13px;color:var(--vd-ink2)}
+.ac-foot .vd-btn--pri{min-width:200px}
+
+/* ---------- /acta/narracion ---------- */
+.ac-narr{display:grid;gap:8px}
+.ac-narr__h{padding:6px 0 4px}
+.ac-narr__h .sc-p{margin-top:6px;color:var(--vd-ink2)}
+.ac-say{margin:8px 0;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.45;color:var(--vd-ink);box-shadow:inset 3px 0 0 var(--vd-celeste);background:rgba(108,171,221,.08)}
+.ac-wide{margin-top:12px}
+.ac-file{padding-top:12px}
+.ac-imp{margin-top:12px;padding:12px 0;border-top:1px solid var(--vd-rule);display:grid;gap:10px}
+.ac-imp__sum{margin:0;font-size:15px;color:var(--vd-ink-strong)}
+.ac-doubt{display:grid;gap:8px;padding:10px 0;border-bottom:1px solid var(--vd-rule)}
+.ac-doubt__t{margin:0;display:grid;gap:2px}
+.ac-doubt__t b{color:var(--vd-ink-strong)}
+.ac-doubt__t span{font-size:13.5px;color:var(--vd-ink)}
+.ac-doubt .vd-btn{justify-self:start}
+.ac-rev .sc-row__t span{font-family:var(--font-sans)}
+.ac-priv{margin-top:12px;display:grid;gap:8px;justify-items:start}
+.ac-priv .sc-rows{width:100%}
+.ac-filters{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 14px;align-items:end;margin-bottom:6px}
+.ac-filters .ac-fieldrow{grid-column:1/-1;margin:0}
+.ac-ob{border-bottom:1px solid var(--vd-rule)}
+.ac-ob__row{display:grid;grid-template-columns:58px minmax(0,1fr) auto auto auto;align-items:center;gap:8px;min-height:52px;padding:4px 0}
+.ac-ob__t{font-size:13.5px;color:var(--vd-ink2)}
+.ac-ob__row .sc-row__t b{font-size:14.5px}
+.ac-ob__row .vd-ibtn{width:44px;height:44px}
+.ac-ob__st{font-size:12px;font-weight:700;color:var(--vd-ink2);white-space:nowrap}
+.ac-ob__st.is-pendiente{color:var(--vd-ink-strong)}
+.ac-ob__st.is-pendiente::before{content:"? ";color:var(--vd-celeste-ink)}
+.ac-ob__st.is-anulada{text-decoration:line-through}
+.ac-narrow{max-width:280px;margin-bottom:8px}
+.ac-act{grid-template-columns:52px minmax(0,1fr) auto;min-height:48px}
+.ac-pager{display:flex;align-items:center;gap:12px;margin-top:10px}
+
+/* ---------- /acta/historial ---------- */
+.ac-hist{max-width:980px;padding-bottom:20px}
+.ac-hist .sc-p{margin:0 0 12px;color:var(--vd-ink2)}
+.ac-hrow{border-bottom:1px solid var(--vd-rule)}
+.ac-hrow__r{display:grid;grid-template-columns:150px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:58px;padding:6px 0}
+.ac-hrow__w{font-feature-settings:'tnum' 1}
+.ac-hrow__d{margin:0 0 10px 162px;padding:8px 12px;border-radius:12px;font-size:14px;color:var(--vd-ink);box-shadow:inset 3px 0 0 var(--vd-celeste);background:rgba(108,171,221,.08)}
+
+/* ---------- /publicar ---------- */
+.ac-pubgrid,.ac-despgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:0 40px}
+.ac-pre__s{margin:0 0 8px;display:grid;gap:2px;padding:10px 12px;border-radius:14px}
+.ac-pre__s b{font-size:16px;color:var(--vd-ink-strong)}
+.ac-pre__s span{font-size:13.5px;color:var(--vd-ink)}
+.ac-pre__s.is-true{box-shadow:inset 3px 0 0 var(--vd-celeste);background:rgba(108,171,221,.08)}
+.ac-pre__s.is-true b::before{content:"✓ ";color:var(--vd-celeste-ink)}
+.ac-pre__s.is-false{box-shadow:inset 3px 0 0 var(--vd-roja);background:rgba(229,72,77,.08)}
+.ac-pre__s.is-false b::before{content:"! ";color:var(--vd-roja)}
+.ac-fix{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:end;padding:10px 0;border-bottom:1px solid var(--vd-rule)}
+.ac-fix .ac-check__i{margin-bottom:12px}
+.ac-fix .ac-min__in{max-width:120px}
+.ac-cron__h{margin:2px 0 10px;font-size:20px;line-height:1.2;font-weight:720;letter-spacing:-.012em;color:var(--vd-ink-strong);max-width:60ch}
+.ac-cron__t.vd-input{min-height:150px}
+.ac-gal{grid-template-columns:minmax(0,1fr) auto}
+/* «Así lo verá la afición»: the public head as it is, on the field (not in a box) */
+.ac-fan{padding:16px 0 10px}
+.ac-fan__card{margin-top:10px;padding:14px 0 16px;border-top:2px solid var(--vd-celeste);border-bottom:1px solid var(--vd-rule);display:grid;gap:8px}
+.ac-fan__score,.ac-dh .ac-fan__score{margin:0;display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.ac-fan__crest{width:48px;height:48px;flex:none}
+.ac-fan__us{font-size:18px;font-weight:760;letter-spacing:-.01em;color:var(--vd-ink-strong)}
+.ac-fan__score .sc-score{font-size:56px}
+.ac-fan__goals{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:15px;font-weight:650;color:var(--vd-ink-strong)}
+.ac-fan__goals li{display:inline-flex;align-items:center;gap:6px}
+.ac-ball{width:9px;height:9px;border-radius:50%;background:var(--vd-oro);box-shadow:0 0 0 2px rgba(255,198,89,.28)}
+.ac-fan__mvp,.ac-mvp__win{margin:2px 0 0;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:650;color:var(--vd-ink-strong)}
+.ac-mvp{display:inline-grid;place-items:center;height:22px;padding:0 7px;border-radius:7px;font-size:11.5px;font-weight:850;letter-spacing:.04em;color:var(--vd-marino);background:var(--vd-oro)}
+.ac-pmins{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0 16px;border-top:1px solid var(--vd-rule)}
+.ac-pmins li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:8px;align-items:center;min-height:44px;border-bottom:1px solid var(--vd-rule);font-size:13.5px;font-weight:620;color:var(--vd-ink)}
+.ac-pmins li span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-pmins li b{font-size:14.5px}
+/* the confirmation (fixed to the app frame, the container) */
+.ac-cons{margin:10px 0 0;padding:0 0 0 18px;display:grid;gap:8px;font-size:15px;line-height:1.45;color:var(--vd-g-ink)}
+
+/* ---------- /despues ---------- */
+.ac-dh{padding:10px 0 14px;border-bottom:1px solid var(--vd-rule);display:grid;gap:8px}
+.ac-dh .sc-tag--hecho{font-size:13.5px}
+.ac-dh__r{display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap}
+.ac-mvp__part{margin:0 0 6px}
+.ac-mvp__part .sc-num{font-size:30px}
+.ac-meter{height:10px;max-width:520px;border-radius:5px;background:var(--vd-rule);overflow:hidden;margin-bottom:8px}
+.ac-meter i{display:block;height:100%;border-radius:5px;background:var(--vd-oro)}
+.ac-prop{margin-top:12px;display:grid;gap:6px;justify-items:start}
+.ac-notas .ac-nota{grid-template-columns:34px minmax(0,1fr) auto;min-height:50px}
+.ac-after .sc-row{min-height:64px}
+
+/* below 1100 the foot is pinned over the content (the base gives it its tray): leave its height at the end */
+@container (max-width:1099px){
+  .ac{--ac-foot-h:84px}
+  .ac-foot{border-top:0}
+  .ac-cols,.ac-pubgrid,.ac-despgrid{padding-bottom:var(--ac-foot-h)}
+}
+@container (max-width:699px){.ac{--ac-foot-h:132px}}
+
+/* ---------- tablet ---------- */
+@container (min-width:760px){
+  .ac-pubgrid,.ac-despgrid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+  .ac-narr{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:0 40px;align-items:start}
+}
+
+/* ---------- desktop: the acta never scrolls the page; its columns scroll inside ---------- */
+@container (min-width:1100px){
+  .ac{height:100%;min-height:0}
+  .ac-acta{display:grid;grid-template-rows:auto minmax(0,1fr)}
+  .ac-acta>.ac-tabs{margin-top:0}
+  .ac-sheet-body{min-height:0;height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px}
+  .ac-cols{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,380px);gap:36px}
+  .ac-left,.ac-side{min-height:0;overflow:auto;scrollbar-width:thin;padding-right:6px}
+  .ac-foot{padding:10px 0 12px}
+  .ac-pub{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:0}
+  .ac-desp{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:0}
+  .ac-pub>.ac-pubgrid,.ac-desp .ac-despgrid{min-height:0}
+  .ac-pub__col,.ac-desp__col{min-height:0;overflow:auto;scrollbar-width:thin;padding-right:6px}
+  .ac-pub .ac-empty,.ac-desp .ac-empty{grid-row:1/-1}
+  .ac-narr{height:100%;min-height:0}
+  .ac-narr__col{min-height:0;height:100%;overflow:auto;scrollbar-width:thin;padding-right:6px}
+  .ac-hist{height:100%;overflow:auto;scrollbar-width:thin}
+}
+/* 1800+: everything on one screen; the minutes of each player get their own column */
+@container (min-width:1800px){
+  .ac-cols{grid-template-columns:minmax(0,1fr) minmax(400px,440px);gap:48px}
+  .ac-left{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:44px;overflow:hidden;padding-right:0}
+  .ac-main,.ac-mins{min-height:0;overflow:auto;scrollbar-width:thin;padding-right:6px}
+  .ac-mrow{grid-template-columns:34px 120px minmax(0,1fr) 40px;min-height:46px}
+  .ac-axis{margin-left:calc(34px + 10px + 120px + 10px);margin-right:50px}
+  .ac-cuenta__score .sc-score{font-size:72px}
+  .ac-fan__score .sc-score{font-size:72px}
+  .ac-pubgrid,.ac-despgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 56px}
+  .ac-cron__t.vd-input{min-height:220px}
+}
+@container (min-width:2400px){
+  .ac-cols{grid-template-columns:minmax(0,1fr) 480px}
+  .ac-main,.ac-mins,.ac-pub__col,.ac-desp__col,.ac-narr__col{max-width:980px}
+}
+
+/* ---------- phone ---------- */
+@container (max-width:699px){
+  .ac-tabs{position:sticky;top:0;z-index:4;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 calc(var(--sc-gut) * -1) 8px;padding:0 var(--sc-gut);background:linear-gradient(180deg,rgba(8,18,39,.6),rgba(8,18,39,.2));backdrop-filter:blur(10px)}
+  :root[data-theme="light"] .ac-tabs{background:linear-gradient(180deg,rgba(232,240,248,.9),rgba(232,240,248,.5))}
+  .ac-tab{white-space:nowrap}
+  .ac-goal__row{grid-template-columns:66px minmax(0,1fr)}
+  .ac-goal--them .ac-goal__row{grid-template-columns:66px minmax(0,1fr) auto}
+  .ac-them__sel{grid-column:1/-1;grid-row:2}
+  .ac-pick{margin-left:-6px;margin-right:-6px;padding:12px 10px}
+  .ac-pick__grid{grid-template-columns:repeat(auto-fill,minmax(88px,1fr))}
+  .ac-step__n{font-size:58px}
+  .ac-mrow{grid-template-columns:34px 82px minmax(0,1fr) 34px;gap:8px}
+  .ac-axis{margin-left:calc(34px + 8px + 82px + 8px);margin-right:42px}
+  .ac-ob__row{grid-template-columns:50px minmax(0,1fr) auto auto;row-gap:0}
+  .ac-ob__st{grid-column:2;grid-row:2}
+  .ac-hrow__r{grid-template-columns:minmax(0,1fr) auto}
+  .ac-hrow__w{grid-column:1/-1}
+  .ac-hrow__d{margin-left:0}
+  .ac-foot{padding:12px 0 6px}
+  .ac-foot .vd-btn{flex:1 1 140px}
+  /* phone: the primary across and the other action as a link beside it (two glass halves did not fit their labels) */
+  .ac-foot .vd-btn:not(.vd-btn--pri){flex:0 0 auto;min-height:44px;height:auto;padding:0 2px;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;color:var(--vd-ink-strong);font-weight:600;text-decoration:underline;text-decoration-color:var(--vd-celeste);text-underline-offset:4px}
+  .ac-foot .vd-btn:not(.vd-btn--pri)::before,.ac-foot .vd-btn:not(.vd-btn--pri)::after{display:none}
+  .ac-foot .vd-btn--pri{flex:1 1 0;min-width:0}
+  .ac-foot__s{flex-basis:100%}
+  .ac-fan__score .sc-score{font-size:44px}
+  .ac-cuenta__score .sc-score{font-size:44px}
+}
+@media (prefers-reduced-motion:reduce){
+  .ac *{transition:none!important;animation:none!important}
+}
+
+/* ---------- the app's additions to the board ---------- */
+/* a play row that is a button: the whole row edits it (sala.css has no .sc-row--btn) */
+.sc .ac .sc-row--btn{width:100%;border:0;border-bottom:1px solid var(--vd-rule);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.sc .ac .sc-row--btn:hover{background:rgba(108,171,221,.06)}
+.ac .sc-row__t{display:grid;gap:2px;min-width:0}
+.ac .sc-row__t b{font-size:15px;font-weight:650;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.ac .sc-row__t>span{font-size:13.5px;color:var(--vd-ink2);overflow-wrap:anywhere}
+.ac .sc-sec__n{font-size:14px;font-weight:760;font-feature-settings:'tnum' 1;color:var(--vd-ink2)}
+.ac-more{margin:8px 0}
+.ac-more summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:14px;font-weight:650;color:var(--vd-celeste-ink)}
+.ac-more ul{margin:4px 0 8px;padding-left:18px;font-size:13.5px;color:var(--vd-ink)}
+.ac-checkline{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;color:var(--vd-g-ink)}
+.ac-checkline input{width:20px;height:20px;accent-color:var(--vd-celeste)}
+.ac-act{grid-template-columns:52px minmax(0,1fr) auto}
+.ac-act__b{display:grid;gap:2px;min-width:0;min-height:48px;padding:4px 0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.ac-act__b b{font-size:14.5px;font-weight:650;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.ac-act__b span{font-size:13px;color:var(--vd-ink2)}
+.ac-marks{margin-top:12px}
+.ac-mark{grid-template-columns:minmax(0,1fr) 120px}
+.ac-mark__in .vd-input{height:44px;text-align:center;font-feature-settings:'tnum' 1}
+.ac-prop{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.ac-prop .sc-small{flex:1 1 220px;margin:0}
+.ac-notas .nb{justify-self:end}
+
+/* the narration's expert pieces (today's NarratedObservations, NarrationReview, AnalysisSettings, NarrationHistory):
+   their tokens on Vidrio's, rows and rules instead of panels, fields as Vidrio fields (B-ACTA-03: in their own
+   screen, every block in the flow — nothing positioned over another) */
+.ac-narr{--panel:transparent;--panel2:rgba(108,171,221,.06);--sheet:rgba(108,171,221,.05);--pline:var(--vd-rule);--sky:var(--vd-celeste);--ink:var(--vd-ink-strong);--soft:var(--vd-ink);--muted:var(--vd-ink2);--amber:var(--vd-oro);--accent:var(--vd-celeste)}
+.ac-narr :is(.ae-observations,.ae-settings,.ae-history,.ae-review){margin-top:8px;position:static}
+.ac-narr :is(.ae-observations,.ae-settings,.ae-history,.ae-review) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){width:100%;min-width:0;min-height:44px;padding:10px 12px;box-sizing:border-box;border:0;border-radius:14px;background:rgba(108,171,221,.08);box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink-strong);font:inherit;font-size:15px}
+.ac-narr :is(.ae-observations,.ae-settings,.ae-history,.ae-review) label{display:grid;gap:6px;margin:10px 0;font-size:13.5px;font-weight:650;color:var(--vd-ink);min-width:0}
+.ac-narr :is(.ae-observations,.ae-settings,.ae-history,.ae-review) textarea{min-height:96px;resize:vertical}
+.ac-narr :is(.ae-observations,.ae-settings,.ae-history,.ae-review) p{font-size:14px;line-height:1.5;color:var(--vd-ink)}
+.ac-narr :is(.ae-observations,.ae-settings,.ae-history) summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:14.5px;font-weight:650;color:var(--vd-ink-strong);line-height:1.35}
+.ac-narr :is(.ae-observations,.ae-settings,.ae-history,.ae-review) :is(h3,h4,h5){font-family:var(--vd-sans);color:var(--vd-ink-strong);font-weight:680;letter-spacing:-.01em}
+.ac-narr .ae-observations h4{font-size:17px}
+.ac-narr .ae-review-events>li,.ac-narr .ae-question{background:none;box-shadow:none;border-radius:0;padding:10px 0;border-bottom:1px solid var(--vd-rule)}
+.ac-narr .ae-observations pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}
+.ac-narr .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:rgba(108,171,221,.12);box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink-strong);font:inherit;font-size:14.5px;font-weight:650;cursor:pointer;text-decoration:none}
+.ac-narr .btn:hover{background:rgba(108,171,221,.2)}
+.ac-narr .btn.sky,.ac-narr .btn.gold{background:var(--vd-pri,rgba(108,171,221,.35));box-shadow:inset 0 0 0 1px rgba(108,171,221,.55)}
+.ac-narr .btn[disabled],.ac-narr .btn[aria-disabled="true"]{opacity:.55;cursor:default}
+.ac-narr .ae-history{display:block}
+.ac-narr .ae-coverage-row{border:0;border-top:1px solid var(--vd-rule);border-radius:0;padding:10px 0}
+.ac-narr .ae-message{white-space:pre-line}
