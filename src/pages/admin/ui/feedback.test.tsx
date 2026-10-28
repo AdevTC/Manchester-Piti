@@ -3,31 +3,33 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Link, Outlet, RouterProvider } from "@tanstack/react-router";
 import { useRef, useState, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { StatusProvider, StatusStrip } from "../shell/StatusStrip";
 import { useUnsavedGuard } from "./guard";
 import { GuardProvider } from "./GuardProvider";
 import { LayerProvider } from "./layers";
 import { useToast } from "./toastContext";
-import { ToastProvider } from "./toasts";
 
 vi.mock("../../../lib/clubApi", () => ({ apiError: (e: unknown) => (e instanceof Error ? e.message : String(e)) }));
 
+// (the sala's frame: its layers, the franja de estado that answers useToast(), the guard)
 function Frame({ children }: { children: ReactNode }) {
   const app = useRef<HTMLDivElement>(null);
   return (
     <LayerProvider appRef={app}>
-      <ToastProvider>
+      <StatusProvider>
         <GuardProvider>
           <div ref={app}>{children}</div>
+          <StatusStrip rest="Todo guardado" />
         </GuardProvider>
-      </ToastProvider>
+      </StatusProvider>
     </LayerProvider>
   );
 }
 
-describe("toasts", () => {
+describe("the franja de estado · defer()", () => {
   afterEach(() => vi.useRealTimers());
 
-  it("defer(): shows «Deshacer», commits after the window, undo cancels", async () => {
+  it("shows «Deshacer», commits after the window, undo cancels", async () => {
     vi.useFakeTimers();
     const commit = vi.fn(() => Promise.resolve());
     const onUndo = vi.fn();
@@ -45,10 +47,10 @@ describe("toasts", () => {
       </Frame>,
     );
     act(() => screen.getByRole("button", { name: "Aprobar" }).click());
-    const status = screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
+    const status = screen.getByRole("status");
     expect(status).toHaveTextContent("Ficha aprobada · @kevin ya es KEVIN (11).");
-    // a lower third: the tag, the message, «Deshacer»
-    expect(status.querySelector(".lt .k")).toHaveTextContent("FICHA");
+    // the line: its tag, the message, «Deshacer»
+    expect(status.querySelector(".sc-status__tag")).toHaveTextContent("FICHA");
     act(() => screen.getByRole("button", { name: "Deshacer" }).click());
     expect(onUndo).toHaveBeenCalledTimes(1);
     await act(async () => {
@@ -67,7 +69,7 @@ describe("toasts", () => {
     expect(commit).toHaveBeenCalledTimes(1);
   });
 
-  it("a second defer() commits the first at once; a failed write shows a red «Reintentar»", async () => {
+  it("a second defer() commits the first at once; a failed write is an alert with «Reintentar»", async () => {
     vi.useFakeTimers();
     let fail = true;
     const first = vi.fn(() => (fail ? Promise.reject(new Error("sin conexión")) : Promise.resolve()));
@@ -99,8 +101,8 @@ describe("toasts", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("No se ha podido aprobar la ficha: sin conexión");
-    expect(alert.querySelector(".lt.err")).not.toBeNull();
-    expect(alert.querySelector(".lt .k")).toHaveTextContent("!");
+    expect(alert.closest(".sc-status")).toHaveClass("is-error");
+    expect(alert.querySelector(".sc-status__tag")).toHaveTextContent("Error");
     fail = false;
     await act(async () => {
       screen.getByRole("button", { name: "Reintentar" }).click();

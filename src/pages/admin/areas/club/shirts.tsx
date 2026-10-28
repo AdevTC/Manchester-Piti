@@ -1,6 +1,6 @@
 // CLUB · the printed shirt stills of the rooms (the real kit with the season's name and dorsal, rendered once and kept
 // on the device; the drawn back while it renders), as the boards show them (.sc-shirt).
-import { ShirtBack } from "../../kit";
+import { ShirtBack } from "../../kit/ShirtBack";
 import type { ShirtOf } from "./stills";
 
 const PX = { xs: 34, s: 46, m: 64, xl: 180 } as const;

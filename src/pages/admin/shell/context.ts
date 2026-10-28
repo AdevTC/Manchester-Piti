@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { AdminData } from "../data/useAdminData";
 import { NEXT_MATCH, type Station } from "../../../lib/adminUrls";
-import { SECTION, type AdminTarget, type MatchTab } from "./nav";
+import type { AdminTarget, MatchTab } from "./nav";
 import { useSeasonParam, withSeason } from "./salaHref";
 
 export const AdminDataContext = createContext<AdminData | null>(null);
@@ -49,8 +49,14 @@ export function targetHref(t: AdminTarget): string {
       return t.matchId ? `/partidos/${t.matchId}` : t.playerId ? `/jugadores/${t.playerId}` : "/";
     case "pizarra":
       return "/pizarra";
-    default:
-      return SECTION[t.section].path;
+    case "temporadas":
+    case "clasificacion":
+    case "turnos":
+      return `/admin/club/${t.section}`;
+    case "capitanes":
+      return "/admin/plantilla/capitanes";
+    case "hoy":
+      return "/admin";
   }
 }
 
