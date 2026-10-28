@@ -359,6 +359,10 @@ function Historia({ c, setField }: { c: ClubContent; setField: SetField }) {
                 <span>Cómo llegar</span>
                 <input className="vd-input" type="text" maxLength={VENUE_LIMITS.transit} placeholder="Metro, línea 1, 8 min a pie" value={v.transit ?? ""} onChange={(e) => setVenue(i, { transit: e.target.value })} />
               </label>
+              <label className="sc-field">
+                <span>Búsqueda en el mapa (opcional)</span>
+                <input className="vd-input" type="text" maxLength={VENUE_LIMITS.mapsQuery} placeholder="Si el mapa no lo encuentra por la dirección" value={v.mapsQuery ?? ""} onChange={(e) => setVenue(i, { mapsQuery: e.target.value })} />
+              </label>
             </div>
             <Remove label={`Quitar el campo ${i + 1}`} onClick={() => setField("venues", venues.filter((_, k) => k !== i))} />
           </li>
