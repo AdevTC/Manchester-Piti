@@ -143,6 +143,10 @@ describe("the captains' notice", () => {
     expect(absenceNoticeDue(abs({ to: "2026-10-19" }), false, now)).toBe(false);
     expect(absenceNoticeDue(abs({ to: "2026-10-14" }), true, now)).toBe(false);
   });
+  it("r12: not for one a captain wrote for the member from la Sala (`by`); his own `by` is still his", () => {
+    expect(absenceNoticeDue({ ...abs({ to: "2026-10-19" }), by: "capi" }, true, now)).toBe(false);
+    expect(absenceNoticeDue({ ...abs({ to: "2026-10-19" }), by: abs({}).uid }, true, now)).toBe(true);
+  });
 });
 
 describe("reading and writing absences", () => {
@@ -153,6 +157,9 @@ describe("reading and writing absences", () => {
     expect(parseAbsence("a1", { ...doc, to: "2026-10-11" })).toBeNull();
     expect(parseAbsence("a1", { ...doc, uid: "" })).toBeNull();
     expect(parseAbsence("a1", null)).toBeNull();
+    // (r12: the captain who wrote it, when one did; the old docs carry none)
+    expect(parseAbsence("a1", { ...doc, by: "capi" })).toMatchObject({ by: "capi" });
+    expect(parseAbsence("a1", doc)).not.toHaveProperty("by");
   });
   it("writes the fields the rules expect: the note only when there is one", () => {
     const me = { uid: "u1", name: "pepe", playerId: null };

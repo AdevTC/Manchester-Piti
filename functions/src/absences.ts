@@ -47,6 +47,7 @@ export const onAbsenceWritten = onDocumentWritten({ document: "absences/{absence
   const applied = await applyMemberAbsences(uid, created ? absenceId : null, now, matches);
   // (the rules allow no edits; an absence moved to another member by hand: the first one's answers too)
   if (before && after && before.uid !== after.uid) await applyMemberAbsences(before.uid, null, now, matches);
-  // (one notice, only for an absence still there when its answers were written, and not all in the past)
+  // (one notice, only for an absence still there when its answers were written, and not all in the past; none for
+  // one a captain wrote for him from la Sala — `by`, r12 — whose «No puedo» is applied all the same)
   if (created && absenceNoticeDue(after, applied.freshSeen, now)) await tellCaptains(after, matchesInRange(matches, after, now));
 });

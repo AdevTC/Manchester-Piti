@@ -1169,6 +1169,39 @@ describe("Ausencias (absences)", () => {
     await assertFails(add("outsider", absence("outsider")));
   });
 
+  it("r12: un capitán apunta una para un socio con su ficha, firmada por él; nadie más ni de otra forma", async () => {
+    await seed("users/member", { email: "member@test.dev", nickname: "member", role: "user", playerId: "p1" });
+    const add = (who: string, data: object) => setDoc(doc(collection(db(who), "absences")), data);
+    const forMember = (extra: object = {}) => ({ ...absenceFields({ uid: "member", name: "member", playerId: "p1" }, "2026-10-12", "2026-10-19", "De viaje"), createdAt: serverTimestamp(), by: "admin", ...extra });
+    await assertSucceeds(add("admin", forMember()));
+    await assertSucceeds(add("super", forMember({ by: "super" })));
+    for (const bad of [
+      forMember({ playerId: "p2" }), // otra ficha
+      forMember({ name: "other" }), // otro apodo
+      forMember({ by: "super" }), // firmada por otro
+      forMember({ uid: "other", name: "other" }), // un socio sin esa ficha
+      forMember({ uid: "nadie", name: "nadie" }), // nadie
+      forMember({ uid: "outsider", name: "outsider", playerId: "p1" }), // fuera del vestuario
+      forMember({ to: "2026-10-11" }),
+      forMember({ note: "x".repeat(141) }),
+      forMember({ createdAt: Timestamp.fromMillis(0) }),
+      forMember({ extra: 1 }),
+    ])
+      await assertFails(add("admin", bad));
+    const { by: _by, ...unsigned } = forMember();
+    void _by;
+    await assertFails(add("admin", unsigned));
+    // un jugador no la apunta para otro, ni firmándola
+    await assertFails(add("other", forMember({ by: "other" })));
+    // lo de hoy sigue igual: cada uno la suya, sin `by`
+    await assertSucceeds(add("member", { ...absenceFields({ uid: "member", name: "member", playerId: "p1" }, "2026-10-12", "2026-10-19"), createdAt: serverTimestamp() }));
+    // y la corrección de M-17 sigue sobre una con `by`, que no cambia
+    await seed("absences/c1", { uid: "member", playerId: "p1", name: "member", from: "2026-10-12", to: "2026-10-19", createdAt: Timestamp.fromMillis(0), by: "admin" });
+    const ref = doc(db("admin"), "absences", "c1");
+    await assertSucceeds(updateDoc(ref, { to: "2026-10-18", editedBy: "admin", editedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { by: "super", editedBy: "admin", editedAt: serverTimestamp() }));
+  });
+
   it("sin ediciones: se quita y se pone otra; los capitanes quitan cualquiera", async () => {
     await seed("absences/mine", seeded("member"));
     await seed("absences/theirs", seeded("other"));
