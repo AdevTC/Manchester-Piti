@@ -8,6 +8,7 @@ import type { DocumentData } from "firebase/firestore";
 import { dateMillis } from "../../../../../functions/src/matchEngine";
 import { useMatchAudit } from "../../../vestuario/live";
 import { clockTime, shortDate } from "../../data/adminLogic";
+import { useMatchShortcuts } from "../../palette/matchShortcuts";
 import { usePartido } from "../../partido/partidoContext";
 import { useAdmin } from "../../shell/context";
 import { ScreenLoading } from "../../shell/Screen";
@@ -28,6 +29,7 @@ export function HistorialScreen() {
   const data = useAdmin();
   // (the acta's edits stay open here, and leaving with them unsaved still asks)
   useSheetSession();
+  useMatchShortcuts(match);
   const q = useMatchAudit(match.id, true, toAudit);
   const [open, setOpen] = useState<string | null>(null);
   const rows = useMemo(() => [...q.data].sort((a, b) => b.at - a.at), [q.data]);

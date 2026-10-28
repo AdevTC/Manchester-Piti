@@ -261,7 +261,7 @@ describe("Acta · lo apuntado", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m7/publicar"));
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(within(foot()).getByText("● Cambios sin guardar")).toBeInTheDocument();
-    act(() => void router.navigate({ to: "/admin/partidos/m7/acta/narracion" }));
+    act(() => void router.navigate({ to: "/admin/partidos/$matchId/acta/narracion", params: { matchId: "m7" } }));
     await screen.findByRole("heading", { name: "Análisis narrado · J2" });
     expect(screen.queryByRole("alertdialog")).toBeNull();
     await user.click(screen.getByRole("link", { name: "Lo apuntado" }));
@@ -277,7 +277,7 @@ describe("Acta · lo apuntado", () => {
     await user.click(await screen.findByRole("button", { name: "Descartar cambios" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin"));
     await waitFor(() => expect(localStorage.getItem(draftKey("acta", "m7"))).toBeNull());
-    act(() => void router.navigate({ to: "/admin/partidos/m7/acta" }));
+    act(() => void router.navigate({ to: "/admin/partidos/$matchId/acta", params: { matchId: "m7" } }));
     expect(await screen.findByLabelText("Minuto del gol 3")).toHaveValue("");
   });
 

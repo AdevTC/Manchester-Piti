@@ -11,10 +11,12 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import type { EventType, MatchEvent } from "../../../../../functions/src/matchEngine";
 import { isGuestId } from "../../../../lib/derived/guests";
 import { addGuest, guestInUse, guestSlot, removeGuest } from "../../acta/guests";
-import { addOurGoal, addRivalGoal, goalRows, newId, otherEvents, removeEvent, restoreEvent, rivalRows, setAssist, setMinute, setScorer, upsertEvent, type MatchSheet } from "../../acta/sheetModel";
+import { addOurGoal, addRivalGoal, goalRows, newId, otherEvents, removeEvent, restoreEvent, rivalInitialsOf, rivalRows, setAssist, setMinute, setScorer, upsertEvent, type GoalRow, type MatchSheet } from "../../acta/sheetModel";
 import { checkEvent, fieldAt, groupOfEvent, KINDS, kindLabel, playerMode, type EventGroup } from "../../partidos/pickModel";
 import { goalSub, goalWho } from "../../partidos/workspaceModel";
+import { rivalCode } from "../../../../lib/eventMeta";
 import { usePartido } from "../../partido/partidoContext";
+import { useMatchShortcuts } from "../../palette/matchShortcuts";
 import { useRegisterCommands } from "../../palette/registry";
 import type { PaletteCommand } from "../../palette/search";
 import { ScreenLoading } from "../../shell/Screen";
@@ -32,6 +34,7 @@ export function ActaScreen() {
   const go = useSalaGo();
   const base = `/admin/partidos/${s.match.id}`;
   useActaCommands(s, () => go(`${base}/publicar`));
+  useMatchShortcuts(s.match);
   if (s.loading) return <ScreenLoading label="Cargando el acta" />;
   const body = (() => {
     if (phase === "antes") return <ActaEmpty title="El acta se escribe en el partido" body="El día del partido, cada gol, tarjeta y cambio se apunta a un toque en la mesa y llega aquí solo. Después, aquí se repasa, se completa y se publica." />;
@@ -147,6 +150,12 @@ function HowItEnded({ s }: { s: SheetSession }) {
     </div>
   );
 }
+
+/** The goal row's second line: «Gol 1 · sin asistencia · por confirmar» while its pass is not confirmed. */
+const goalSubLine = (g: GoalRow, nameOf: (id: string) => string) => {
+  const line = goalSub(g, nameOf);
+  return !g.open && g.kind !== "og" && !g.assist && g.assistReviewed !== true && /sin asistencia$/.test(line) ? `${line} · por confirmar` : line;
+};
 
 type Pick = { id: string; step: 1 | 2 } | null;
 type Editing = { group: EventGroup; id: string | null; type?: EventType } | null;
@@ -320,7 +329,7 @@ function ActaEditor({ s }: { s: SheetSession }) {
                           {!falta && g.kind !== "og" && g.scorer && <Shirt kit={sheet.kit} num={num(g.scorer)} alt={name(g.scorer)} />}
                           <span className="ac-who__t">
                             <b>{goalWho(g, rival, name)}</b>
-                            <span>{goalSub(g, name)}</span>
+                            <span>{goalSubLine(g, name)}</span>
                           </span>
                           {falta ? <span className="sc-tag sc-tag--toca">Falta</span> : <AcIcon name="edit" className="ac-who__pen" />}
                         </button>
@@ -557,7 +566,10 @@ function ActaEditor({ s }: { s: SheetSession }) {
               <b className="sc-score">
                 {gf}–{ga}
               </b>
-              <span className="sc-rival">{rival}</span>
+              <span className="sc-rival">
+                <i aria-hidden="true">{rivalInitialsOf(sheet)}</i>
+                {rivalCode(rival, sheet.rivalShort)}
+              </span>
             </p>
             <dl className="ac-dl">
               <div>

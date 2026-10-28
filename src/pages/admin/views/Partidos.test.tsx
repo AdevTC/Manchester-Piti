@@ -5,8 +5,6 @@ import type { MatchEvent } from "../../../../functions/src/matchEngine";
 import * as api from "../../../lib/clubApi";
 import type { ClubMatch } from "../../../lib/clubData";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
-import { draftKey } from "../acta/localDraft";
-import { fromMatch, setMinute, sig } from "../acta/sheetModel";
 import { resetWhistledForTests } from "../data/whistleStore";
 import { Partidos } from "./Partidos";
 
@@ -53,7 +51,6 @@ const fullJ1 = () =>
     events: [goal("a", 5, "erik"), goal("b", 10, "erik"), goal("c", 20, "adrian"), goal("d", 30, "huberoski"), { id: "e", type: "opponent_goal", minute: 40 }],
   });
 const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live")) as HTMLElement;
-const acta = () => mountAdmin("/admin/partidos/m7?tab=acta", { partidos: Partidos });
 /** The workspace footer (state + reason + buttons). */
 const footer = () => document.querySelector(".df") as HTMLElement;
 

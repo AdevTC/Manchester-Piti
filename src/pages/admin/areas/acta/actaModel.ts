@@ -238,7 +238,7 @@ export function mvpView(o: { voteClosesAt: unknown; publishedAt: number | null; 
   const part = eligible ? `${o.total} de ${eligible} han votado` : `${plural(o.total, "voto", "votos")}`;
   const pct = eligible ? Math.min(100, Math.round((100 * o.total) / eligible)) : 0;
   const close = open ? `Cierra ${dayName(closes)} · faltan ${leftWords(closes, o.now)}` : `Cerró el ${shortDate(closes)} a las ${clockTime(closes)}`;
-  const winner = open ? "" : o.winners.length > 1 ? `MVP compartido: ${andList(o.winners)}` : o.winners.length ? `Ganó ${o.winners[0]}` : o.total ? "Sin ganador" : "Nadie votó";
+  const winner = open ? "" : o.winners.length > 1 ? `MVP compartido: ${andList(o.winners)}` : o.winners.length ? `Ganó ${o.winners[0]}` : o.total ? "El ganador ya sale en la web del partido" : "Nadie votó";
   // (reopen: within the 7 days of the acta's publication, as the server allows)
   const from = o.publishedAt ?? closes - 48 * H;
   return { tag: open ? "Votación abierta" : "Votación cerrada", open, has: true, part, pct, close, fan: open ? `Vota al MVP hasta ${dayName(closes)}` : "MVP cerrado", winner, canReopen: o.now - from < 7 * 24 * H };

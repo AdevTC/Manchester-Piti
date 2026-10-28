@@ -20,6 +20,7 @@ import { AnalysisSettings } from "../../partidos/AnalysisSettings";
 import { NarratedObservations } from "../../partidos/NarratedObservations";
 import { NarrationHistory } from "../../partidos/NarrationHistory";
 import { NarrationReview } from "../../partidos/NarrationReview";
+import { useMatchShortcuts } from "../../palette/matchShortcuts";
 import { usePartido } from "../../partido/partidoContext";
 import { ScreenLoading } from "../../shell/Screen";
 import { useStatus } from "../../shell/statusContext";
@@ -30,6 +31,7 @@ import "./acta.css";
 
 export function NarracionScreen() {
   const s = useSheetSession();
+  useMatchShortcuts(s.match);
   if (s.loading) return <ScreenLoading label="Cargando el análisis" />;
   return (
     <section className="ac ac-acta" aria-label="El análisis narrado">

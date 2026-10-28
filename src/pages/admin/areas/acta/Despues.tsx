@@ -23,6 +23,7 @@ import { VIcon } from "../../../../components/vidrio/VIcon";
 import { clockTime, shortDate } from "../../data/adminLogic";
 import { fromMatch, goalRows } from "../../acta/sheetModel";
 import { namesFor } from "../../acta/roster";
+import { useMatchShortcuts } from "../../palette/matchShortcuts";
 import { usePartido } from "../../partido/partidoContext";
 import { useAdmin } from "../../shell/context";
 import { SalaLink } from "../../shell/SalaLink";
@@ -38,6 +39,7 @@ export function DespuesScreen() {
   const { match, phase, base } = usePartido();
   const data = useAdmin();
   const go = useSalaGo();
+  useMatchShortcuts(match);
   // (what the web says: the published acta, not a draft over it)
   const pub = data.published.find((p) => p.id === match.id && p.status === "finished");
   if (!pub)

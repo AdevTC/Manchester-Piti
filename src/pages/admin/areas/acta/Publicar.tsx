@@ -9,9 +9,11 @@ import { downloadMatchPoster, type PosterFormat } from "../../../../lib/matchPos
 import { isGuestId } from "../../../../lib/derived/guests";
 import { useMvpResults } from "../../../vestuario/live";
 import { buildResumen } from "../../acta/resumen";
+import { storedNotasOf } from "../../../../../functions/src/rating/frozen";
 import { goalRows, okHttps, rivalInitialsOf, score, setAssist, setMinute, setScorer } from "../../acta/sheetModel";
 import { cronicaHeadline } from "../../partidos/workspaceModel";
 import { usePartido } from "../../partido/partidoContext";
+import { useMatchShortcuts } from "../../palette/matchShortcuts";
 import { useRegisterCommands } from "../../palette/registry";
 import type { PaletteCommand } from "../../palette/search";
 import { SalaSheet } from "../../shell/Sheet";
@@ -19,7 +21,7 @@ import { ScreenLoading } from "../../shell/Screen";
 import { useSalaGo } from "../../shell/salaHref";
 import { useStatus } from "../../shell/statusContext";
 import { useAdmin } from "../../shell/context";
-import { rivalCode } from "../../../../lib/eventMeta";
+import { venueName } from "../../../../lib/derived/venue";
 import { checkRows, dayName, fanScorers, letterOf, letterWord, minutesBars, mvpView, publishWords } from "./actaModel";
 import { AcIcon, ActaEmpty, ActaStills, Shirt } from "./parts";
 import { useSheetSession, type SheetSession } from "./sheetSession";
@@ -30,6 +32,7 @@ export function PublicarScreen() {
   const { phase } = usePartido();
   const go = useSalaGo();
   const base = `/admin/partidos/${s.match.id}`;
+  useMatchShortcuts(s.match);
   if (s.loading) return <ScreenLoading label="Cargando el acta" />;
   const notYet = phase === "antes" || phase === "juego" || phase === "descanso" || phase === "aplazado" || phase === "cancelado";
   const pendFirst = phase === "pendiente" && s.value.status === "scheduled" && !s.value.events.length;
@@ -346,7 +349,7 @@ function Publish({ s }: { s: SheetSession }) {
                   {gf}–{ga}
                 </b>
                 <span className="sc-rival">
-                  <i aria-hidden="true">{rivalCode(rival, sheet.rivalShort)}</i>
+                  <i aria-hidden="true">{rivalInitialsOf(sheet)}</i>
                   {rival}
                 </span>
                 <span className={`sc-res sc-res--${letter}`} aria-hidden="true">
@@ -355,7 +358,7 @@ function Publish({ s }: { s: SheetSession }) {
               </p>
               <p className="sc-small">
                 {sheet.home ? "En casa" : "Fuera"}
-                {sheet.venue ? ` · ${sheet.venue.split(" · ")[0]}` : ""}
+                {sheet.venue ? ` · ${venueName(sheet.venue.split(" · ")[0])}` : ""}
               </p>
               {scorers.length > 0 && (
                 <ul className="ac-fan__goals" aria-label="Goles del Piti">
@@ -374,7 +377,7 @@ function Publish({ s }: { s: SheetSession }) {
                 </span>
                 {s.published ? mvp.fan : `Vota al MVP hasta ${dayName(data.now + 48 * 3_600_000)}`}
               </p>
-              <p className="sc-small">{s.published && s.match.notas ? "Las notas, ya en la web" : "Las notas, al publicar"}</p>
+              <p className="sc-small">{s.published && storedNotasOf(data.published.find((p) => p.id === s.match.id) ?? {}) ? "Las notas, ya en la web" : "Las notas, al publicar"}</p>
             </div>
           </section>
 
