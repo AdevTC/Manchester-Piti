@@ -63,9 +63,13 @@ export const cleanName = (s: string) => s.replace(/\s+/g, " ").trim().slice(0, 4
 // ── r12 · quitar el acceso (M-13, B-CLUB-02/03) ──
 /** A ficha linked to someone who is no longer inside (removed by a captain, or without a profile) is free to
  *  claim: links left behind before revokeMember freed them. */
-export const holderGone = (holder: { exists: boolean; removedAt?: unknown } | null | undefined): boolean => !!holder && (!holder.exists || !!holder.removedAt);
-/** The role kept when someone walks back in: a removed member comes back as a socio (never with the brazalete
- *  he had); the superadmin keeps his. Undefined: no profile yet (the door decides). */
+export const holderGone = (holder: { exists: boolean; uid?: string; removedAt?: unknown; removedBy?: unknown } | null | undefined): boolean => !!holder && removedByCaptain(holder);
+/** Removed by a captain (revokeMember stamps `removedBy`), not gone on his own (leaveVestuario: `removedBy` = him)
+ *  — a removal from before the stamp counts as gone on his own: nobody inherits someone else's ficha by default. */
+export const removedByCaptain = (u: { exists: boolean; uid?: string; removedAt?: unknown; removedBy?: unknown }): boolean =>
+  u.exists && !!u.removedAt && typeof u.removedBy === "string" && !!u.removedBy && u.removedBy !== u.uid;
+/** The role kept when someone walks back in: a member a captain removed comes back as a socio (never with the
+ *  brazalete he had); one who left on his own keeps his; the superadmin keeps his. Undefined: no profile yet. */
 export function returningRole(stored: unknown, removed: boolean): string | undefined {
   if (typeof stored !== "string") return undefined;
   return removed && stored !== "superadmin" ? "user" : stored;

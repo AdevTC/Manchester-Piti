@@ -135,7 +135,8 @@ export const leaveVestuario = onCall(async (req) => {
   if (profile.get("role") === "superadmin") throw new HttpsError("permission-denied", "El superadministrador no puede darse de baja");
   const batch = db.batch();
   batch.delete(db.doc(`teamMembers/${uid}`));
-  batch.set(db.doc(`users/${uid}`), { removedAt: FieldValue.serverTimestamp() }, { merge: true });
+  // (`removedBy` = himself: gone on his own, he keeps his ficha and his role — only a captain's removal frees them)
+  batch.set(db.doc(`users/${uid}`), { removedAt: FieldValue.serverTimestamp(), removedBy: uid }, { merge: true });
   batch.set(db.doc(`accessRequests/${uid}`), {
     status: "left",
     resolvedBy: uid,

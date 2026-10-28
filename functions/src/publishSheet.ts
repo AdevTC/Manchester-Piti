@@ -29,7 +29,7 @@ import { standingsLike } from "./rating/rival.js";
 import { frozenNotas } from "./rating/season.js";
 import { shotTally } from "./rating/values.js";
 import type { RatingMatch, StandingsLike } from "./rating/types.js";
-import { actaPublishedAt, baseRevision, pruneVideoMarks, storedVideoMarks, videoMarksSchema } from "./matchExtrasLogic.js";
+import { actaPublishedAt, baseRevision, replaceRef, pruneVideoMarks, storedVideoMarks, videoMarksSchema } from "./matchExtrasLogic.js";
 
 /** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
 const exactMillis = (v: unknown): number => {
@@ -100,6 +100,9 @@ export interface PublishRequest {
   guard?: (tx: FirebaseFirestore.Transaction, old: FirebaseFirestore.DocumentSnapshot) => Promise<void>;
   /** What a stale revision says. */
   staleMessage?: string;
+  /** M-41 (promoteGuest): a guest becomes this ficha — the stored lineup, roll call and frozen notas take the new id
+   *  inside the transaction, and the notas are not rated again (frozen: his own nota passes to the ficha as it was). */
+  promote?: { from: string; to: string };
 }
 /** Saves a draft or publishes the acta: exactly saveMatchSheet's pipeline. */
 export async function publishSheet(input: PublishRequest) {
@@ -265,9 +268,10 @@ export async function publishSheet(input: PublishRequest) {
     // La alineación del partido (matchLineup.ts) wins over the board: its system, and each slot's code for
     // the seven (whoever comes on takes the code of whoever goes off). Only while it is the seven of these
     // titulares: an acta that changed them keeps no lineup, and falls back to the board.
-    const storedLineup = parseMatchLineup(old.get("lineup"));
+    const outside = (k: string) => (input.promote ? replaceRef(old.get(k), input.promote.from, input.promote.to) : old.get(k));
+    const storedLineup = parseMatchLineup(outside("lineup"));
     const lineup = storedLineup && sameSeven(lineupSeven(storedLineup), sheet.starters) ? storedLineup : null;
-    const present = parsePresent(old.get("present"));
+    const present = parsePresent(outside("present"));
     if (finished) {
       if (lineup) {
         withPositions(fullLedger.players, positionsPlayed(fullLedger.players, sheet.events, { board: lineupCodeByPlayer(lineup), main }));
@@ -283,10 +287,10 @@ export async function publishSheet(input: PublishRequest) {
     // Each player's nota of this acta, rated with the season's actas up to it and frozen with it; a correction keeps
     // the rival factor of its first publication. A rating that fails never blocks the acta: a correction keeps the
     // notas it had, a first publication goes without them (the web rates it then).
-    let notas: unknown = finished ? (old.get("notas") ?? null) : null;
+    let notas: unknown = finished ? (outside("notas") ?? null) : null;
     // (M-42: a failure is kept where the sala can see it, matchPrivate.notasError, and «Recalcular» clears it)
     let notasProblem: string | null = finished && !seasonGames ? "no se ha podido leer la temporada" : null;
-    if (finished && seasonGames)
+    if (finished && seasonGames && !(input.promote && notas))
       try {
         const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players };
         // (a correction keeps the rival's factor and normal match of the first publication, while it is the same rival
@@ -360,7 +364,7 @@ export async function publishSheet(input: PublishRequest) {
     // r12: when the acta was first published (the ratings' 7 days), the MVP moved by hand, and the video marks
     // (sent with the acta, or kept as they were; only those of goals still in it).
     const published = finished
-      ? { actaPublishedAt: actaPublishedAt(old.exists && old.get("status") === "finished" ? { actaPublishedAt: old.get("actaPublishedAt"), voteClosesAt: old.get("voteClosesAt") } : null, Date.now()), ...(old.get("mvpManual") ? { mvpManual: old.get("mvpManual") } : {}) }
+      ? { actaPublishedAt: actaPublishedAt(old.exists && old.get("status") === "finished" ? { actaPublishedAt: old.get("actaPublishedAt"), voteClosesAt: old.get("voteClosesAt") } : null, Date.now()) }
       : {};
     const marks = pruneVideoMarks(sheet.videoMarks ?? storedVideoMarks(old.get("videoMarks")), sheet.events);
     const { videoMarks: _sentMarks, ...publicFields } = publicSheet;

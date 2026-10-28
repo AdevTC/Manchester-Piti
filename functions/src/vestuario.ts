@@ -10,7 +10,7 @@ import { db, idSchema, parse, memberAs, admin } from "./common.js";
 import { nameFor } from "./names.js";
 import { holderGone } from "./doorLogic.js";
 
-const linkFree = (holder: FirebaseFirestore.DocumentSnapshot | null) => holderGone(holder ? { exists: holder.exists, removedAt: holder.get("removedAt") } : null);
+const linkFree = (holder: FirebaseFirestore.DocumentSnapshot | null) => holderGone(holder ? { exists: holder.exists, uid: holder.id, removedAt: holder.get("removedAt"), removedBy: holder.get("removedBy") } : null);
 
 const DAY = 24 * 60 * 60_000;
 // (a claim has no match: the ficha's own name, as the jugador page shows it — nameFor without a season)

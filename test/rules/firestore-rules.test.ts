@@ -2011,6 +2011,7 @@ describe("r12 · la Sala de control", () => {
         { kits: { home: { ...kit, colors: Array.from({ length: 5 }, () => kit.colors[0]) } } },
         { kits: { home: { ...kit, note: "x".repeat(201) } } },
         { kits: { home: { ...kit, extra: 1 } } },
+        { kits: { home: { name: "1ª", colors: kit.colors } } }, // (the note is required, as the app's Zod reads it)
         { kits: "celeste" },
         { trophies: Array.from({ length: 31 }, () => ({ name: "Copa" })) },
         { trophies: "Copa" },
@@ -2024,17 +2025,33 @@ describe("r12 · la Sala de control", () => {
     });
   });
   it("M-20: the content's shared draft (clubDrafts/content) is the captains' only", async () => {
-    const draft = (over: object = {}) => ({ club: { contacto: { value: { email: "a@b.c" }, base: { email: "" }, at: 1 } }, stories: {}, by: "admin", byName: "admin", at: serverTimestamp(), ...over });
+    const draft = (over: object = {}) => ({ rev: 0, club: { contacto: { value: { email: "a@b.c" }, base: { email: "" }, at: 1 } }, stories: {}, by: "admin", byName: "admin", at: serverTimestamp(), ...over });
     await assertSucceeds(setDoc(doc(db("admin"), "clubDrafts", "content"), draft()));
     await assertSucceeds(getDoc(doc(db("admin"), "clubDrafts", "content")));
     await assertSucceeds(getDoc(doc(db("super"), "clubDrafts", "content")));
     await assertFails(getDoc(doc(db("member"), "clubDrafts", "content")));
     await assertFails(getDoc(doc(db(), "clubDrafts", "content")));
-    for (const bad of [draft({ by: "other" }), draft({ at: Timestamp.fromMillis(0) }), draft({ extra: 1 }), draft({ club: "x" }), draft({ byName: "x".repeat(41) })])
+    for (const bad of [draft({ by: "other", rev: 1 }), draft({ at: Timestamp.fromMillis(0), rev: 1 }), draft({ extra: 1, rev: 1 }), draft({ club: "x", rev: 1 }), draft({ byName: "x".repeat(41), rev: 1 })])
       await assertFails(setDoc(doc(db("admin"), "clubDrafts", "content"), bad));
     await assertFails(setDoc(doc(db("admin"), "clubDrafts", "other"), draft()));
-    await assertFails(setDoc(doc(db("member"), "clubDrafts", "content"), draft({ by: "member" })));
+    await assertFails(setDoc(doc(db("member"), "clubDrafts", "content"), draft({ by: "member", rev: 1 })));
     await assertSucceeds(deleteDoc(doc(db("admin"), "clubDrafts", "content")));
+  });
+  it("M-20: two captains on the same draft — the one who saves over a newer draft is refused", async () => {
+    const draft = (by: string, rev: number) => ({ rev, club: {}, stories: {}, by, at: serverTimestamp() });
+    await assertSucceeds(setDoc(doc(db("admin"), "clubDrafts", "content"), draft("admin", 0)));
+    // super read rev 0 and saves rev 1; admin, still on rev 0, saves rev 1 too: refused
+    await assertSucceeds(setDoc(doc(db("super"), "clubDrafts", "content"), draft("super", 1)));
+    await assertFails(setDoc(doc(db("admin"), "clubDrafts", "content"), draft("admin", 1)));
+    await assertSucceeds(setDoc(doc(db("admin"), "clubDrafts", "content"), draft("admin", 2)));
+    // (a new draft starts at 0; never a jump, never a step back)
+    await assertFails(setDoc(doc(db("admin"), "clubDrafts", "content"), draft("admin", 5)));
+    await assertFails(setDoc(doc(db("admin"), "clubDrafts", "content"), draft("admin", 2)));
+    await env.withSecurityRulesDisabled(async (c) => {
+      await deleteDoc(doc(c.firestore(), "clubDrafts", "content"));
+    });
+    await assertFails(setDoc(doc(db("admin"), "clubDrafts", "content"), draft("admin", 3)));
+    await assertSucceeds(setDoc(doc(db("admin"), "clubDrafts", "content"), draft("admin", 0)));
   });
   it("M-18: «Lo que se ha mandado» (pushSent) is read by the captains and written by nobody", async () => {
     await seed("pushSent/s1", { title: "Final", devices: 3, members: 2, at: Timestamp.now() });

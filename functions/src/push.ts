@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, idSchema, memberAs, parse } from "./common.js";
-import { heldGoalNotice } from "./pushLogic.js";
+import { heldBefore, heldGoalNotice } from "./pushLogic.js";
 import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, notaPlayers, notasNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { LATE_TOPICS, legacyTodoGets, presetOf, presetTopics, PUSH_PRESETS, TOPICS_VERSION } from "./pushPresets.js";
 import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
@@ -236,7 +236,7 @@ export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<st
   const devices = [...found.values()].filter((d) => !(skip && skip.has(d.get("uid"))) && !isPaused(d.get("pausedUntil"), now) && deviceGets({ preset: d.get("preset"), matchTopics: d.get("matchTopics") }, notice, about));
   const sent = { devices: devices.length, members: new Set(devices.map((d) => d.get("uid")).filter((u) => typeof u === "string" && u)).size };
   // M-18 «Lo que se ha mandado»: every notice to a topic (the personal ones are counted by whoever sends them).
-  if (!uid && keep) await logSent(notice, sent, { kind: "auto", audience: "publico" });
+  if (!uid && keep) await logSent(notice, sent, { kind: "auto", audience: topicAudience(notice.topic) });
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (!devices.length) return sent;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
@@ -276,7 +276,8 @@ export interface SentCount {
 export async function logSent(notice: Notice, sent: SentCount, how: { kind: "auto" | "manual" | "recordatorio"; audience: "publico" | "equipo" | "capitanes" | "convocados"; by?: string }): Promise<void> {
   try {
     const now = Date.now();
-    await db.collection("pushSent").add({
+    // (one doc per notice, its audience and the hour: a retried trigger finds it there and writes nothing)
+    await db.doc(`pushSent/${sentId(notice, how.audience, how.kind, now)}`).create({
       title: notice.title,
       body: notice.body,
       topic: notice.topic,
@@ -292,9 +293,20 @@ export async function logSent(notice: Notice, sent: SentCount, how: { kind: "aut
       expireAt: Timestamp.fromMillis(now + NOTICE_TTL_MS),
     });
   } catch (e) {
+    const code = (e as { code?: unknown }).code;
+    if (code === 6 || code === "already-exists") return;
     console.error("pushSent", notice.tag, e);
   }
 }
+/** pushSent's doc id: the notice's log (or tag), the hour, and a hash of what it says and to whom. */
+export function sentId(notice: Pick<Notice, "log" | "tag" | "title" | "body" | "url">, audience: string, kind: string, now: number): string {
+  const base = (notice.log || notice.tag || "aviso").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 120);
+  // (by hand: the minute — a captain may send the same words again later; a trigger's retry: the same hour)
+  const bucket = Math.floor(now / (kind === "manual" ? 60_000 : 3_600_000));
+  return `${base}-${bucket}-${createHash("sha256").update([audience, kind, notice.title, notice.body, notice.url].join("\u0000")).digest("hex").slice(0, 16)}`;
+}
+/** Who a notice to a topic reached (pushSent.audience): the captains' door, else the club's public topics. */
+export const topicAudience = (topic: string): "publico" | "capitanes" => (topic === "door" ? "capitanes" : "publico");
 
 /** Stores a notice in `notices/{id}` for the centro de avisos (noticesLogic.ts: whether, for whom, its id).
  *  `create`: a retried trigger finds its doc taken and stores nothing. Never in the way of the push. */
@@ -321,7 +333,9 @@ const asMatch = (d: DocumentData | undefined): MatchLike | undefined =>
     postponedTo: typeof d.postponedTo === "number" ? d.postponedTo : ((d.postponedTo as Timestamp | null | undefined)?.toMillis?.() ?? null),
   };
 
-export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", secrets: [vapidPrivate] }, async (event) => {
+// (M-33: a rival's goal keeps its instance 10 s; one event per instance as always, but up to 20 of them — not the
+// global 5 — so a run of plays, two matches at once or a goal while another waits never queues the other notices)
+export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", secrets: [vapidPrivate], maxInstances: 20 }, async (event) => {
   if (!(await matchActive(event.params.matchId))) return;
   const before = asMatch(event.data?.before.data());
   const after = asMatch(event.data?.after.data());
@@ -353,9 +367,23 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   // the season's shirt names, like the match page (nameFor with the match's season)
   const names = new Map(players.map((p) => [p.id, nameFor(p.data(), after?.seasonId)]));
   const held: Notice[] = [];
-  for (const n of named ? noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", now) : draft) {
-    if (n.holdFor) held.push(n);
-    else await deliver(n);
+  const nameOf = (id: string) => names.get(id) ?? "Jugador";
+  for (const n of named ? noticesFor(event.params.matchId, before, after, nameOf, now) : draft) {
+    if (n.holdFor) {
+      held.push(n);
+      continue;
+    }
+    // (a goal told now goes after the rival's goals still in their wait: those first, in order, each with its score)
+    // (and so does the provisional final: «Final (provisional)» after the last goals, never before them)
+    const goalId = n.topic === "goals" && n.log?.startsWith(`goal-${event.params.matchId}-`) ? n.log.slice(`goal-${event.params.matchId}-`.length) : null;
+    const whistle = n.log === `final-live-${event.params.matchId}`;
+    if (goalId || whistle)
+      for (const prior of heldBefore(after, goalId)) {
+        if ((await db.doc(`pushLog/goal-${event.params.matchId}-${prior}`).get()).exists) continue;
+        const early = heldGoalNotice(event.params.matchId, after, prior, nameOf);
+        if (early) await deliver(early);
+      }
+    await deliver(n);
   }
   // M-33: the rival's goal goes after its wait, from the match as it is then — undone meanwhile, nothing goes.
   for (const n of held) {
@@ -479,7 +507,10 @@ export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", 
   // (what the team is told about from now on: this seven)
   await sevenPublished(event.params.lineupId, after);
   const mid = after.matchId ?? null;
-  const match = mid ? asMatch((await db.doc(`matches/${mid}`).get()).data()) : null;
+  const raw = mid ? (await db.doc(`matches/${mid}`).get()).data() : undefined;
+  const parsed = asMatch(raw);
+  // (a date stored as a number — older and seeded matches — counts too: «pasada su hora», PZ-B-PAR-03)
+  const match = mid ? (parsed && typeof raw?.date === "number" ? { ...parsed, date: raw.date } : parsed) : null;
   const notice = lineupNotice(event.params.lineupId, before, after, match, Date.now());
   if (!notice) return;
   if (!(await claimLog(notice.tag, mid ?? undefined))) return;

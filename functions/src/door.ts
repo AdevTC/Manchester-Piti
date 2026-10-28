@@ -6,7 +6,7 @@ import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestor
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { admin, db, googleUser, idSchema, parse } from "./common.js";
-import { cleanName, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, returningRole } from "./doorLogic.js";
+import { cleanName, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, removedByCaptain, returningRole } from "./doorLogic.js";
 import { forgetMemberDevices, sendTo } from "./push.js";
 import { nameFor } from "./names.js";
 
@@ -16,7 +16,7 @@ const whoSchema = z.object({ playerId: idSchema.optional(), name: z.string().max
 // (the door has no match: the ficha's own name, as the jugador page shows it — nameFor without a season)
 const playerLabel = (p: FirebaseFirestore.DocumentSnapshot) => nameFor(p.data());
 /** The holder of a link (users/{uid}) read: whether that ficha is free to take (they are no longer inside). */
-const linkFree = (holder: FirebaseFirestore.DocumentSnapshot | null | undefined) => holderGone(holder ? { exists: holder.exists, removedAt: holder.get("removedAt") } : null);
+const linkFree = (holder: FirebaseFirestore.DocumentSnapshot | null | undefined) => holderGone(holder ? { exists: holder.exists, uid: holder.id, removedAt: holder.get("removedAt"), removedBy: holder.get("removedBy") } : null);
 const inviteData = (snap: FirebaseFirestore.DocumentSnapshot) =>
   snap.exists ? { expiresAt: (snap.get("expiresAt") as Timestamp).toMillis(), maxUses: snap.get("maxUses") ?? 1, uses: snap.get("uses") ?? 0, revoked: !!snap.get("revoked") } : undefined;
 
@@ -52,7 +52,8 @@ async function admit(tx: Transaction, req: CallableRequest, uid: string, who: { 
   }
   const email = (req.auth?.token.email as string | undefined) ?? "";
   // Whoever comes back after a captain removed them comes back as a socio, whatever role they kept (B-CLUB-03).
-  const role = returningRole(user.get("role"), !!user.get("removedAt")) ?? (email === SUPERADMIN && req.auth?.token.email_verified === true ? "superadmin" : "user");
+  const removed = removedByCaptain({ exists: user.exists, uid, removedAt: user.get("removedAt"), removedBy: user.get("removedBy") });
+  const role = returningRole(user.get("role"), removed) ?? (email === SUPERADMIN && req.auth?.token.email_verified === true ? "superadmin" : "user");
   tx.set(db.doc(`teamMembers/${uid}`), { expiresAt: Timestamp.fromMillis(FOREVER_MS), joinedAt: FieldValue.serverTimestamp(), via, by });
   if (nameRef) tx.set(nameRef, { uid });
   tx.set(
@@ -65,6 +66,7 @@ async function admit(tx: Transaction, req: CallableRequest, uid: string, who: { 
       ...(linkable ? { playerId: who.playerId } : {}),
       createdAt: user.get("createdAt") ?? FieldValue.serverTimestamp(),
       removedAt: FieldValue.delete(),
+      removedBy: FieldValue.delete(),
     },
     { merge: true },
   );
@@ -198,14 +200,18 @@ export const revokeMember = onCall(async (req) => {
   // it clears what an older removal left behind.
   const result = await db.runTransaction(async (tx) => {
     const userRef = db.doc(`users/${uid}`);
-    const user = await tx.get(userRef);
+    const [user, me] = await tx.getAll(userRef, db.doc(`users/${by}`));
     if (user.get("role") === "superadmin") throw new HttpsError("permission-denied", "No se puede quitar el acceso al superadministrador.");
+    // M-40: taking the access takes the brazalete too, so only the capitán general does it to another captain.
+    if (user.get("role") === "admin" && me.get("role") !== "superadmin") throw new HttpsError("permission-denied", "Solo el capitán general puede quitar el acceso a otro capitán.");
     const playerId = user.get("playerId") as string | undefined;
     const link = playerId ? await tx.get(db.doc(`playerLinks/${playerId}`)) : null;
     const claim = await tx.get(db.doc(`playerClaims/${uid}`));
     const wasCaptain = user.get("role") === "admin";
     tx.delete(db.doc(`teamMembers/${uid}`));
-    tx.set(userRef, { removedAt: user.get("removedAt") ?? FieldValue.serverTimestamp(), ...(user.exists ? { role: "user", playerId: FieldValue.delete() } : {}) }, { merge: true });
+    // (`removedBy`: removed by a captain — his ficha is free and he comes back as a socio; one who leaves on his own
+    // keeps both, leaveVestuario)
+    tx.set(userRef, { removedAt: FieldValue.serverTimestamp(), removedBy: by, ...(user.exists ? { role: "user", playerId: FieldValue.delete() } : {}) }, { merge: true });
     const freed = link?.exists && link.get("uid") === uid ? playerId! : null;
     if (freed) tx.delete(link!.ref);
     if (claim.exists && claim.get("status") === "pending") tx.delete(claim.ref);
@@ -223,8 +229,8 @@ export const revokeMember = onCall(async (req) => {
 export const doorShirts = onCall(async () => {
   // "With access" = everyone with a profile who wasn't removed: members from the old team key keep
   // their access and walk back in on their next visit, even if their old session has lapsed.
-  const [links, people, removed] = await Promise.all([db.collection("playerLinks").get(), db.collection("users").count().get(), db.collection("users").where("removedAt", "!=", null).select().get()]);
-  // (a ficha linked to someone removed is free again: B-CLUB-02)
-  const out = new Set(removed.docs.map((d) => d.id));
+  const [links, people, removed] = await Promise.all([db.collection("playerLinks").get(), db.collection("users").count().get(), db.collection("users").where("removedAt", "!=", null).select("removedAt", "removedBy").get()]);
+  // (a ficha linked to someone a captain removed is free again: B-CLUB-02; one who left keeps his)
+  const out = new Set(removed.docs.filter((d) => removedByCaptain({ exists: true, uid: d.id, removedAt: d.get("removedAt"), removedBy: d.get("removedBy") })).map((d) => d.id));
   return { taken: links.docs.filter((d) => !out.has(d.get("uid"))).map((d) => d.id), inside: people.data().count - removed.size };
 });

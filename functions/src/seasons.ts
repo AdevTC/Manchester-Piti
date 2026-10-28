@@ -30,7 +30,7 @@ export const deleteSeason = onCall({ timeoutSeconds: 540 }, async req => {
     for (const p of players.docs) {
       const next = afterSeasonDeleted((p.get('seasons') ?? []) as string[], seasonId, archivedIds);
       if (!next.archived && p.get('archived') === true) back++;
-      tx.update(p.ref, { seasons: next.seasons, archived: next.archived ? true : FieldValue.delete() });
+      tx.update(p.ref, { seasons: next.seasons, archived: next.archived ? true : FieldValue.delete(), [`seasonDetails.${seasonId}`]: FieldValue.delete() });
     }
     return { players: back, matches: matches.size };
   });
@@ -48,7 +48,7 @@ export const onSeasonDeleted = onDocumentDeleted('seasons/{seasonId}', async eve
       const archivedIds = new Set(seasons.docs.filter(s => s.get('archived') === true).map(s => s.id));
       for (const p of players.docs) {
         const next = afterSeasonDeleted((p.get('seasons') ?? []) as string[], seasonId, archivedIds);
-        tx.update(p.ref, { seasons: next.seasons, archived: next.archived ? true : FieldValue.delete() });
+        tx.update(p.ref, { seasons: next.seasons, archived: next.archived ? true : FieldValue.delete(), [`seasonDetails.${seasonId}`]: FieldValue.delete() });
       }
     });
   } catch (e) {

@@ -9,7 +9,7 @@ import { admin, db, idSchema, parse } from "./common.js";
 import { publishSheet, sheetSchema } from "./publishSheet.js";
 import { dateMillis, type MatchSheet } from "./matchEngine.js";
 import { requireActiveMatch, runMatchTransaction } from "./matchAccess.js";
-import { promoteInMatch } from "./matchExtrasLogic.js";
+import { alreadyPromoted, promoteInMatch } from "./matchExtrasLogic.js";
 import { PUBLICATION_RESOURCES } from "./publicationResources.js";
 
 const input = z.object({
@@ -45,18 +45,26 @@ export const promoteGuest = onCall({ ...PUBLICATION_RESOURCES, timeoutSeconds: 5
   const data = parse(input, req.data);
   const player = await db.doc(`players/${data.playerId}`).get();
   if (!player.exists) throw new HttpsError("not-found", "Esa ficha no existe.");
-  // ---- plan everything first: nothing is written if one of the matches can't take it
-  const plans: { matchId: string; guestId: string; published: boolean; seasonId: string; rival: string }[] = [];
+  // ---- plan everything first: nothing is written if one of the matches can't take it. A retry (a failure half
+  // way) finds the matches already done — the guest gone from the list, the ficha in it — and leaves them be.
+  const plans: { matchId: string; guestId: string; published: boolean; done: boolean; seasonId: string; rival: string }[] = [];
   for (const g of data.guests) {
-    const [match, draft] = await db.getAll(db.doc(`matches/${g.matchId}`), db.doc(`matchDrafts/${g.matchId}`));
+    const [match, draft, priv] = await db.getAll(db.doc(`matches/${g.matchId}`), db.doc(`matchDrafts/${g.matchId}`), db.doc(`matchPrivate/${g.matchId}`));
     const doc = match.exists ? match : draft;
     if (!doc.exists) throw new HttpsError("not-found", "Uno de esos partidos ya no existe.");
     const rival = String(doc.get("rival") ?? "el rival");
-    const guests = (doc.get("guests") ?? []) as { id: string }[];
-    if (!guests.some((x) => x.id === g.guestId)) throw new HttpsError("not-found", `Ese invitado ya no está en el partido contra ${rival}.`);
+    const seasonId = String(doc.get("seasonId") ?? "");
+    if (alreadyPromoted(doc.data() ?? {}, g.guestId, data.playerId)) {
+      plans.push({ matchId: g.matchId, guestId: g.guestId, published: match.exists, done: true, seasonId, rival });
+      continue;
+    }
+    const next = promoteInMatch(doc.data() ?? {}, g.guestId, data.playerId);
+    if ("problem" in next) throw new HttpsError("not-found", `Ese invitado ya no está en el partido contra ${rival}.`);
     if (match.exists && draft.exists) throw new HttpsError("failed-precondition", `El partido contra ${rival} tiene un borrador sin publicar: publícalo o descártalo antes.`);
     if (match.exists && LIVE.has(match.get("clock.phase"))) throw new HttpsError("failed-precondition", `El partido contra ${rival} se está jugando: dale de alta cuando acabe.`);
-    plans.push({ matchId: g.matchId, guestId: g.guestId, published: match.exists, seasonId: String(doc.get("seasonId") ?? ""), rival });
+    // (the acta it will be published as, checked now: a malformed one stops everything before any write)
+    if (match.exists) sheetOf({ ...(match.data() ?? {}), ...next }, priv.get("meetingNote"));
+    plans.push({ matchId: g.matchId, guestId: g.guestId, published: match.exists, done: false, seasonId, rival });
   }
   const seasons = [...new Set(plans.map((p) => p.seasonId).filter(Boolean))];
   const seasonDocs = seasons.length ? await db.getAll(...seasons.map((s) => db.doc(`seasons/${s}`))) : [];
@@ -64,11 +72,12 @@ export const promoteGuest = onCall({ ...PUBLICATION_RESOURCES, timeoutSeconds: 5
   if (closed) throw new HttpsError("failed-precondition", `${closed.exists ? `«${closed.get("name") ?? "Esa temporada"}» está archivada` : "Uno de esos partidos no tiene temporada"}: restáurala antes de darle de alta.`);
   // His seasons first: the acta only takes players of its season.
   if (seasons.length) await player.ref.update({ seasons: FieldValue.arrayUnion(...seasons), archived: FieldValue.delete() });
-  for (const p of plans) {
+  for (const p of plans.filter((x) => !x.done)) {
     if (!p.published) {
       await runMatchTransaction(p.matchId, async (tx, { draft }) => {
         if (!draft.exists) throw new HttpsError("not-found", `El partido contra ${p.rival} ya no existe.`);
         await requireActiveMatch(tx, p.matchId, draft);
+        if (alreadyPromoted(draft.data() ?? {}, p.guestId, data.playerId)) return;
         const next = promoteInMatch(draft.data() ?? {}, p.guestId, data.playerId);
         if ("problem" in next) throw new HttpsError("not-found", `Ese invitado ya no está en el partido contra ${p.rival}.`);
         tx.update(draft.ref, next);
@@ -79,10 +88,9 @@ export const promoteGuest = onCall({ ...PUBLICATION_RESOURCES, timeoutSeconds: 5
     const next = promoteInMatch(match.data() ?? {}, p.guestId, data.playerId);
     if ("problem" in next) throw new HttpsError("not-found", `Ese invitado ya no está en el partido contra ${p.rival}.`);
     const sheet = sheetOf({ ...(match.data() ?? {}), ...next }, priv.get("meetingNote"));
-    // (the lineup and the roll call live outside the acta: they take him first, so the publication keeps them)
-    const outside = Object.fromEntries((["lineup", "present"] as const).filter((k) => k in next).map((k) => [k, next[k]]));
-    if (Object.keys(outside).length) await match.ref.update(outside);
-    await publishSheet({ id: p.matchId, sheet, draft: false, uid });
+    // (the lineup, the roll call and the frozen notas take him inside the publication's own transaction; the notas
+    // are not rated again: his nota as a guest passes to the ficha as it was)
+    await publishSheet({ id: p.matchId, sheet, draft: false, uid, promote: { from: `guest:${p.guestId}`, to: data.playerId } });
   }
   await db.collection("matchAudit").add({ matchId: null, updatedBy: uid, at: FieldValue.serverTimestamp(), guestPromoted: { playerId: data.playerId, matches: plans.map((p) => `${p.matchId}:${p.guestId}`) } });
   return { matches: plans.length, seasons };

@@ -7,7 +7,11 @@ import {
   afterSeasonDeleted,
   baseRevision,
   citedIn,
+  alreadyPromoted,
+  draftFieldFollows,
   draftFollows,
+  draftGuestFields,
+  mentions,
   fold,
   MVP_REOPEN_MS,
   MVP_WINDOW_MS,
@@ -22,7 +26,7 @@ import {
 } from "../../functions/src/matchExtrasLogic";
 import { holderGone, returningRole } from "../../functions/src/doorLogic";
 import { captainNotice, remindNowKind, remindNowProblem } from "../../functions/src/remindersLogic";
-import { cajaRejectedNotice, heldGoalNotice, noticesFor, THEIR_GOAL_HOLD_MS } from "../../functions/src/pushLogic";
+import { cajaRejectedNotice, heldBefore, heldGoalNotice, noticesFor, THEIR_GOAL_HOLD_MS } from "../../functions/src/pushLogic";
 
 const HOUR = 3_600_000;
 const NOW = Date.UTC(2026, 9, 28, 12);
@@ -75,6 +79,9 @@ describe("M-11 · el MVP a mano", () => {
   });
   it("«Reabrir 24 h» gives it 24 h from now, within the 7 days of the publication", () => {
     expect(mvpWindow("reopen", { ...published, voteClosesAt: NOW - HOUR }, NOW)).toEqual({ voteClosesAt: NOW + MVP_REOPEN_MS });
+    // (an open vote is never shortened)
+    expect(mvpWindow("reopen", published, NOW)).toEqual({ voteClosesAt: NOW + 40 * HOUR });
+    expect(mvpWindow("reopen", { ...published, voteClosesAt: NOW + HOUR }, NOW)).toEqual({ voteClosesAt: NOW + MVP_REOPEN_MS });
     expect(mvpWindow("reopen", { status: "finished", voteClosesAt: NOW - 6 * 24 * HOUR, actaPublishedAt: NOW - 8 * 24 * HOUR }, NOW)).toEqual({ problem: "Ya no se puede reabrir: pasaron los 7 días del partido." });
   });
   it("nothing before the acta is published", () => {
@@ -181,8 +188,11 @@ describe("M-41 · un invitado pasa a su ficha", () => {
 
 describe("M-13 · B-CLUB-02/03 · quitar el acceso", () => {
   it("a ficha linked to someone removed (or without a profile) is free", () => {
-    expect(holderGone({ exists: true, removedAt: { seconds: 1 } })).toBe(true);
-    expect(holderGone({ exists: false })).toBe(true);
+    expect(holderGone({ exists: true, uid: "u1", removedAt: { seconds: 1 }, removedBy: "cap" })).toBe(true);
+    // (gone on his own, or removed before the stamp existed: his ficha stays his)
+    expect(holderGone({ exists: true, uid: "u1", removedAt: { seconds: 1 }, removedBy: "u1" })).toBe(false);
+    expect(holderGone({ exists: true, uid: "u1", removedAt: { seconds: 1 } })).toBe(false);
+    expect(holderGone({ exists: false })).toBe(false);
     expect(holderGone({ exists: true })).toBe(false);
     expect(holderGone(null)).toBe(false);
   });
@@ -225,7 +235,10 @@ describe("M-33 · el aviso del gol del rival espera a «Deshacer»", () => {
   it("after the wait: the notice with the score then; nothing if undone, deleted or the whistle went", () => {
     expect(heldGoalNotice("j3", theirs, "o1", () => "")).toMatchObject({ topic: "goals", title: "Gol de Orduña fc", log: "goal-j3-o1" });
     expect(heldGoalNotice("j3", live, "o1", () => "")).toBeNull();
-    expect(heldGoalNotice("j3", { ...theirs, clock: { phase: "ended" } }, "o1", () => "")).toBeNull();
+    // the whistle during the wait: the goal was written before it, so it is told
+    expect(heldGoalNotice("j3", { ...theirs, clock: { phase: "ended" } }, "o1", () => "")).toMatchObject({ title: "Gol de Orduña fc" });
+    // the acta published meanwhile: «Final» told the score
+    expect(heldGoalNotice("j3", { ...theirs, status: "finished" }, "o1", () => "")).toBeNull();
     expect(heldGoalNotice("j3", { ...theirs, archived: true }, "o1", () => "")).toBeNull();
     expect(heldGoalNotice("j3", undefined, "o1", () => "")).toBeNull();
   });
@@ -249,5 +262,51 @@ describe("M-20 · el motivo al rechazar un pago", () => {
     expect(cajaRejectedNotice("c1", { status: "pendiente" }, { status: "rechazado", amount: 2500 })?.body).toBe("25,00 €. Habla con la capitanía.");
     expect(cajaRejectedNotice("c1", { status: "pendiente" }, { status: "confirmado" })).toBeNull();
     expect(cajaRejectedNotice("c1", { status: "rechazado" }, { status: "rechazado", reason: "x" })).toBeNull();
+  });
+});
+
+describe("r12 · revisión: el borrador encima, el invitado, la ficha", () => {
+  it("a draft field follows the published one only when it still held the same value, or nothing", () => {
+    expect(draftFieldFollows("Lo mismo", "Lo mismo")).toBe(true);
+    expect(draftFieldFollows(undefined, "x")).toBe(true);
+    expect(draftFieldFollows("", "x")).toBe(true);
+    expect(draftFieldFollows({}, { g1: 3 })).toBe(true);
+    expect(draftFieldFollows({ b: 1, a: 2 }, { a: 2, b: 1 })).toBe(true);
+    expect(draftFieldFollows("Su crónica en el borrador", "La publicada")).toBe(false);
+    expect(draftFieldFollows(60, 50)).toBe(false);
+  });
+  it("a new guest takes an id free on both copies; the draft gets only him, never its list replaced", () => {
+    expect(addGuestPlan({ guests: [{ id: "g1", name: "Rafa" }] }, "Leo", ["g1", "g2"])).toMatchObject({ guest: { id: "g3", name: "Leo" }, created: true });
+    const draft = { guests: [{ id: "g1", name: "Rafa" }, { id: "g2", name: "Toni" }], bench: ["b"] };
+    expect(draftGuestFields(draft, { id: "g3", name: "Leo" })).toEqual({ guests: [...draft.guests, { id: "g3", name: "Leo" }], bench: ["b", "guest:g3"] });
+    expect(draftGuestFields(draft, { id: "g2", name: "Otro" })).toBeNull();
+    expect(draftGuestFields({ guests: [{ id: "g1", name: "Rafa" }], starters: ["guest:g1"] }, { id: "g1", name: "rafa" })).toEqual({ guests: [{ id: "g1", name: "Rafa" }] });
+    expect(addGuestPlan({ guests: [{ id: "g1", name: "A" }] }, "B", ["g2", "g3", "g4"])).toHaveProperty("problem");
+  });
+  it("mentions: any string or key that is the id, anywhere", () => {
+    expect(mentions({ lineup: { slots: [{ playerId: "p1" }] } }, "p1")).toBe(true);
+    expect(mentions({ notas: { players: { p1: { nota: 6 } } } }, "p1")).toBe(true);
+    expect(mentions({ s: "p10", n: 1 }, "p1")).toBe(false);
+  });
+  it("a promotion retried: the matches already done are recognised", () => {
+    expect(alreadyPromoted({ guests: [], starters: ["p9"] }, "g1", "p9")).toBe(true);
+    expect(alreadyPromoted({ guests: [{ id: "g1", name: "Rafa" }], starters: ["guest:g1"] }, "g1", "p9")).toBe(false);
+    expect(alreadyPromoted({ guests: [], starters: ["a"] }, "g1", "p9")).toBe(false);
+  });
+  it("M-33: the rival goals still waiting before a goal told now, or before the whistle, each with its own score", () => {
+    const m = {
+      status: "scheduled",
+      rival: "Orduña fc",
+      events: [
+        { id: "old", type: "opponent_goal", elapsedSeconds: 100 },
+        { id: "o1", type: "opponent_goal", elapsedSeconds: 2900 },
+        { id: "g1", type: "goal", elapsedSeconds: 2905, playerId: "p" },
+        { id: "o2", type: "own_goal", elapsedSeconds: 2950 },
+      ],
+    };
+    expect(heldBefore(m, "g1")).toEqual(["o1"]);
+    expect(heldBefore(m, null)).toEqual(["o1", "o2"]);
+    expect(heldGoalNotice("j3", m, "o1", () => "")?.body).toMatch(/Piti 0, Orduña fc 2/);
+    expect(heldGoalNotice("j3", m, "o2", () => "ERIK")?.body).toMatch(/Piti 1, Orduña fc 3/);
   });
 });
