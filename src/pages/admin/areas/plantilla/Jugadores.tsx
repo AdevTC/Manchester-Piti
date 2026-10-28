@@ -118,34 +118,34 @@ export function JugadoresScreen() {
     if (sanc && r.sanctioned) state[state.indexOf("Sancionado")] = `Sancionado · ${sanc.left === 1 ? "queda 1" : `quedan ${sanc.left}`}`;
     const line = out ? (r.doc.archived ? "De una temporada archivada" : season ? `Fuera de la ${season.name}` : "Sin temporada") : lineWords(r);
     return (
-      <li key={r.id} className={`pl-row${out ? " is-out" : ""}`} data-id={r.id}>
+      <li key={r.id} className={`spl-row${out ? " is-out" : ""}`} data-id={r.id}>
         <SalaLink
-          className="pl-row__main"
+          className="spl-row__main"
           to={`/admin/plantilla/${encodeURIComponent(r.id)}`}
           aria-current={sel ? "true" : undefined}
           aria-label={`${r.name}, ${r.number != null ? `dorsal ${r.number}, ` : ""}${state.length ? `${state.join(", ")}, ` : ""}${gapWords(r.gaps)}`}
         >
-          <Shirt src={still(r) ?? view.blank} size="s" vt={sel && (desktop || ficha) ? undefined : vtName("pl-shirt", r.id)} />
-          <span className="pl-row__num sc-num" aria-hidden="true">
+          <Shirt src={still(r) ?? view.blank} size="s" vt={sel && (desktop || ficha) ? undefined : vtName("spl-shirt", r.id)} />
+          <span className="spl-row__num sc-num" aria-hidden="true">
             {r.number ?? "—"}
           </span>
-          <span className="pl-row__t" aria-hidden="true">
+          <span className="spl-row__t" aria-hidden="true">
             <b>{r.name}</b>
-            <span className="pl-row__full">{r.full === "Sin nombre" ? "Nombre y apellidos sin poner" : r.full}</span>
-            <span className="pl-row__meta">
+            <span className="spl-row__full">{r.full === "Sin nombre" ? "Nombre y apellidos sin poner" : r.full}</span>
+            <span className="spl-row__meta">
               <span>{line}</span>
-              {state.length > 0 && <span className="pl-row__state">{state.join(" · ")}</span>}
-              <span className={`pl-row__gap ${r.gaps.length ? "is-gap" : "is-full"}`}>{gapWords(r.gaps)}</span>
+              {state.length > 0 && <span className="spl-row__state">{state.join(" · ")}</span>}
+              <span className={`spl-row__gap ${r.gaps.length ? "is-gap" : "is-full"}`}>{gapWords(r.gaps)}</span>
             </span>
           </span>
           {!out && (
-            <span className={`pl-row__acct is-${r.account}`} aria-hidden="true">
+            <span className={`spl-row__acct is-${r.account}`} aria-hidden="true">
               {accountWords(r)}
             </span>
           )}
         </SalaLink>
         {!out && !r.position && (
-          <div className="pl-place" role="group" aria-label={`Colocar a ${r.name}`}>
+          <div className="spl-place" role="group" aria-label={`Colocar a ${r.name}`}>
             {(["POR", "DEF", "MED", "DEL"] as const).map((p) => (
               <button key={p} type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-label={`Colocar a ${r.name} en ${LINE_ONE[p].toLocaleLowerCase("es")}`} onClick={() => setLine(r, p)}>
                 {p}
@@ -169,42 +169,42 @@ export function JugadoresScreen() {
       fit
       className={`sc-pl ${ficha ? "pl--ficha pl--sub" : "pl--jug"}`}
     >
-      <div className="pl-jug">
-        <section className="pl-listcol sc-scroll" aria-label="La plantilla" ref={listRef}>
+      <div className="spl-jug">
+        <section className="spl-listcol sc-scroll" aria-label="La plantilla" ref={listRef}>
           <ListTools view="rows" chips={chips} />
           {bdays.length > 0 && (
-            <p className="pl-bdays">
+            <p className="spl-bdays">
               <Icon name="cake" />
               <span>Cumpleaños:</span>
               {bdays.map((b) => (
-                <SalaLink key={b.id} className="vd-link pl-bdays__b" to={`/admin/plantilla/${encodeURIComponent(b.id)}`}>
+                <SalaLink key={b.id} className="vd-link spl-bdays__b" to={`/admin/plantilla/${encodeURIComponent(b.id)}`}>
                   <b>{b.name}</b> {birthdayWords(b)}
                 </SalaLink>
               ))}
             </p>
           )}
-          <nav className="pl-list" aria-label="Jugadores por línea">
-            {empty && <p className="pl-empty">{empty}</p>}
+          <nav className="spl-list" aria-label="Jugadores por línea">
+            {empty && <p className="spl-empty">{empty}</p>}
             {groups.map((g) => (
-              <section key={g.key} className="pl-group" aria-label={g.title}>
-                <h3 className="pl-group__h">
+              <section key={g.key} className="spl-group" aria-label={g.title}>
+                <h3 className="spl-group__h">
                   <span>{g.title}</span>
                   <span className="sc-sec__n">{g.rows.length}</span>
                   {g.key === "none" && <small>Colócalos con un toque</small>}
                 </h3>
-                <ul className="sc-rows pl-rows">{g.rows.map((r) => row(r, false))}</ul>
+                <ul className="sc-rows spl-rows">{g.rows.map((r) => row(r, false))}</ul>
               </section>
             ))}
             {others.length > 0 && (
-              <section className="pl-group pl-group--out" aria-label="Otras temporadas">
-                <h3 className="pl-group__h">
+              <section className="spl-group spl-group--out" aria-label="Otras temporadas">
+                <h3 className="spl-group__h">
                   <span>Otras temporadas</span>
                   <small>Ábrele la ficha para volver a darle de alta</small>
                 </h3>
-                <ul className="sc-rows pl-rows">{others.map((r) => row(r, true))}</ul>
+                <ul className="sc-rows spl-rows">{others.map((r) => row(r, true))}</ul>
               </section>
             )}
-            <div className="pl-listfoot">
+            <div className="spl-listfoot">
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={csv} aria-disabled={!squad.length || undefined} aria-label="Exportar la plantilla (CSV)">
                 <Icon name="download" />
                 Exportar CSV
@@ -215,11 +215,11 @@ export function JugadoresScreen() {
             </div>
           </nav>
         </section>
-        <section className="pl-fichacol sc-scroll" aria-label="La ficha">
+        <section className="spl-fichacol sc-scroll" aria-label="La ficha">
           {cur ? (
             <Ficha key={cur.id} row={cur} index={idx || 1} total={inOrder.length || squad.length} prev={prev} next={next} nextGap={nextGap} allDone={allDone} open={(id) => open(id)} vt />
           ) : (
-            <div className="pl-none">
+            <div className="spl-none">
               <p className="sc-p">{openId ? `No hay ninguna ficha «${openId}». Puede que la hayan borrado o que el enlace sea viejo.` : squad.length ? "Elige un jugador de la lista para ver su ficha." : "Todavía no hay nadie en la plantilla."}</p>
               <div className="sc-btnrow">
                 {openId && (
@@ -250,11 +250,11 @@ function Glance({ rows }: { rows: BoardRow[] }) {
   const without = rows.filter((r) => r.account === "sin" || r.account === "fuera").length;
   const bdays = birthdays(rows, data.now, 42, 6);
   return (
-    <aside className="pl-glance sc-scroll" aria-labelledby="pl-g-t">
-      <h2 className="sc-h3" id="pl-g-t">
+    <aside className="spl-glance sc-scroll" aria-labelledby="spl-g-t">
+      <h2 className="sc-h3" id="spl-g-t">
         El equipo de un vistazo
       </h2>
-      <dl className="pl-glance__dl">
+      <dl className="spl-glance__dl">
         {groups.map((g) => (
           <div key={g.key}>
             <dt>{g.title}</dt>
@@ -262,7 +262,7 @@ function Glance({ rows }: { rows: BoardRow[] }) {
           </div>
         ))}
       </dl>
-      <ul className="sc-rows pl-glance__rows">
+      <ul className="sc-rows spl-glance__rows">
         <li className="sc-row">
           <span className="sc-row__t">
             <b>Lesionados</b>
@@ -284,7 +284,7 @@ function Glance({ rows }: { rows: BoardRow[] }) {
           </span>
         </li>
       </ul>
-      <h3 className="sc-h3 pl-glance__h">Próximos cumpleaños</h3>
+      <h3 className="sc-h3 spl-glance__h">Próximos cumpleaños</h3>
       {bdays.length ? (
         <ul className="sc-rows">
           {bdays.map((b) => (

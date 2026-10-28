@@ -38,7 +38,7 @@ export function PublicarScreen() {
   const pendFirst = phase === "pendiente" && s.value.status === "scheduled" && !s.value.events.length;
   return (
     <ActaStills s={s}>
-      <section className="ac ac-pub" aria-label="Publicar el acta">
+      <section className="sac sac-pub" aria-label="Publicar el acta">
         {notYet ? (
           <ActaEmpty title="Aún no hay nada que publicar" body="Cuando se juegue y cuadre el acta, aquí verás cómo lo verá la afición, la crónica, la foto, los minutos y el MVP." />
         ) : pendFirst ? (
@@ -132,23 +132,23 @@ function Publish({ s }: { s: SheetSession }) {
 
   return (
     <>
-      <div className="ac-pubgrid">
-        <div className="ac-pub__col">
-          <section className="sc-sec ac-sec ac-pre" aria-labelledby="ac-pre-t">
+      <div className="sac-pubgrid">
+        <div className="sac-pub__col">
+          <section className="sc-sec sac-sec sac-pre" aria-labelledby="sac-pre-t">
             <header className="sc-sec__h">
-              <h2 className="sc-h2" id="ac-pre-t">
+              <h2 className="sc-h2" id="sac-pre-t">
                 Antes de publicar
               </h2>
             </header>
-            <p className={`ac-pre__s is-${review.cuadra}`}>
+            <p className={`sac-pre__s is-${review.cuadra}`}>
               <b>{review.cuadra ? "Lista para publicar" : "Hay datos pendientes"}</b>
               <span>{review.cuadra ? "Marcador, goleadores, convocatoria y secuencia de cambios coherentes." : `${blockers.length === 1 ? "1 cosa por arreglar" : `${blockers.length} cosas por arreglar`}: se arreglan aquí mismo.`}</span>
             </p>
             {missing.length > 0 && (
               <ul className="sc-rows">
                 {missing.map((g) => (
-                  <li key={g.id} className="ac-fix">
-                    <span className="ac-check__i is-mal" aria-hidden="true">
+                  <li key={g.id} className="sac-fix">
+                    <span className="sac-check__i is-mal" aria-hidden="true">
                       !
                     </span>
                     <label className="sc-field">
@@ -182,26 +182,26 @@ function Publish({ s }: { s: SheetSession }) {
             {noMin.length > 0 && (
               <ul className="sc-rows">
                 {noMin.map((g) => (
-                  <li key={g.id} className="ac-fix">
-                    <span className="ac-check__i is-mal" aria-hidden="true">
+                  <li key={g.id} className="sac-fix">
+                    <span className="sac-check__i is-mal" aria-hidden="true">
                       !
                     </span>
                     <label className="sc-field">
                       <span>Minuto del gol {g.n}</span>
-                      <input className="vd-input ac-min__in" type="text" inputMode="numeric" maxLength={3} placeholder="min" value={g.minute ?? ""} onChange={(e) => s.update((x) => setMinute(x, g.id, e.target.value))} />
+                      <input className="vd-input sac-min__in" type="text" inputMode="numeric" maxLength={3} placeholder="min" value={g.minute ?? ""} onChange={(e) => s.update((x) => setMinute(x, g.id, e.target.value))} />
                     </label>
                   </li>
                 ))}
               </ul>
             )}
             {blockers.length > 0 && (
-              <ul className="ac-checks">
+              <ul className="sac-checks">
                 {blockers.map((b, i) => (
-                  <li key={`${b.title}-${i}`} className="ac-check is-mal">
-                    <span className="ac-check__i" aria-hidden="true">
+                  <li key={`${b.title}-${i}`} className="sac-check is-mal">
+                    <span className="sac-check__i" aria-hidden="true">
                       !
                     </span>
-                    <span className="ac-check__t">
+                    <span className="sac-check__t">
                       <b>
                         <span className="vd-vh">Falta: </span>
                         {b.title}
@@ -213,7 +213,7 @@ function Publish({ s }: { s: SheetSession }) {
               </ul>
             )}
             {review.ledgerErrors.length > 1 && (
-              <details className="ac-more">
+              <details className="sac-more">
                 <summary>Ver todos los problemas de los cambios ({review.ledgerErrors.length})</summary>
                 <ul>
                   {review.ledgerErrors.map((e) => (
@@ -224,11 +224,11 @@ function Publish({ s }: { s: SheetSession }) {
             )}
             {assist.length > 0 && (
               <>
-                <h3 className="sc-h3 ac-sub-h">Asistencias por confirmar · {assist.length}</h3>
+                <h3 className="sc-h3 sac-sub-h">Asistencias por confirmar · {assist.length}</h3>
                 <ul className="sc-rows">
                   {assist.map((g) => (
-                    <li key={g.id} className="ac-fix">
-                      <span className="ac-check__i is-info" aria-hidden="true">
+                    <li key={g.id} className="sac-fix">
+                      <span className="sac-check__i is-info" aria-hidden="true">
                         i
                       </span>
                       <label className="sc-field">
@@ -264,26 +264,26 @@ function Publish({ s }: { s: SheetSession }) {
             )}
             {!assist.length && gf > 0 && <p className="sc-tag sc-tag--hecho">Asistencias revisadas</p>}
             <div>
-              <button type="button" className="vd-link ac-link" onClick={() => go(`${base}/acta`)}>
+              <button type="button" className="vd-link sac-link" onClick={() => go(`${base}/acta`)}>
                 Corregir en el acta
               </button>
             </div>
           </section>
 
-          <section className="sc-sec ac-sec" aria-labelledby="ac-cron-t">
+          <section className="sc-sec sac-sec" aria-labelledby="sac-cron-t">
             <header className="sc-sec__h">
-              <h2 className="sc-h3" id="ac-cron-t">
+              <h2 className="sc-h3" id="sac-cron-t">
                 La crónica
               </h2>
             </header>
             <p className="sc-k">
               Crónica · {s.j} · {day}
             </p>
-            <p className="ac-cron__h">{headline}</p>
+            <p className="sac-cron__h">{headline}</p>
             <label className="sc-field">
               <span>Crónica</span>
-              <textarea className="vd-input ac-cron__t" aria-label="Crónica" aria-describedby="ac-cron-n" maxLength={10000} value={sheet.report} onChange={(e) => s.update((v) => ({ ...v, report: e.target.value.slice(0, 10000) }))} placeholder="Lo que pasó, contado para la afición" />
-              <small id="ac-cron-n">{sheet.report.length.toLocaleString("es-ES")} de 10.000 · se puede retocar antes de publicar</small>
+              <textarea className="vd-input sac-cron__t" aria-label="Crónica" aria-describedby="sac-cron-n" maxLength={10000} value={sheet.report} onChange={(e) => s.update((v) => ({ ...v, report: e.target.value.slice(0, 10000) }))} placeholder="Lo que pasó, contado para la afición" />
+              <small id="sac-cron-n">{sheet.report.length.toLocaleString("es-ES")} de 10.000 · se puede retocar antes de publicar</small>
             </label>
             <div className="sc-btnrow">
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={summary}>
@@ -292,25 +292,25 @@ function Publish({ s }: { s: SheetSession }) {
             </div>
           </section>
 
-          <section className="sc-sec ac-sec" aria-labelledby="ac-foto-t">
+          <section className="sc-sec sac-sec" aria-labelledby="sac-foto-t">
             <header className="sc-sec__h">
-              <h2 className="sc-h3" id="ac-foto-t">
+              <h2 className="sc-h3" id="sac-foto-t">
                 Fotos
               </h2>
             </header>
             <label className="sc-field">
               <span>Foto del partido (HTTPS)</span>
-              <input className="vd-input" type="url" aria-label="Foto del partido (HTTPS)" aria-describedby="ac-photo-w" maxLength={300} placeholder="https://…" value={sheet.photoUrl ?? ""} onChange={(e) => s.update((v) => ({ ...v, photoUrl: e.target.value.slice(0, 300) }))} />
-              {photo && (okHttps(photo) ? <small id="ac-photo-w" className="is-ok">✓ Se ve bien</small> : <small id="ac-photo-w" className="is-bad">No es HTTPS</small>)}
+              <input className="vd-input" type="url" aria-label="Foto del partido (HTTPS)" aria-describedby="sac-photo-w" maxLength={300} placeholder="https://…" value={sheet.photoUrl ?? ""} onChange={(e) => s.update((v) => ({ ...v, photoUrl: e.target.value.slice(0, 300) }))} />
+              {photo && (okHttps(photo) ? <small id="sac-photo-w" className="is-ok">✓ Se ve bien</small> : <small id="sac-photo-w" className="is-bad">No es HTTPS</small>)}
             </label>
-            <h3 className="ac-sub-h">Galería · {gallery.length} de 20</h3>
-            {!gallery.length && <p className="ac-none">Sin fotos en la galería.</p>}
+            <h3 className="sac-sub-h">Galería · {gallery.length} de 20</h3>
+            {!gallery.length && <p className="sac-none">Sin fotos en la galería.</p>}
             {gallery.length > 0 && (
               <ul className="sc-rows">
                 {gallery.map((u, i) => (
-                  <li key={`${u}-${i}`} className="sc-row ac-gal">
+                  <li key={`${u}-${i}`} className="sc-row sac-gal">
                     <span className="sc-row__t">
-                      <b className="ac-url">{u}</b>
+                      <b className="sac-url">{u}</b>
                       <span>{okHttps(u) ? "HTTPS" : "No es HTTPS"}</span>
                     </span>
                     <button type="button" className="vd-ibtn vd-glass vd-press" onClick={() => dropGal(i)} aria-label={`Quitar la foto ${i + 1} de la galería`}>
@@ -320,11 +320,11 @@ function Publish({ s }: { s: SheetSession }) {
                 ))}
               </ul>
             )}
-            <form className="ac-inline" onSubmit={addGal}>
+            <form className="sac-inline" onSubmit={addGal}>
               <label className="sc-field">
                 <span>Añadir foto a la galería (HTTPS)</span>
-                <input className="vd-input" type="url" aria-label="Añadir foto a la galería (HTTPS)" aria-describedby="ac-gal-w" maxLength={300} placeholder="https://…" value={gal} onChange={(e) => setGal(e.target.value.slice(0, 300))} />
-                {galBad && <small id="ac-gal-w" className="is-bad">Tiene que empezar por https://</small>}
+                <input className="vd-input" type="url" aria-label="Añadir foto a la galería (HTTPS)" aria-describedby="sac-gal-w" maxLength={300} placeholder="https://…" value={gal} onChange={(e) => setGal(e.target.value.slice(0, 300))} />
+                {galBad && <small id="sac-gal-w" className="is-bad">Tiene que empezar por https://</small>}
               </label>
               <button type="submit" className="vd-btn vd-glass vd-press vd-btn--sm" aria-disabled={gallery.length >= 20 || undefined}>
                 Añadir
@@ -333,18 +333,18 @@ function Publish({ s }: { s: SheetSession }) {
           </section>
         </div>
 
-        <div className="ac-pub__col">
-          <section className="ac-sec ac-fan" aria-labelledby="ac-fan-t">
-            <h2 className="sc-h3" id="ac-fan-t">
+        <div className="sac-pub__col">
+          <section className="sac-sec sac-fan" aria-labelledby="sac-fan-t">
+            <h2 className="sc-h3" id="sac-fan-t">
               Así lo verá la afición
             </h2>
-            <div className="ac-fan__card sc-morph" style={{ viewTransitionName: `ac-pub-${s.match.id.replace(/[^a-zA-Z0-9_-]/g, "_")}` }}>
+            <div className="sac-fan__card sc-morph" style={{ viewTransitionName: `sac-pub-${s.match.id.replace(/[^a-zA-Z0-9_-]/g, "_")}` }}>
               <p className="sc-k">
                 {s.published ? "Final" : "Final · así saldrá"} · {s.j} · {sheet.competition || "Liga"} · {day}
               </p>
-              <p className="ac-fan__score" aria-label={`Manchester Piti ${gf}–${ga} ${rival} · ${letterWord(letter)}`}>
-                <img className="ac-fan__crest" src="/crest-128.webp" alt="" width={48} height={48} />
-                <span className="ac-fan__us">Manchester Piti</span>
+              <p className="sac-fan__score" aria-label={`Manchester Piti ${gf}–${ga} ${rival} · ${letterWord(letter)}`}>
+                <img className="sac-fan__crest" src="/crest-128.webp" alt="" width={48} height={48} />
+                <span className="sac-fan__us">Manchester Piti</span>
                 <b className="sc-score">
                   {gf}–{ga}
                 </b>
@@ -361,18 +361,18 @@ function Publish({ s }: { s: SheetSession }) {
                 {sheet.venue ? ` · ${venueName(sheet.venue.split(" · ")[0])}` : ""}
               </p>
               {scorers.length > 0 && (
-                <ul className="ac-fan__goals" aria-label="Goles del Piti">
+                <ul className="sac-fan__goals" aria-label="Goles del Piti">
                   {scorers.map((x, i) => (
                     <li key={`${x}-${i}`}>
-                      <span className="ac-ball" aria-hidden="true" />
+                      <span className="sac-ball" aria-hidden="true" />
                       <span>{x}</span>
                     </li>
                   ))}
                 </ul>
               )}
-              {missing.length > 0 && <p className="ac-err">{missing.length === 1 ? "1 gol" : `${missing.length} goles`} sin goleador: no saldrá así</p>}
-              <p className="ac-fan__mvp">
-                <span className="ac-mvp" aria-hidden="true">
+              {missing.length > 0 && <p className="sac-err">{missing.length === 1 ? "1 gol" : `${missing.length} goles`} sin goleador: no saldrá así</p>}
+              <p className="sac-fan__mvp">
+                <span className="sac-mvp" aria-hidden="true">
                   MVP
                 </span>
                 {s.published ? mvp.fan : `Vota al MVP hasta ${dayName(data.now + 48 * 3_600_000)}`}
@@ -381,16 +381,16 @@ function Publish({ s }: { s: SheetSession }) {
             </div>
           </section>
 
-          <section className="sc-sec ac-sec" aria-labelledby="ac-pmin-t">
+          <section className="sc-sec sac-sec" aria-labelledby="sac-pmin-t">
             <header className="sc-sec__h">
-              <h2 className="sc-h3" id="ac-pmin-t">
+              <h2 className="sc-h3" id="sac-pmin-t">
                 Minutos de la convocatoria y los cambios
               </h2>
             </header>
-            {!played.length && <p className="ac-none">Salen de la convocatoria: hazla primero.</p>}
-            {mins.errors[0] && <p className="ac-err">{mins.errors[0]}</p>}
+            {!played.length && <p className="sac-none">Salen de la convocatoria: hazla primero.</p>}
+            {mins.errors[0] && <p className="sac-err">{mins.errors[0]}</p>}
             {played.length > 0 && (
-              <ul className="ac-pmins">
+              <ul className="sac-pmins">
                 {played.map((x) => (
                   <li key={x.id} title={x.label} aria-label={x.label}>
                     <Shirt kit={sheet.kit} num={x.num} />
@@ -402,17 +402,17 @@ function Publish({ s }: { s: SheetSession }) {
             )}
           </section>
 
-          <section className="sc-sec ac-sec" aria-labelledby="ac-cartel-t">
+          <section className="sc-sec sac-sec" aria-labelledby="sac-cartel-t">
             <header className="sc-sec__h">
-              <h2 className="sc-h3" id="ac-cartel-t">
+              <h2 className="sc-h3" id="sac-cartel-t">
                 El cartel
               </h2>
             </header>
-            <div className="ac-fieldrow">
-              <p className="ac-lbl" id="ac-cartel-l">
+            <div className="sac-fieldrow">
+              <p className="sac-lbl" id="sac-cartel-l">
                 Formato
               </p>
-              <div className="vd-seg vd-glass ac-seg ac-seg--2" role="group" aria-labelledby="ac-cartel-l">
+              <div className="vd-seg vd-glass sac-seg sac-seg--2" role="group" aria-labelledby="sac-cartel-l">
                 <button type="button" className="vd-seg__b" aria-pressed={format === "square"} onClick={() => setFormat("square")}>
                   Cuadrado
                 </button>
@@ -431,17 +431,17 @@ function Publish({ s }: { s: SheetSession }) {
         </div>
       </div>
 
-      <footer className="ac-foot sc-primary sc-primary--pin" role="status" aria-live="polite">
-        <p className="ac-foot__s">
-          <b className="ac-foot__line">{s.saveLine}</b>
-          <span id="ac-pub-why">{priWhy}</span>
+      <footer className="sac-foot sc-primary sc-primary--pin" role="status" aria-live="polite">
+        <p className="sac-foot__s">
+          <b className="sac-foot__line">{s.saveLine}</b>
+          <span id="sac-pub-why">{priWhy}</span>
         </p>
         {s.dirty && !s.published && (
           <button type="button" className="vd-btn vd-glass vd-press" onClick={() => void s.saveDraft()} aria-disabled={!!s.busy || undefined}>
             {s.busy === "draft" ? "Guardando…" : "Guardar borrador"}
           </button>
         )}
-        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" onClick={pri} aria-disabled={priOff || !!s.busy || undefined} aria-describedby="ac-pub-why" aria-haspopup="dialog">
+        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" onClick={pri} aria-disabled={priOff || !!s.busy || undefined} aria-describedby="sac-pub-why" aria-haspopup="dialog">
           {s.busy === "publish" ? (s.published ? "Guardando…" : "Publicando…") : s.published ? "Guardar cambios" : "Publicar el acta"}
         </button>
       </footer>
@@ -463,7 +463,7 @@ function Publish({ s }: { s: SheetSession }) {
         }
       >
         <p className="sc-small">{words.lede}</p>
-        <ul className="ac-cons">
+        <ul className="sac-cons">
           {words.lines.map((l) => (
             <li key={l}>{l}</li>
           ))}

@@ -33,7 +33,7 @@ vi.mock("firebase/firestore", async (orig) => ({ ...(await orig<typeof import("f
 const WIDTH = window.innerWidth;
 const views = { plantilla: PlantillaArea };
 const list = () => screen.getByRole("navigation", { name: "Jugadores por línea" });
-const groups = () => [...list().querySelectorAll("section.pl-group")].map((g) => `${g.getAttribute("aria-label")}: ${[...g.querySelectorAll(".pl-row__t b")].map((b) => b.textContent).join(", ")}`);
+const groups = () => [...list().querySelectorAll("section.spl-group")].map((g) => `${g.getAttribute("aria-label")}: ${[...g.querySelectorAll(".spl-row__t b")].map((b) => b.textContent).join(", ")}`);
 const ficha = () => screen.getByRole("article");
 const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live"))!;
 const later = async (ms = 5300) => {

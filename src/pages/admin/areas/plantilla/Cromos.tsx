@@ -21,25 +21,25 @@ export function CromosScreen() {
   if (data.error && !view.squad.length) return <ScreenError what="la plantilla" onRetry={() => window.location.reload()} />;
   return (
     <SalaScreen title="Plantilla" lede={<span aria-live="polite">En cromos · {count}</span>} headTitle="Plantilla" headSub={`En cromos · ${count}`} actions={<PlNav at="jugadores" />} primary={{ label: "Alta de jugador", icon: "plus", onClick: () => go("/admin/plantilla/alta") }} fit className="sc-pl pl--cromos">
-      <div className="pl-cromosw sc-scroll">
+      <div className="spl-cromosw sc-scroll">
         <ListTools view="cromos" chips={chips} csv={csv} />
-        {empty && <p className="pl-empty">{empty}</p>}
-        <ul className="pl-cromos" aria-label="Todos en cromos">
+        {empty && <p className="spl-empty">{empty}</p>}
+        <ul className="spl-cromos" aria-label="Todos en cromos">
           {visible.map((r) => {
             const tags = [!r.position ? "Sin posición" : "", r.injured ? "Lesionado" : "", r.sanctioned ? `Sancionado · ${(suspended.get(r.id)?.left ?? 1) === 1 ? "queda 1" : `quedan ${suspended.get(r.id)?.left}`}` : "", r.account === "pide" ? "Pide su ficha" : "", proposalState(r.doc) === "pendiente" ? "Propone posiciones" : ""].filter(Boolean);
             const line = r.position ? LINE_ONE[r.position] : "Sin posición";
             return (
               <li key={r.id}>
-                <SalaLink className="pl-cromo" to={`/admin/plantilla/${encodeURIComponent(r.id)}?vista=cromos`} aria-label={`${r.name}, ${line.toLocaleLowerCase("es")}${tags.length ? `, ${tags.join(", ")}` : ""}, ${gapWords(r.gaps)}`}>
-                  <Shirt src={still(r) ?? blank} size="l" vt={vtName("pl-shirt", r.id)} />
-                  <span className="pl-cromo__n" aria-hidden="true">
+                <SalaLink className="spl-cromo" to={`/admin/plantilla/${encodeURIComponent(r.id)}?vista=cromos`} aria-label={`${r.name}, ${line.toLocaleLowerCase("es")}${tags.length ? `, ${tags.join(", ")}` : ""}, ${gapWords(r.gaps)}`}>
+                  <Shirt src={still(r) ?? blank} size="l" vt={vtName("spl-shirt", r.id)} />
+                  <span className="spl-cromo__n" aria-hidden="true">
                     <span className="sc-num">{r.number ?? "—"}</span> {r.name}
                   </span>
-                  <span className="pl-cromo__l" aria-hidden="true">
+                  <span className="spl-cromo__l" aria-hidden="true">
                     {line}
                   </span>
                   {tags.length > 0 && (
-                    <span className="pl-cromo__tags" aria-hidden="true">
+                    <span className="spl-cromo__tags" aria-hidden="true">
                       {tags.map((t) => (
                         <span key={t} className="sc-tag sc-tag--quiet">
                           {t}
@@ -47,7 +47,7 @@ export function CromosScreen() {
                       ))}
                     </span>
                   )}
-                  <span className="pl-cromo__g" aria-hidden="true">
+                  <span className="spl-cromo__g" aria-hidden="true">
                     {gapWords(r.gaps)}
                   </span>
                 </SalaLink>
@@ -55,10 +55,10 @@ export function CromosScreen() {
             );
           })}
           <li>
-            <SalaLink className="pl-cromo pl-cromo--new" to="/admin/plantilla/alta">
+            <SalaLink className="spl-cromo spl-cromo--new" to="/admin/plantilla/alta">
               <Shirt src={blank} size="l" />
-              <span className="pl-cromo__n">Alta de jugador</span>
-              <span className="pl-cromo__l">Camiseta nueva</span>
+              <span className="spl-cromo__n">Alta de jugador</span>
+              <span className="spl-cromo__l">Camiseta nueva</span>
             </SalaLink>
           </li>
         </ul>

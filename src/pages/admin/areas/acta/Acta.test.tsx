@@ -72,7 +72,7 @@ const call = (i = 0) => {
 const WIDTH = window.innerWidth;
 const SEVEN = ["evans", "illescas", "tello", "eguzquiza", "huberoski", "erik", "adrian"];
 const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live")) as HTMLElement;
-const foot = () => document.querySelector(".ac-foot") as HTMLElement;
+const foot = () => document.querySelector(".sac-foot") as HTMLElement;
 const open = (path = "/admin/partidos/m7/acta") => mountAdmin(path, { detalle: ActaScreen });
 const withMatch = (id: string, over: Partial<ClubMatch>): ClubMatch[] => fixturePublished.map((m) => (m.id === id ? { ...m, ...over } : m));
 /** The J1 (m6) published with its whole acta, its notas frozen and its MVP closed. */
@@ -146,7 +146,7 @@ describe("Acta · lo apuntado", () => {
     await user.click(who);
     const pick = within(row).getByRole("group", { name: "¿Quién marcó?" });
     expect(within(pick).getByText("Gol 3 · paso 1 de 2")).toBeInTheDocument();
-    const [field, bench] = Array.from(pick.querySelectorAll<HTMLElement>(".ac-pick__grid"));
+    const [field, bench] = Array.from(pick.querySelectorAll<HTMLElement>(".sac-pick__grid"));
     expect(within(field).getAllByRole("button").map((b) => b.querySelector("span")?.textContent)).toEqual(["EVANS", "ILLESCAS", "TELLO", "EGUZQUIZA", "HUBEROSKI", "ERIK", "ADRIÁN T.C."]);
     expect(within(bench).getAllByRole("button")).toHaveLength(5);
     await user.click(within(pick).getByRole("button", { name: "HUBEROSKI marcó el gol 3" }));
@@ -334,7 +334,7 @@ describe("Acta · el borrador y el choque (B-ACTA-01, M-44)", () => {
     setAdminData({ ...data, matches: data.matches.map((m) => (m.id === "m7" ? { ...m, revision: drafts.find((d) => d.id === "m7")!.revision } : m)) });
     const user = userEvent.setup();
     open();
-    const bar = (await screen.findByText("Lo publicado ha cambiado desde que se guardó este borrador")).closest(".ac-bar") as HTMLElement;
+    const bar = (await screen.findByText("Lo publicado ha cambiado desde que se guardó este borrador")).closest(".sac-bar") as HTMLElement;
     expect(bar).toHaveTextContent("Lo publicado ha cambiado desde que se guardó este borrador");
     await user.click(within(bar).getByRole("button", { name: "Recargar y conservar mis cambios" }));
     expect(screen.queryByText("Lo publicado ha cambiado desde que se guardó este borrador")).toBeNull();
@@ -346,7 +346,7 @@ describe("Acta · el borrador y el choque (B-ACTA-01, M-44)", () => {
   it("«Descartar borrador» calls discardMatchDraft and goes back to what is published", async () => {
     const user = userEvent.setup();
     open();
-    const bar = (await screen.findByText("Borrador guardado")).closest(".ac-bar") as HTMLElement;
+    const bar = (await screen.findByText("Borrador guardado")).closest(".sac-bar") as HTMLElement;
     await user.click(within(bar).getByRole("button", { name: "Descartar borrador" }));
     await waitFor(() => expect(discard).toHaveBeenCalledWith({ matchId: "m7" }));
     expect(caption()).toHaveTextContent("Borrador descartado · vuelve a lo publicado");
@@ -358,7 +358,7 @@ describe("Acta · el borrador y el choque (B-ACTA-01, M-44)", () => {
     open();
     await user.type(await screen.findByLabelText("Minuto del gol 3"), "46");
     await user.click(within(foot()).getByRole("button", { name: "Guardar borrador" }));
-    const bar = (await screen.findByText("Otro capitán ha cambiado este partido mientras editabas")).closest(".ac-bar") as HTMLElement;
+    const bar = (await screen.findByText("Otro capitán ha cambiado este partido mientras editabas")).closest(".sac-bar") as HTMLElement;
     expect(bar).toHaveTextContent("Otro capitán ha cambiado este partido mientras editabas");
     expect(within(bar).getByRole("button", { name: "Recargar y conservar mis cambios" })).toBeInTheDocument();
   });
@@ -376,9 +376,9 @@ describe("Publicar", () => {
     await user.selectOptions(screen.getByLabelText("¿Quién marcó el gol 3?"), "huberoski");
     await user.type(screen.getByLabelText("Minuto del gol 3"), "46");
     // (a scorer chosen here leaves his assist to confirm: it blocks until it is)
-    expect(document.querySelector(".ac-pre")?.textContent).toContain("Hay datos pendientes");
+    expect(document.querySelector(".sac-pre")?.textContent).toContain("Hay datos pendientes");
     await user.selectOptions(screen.getByLabelText("Gol 3 de HUBEROSKI (46′)"), "none");
-    await waitFor(() => expect(document.querySelector(".ac-pre")?.textContent).toContain("Lista para publicar"));
+    await waitFor(() => expect(document.querySelector(".sac-pre")?.textContent).toContain("Lista para publicar"));
     const fan = screen.getByRole("region", { name: "Así lo verá la afición" });
     expect(within(fan).getByLabelText("Manchester Piti 3–1 FUSION 7 · ganado")).toBeInTheDocument();
     expect(within(within(fan).getByRole("list", { name: "Goles del Piti" })).getAllByRole("listitem").map((l) => l.textContent)).toEqual(["ADRIÁN T.C. 9′", "ADRIÁN T.C. 31′", "HUBEROSKI 46′"]);

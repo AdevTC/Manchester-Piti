@@ -59,7 +59,7 @@ export function ActaScreen() {
   })();
   return (
     <ActaStills s={s}>
-      <section className="ac ac-acta" aria-label="El acta del partido">
+      <section className="sac sac-acta" aria-label="El acta del partido">
         <ActaNav on="" />
         {body}
       </section>
@@ -108,13 +108,13 @@ function HowItEnded({ s }: { s: SheetSession }) {
     status.show({ tag: `Acta ${s.j}`, message: `Así acabó: ${gf}–${ga}${gf ? " · ahora, quién marcó cada gol" : ""}` });
   };
   const step = (who: string, n: number, set: (n: number) => void, rival?: string) => (
-    <div className="ac-step">
-      <p className={`ac-step__t${rival ? " sc-rival" : ""}`}>{rival ?? "Manchester Piti"}</p>
-      <div className="ac-step__ctl">
+    <div className="sac-step">
+      <p className={`sac-step__t${rival ? " sc-rival" : ""}`}>{rival ?? "Manchester Piti"}</p>
+      <div className="sac-step__ctl">
         <button type="button" className="vd-ibtn vd-glass vd-press" onClick={() => set(Math.max(0, n - 1))} aria-label={`Un gol menos ${who}`}>
           −
         </button>
-        <output className="sc-score ac-step__n" aria-live="polite" aria-label={`Goles ${who === "del Piti" ? "del Piti" : `de ${rival}`}: ${n}`}>
+        <output className="sc-score sac-step__n" aria-live="polite" aria-label={`Goles ${who === "del Piti" ? "del Piti" : `de ${rival}`}: ${n}`}>
           {n}
         </output>
         <button type="button" className="vd-ibtn vd-glass vd-press" onClick={() => set(Math.min(30, n + 1))} aria-label={`Un gol más ${who}`}>
@@ -124,26 +124,26 @@ function HowItEnded({ s }: { s: SheetSession }) {
     </div>
   );
   return (
-    <div className="ac-pend">
-      <h2 className="sc-h2" id="ac-pend-t">
+    <div className="sac-pend">
+      <h2 className="sc-h2" id="sac-pend-t">
         ¿Cómo acabó?
       </h2>
       <p className="sc-p">{when}La mesa no llegó a abrirse: apunta cómo acabó y después, quién marcó.</p>
-      <div className="ac-pend__score" role="group" aria-labelledby="ac-pend-t">
+      <div className="sac-pend__score" role="group" aria-labelledby="sac-pend-t">
         {step("del Piti", gf, setGf)}
-        <span className="ac-pend__dash" aria-hidden="true">
+        <span className="sac-pend__dash" aria-hidden="true">
           –
         </span>
         {step("del rival", ga, setGa, s.rival)}
       </div>
-      <div className="sc-primary sc-primary--pin ac-pend__a">
+      <div className="sc-primary sc-primary--pin sac-pend__a">
         <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" onClick={done}>
           Así acabó
         </button>
-        <button type="button" className="vd-link ac-link" onClick={() => go(`${base}/datos?estado=aplazado`)}>
+        <button type="button" className="vd-link sac-link" onClick={() => go(`${base}/datos?estado=aplazado`)}>
           Se aplazó
         </button>
-        <button type="button" className="vd-link ac-link" onClick={() => go(`${base}/datos?estado=cancelado`)}>
+        <button type="button" className="vd-link sac-link" onClick={() => go(`${base}/datos?estado=cancelado`)}>
           No se jugó
         </button>
       </div>
@@ -300,14 +300,14 @@ function ActaEditor({ s }: { s: SheetSession }) {
     ) : null;
 
   return (
-    <div className="ac-sheet-body">
+    <div className="sac-sheet-body">
       <ActaBars s={s} onPublishTo={() => (s.published ? void s.publish() : go(`${base}/publicar`))} />
-      <div className="ac-cols">
-        <div className="ac-left" ref={mainRef}>
-          <div className="ac-main">
-            <section className="sc-sec ac-sec" aria-labelledby="ac-us-t">
+      <div className="sac-cols">
+        <div className="sac-left" ref={mainRef}>
+          <div className="sac-main">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-us-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h2" id="ac-us-t">
+                <h2 className="sc-h2" id="sac-us-t">
                   Goles del Piti
                 </h2>
                 <span className="sc-sec__n">{gf}</span>
@@ -316,22 +316,22 @@ function ActaEditor({ s }: { s: SheetSession }) {
                   Gol del Piti
                 </button>
               </header>
-              {!gf && <p className="ac-none">Sin goles del Piti. «Gol del Piti» apunta uno.</p>}
-              <ol className="sc-rows ac-goals">
+              {!gf && <p className="sac-none">Sin goles del Piti. «Gol del Piti» apunta uno.</p>}
+              <ol className="sc-rows sac-goals">
                 {rows.map((g) => {
                   const falta = g.open;
                   const open = pick?.id === g.id;
                   return (
-                    <li key={g.id} className={`ac-goal${falta ? " is-falta" : ""}`}>
-                      <div className="ac-goal__row">
+                    <li key={g.id} className={`sac-goal${falta ? " is-falta" : ""}`}>
+                      <div className="sac-goal__row">
                         <MinuteBox id={g.id} value={g.minute} label={`Minuto del gol ${g.n}`} onChange={(t) => s.update((v) => setMinute(v, g.id, t))} />
-                        <button type="button" className="ac-who" aria-expanded={open} aria-label={`${falta ? "Elegir el goleador del gol " : "Cambiar goleador del gol "}${g.n}`} onClick={() => setPick(open ? null : { id: g.id, step: 1 })}>
+                        <button type="button" className="sac-who" aria-expanded={open} aria-label={`${falta ? "Elegir el goleador del gol " : "Cambiar goleador del gol "}${g.n}`} onClick={() => setPick(open ? null : { id: g.id, step: 1 })}>
                           {!falta && g.kind !== "og" && g.scorer && <Shirt kit={sheet.kit} num={num(g.scorer)} alt={name(g.scorer)} />}
-                          <span className="ac-who__t">
+                          <span className="sac-who__t">
                             <b>{goalWho(g, rival, name)}</b>
                             <span>{goalSubLine(g, name)}</span>
                           </span>
-                          {falta ? <span className="sc-tag sc-tag--toca">Falta</span> : <AcIcon name="edit" className="ac-who__pen" />}
+                          {falta ? <span className="sc-tag sc-tag--toca">Falta</span> : <AcIcon name="edit" className="sac-who__pen" />}
                         </button>
                       </div>
                       {open && (
@@ -359,9 +359,9 @@ function ActaEditor({ s }: { s: SheetSession }) {
               </ol>
             </section>
 
-            <section className="sc-sec ac-sec" aria-labelledby="ac-them-t">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-them-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h2" id="ac-them-t">
+                <h2 className="sc-h2" id="sac-them-t">
                   Goles de {rival}
                 </h2>
                 <span className="sc-sec__n">{ga}</span>
@@ -370,19 +370,19 @@ function ActaEditor({ s }: { s: SheetSession }) {
                   Gol en contra
                 </button>
               </header>
-              {!ga && <p className="ac-none">Portería a cero.</p>}
-              <ol className="sc-rows ac-against">
+              {!ga && <p className="sac-none">Portería a cero.</p>}
+              <ol className="sc-rows sac-against">
                 {rivals.map((r) => {
                   const noMin = r.minute === undefined;
                   return (
-                    <li key={r.id} className={`ac-goal ac-goal--them${noMin ? " is-falta" : ""}`}>
-                      <div className="ac-goal__row">
+                    <li key={r.id} className={`sac-goal sac-goal--them${noMin ? " is-falta" : ""}`}>
+                      <div className="sac-goal__row">
                         <MinuteBox id={r.id} value={r.minute} label={`Minuto del gol ${r.n} de ${rival}`} onChange={(t) => s.update((v) => setMinute(v, r.id, t))} />
-                        <span className="ac-them__t">
+                        <span className="sac-them__t">
                           <b>{r.own ? `Gol en propia de ${name(r.playerId ?? "")}` : `Gol de ${rival}`}</b>
                           <span>{noMin ? "Falta el minuto · apúntalo para publicar" : "En contra"}</span>
                         </span>
-                        <label className="ac-them__sel">
+                        <label className="sac-them__sel">
                           <span className="vd-vh">Quién marcó el gol {r.n} de {rival}</span>
                           <select className="vd-input" value={r.own ? (r.playerId ?? "") : ""} onChange={(e) => setRivalWho(r.id, e.target.value, r.n)}>
                             <option value="">Gol de {rival}</option>
@@ -409,9 +409,9 @@ function ActaEditor({ s }: { s: SheetSession }) {
               const list = others.filter((e) => groupOfEvent(e) === g);
               const lines = playLines(list, rival, name);
               return (
-                <section key={g} className="sc-sec ac-sec" aria-labelledby={`ac-g-${g}`}>
+                <section key={g} className="sc-sec sac-sec" aria-labelledby={`sac-g-${g}`}>
                   <header className="sc-sec__h">
-                    <h2 className="sc-h3" id={`ac-g-${g}`}>
+                    <h2 className="sc-h3" id={`sac-g-${g}`}>
                       {GROUP_NAME[g]}
                     </h2>
                     <span className="sc-sec__n">{list.length || ""}</span>
@@ -419,18 +419,18 @@ function ActaEditor({ s }: { s: SheetSession }) {
                       <VIcon name="plus" size={20} />
                     </button>
                   </header>
-                  {!list.length && <p className="ac-none">{GROUP_EMPTY[g]}</p>}
+                  {!list.length && <p className="sac-none">{GROUP_EMPTY[g]}</p>}
                   {list.length > 0 && (
-                    <ul className="sc-rows ac-plays">
+                    <ul className="sc-rows sac-plays">
                       {lines.map((x) => (
                         <li key={x.id}>
-                          <button type="button" className={`sc-row sc-row--btn ac-play${x.cls === "rv" ? " is-suyo" : ""}`} onClick={() => setEd({ group: g, id: x.id })} aria-label={`Editar: ${x.text} (${x.minute}′)`} aria-expanded={ed?.id === x.id}>
-                            <span className="ac-play__m">{x.minute}′</span>
+                          <button type="button" className={`sc-row sc-row--btn sac-play${x.cls === "rv" ? " is-suyo" : ""}`} onClick={() => setEd({ group: g, id: x.id })} aria-label={`Editar: ${x.text} (${x.minute}′)`} aria-expanded={ed?.id === x.id}>
+                            <span className="sac-play__m">{x.minute}′</span>
                             <span className="sc-row__t">
                               <b>{x.text}</b>
                               {x.detail && <span>{x.detail}</span>}
                             </span>
-                            <AcIcon name="edit" className="ac-who__pen" />
+                            <AcIcon name="edit" className="sac-who__pen" />
                           </button>
                         </li>
                       ))}
@@ -441,20 +441,20 @@ function ActaEditor({ s }: { s: SheetSession }) {
               );
             })}
 
-            <section className="sc-sec ac-sec" aria-labelledby="ac-inv-t">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-inv-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h3" id="ac-inv-t">
+                <h2 className="sc-h3" id="sac-inv-t">
                   Invitados
                 </h2>
               </header>
-              {!(sheet.guests ?? []).length && <p className="ac-none">Sin invitados. Si juega alguien de fuera, apúntalo y saldrá en los selectores.</p>}
+              {!(sheet.guests ?? []).length && <p className="sac-none">Sin invitados. Si juega alguien de fuera, apúntalo y saldrá en los selectores.</p>}
               {(sheet.guests ?? []).length > 0 && (
                 <ul className="sc-rows">
                   {(sheet.guests ?? []).map((g) => {
                     const inPlay = guestInUse(sheet.events, g.id);
                     const where = guestSlot(sheet, g.id) === "T" ? "En el siete" : "En el banquillo";
                     return (
-                      <li key={g.id} className="sc-row ac-guest">
+                      <li key={g.id} className="sc-row sac-guest">
                         <Shirt kit={sheet.kit} />
                         <span className="sc-row__t">
                           <b>{g.name}</b>
@@ -468,7 +468,7 @@ function ActaEditor({ s }: { s: SheetSession }) {
                   })}
                 </ul>
               )}
-              <form className="ac-inline" onSubmit={addGuestNamed}>
+              <form className="sac-inline" onSubmit={addGuestNamed}>
                 <label className="sc-field">
                   <span>Añadir invitado</span>
                   <input className="vd-input" type="text" maxLength={30} placeholder="Rafa" value={guest} onChange={(e) => setGuest(e.target.value)} />
@@ -480,56 +480,56 @@ function ActaEditor({ s }: { s: SheetSession }) {
             </section>
           </div>
 
-          <div className="ac-mins">
-            <section className="sc-sec ac-sec" aria-labelledby="ac-sub-t">
+          <div className="sac-mins">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-sub-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h3" id="ac-sub-t">
+                <h2 className="sc-h3" id="sac-sub-t">
                   Cambios · los minutos de cada jugador
                 </h2>
                 <span className="sc-sec__n">{subs.length}</span>
               </header>
-              <p className="sc-small ac-mins__from">Sacados de la convocatoria y los cambios{mins.errors.length ? "" : ", como los calcula la web al publicar"}.</p>
-              {mins.errors[0] && <p className="ac-err">{mins.errors[0]}</p>}
+              <p className="sc-small sac-mins__from">Sacados de la convocatoria y los cambios{mins.errors.length ? "" : ", como los calcula la web al publicar"}.</p>
+              {mins.errors[0] && <p className="sac-err">{mins.errors[0]}</p>}
               {mins.rows.length > 0 ? (
                 <>
-                  <div className="ac-axis" aria-hidden="true">
+                  <div className="sac-axis" aria-hidden="true">
                     {[0, Math.round(mins.duration / 2), mins.duration].map((t) => (
                       <span key={t} style={{ left: `${(100 * t) / mins.duration}%` }}>
                         {t}′
                       </span>
                     ))}
                   </div>
-                  <ul className="ac-bars-list">
+                  <ul className="sac-bars-list">
                     {mins.rows.map((x) => (
-                      <li key={x.id} className="ac-mrow" aria-label={x.label}>
+                      <li key={x.id} className="sac-mrow" aria-label={x.label}>
                         <Shirt kit={sheet.kit} num={x.num} />
-                        <span className="ac-mrow__n">
+                        <span className="sac-mrow__n">
                           <b>{x.name}</b>
                           <span>{x.word}</span>
                         </span>
-                        <span className="ac-track" aria-hidden="true">
+                        <span className="sac-track" aria-hidden="true">
                           {x.spans.map((sp) => (
-                            <i key={sp.t} className="ac-span" style={{ left: `${sp.left.toFixed(2)}%`, width: `${sp.width.toFixed(2)}%` }} title={sp.t} />
+                            <i key={sp.t} className="sac-span" style={{ left: `${sp.left.toFixed(2)}%`, width: `${sp.width.toFixed(2)}%` }} title={sp.t} />
                           ))}
                         </span>
-                        <b className="ac-mrow__m">{x.minutes}′</b>
+                        <b className="sac-mrow__m">{x.minutes}′</b>
                       </li>
                     ))}
                   </ul>
                 </>
               ) : (
-                <p className="ac-none">Salen de la convocatoria: hazla primero.</p>
+                <p className="sac-none">Salen de la convocatoria: hazla primero.</p>
               )}
-              <h3 className="ac-sub-h">Los cambios</h3>
-              {!subs.length && <p className="ac-none">Sin cambios.</p>}
+              <h3 className="sac-sub-h">Los cambios</h3>
+              {!subs.length && <p className="sac-none">Sin cambios.</p>}
               {subs.length > 0 && (
-                <ul className="ac-chips">
+                <ul className="sac-chips">
                   {subsShown.map((e) => {
                     const l = subLines.find((x) => x.id === e.id);
                     const t = l ? `${l.text}${l.detail ? ` · ${l.detail}` : ""}` : kindLabel(e.type);
                     return (
                       <li key={e.id}>
-                        <button type="button" className="ac-chip vd-press" onClick={() => setEd({ group: "cam", id: e.id })} aria-label={`Corregir: ${t} (${l?.minute ?? "–"}′)`} aria-expanded={ed?.id === e.id}>
+                        <button type="button" className="sac-chip vd-press" onClick={() => setEd({ group: "cam", id: e.id })} aria-label={`Corregir: ${t} (${l?.minute ?? "–"}′)`} aria-expanded={ed?.id === e.id}>
                           <b>{l?.minute ?? "–"}′</b>
                           <span>{t}</span>
                         </button>
@@ -539,11 +539,11 @@ function ActaEditor({ s }: { s: SheetSession }) {
                 </ul>
               )}
               {subs.length > 8 && (
-                <button type="button" className="vd-link ac-link" aria-expanded={allSubs} onClick={() => setAllSubs((a) => !a)}>
+                <button type="button" className="vd-link sac-link" aria-expanded={allSubs} onClick={() => setAllSubs((a) => !a)}>
                   {allSubs ? "Ver menos" : `Ver los ${subs.length} cambios`}
                 </button>
               )}
-              <div className="sc-btnrow ac-mins__a">
+              <div className="sc-btnrow sac-mins__a">
                 <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => setEd({ group: "cam", id: null, type: "substitution" })} aria-expanded={ed?.group === "cam" && !ed.id && ed.type === "substitution"}>
                   Cambio
                 </button>
@@ -556,13 +556,13 @@ function ActaEditor({ s }: { s: SheetSession }) {
           </div>
         </div>
 
-        <aside className="ac-side" aria-label="¿Cuadra? y la cuenta">
-          <section className="ac-sec ac-cuenta" aria-labelledby="ac-cuenta-t">
-            <h2 className="sc-h3" id="ac-cuenta-t">
+        <aside className="sac-side" aria-label="¿Cuadra? y la cuenta">
+          <section className="sac-sec sac-cuenta" aria-labelledby="sac-cuenta-t">
+            <h2 className="sc-h3" id="sac-cuenta-t">
               La cuenta
             </h2>
-            <p className="ac-cuenta__score" aria-label={`Manchester Piti ${gf}–${ga} ${rival}`}>
-              <span className="ac-us">PITI</span>
+            <p className="sac-cuenta__score" aria-label={`Manchester Piti ${gf}–${ga} ${rival}`}>
+              <span className="sac-us">PITI</span>
               <b className="sc-score">
                 {gf}–{ga}
               </b>
@@ -571,7 +571,7 @@ function ActaEditor({ s }: { s: SheetSession }) {
                 {rivalCode(rival, sheet.rivalShort)}
               </span>
             </p>
-            <dl className="ac-dl">
+            <dl className="sac-dl">
               <div>
                 <dt>Marcador</dt>
                 <dd>{gf + ga === 1 ? "1 gol" : `${gf + ga} goles`}</dd>
@@ -592,9 +592,9 @@ function ActaEditor({ s }: { s: SheetSession }) {
               </div>
             </dl>
             {gf > 0 && (
-              <ul className="ac-dots" aria-label="Los goles del Piti, uno a uno">
+              <ul className="sac-dots" aria-label="Los goles del Piti, uno a uno">
                 {rows.map((g) => (
-                  <li key={g.id} className={`ac-dot ${g.open ? "is-falta" : g.assist ? "is-pase" : "is-ok"}`}>
+                  <li key={g.id} className={`sac-dot ${g.open ? "is-falta" : g.assist ? "is-pase" : "is-ok"}`}>
                     <span className="vd-vh">
                       Gol {g.n}: {g.open ? "falta el goleador" : g.assist ? "con goleador y pase" : "con goleador"}
                     </span>
@@ -603,29 +603,29 @@ function ActaEditor({ s }: { s: SheetSession }) {
               </ul>
             )}
           </section>
-          <section className="ac-sec ac-chk" aria-labelledby="ac-chk-t">
+          <section className="sac-sec sac-chk" aria-labelledby="sac-chk-t">
             <header className="sc-sec__h">
-              <h2 className="sc-h3" id="ac-chk-t">
+              <h2 className="sc-h3" id="sac-chk-t">
                 ¿Cuadra?
               </h2>
               {blockers.length > 0 && <span className="sc-tag sc-tag--toca">Faltan {blockers.length}</span>}
             </header>
-            <ul className="ac-checks">
+            <ul className="sac-checks">
               {checks.map((c, i) => (
-                <li key={`${c.title}-${i}`} className={`ac-check is-${c.k}`}>
-                  <span className="ac-check__i" aria-hidden="true">
+                <li key={`${c.title}-${i}`} className={`sac-check is-${c.k}`}>
+                  <span className="sac-check__i" aria-hidden="true">
                     {c.icon}
                   </span>
-                  <span className="ac-check__t">
+                  <span className="sac-check__t">
                     <b>{c.title}</b>
                     {c.detail && <span>{c.detail}</span>}
                     {c.fix && c.fixLabel && (
-                      <button type="button" className="vd-link ac-link" onClick={() => fix(c)}>
+                      <button type="button" className="vd-link sac-link" onClick={() => fix(c)}>
                         {c.fixLabel}
                       </button>
                     )}
                   </span>
-                  <span className="ac-check__w">{c.word}</span>
+                  <span className="sac-check__w">{c.word}</span>
                 </li>
               ))}
             </ul>
@@ -686,10 +686,10 @@ function ScorerPick(p: {
   };
   const title = step === 1 ? "¿Quién marcó?" : "¿Quién le dio el pase?";
   const grid = (ids: string[]) => (
-    <ul className="ac-pick__grid">
+    <ul className="sac-pick__grid">
       {ids.map((id) => (
         <li key={id}>
-          <button type="button" className="ac-pp vd-press" onClick={() => choose(id)} aria-label={step === 1 ? `${s.nameOf(id)} marcó el gol ${g.n}` : `Pase de ${s.nameOf(id)}`} aria-pressed={(step === 1 ? g.scorer : g.assist) === id}>
+          <button type="button" className="sac-pp vd-press" onClick={() => choose(id)} aria-label={step === 1 ? `${s.nameOf(id)} marcó el gol ${g.n}` : `Pase de ${s.nameOf(id)}`} aria-pressed={(step === 1 ? g.scorer : g.assist) === id}>
             <Shirt kit={s.sheet.kit} num={num(id)} />
             <b className="sc-num">{num(id)}</b>
             <span>{s.nameOf(id)}</span>
@@ -705,8 +705,8 @@ function ScorerPick(p: {
     }
   };
   return (
-    <div ref={box} className="ac-pick vd-glass vd-glass--deep" role="group" aria-label={title} onKeyDown={onKey}>
-      <header className="ac-pick__h">
+    <div ref={box} className="sac-pick vd-glass vd-glass--deep" role="group" aria-label={title} onKeyDown={onKey}>
+      <header className="sac-pick__h">
         <h3 className="sc-h3">{title}</h3>
         <p className="sc-small">
           Gol {g.n}
@@ -717,27 +717,27 @@ function ScorerPick(p: {
         </button>
       </header>
       {p.noConv && (
-        <p className="ac-pick__note">
+        <p className="sac-pick__note">
           Aún no hay convocados en este partido: elige de la plantilla o{" "}
-          <button type="button" className="vd-link ac-link" onClick={p.onConv}>
+          <button type="button" className="vd-link sac-link" onClick={p.onConv}>
             haz la convocatoria
           </button>
           .
         </p>
       )}
-      <label className="ac-pick__dorsal">
+      <label className="sac-pick__dorsal">
         <span>Teclea el dorsal del {step === 1 ? "goleador" : "asistente"}</span>
         <input className="vd-input" type="text" inputMode="numeric" maxLength={2} value={dorsal} onChange={(e) => typed(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), typed(dorsal, true))} placeholder="Dorsal" />
       </label>
-      <p className="ac-pick__gt">{at != null ? `En el campo en el ${at}′ · titulares primero` : "En el campo · titulares primero"}</p>
+      <p className="sac-pick__gt">{at != null ? `En el campo en el ${at}′ · titulares primero` : "En el campo · titulares primero"}</p>
       {grid(onField)}
       {rest.length > 0 && (
         <>
-          <p className="ac-pick__gt">{p.noConv ? "El resto de la plantilla" : at != null ? "Banquillo y los que ya salieron" : "Banquillo"}</p>
+          <p className="sac-pick__gt">{p.noConv ? "El resto de la plantilla" : at != null ? "Banquillo y los que ya salieron" : "Banquillo"}</p>
           {grid(rest)}
         </>
       )}
-      <footer className="ac-pick__f">
+      <footer className="sac-pick__f">
         {step === 1 ? (
           <>
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => p.onScorer("og")}>
@@ -746,7 +746,7 @@ function ScorerPick(p: {
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={p.onLater}>
               Lo completo luego
             </button>
-            <button type="button" className="vd-link ac-link ac-link--mal" onClick={p.onDrop}>
+            <button type="button" className="vd-link sac-link sac-link--mal" onClick={p.onDrop}>
               Quitar este gol
             </button>
           </>
@@ -755,7 +755,7 @@ function ScorerPick(p: {
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm vd-btn--pri" onClick={() => p.onAssist(null)}>
               Sin asistencia
             </button>
-            <button type="button" className="vd-link ac-link" onClick={p.onBack}>
+            <button type="button" className="vd-link sac-link" onClick={p.onBack}>
               ← Cambiar goleador
             </button>
           </>
@@ -765,7 +765,7 @@ function ScorerPick(p: {
   );
 }
 
-/** A card, a change, a penalty or the rest, added or corrected in place (board `ac-ed`). */
+/** A card, a change, a penalty or the rest, added or corrected in place (board `sac-ed`). */
 function PlayEditor({ s, group, event, initial, onClose, onRemove }: { s: SheetSession; group: EventGroup; event: MatchEvent | null; initial?: EventType; onClose: () => void; onRemove: (e: MatchEvent) => void }) {
   const status = useStatus();
   const kinds = KINDS[group];
@@ -831,7 +831,7 @@ function PlayEditor({ s, group, event, initial, onClose, onRemove }: { s: SheetS
     </label>
   );
   return (
-    <form ref={form} className="ac-ed vd-glass vd-glass--deep" onSubmit={save} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onClose())} aria-label={title}>
+    <form ref={form} className="sac-ed vd-glass vd-glass--deep" onSubmit={save} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onClose())} aria-label={title}>
       <h3 className="sc-h3">{title}</h3>
       <div className="sc-form">
         {kinds.length > 1 && (
@@ -870,14 +870,14 @@ function PlayEditor({ s, group, event, initial, onClose, onRemove }: { s: SheetS
         {!noP && sel(player, setPlayer, sub ? "Sale del campo" : swap ? "¿Quiénes se cambian? El primero" : "Jugador", playerMode(type) === "optional" ? "Equipo · sin jugador" : undefined)}
         {(sub || swap) && sel(inPlayer, setInPlayer, sub ? "Entra al campo · del banquillo" : "Con quién se cambia")}
         {noP && (
-          <p className="sc-field ac-ed__team">
+          <p className="sc-field sac-ed__team">
             <span>Equipo · sin jugador</span>
           </p>
         )}
       </div>
       {onAt && (sub || swap) && <p className="sc-small">En el {minute}′ están en el campo: {onAt.map((id) => s.nameOf(id)).join(", ") || "nadie"}</p>}
       {error && (
-        <p className="ac-err" role="alert">
+        <p className="sac-err" role="alert">
           {error}
         </p>
       )}
@@ -889,7 +889,7 @@ function PlayEditor({ s, group, event, initial, onClose, onRemove }: { s: SheetS
           Cancelar
         </button>
         {event && (
-          <button type="button" className="vd-link ac-link ac-link--mal" onClick={() => onRemove(event)}>
+          <button type="button" className="vd-link sac-link sac-link--mal" onClick={() => onRemove(event)}>
             Quitar
           </button>
         )}

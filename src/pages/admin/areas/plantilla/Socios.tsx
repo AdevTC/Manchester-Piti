@@ -413,8 +413,8 @@ function Socios({ data }: { data: AdminData }) {
 
   return (
     <SalaScreen title="Socios" lede={LEDE} headSub={`La puerta del vestuario${todo ? ` · ${plural(todo, "cosa por hacer", "cosas por hacer")}` : ""}`} actions={<PlNav at="socios" />} fit className="sc-pl pl--socios">
-      <div className="pl-so" ref={root}>
-        <nav className="pl-so__tabs" aria-label="Secciones de socios">
+      <div className="spl-so" ref={root}>
+        <nav className="spl-so__tabs" aria-label="Secciones de socios">
           {SOCIOS_TABS.map((t) => (
             <SalaLink key={t.key} to={t.to} replace className="sc-chip vd-glass vd-press" aria-current={ver === t.key ? "page" : undefined} aria-label={counts[t.key] ? `${t.t} · ${counts[t.key]} por hacer` : undefined}>
               {t.t}
@@ -426,17 +426,17 @@ function Socios({ data }: { data: AdminData }) {
             </SalaLink>
           ))}
         </nav>
-        <div className="pl-so__grid">
-          <div className="pl-so__col">
+        <div className="spl-so__grid">
+          <div className="spl-so__col">
             {/* ---------- Llaman a la puerta */}
-            <section className={`pl-so__sec${on("puerta")}`} aria-labelledby="pl-so-door">
+            <section className={`spl-so__sec${on("puerta")}`} aria-labelledby="spl-so-door">
               <header className="sc-sec__h">
-                <h2 className="sc-h2" id="pl-so-door" tabIndex={-1} data-focus="puerta-h">
+                <h2 className="sc-h2" id="spl-so-door" tabIndex={-1} data-focus="puerta-h">
                   Llaman a la puerta
                 </h2>
                 <span className="sc-sec__n">{requests.length}</span>
               </header>
-              {!requestsQ.loading && !requests.length && <p className="sc-small pl-quiet">{requestsQ.error ? "No se ha podido cargar quién llama." : "Nadie llamando. Quien pide entrar desde el vestuario aparece aquí y en Hoy."}</p>}
+              {!requestsQ.loading && !requests.length && <p className="sc-small spl-quiet">{requestsQ.error ? "No se ha podido cargar quién llama." : "Nadie llamando. Quien pide entrar desde el vestuario aparece aquí y en Hoy."}</p>}
               <ul className="sc-rows">
                 {requests.map((r) => {
                   const name = knockNick(r);
@@ -444,7 +444,7 @@ function Socios({ data }: { data: AdminData }) {
                   const said = shirtOf(r.playerId);
                   const says = said ? `Dice que es ${shirtLabel(said)}` : r.playerName ? `Dice que es ${r.playerName}` : "";
                   return (
-                    <li key={r.uid} className="pl-req">
+                    <li key={r.uid} className="spl-req">
                       <div className="sc-row">
                         <span className="sc-row__t">
                           <b>{name}</b>
@@ -462,7 +462,7 @@ function Socios({ data }: { data: AdminData }) {
                         </span>
                       </div>
                       {open && (
-                        <div className="pl-confirm" role="group" aria-label={`Abrir la puerta a ${name}`}>
+                        <div className="spl-confirm" role="group" aria-label={`Abrir la puerta a ${name}`}>
                           <label className="sc-field">
                             <span>¿Con una ficha? · opcional</span>
                             <select className="vd-input vd-glass" value={doorPick} onChange={(e) => setDoorPick(e.target.value)}>
@@ -492,14 +492,14 @@ function Socios({ data }: { data: AdminData }) {
             </section>
 
             {/* ---------- Piden su ficha */}
-            <section className={`pl-so__sec${on("fichas")}`} aria-labelledby="pl-so-fichas">
+            <section className={`spl-so__sec${on("fichas")}`} aria-labelledby="spl-so-fichas">
               <header className="sc-sec__h">
-                <h2 className="sc-h2" id="pl-so-fichas" tabIndex={-1} data-focus="fichas-h">
+                <h2 className="sc-h2" id="spl-so-fichas" tabIndex={-1} data-focus="fichas-h">
                   Piden su ficha
                 </h2>
                 <span className="sc-sec__n">{claims.length}</span>
               </header>
-              {!claims.length && <p className="sc-small pl-quiet">Cuentas al día. Cuando alguien entre y pida su camiseta, aparece aquí para aprobarla.</p>}
+              {!claims.length && <p className="sc-small spl-quiet">Cuentas al día. Cuando alguien entre y pida su camiseta, aparece aquí para aprobarla.</p>}
               <ul className="sc-rows">
                 {claims.map((c) => {
                   const who = claimHandle(c);
@@ -507,7 +507,7 @@ function Socios({ data }: { data: AdminData }) {
                   const l = logOf.get(c.uid);
                   const title = s?.num ? `${who} quiere el ${s.num} · ${c.playerLabel}` : `${who} quiere la de ${c.playerLabel}`;
                   return (
-                    <li key={c.uid} className="sc-row pl-claim" aria-label={`${who} pide la ficha de ${c.playerLabel}`}>
+                    <li key={c.uid} className="sc-row spl-claim" aria-label={`${who} pide la ficha de ${c.playerLabel}`}>
                       <Shirt src={still(s)} size="s" alt={s ? `Camiseta de ${s.name}` : "Camiseta sin ficha"} />
                       <span className="sc-row__t">
                         <b>{title}</b>
@@ -528,7 +528,7 @@ function Socios({ data }: { data: AdminData }) {
               </ul>
               {resolved.length > 0 && (
                 <>
-                  <button type="button" className="pl-fold" aria-expanded={resOpen} data-focus="res-fold" onClick={() => setResOpen((o) => !o)}>
+                  <button type="button" className="spl-fold" aria-expanded={resOpen} data-focus="res-fold" onClick={() => setResOpen((o) => !o)}>
                     <span className="sc-tag sc-tag--hecho">{plural(resolved.length, "resuelta", "resueltas")}</span>
                   </button>
                   {resOpen && (
@@ -554,14 +554,14 @@ function Socios({ data }: { data: AdminData }) {
           </div>
 
           {/* ---------- Dentro */}
-          <section className={`pl-so__sec pl-so__col${on("dentro")}`} aria-labelledby="pl-so-in">
+          <section className={`spl-so__sec spl-so__col${on("dentro")}`} aria-labelledby="spl-so-in">
             <header className="sc-sec__h">
-              <h2 className="sc-h2" id="pl-so-in" tabIndex={-1} data-focus="dentro-h">
+              <h2 className="sc-h2" id="spl-so-in" tabIndex={-1} data-focus="dentro-h">
                 Dentro
               </h2>
               <span className="sc-sec__n">{inside.length}</span>
             </header>
-            <ul className="sc-rows" aria-labelledby="pl-so-in">
+            <ul className="sc-rows" aria-labelledby="spl-so-in">
               {inside.map((u) => {
                 const role = roleOf(u);
                 const mine = u.uid === me;
@@ -574,19 +574,19 @@ function Socios({ data }: { data: AdminData }) {
                 const label = `Quitar el acceso a ${who}`;
                 const [q1, q2, q3] = quitConsequences(shirt, role === "admin");
                 return (
-                  <li key={u.uid} className="pl-person">
+                  <li key={u.uid} className="spl-person">
                     <div className="sc-row">
                       {shirt ? (
                         <Shirt src={still(shirt)} size="s" alt={`Camiseta de ${shirt.name}`} />
                       ) : (
-                        <span className="pl-ini" aria-hidden="true">
+                        <span className="spl-ini" aria-hidden="true">
                           {initialOf(u)}
                         </span>
                       )}
                       <span className="sc-row__t">
                         <b>
                           {who}
-                          {mine ? " · tú" : ""} <span className={`pl-role is-${role}`}>{ROLE_WORD[role]}</span>
+                          {mine ? " · tú" : ""} <span className={`spl-role is-${role}`}>{ROLE_WORD[role]}</span>
                         </b>
                         <span>{[u.displayName, shirt ? shirtLabel(shirt) : "Sin ficha"].filter(Boolean).join(" · ")}</span>
                         <span>
@@ -595,7 +595,7 @@ function Socios({ data }: { data: AdminData }) {
                         </span>
                       </span>
                       {lock ? (
-                        <span className="pl-lock">
+                        <span className="spl-lock">
                           <Icon name="lock" size={16} />
                           {lock}
                         </span>
@@ -606,15 +606,15 @@ function Socios({ data }: { data: AdminData }) {
                       )}
                     </div>
                     {open && !lock && (
-                      <div className="pl-confirm" role="group" aria-label={label}>
+                      <div className="spl-confirm" role="group" aria-label={label}>
                         <p className="sc-h3">¿Quitar el acceso a {who}?</p>
-                        <ul className="pl-conseq">
+                        <ul className="spl-conseq">
                           <li>{q1}</li>
                           <li>{q2}</li>
                           <li>{q3}</li>
                         </ul>
                         <div className="sc-btnrow">
-                          <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm pl-danger" onClick={() => removeAccess(u)}>
+                          <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm spl-danger" onClick={() => removeAccess(u)}>
                             Quitar el acceso
                           </button>
                           <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => cancelQuit(u.uid)}>
@@ -629,10 +629,10 @@ function Socios({ data }: { data: AdminData }) {
             </ul>
             {out.length > 0 && (
               <>
-                <h3 className="sc-h3 pl-sub" id="pl-so-out" tabIndex={-1} data-focus="out-h">
+                <h3 className="sc-h3 spl-sub" id="spl-so-out" tabIndex={-1} data-focus="out-h">
                   {plural(out.length, "sin acceso", "sin acceso")}
                 </h3>
-                <ul className="sc-rows" aria-labelledby="pl-so-out">
+                <ul className="sc-rows" aria-labelledby="spl-so-out">
                   {out.map((p) => {
                     const holds = stillHolds(p);
                     const shirt = holds ? shirtOf(p.playerId) : null;
@@ -652,7 +652,7 @@ function Socios({ data }: { data: AdminData }) {
                               Liberar la ficha
                             </button>
                           ) : (
-                            <span className="pl-lock">
+                            <span className="spl-lock">
                               <Icon name="lock" size={16} />
                               Solo el capitán general
                             </span>
@@ -665,16 +665,16 @@ function Socios({ data }: { data: AdminData }) {
             )}
           </section>
 
-          <div className="pl-so__col">
+          <div className="spl-so__col">
             {/* ---------- Invitaciones */}
-            <section className={`pl-so__sec${on("invitaciones")}`} aria-labelledby="pl-so-inv">
+            <section className={`spl-so__sec${on("invitaciones")}`} aria-labelledby="spl-so-inv">
               <header className="sc-sec__h">
-                <h2 className="sc-h2" id="pl-so-inv" tabIndex={-1} data-focus="inv-h">
+                <h2 className="sc-h2" id="spl-so-inv" tabIndex={-1} data-focus="inv-h">
                   Invitaciones
                 </h2>
                 <span className="sc-sec__n">{liveN}</span>
               </header>
-              <div className="pl-invf">
+              <div className="spl-invf">
                 <label className="sc-field">
                   <span>Para</span>
                   <select className="vd-input vd-glass" value={invFor} data-focus="inv-for" onChange={(e) => setInvFor(e.target.value)}>
@@ -687,7 +687,7 @@ function Socios({ data }: { data: AdminData }) {
                   </select>
                 </label>
                 <div className="sc-field">
-                  <span className="pl-lab">Usos</span>
+                  <span className="spl-lab">Usos</span>
                   <div className="vd-seg vd-glass" role="group" aria-label="Usos de la invitación" style={{ "--n": 2, "--i": uses === 0 ? 1 : 0 } as CSSProperties}>
                     <span className="vd-shelf__bead" aria-hidden="true" />
                     <button type="button" className="vd-seg__b" aria-pressed={uses === 1} onClick={() => setUses(1)}>
@@ -713,17 +713,17 @@ function Socios({ data }: { data: AdminData }) {
                   {busy ? "Creando la invitación…" : "Crear la invitación"}
                 </button>
               </div>
-              {!invitesQ.loading && !invites.length && <p className="sc-small pl-quiet">{invitesQ.error ? "No se han podido cargar las invitaciones." : "Ninguna invitación todavía. Crea una para una ficha (la cuenta queda unida a esa camiseta) o abierta."}</p>}
-              <ul className="sc-rows" aria-labelledby="pl-so-inv">
+              {!invitesQ.loading && !invites.length && <p className="sc-small spl-quiet">{invitesQ.error ? "No se han podido cargar las invitaciones." : "Ninguna invitación todavía. Crea una para una ficha (la cuenta queda unida a esa camiseta) o abierta."}</p>}
+              <ul className="sc-rows" aria-labelledby="spl-so-inv">
                 {invites.map((v) => {
                   const dead = inviteDead(v, data.now);
                   const s = shirtOf(v.playerId);
                   const who = s ? `Para la ficha de ${s.name}` : v.playerName ? `Para la ficha de ${v.playerName}` : "Abierta · para cualquiera";
                   return (
-                    <li key={v.code} className={`sc-row pl-inv${dead ? " is-dead" : ""}`}>
+                    <li key={v.code} className={`sc-row spl-inv${dead ? " is-dead" : ""}`}>
                       <span className="sc-row__t">
-                        <span className="pl-codew">
-                          <code className="pl-code">{v.code}</code>
+                        <span className="spl-codew">
+                          <code className="spl-code">{v.code}</code>
                         </span>
                         <b>{who}</b>
                         <span>{inviteLine(v, data.now)}</span>
@@ -747,16 +747,16 @@ function Socios({ data }: { data: AdminData }) {
             </section>
 
             {/* ---------- La percha de las cuentas */}
-            <section className={`pl-so__sec pl-percha${on("fichas")}`} aria-labelledby="pl-so-per">
+            <section className={`spl-so__sec spl-percha${on("fichas")}`} aria-labelledby="spl-so-per">
               <header className="sc-sec__h">
-                <h2 className="sc-h3" id="pl-so-per">
+                <h2 className="sc-h3" id="spl-so-per">
                   La percha de las cuentas
                 </h2>
                 <span className="sc-small">
                   {withSocio} de {plural(percha.length, "camiseta ya tiene su socio", "camisetas ya tienen su socio")}
                 </span>
               </header>
-              <ul className="pl-percha__l">
+              <ul className="spl-percha__l">
                 {percha.map((x) => (
                   <li key={x.s.id} className={ACCOUNT_CLS[x.state]}>
                     <Shirt src={still(x.s)} size="s" alt={`Camiseta de ${x.s.name}`} />

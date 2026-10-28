@@ -254,17 +254,17 @@ function Convocatoria() {
     const x = pick?.id === id && pick.from === from;
     const src = guest ? undefined : still(who);
     return (
-      <button key={`${from}-${id}`} type="button" className={`pa-peg is-${pl || "free"}`} aria-label={`${guest ? `${nameOf(id)}` : who.name}, ${answerOf(id)}, ${placeWord(id)}${editable ? ": elegir dónde" : ""}`} aria-expanded={x} onClick={open(id, from)}>
+      <button key={`${from}-${id}`} type="button" className={`spa-peg is-${pl || "free"}`} aria-label={`${guest ? `${nameOf(id)}` : who.name}, ${answerOf(id)}, ${placeWord(id)}${editable ? ": elegir dónde" : ""}`} aria-expanded={x} onClick={open(id, from)}>
         <Shirt src={src} who={who} kit={kit} size="s" />
         {pl && (
-          <i className="pa-peg__tag" aria-hidden="true">
+          <i className="spa-peg__tag" aria-hidden="true">
             {pl === "siete" ? "7" : "B"}
           </i>
         )}
         {/* (the printed shirt says the name: under it only what it doesn't — the answer on the banquillo, an absence,
             the name of a guest or while the photo renders) */}
         {(from === "banco" || note || !src) && (
-          <small className="pa-peg__note" aria-hidden="true">
+          <small className="spa-peg__note" aria-hidden="true">
             {from === "banco" ? cap(answerOf(id)) : note || who.name}
           </small>
         )}
@@ -277,14 +277,14 @@ function Convocatoria() {
     const pl = placeOf(id);
     const full = lineup.starters.length >= SEVEN && pl !== "siete";
     return (
-      <div className="pa-menu vd-glass" role="group" aria-label={`Dónde va ${nameOf(id)}`}>
-        <p className="pa-menu__t">
+      <div className="spa-menu vd-glass" role="group" aria-label={`Dónde va ${nameOf(id)}`}>
+        <p className="spa-menu__t">
           <b>{nameOf(id)}</b>
           <span>
             {cap(answerOf(id))} · {placeWord(id)}
           </span>
         </p>
-        <div className="pa-menu__a">
+        <div className="spa-menu__a">
           {from !== "siete" && (
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-disabled={pl === "siete" || full || undefined} onClick={() => (full ? status.show({ tag: "7/7", message: "Ya hay siete: baja uno al banquillo antes" }) : toSeven(id))}>
               {pl === "siete" ? "Ya en el siete" : full ? "Al siete · ya hay 7" : "Al siete"}
@@ -310,35 +310,35 @@ function Convocatoria() {
   // (la mesa's roll call: matches/{id}.present, written by the server)
   const present = ((m as { present?: unknown }).present as string[] | undefined) ?? [];
   return (
-    <div className="pa-conv">
-      <p className={`pa-why${editable ? "" : " is-closed"}`} id="pa-why" role="status">
+    <div className="spa-conv">
+      <p className={`spa-why${editable ? "" : " is-closed"}`} id="spa-why" role="status">
         <b>{stateLine}</b>
         <span>{why}</span>
         {conv.pending && (
-          <button type="button" className="vd-link pa-why__undo" onClick={conv.cancel}>
+          <button type="button" className="vd-link spa-why__undo" onClick={conv.cancel}>
             Deshacer
           </button>
         )}
       </p>
-      {!editable && <p className="pa-closed">{closedWhy}</p>}
+      {!editable && <p className="spa-closed">{closedWhy}</p>}
 
-      <section className="pa-col pa-quien" aria-labelledby="pa-quien-t">
+      <section className="spa-col spa-quien" aria-labelledby="spa-quien-t">
         <header className="sc-sec__h">
-          <h2 className="sc-h2" id="pa-quien-t">
+          <h2 className="sc-h2" id="spa-quien-t">
             Quién viene
           </h2>
           <span className="sc-sec__n">
             {answers.counts.yes} vienen · {answers.counts.maybe} en duda · {answers.counts.no + answers.counts.absent} no · {answers.counts.none} sin responder
           </span>
         </header>
-        <ul className="pa-ans">
+        <ul className="spa-ans">
           {answers.groups.map((g) => (
-            <li key={g.id} className={`pa-ans__g is-${g.id}`}>
-              <p className="pa-ans__t">
+            <li key={g.id} className={`spa-ans__g is-${g.id}`}>
+              <p className="spa-ans__t">
                 <b>{g.name}</b>
                 <span className="sc-num">{g.people.length}</span>
               </p>
-              <div className="pa-ans__shirts">
+              <div className="spa-ans__shirts">
                 {g.people.map((x) => peg(x.id, "quien", x.absent ? `Ausente hasta ${x.until}` : ""))}
                 {!g.people.length && <span className="sc-small">Nadie</span>}
               </div>
@@ -348,9 +348,9 @@ function Convocatoria() {
         </ul>
       </section>
 
-      <section className="pa-col pa-sietecol" aria-labelledby="pa-siete-t">
+      <section className="spa-col spa-sietecol" aria-labelledby="spa-siete-t">
         <header className="sc-sec__h">
-          <h2 className="sc-h2" id="pa-siete-t">
+          <h2 className="sc-h2" id="spa-siete-t">
             El siete
           </h2>
           <span className="sc-sec__n">{lineup.starters.length >= SEVEN ? "Siete de siete" : lineup.starters.length ? `${lineup.starters.length} de 7 · toca un hueco libre para elegir` : "Por decidir · toca un hueco y elige de los que vienen"}</span>
@@ -361,20 +361,20 @@ function Convocatoria() {
         />
         {menu("siete")}
         {slot !== null && (
-          <div className="pa-menu pa-choose vd-glass" role="group" aria-labelledby="pa-choose-t">
-            <p className="pa-menu__t">
-              <b id="pa-choose-t">
+          <div className="spa-menu spa-choose vd-glass" role="group" aria-labelledby="spa-choose-t">
+            <p className="spa-menu__t">
+              <b id="spa-choose-t">
                 Hueco {slot + 1}
                 {pos ? ` · ${pos[slot].code}` : ""}: ¿quién?
               </b>
               <span>De los que vienen (y los que dudan)</span>
             </p>
-            <div className="pa-choose__list">
+            <div className="spa-choose__list">
               {chooser.map((x) => {
                 const p = byId.get(x.id);
                 const who = { name: p?.name ?? nameOf(x.id), number: p?.number ?? null };
                 return (
-                  <button key={x.id} type="button" className="pa-peg pa-peg--pick" aria-label={`Poner a ${nameOf(x.id)} (${x.w}) en el hueco ${slot + 1}${pos ? ` de ${pos[slot].code}` : ""}`} onClick={() => chooseFor(slot, x.id)}>
+                  <button key={x.id} type="button" className="spa-peg spa-peg--pick" aria-label={`Poner a ${nameOf(x.id)} (${x.w}) en el hueco ${slot + 1}${pos ? ` de ${pos[slot].code}` : ""}`} onClick={() => chooseFor(slot, x.id)}>
                     <Shirt src={p ? still(who) : undefined} who={who} kit={kit} size="s" />
                     <small aria-hidden="true">
                       {cap(x.w)}
@@ -385,15 +385,15 @@ function Convocatoria() {
               })}
             </div>
             {!chooser.length && <p className="sc-small">Nadie más ha dicho que viene. Los que no responden, desde «Quién viene».</p>}
-            <div className="pa-menu__a">
+            <div className="spa-menu__a">
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => setSlot(null)}>
                 Cerrar
               </button>
             </div>
           </div>
         )}
-        <div className="pa-board">
-          <p className="pa-board__t">
+        <div className="spa-board">
+          <p className="spa-board__t">
             <span className="sc-tag sc-tag--quiet">{boardSeven ? (agree === "coincide" ? "La pizarra coincide · el siete de la pizarra es este" : "La pizarra tiene otro siete") : "La pizarra no tiene siete para esta jornada todavía"}</span>
           </p>
           {agree === "otro" && boardDiff && <p className="sc-small">{boardDiff}.</p>}
@@ -402,17 +402,17 @@ function Convocatoria() {
               Copiar el de la pizarra
             </button>
           )}
-          <a className="vd-link pa-board__open" href={`/pizarra?${boardId ? `tablero=${encodeURIComponent(boardId)}&` : ""}season=${encodeURIComponent(m.seasonId ?? "")}`} target="_blank" rel="noopener">
+          <a className="vd-link spa-board__open" href={`/pizarra?${boardId ? `tablero=${encodeURIComponent(boardId)}&` : ""}season=${encodeURIComponent(m.seasonId ?? "")}`} target="_blank" rel="noopener">
             Abrir la pizarra ↗<span className="vd-vh"> (se abre en otra pestaña)</span>
           </a>
           {pitch && pitch.subs.length > 0 && (
-            <div className="pa-subs">
+            <div className="spa-subs">
               <p className="sc-small">
                 <b>El plan de cambios de la pizarra</b> · la mesa los ofrece a su minuto
               </p>
               <ol className="sc-rows">
                 {pitch.subs.map((s) => (
-                  <li key={`${s.min}-${s.in}`} className="sc-row pa-subs__r">
+                  <li key={`${s.min}-${s.in}`} className="sc-row spa-subs__r">
                     <span className="sc-clock">{s.min}′</span>
                     <span className="sc-row__t">
                       <b>
@@ -432,27 +432,27 @@ function Convocatoria() {
           )}
         </div>
 
-        <section className="pa-sub" aria-labelledby="pa-banco-t">
+        <section className="spa-sub" aria-labelledby="spa-banco-t">
           <header className="sc-sec__h">
-            <h3 className="sc-h3" id="pa-banco-t">
+            <h3 className="sc-h3" id="spa-banco-t">
               Banquillo
             </h3>
             <span className="sc-sec__n">{benchIds.length}</span>
           </header>
-          <div className="pa-bench">{benchIds.map((id) => peg(id, "banco"))}</div>
+          <div className="spa-bench">{benchIds.map((id) => peg(id, "banco"))}</div>
           {!benchIds.length && <p className="sc-small">Nadie en el banquillo todavía.</p>}
           {menu("banco")}
         </section>
 
-        <section className="pa-sub" aria-labelledby="pa-inv-t">
+        <section className="spa-sub" aria-labelledby="spa-inv-t">
           <header className="sc-sec__h">
-            <h3 className="sc-h3" id="pa-inv-t">
+            <h3 className="sc-h3" id="spa-inv-t">
               Invitados
             </h3>
             <span className="sc-sec__n">{guests.length} de 4</span>
           </header>
           {guests.length > 0 && (
-            <ul className="sc-rows pa-guests">
+            <ul className="sc-rows spa-guests">
               {guests.map((g) => {
                 const ref = guestRef(g.id);
                 const used = guestInUse(m.events, g.id);
@@ -475,7 +475,7 @@ function Convocatoria() {
             </ul>
           )}
           {guests.length < 4 && editable && (
-            <form className="pa-addg" onSubmit={addGuestNow}>
+            <form className="spa-addg" onSubmit={addGuestNow}>
               <label className="sc-field">
                 <span>Añadir invitado</span>
                 <input className="vd-input" type="text" maxLength={30} placeholder="Rafa" value={gName} onChange={(e) => (setGName(e.target.value), setGErr(""))} aria-invalid={!!gErr || undefined} />
@@ -495,12 +495,12 @@ function Convocatoria() {
         </section>
       </section>
 
-      <section className="pa-col pa-more" aria-labelledby="pa-more-t">
-        <h2 className="vd-vh" id="pa-more-t">
+      <section className="spa-col spa-more" aria-labelledby="spa-more-t">
+        <h2 className="vd-vh" id="spa-more-t">
           Lo demás de la convocatoria
         </h2>
         {copy && (
-          <div className="pa-sub pa-copy">
+          <div className="spa-sub spa-copy">
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => change(copy.lineup, "Copiada", `La convocatoria de la ${copy.label} · ${copy.lineup.starters.length + copy.lineup.bench.length} convocados (sin avisar)`)}>
               <VIcon name="undo" size={16} />
               Copiar la convocatoria de la {copy.label}
@@ -509,15 +509,15 @@ function Convocatoria() {
           </div>
         )}
         <Turnos match={m} roster={roster} nameOf={nameOf} />
-        <section className="pa-sub" aria-labelledby="pa-rem-t">
+        <section className="spa-sub" aria-labelledby="spa-rem-t">
           <header className="sc-sec__h">
-            <h3 className="sc-h3" id="pa-rem-t">
+            <h3 className="sc-h3" id="spa-rem-t">
               Recordatorios automáticos
             </h3>
           </header>
           <Reminders auto={rem.auto} loading={rem.loading} draft={draft} missing={missing} onSet={rem.set} />
           {st.notified && !draft && missing > 0 && phase === "antes" && (
-            <div className="pa-prop">
+            <div className="spa-prop">
               <p className="sc-small">Un aviso ahora mismo, sin esperar a las 48 h: a cada convocado que no ha contestado.</p>
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => void remind()} aria-disabled={reminding || undefined}>
                 {reminding ? "Recordando…" : `Recordar ahora a los ${missing} que faltan`}
@@ -554,8 +554,8 @@ function SevenView(o: {
     const style: CSSProperties | undefined = pos && !inRow ? { left: `${Math.min(88, Math.max(12, pos[i].x))}%`, top: `${Math.min(88, Math.max(12, pos[i].y))}%` } : undefined;
     if (!id)
       return (
-        <button type="button" className={`pa-slot${inRow ? " pa-slot--row" : ""} is-free${o.slot === i ? " is-sel" : ""}`} style={style} aria-label={`Hueco libre${code ? ` de ${code}` : ""} ${i + 1} de 7: elegir quién`} aria-expanded={o.slot === i} onClick={() => o.onFree(i)}>
-          <span className="pa-slot__free" aria-hidden="true">
+        <button type="button" className={`spa-slot${inRow ? " spa-slot--row" : ""} is-free${o.slot === i ? " is-sel" : ""}`} style={style} aria-label={`Hueco libre${code ? ` de ${code}` : ""} ${i + 1} de 7: elegir quién`} aria-expanded={o.slot === i} onClick={() => o.onFree(i)}>
+          <span className="spa-slot__free" aria-hidden="true">
             <VIcon name="plus" size={18} />
           </span>
           <small aria-hidden="true">
@@ -567,7 +567,7 @@ function SevenView(o: {
     const who = { name: p?.name ?? o.nameOf(id), number: p?.number ?? null };
     const ans = o.answerOf(id);
     return (
-      <button type="button" className={`pa-slot${inRow ? " pa-slot--row" : ""} is-on`} style={style} aria-label={`${o.nameOf(id)}${code ? `, de ${code}` : ""}, ${ans}, en el siete${o.editable ? ": elegir" : ""}`} aria-expanded={o.pick?.id === id && o.pick.from === "siete"} onClick={() => o.onPeg(id)}>
+      <button type="button" className={`spa-slot${inRow ? " spa-slot--row" : ""} is-on`} style={style} aria-label={`${o.nameOf(id)}${code ? `, de ${code}` : ""}, ${ans}, en el siete${o.editable ? ": elegir" : ""}`} aria-expanded={o.pick?.id === id && o.pick.from === "siete"} onClick={() => o.onPeg(id)}>
         <Shirt src={p ? o.still(who) : undefined} who={who} kit={o.kit} size="m" />
         <small aria-hidden="true">
           {code && <b>{code}</b>} {who.name}
@@ -578,8 +578,8 @@ function SevenView(o: {
   };
   if (pos)
     return (
-      <div className="pa-pitch" role="group" aria-label={`El siete: ${occ.filter(Boolean).length} de 7, en el ${o.system || "sistema"} de la pizarra`}>
-        <svg className="pa-pitch__lines" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <div className="spa-pitch" role="group" aria-label={`El siete: ${occ.filter(Boolean).length} de 7, en el ${o.system || "sistema"} de la pizarra`}>
+        <svg className="spa-pitch__lines" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true" focusable="false">
           <rect x="2" y="2" width="96" height="136" rx="2" />
           <line x1="2" y1="70" x2="98" y2="70" />
           <circle cx="50" cy="70" r="11" />
@@ -588,14 +588,14 @@ function SevenView(o: {
           <rect x="26" y="2" width="48" height="24" />
           <rect x="38" y="2" width="24" height="10" />
         </svg>
-        {o.system && <span className="pa-pitch__sys">{o.system}</span>}
+        {o.system && <span className="spa-pitch__sys">{o.system}</span>}
         {occ.map((id, i) => (
           <span key={i}>{one(id, i, false)}</span>
         ))}
       </div>
     );
   return (
-    <ol className="pa-sevenrow" aria-label={`El siete: ${occ.filter(Boolean).length} de 7`}>
+    <ol className="spa-sevenrow" aria-label={`El siete: ${occ.filter(Boolean).length} de 7`}>
       {occ.map((id, i) => (
         <li key={i}>{one(id, i, true)}</li>
       ))}
@@ -620,13 +620,13 @@ function Reminders({ auto, loading, draft, missing, onSet }: { auto: boolean; lo
   };
   return (
     <>
-      <button type="button" className="vd-switch" role="switch" aria-checked={auto} aria-describedby="pa-rem-l" disabled={loading} aria-busy={busy || undefined} onClick={() => void toggle()}>
+      <button type="button" className="vd-switch" role="switch" aria-checked={auto} aria-describedby="spa-rem-l" disabled={loading} aria-busy={busy || undefined} onClick={() => void toggle()}>
         <span className="vd-switch__track">
           <span className="vd-switch__knob" />
         </span>
         <span>{auto ? "Sí" : "No"}</span>
       </button>
-      <p className="sc-small" id="pa-rem-l">
+      <p className="sc-small" id="spa-rem-l">
         {draft
           ? auto
             ? "Un borrador no avisa a nadie: los recordatorios saldrán 48 h y 24 h antes cuando el partido esté en el calendario."
@@ -645,12 +645,12 @@ function Turnos({ match, roster, nameOf }: { match: ClubMatch; roster: readonly 
   const { turns, rota, loading, error } = useMatchTurns(published, data.published, true);
   const played = rotaPlayed(rotaMatch(published), data.now);
   return (
-    <section className="pa-sub" aria-labelledby="pa-turn-t">
+    <section className="spa-sub" aria-labelledby="spa-turn-t">
       <header className="sc-sec__h">
-        <h3 className="sc-h3" id="pa-turn-t">
+        <h3 className="sc-h3" id="spa-turn-t">
           Turnos de esta jornada
         </h3>
-        <SalaLink className="vd-link pa-mini-link" to={`/admin/caja/coste/${match.id}`}>
+        <SalaLink className="vd-link spa-mini-link" to={`/admin/caja/coste/${match.id}`}>
           El coste, en Caja
         </SalaLink>
       </header>
@@ -668,7 +668,7 @@ function Turnos({ match, roster, nameOf }: { match: ClubMatch; roster: readonly 
       ) : !turns.length ? (
         <p className="sc-small">Ningún turno en este partido (el coche, solo fuera de casa).</p>
       ) : (
-        <ul className="sc-rows pa-turns">
+        <ul className="sc-rows spa-turns">
           {turns.map((t) => (
             <TurnRow key={t.job.id} matchId={match.id} seasonId={published.seasonId ?? ""} turn={t} played={played || t.frozen} roster={roster} nameOf={nameOf} />
           ))}
@@ -713,7 +713,7 @@ function TurnRow({ matchId, seasonId, turn: t, played, roster, nameOf }: { match
     }
   };
   return (
-    <li className="sc-row pa-turn">
+    <li className="sc-row spa-turn">
       <span className="sc-row__t">
         <b>{t.job.name}</b>
         <span>
@@ -721,7 +721,7 @@ function TurnRow({ matchId, seasonId, turn: t, played, roster, nameOf }: { match
           {note ? ` · ${note}` : ""}
         </span>
       </span>
-      <span className="pa-turn__a">
+      <span className="spa-turn__a">
         {!played && (
           <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => (setEdit("cambiar"), setPick(""))} aria-expanded={edit === "cambiar"}>
             Cambiar
@@ -737,7 +737,7 @@ function TurnRow({ matchId, seasonId, turn: t, played, roster, nameOf }: { match
         )}
       </span>
       {edit && (
-        <div className="pa-turn__ed">
+        <div className="spa-turn__ed">
           <label className="sc-field">
             <span>{edit === "otro" ? "Lo hizo…" : "Cambiar por…"}</span>
             <select className="vd-input" value={pick} onChange={(e) => setPick(e.target.value)}>
@@ -772,7 +772,7 @@ function MeetingNote() {
   const note = s.sheet.meetingNote ?? "";
   const save = () => void (isDraftOnly(m) ? s.saveDraft() : s.saveCalendar(false));
   return (
-    <section className="pa-sub" aria-labelledby={`${id}-t`}>
+    <section className="spa-sub" aria-labelledby={`${id}-t`}>
       <header className="sc-sec__h">
         <h3 className="sc-h3" id={`${id}-t`}>
           Nota de quedada
@@ -785,8 +785,8 @@ function MeetingNote() {
         <small>{500 - note.length} letras libres · sale en Hoy, en el vestuario y en el aviso</small>
       </label>
       {s.dirty && (
-        <div className="pa-note__a">
-          <span className="pa-dirty">● Sin guardar</span>
+        <div className="spa-note__a">
+          <span className="spa-dirty">● Sin guardar</span>
           <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={save} aria-disabled={!!s.busy || undefined}>
             {s.busy ? "Guardando…" : "Guardar la nota"}
           </button>

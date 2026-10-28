@@ -43,7 +43,7 @@ export function AntiguosScreen() {
     const holder = season && r.number != null ? dorsalHolder(players, season.id, r.number, r.id) : null;
     const where = r.doc.archived ? `Jugó en ${(r.doc.seasons ?? []).map((s) => data.seasons.find((x) => x.id === s)?.name).filter(Boolean).join(", ") || "una temporada que ya no existe"}${(r.doc.seasons ?? []).some((s) => data.seasons.some((x) => x.id === s)) ? " · archivada" : ""}` : season ? `De baja de la ${season.name}` : "Sin temporada visible";
     return (
-      <li className="sc-row pl-orow" key={r.id}>
+      <li className="sc-row spl-orow" key={r.id}>
         <Shirt src={still(r) ?? blank} size="s" alt={`Camiseta de ${r.name}`} />
         <span className="sc-row__t">
           <b>
@@ -51,7 +51,7 @@ export function AntiguosScreen() {
           </b>
           <span>{r.full === "Sin nombre" ? "Sin nombre completo" : r.full}</span>
           <span>{where}</span>
-          {holder && season && <span className="pl-clash">El {r.number} lo lleva ahora {nameIn(holder, season.id)}</span>}
+          {holder && season && <span className="spl-clash">El {r.number} lo lleva ahora {nameIn(holder, season.id)}</span>}
         </span>
         <span className="sc-btnrow">
           <SalaLink className="vd-btn vd-glass vd-press vd-btn--sm" to={`/admin/plantilla/${encodeURIComponent(r.id)}`}>
@@ -78,12 +78,12 @@ export function AntiguosScreen() {
       fit
       className="sc-pl pl--antiguos pl--sub"
     >
-      <div className="pl-old sc-scroll">
-        {!outs.length && <p className="pl-empty">Nadie fuera: todos los jugadores juegan la {sName}.</p>}
+      <div className="spl-old sc-scroll">
+        {!outs.length && <p className="spl-empty">Nadie fuera: todos los jugadores juegan la {sName}.</p>}
         {arch.length > 0 && (
-          <section className="sc-sec" aria-labelledby="pl-o-arch">
+          <section className="sc-sec" aria-labelledby="spl-o-arch">
             <header className="sc-sec__h">
-              <h2 className="sc-h2" id="pl-o-arch">
+              <h2 className="sc-h2" id="spl-o-arch">
                 De una temporada archivada
               </h2>
               <span className="sc-small">{archNames.length ? `${archNames.join(", ")} · archivada` : "Temporadas que ya no existen"}</span>
@@ -92,18 +92,18 @@ export function AntiguosScreen() {
           </section>
         )}
         {baja.length > 0 && (
-          <section className="sc-sec" aria-labelledby="pl-o-baja">
+          <section className="sc-sec" aria-labelledby="spl-o-baja">
             <header className="sc-sec__h">
-              <h2 className="sc-h2" id="pl-o-baja">
+              <h2 className="sc-h2" id="spl-o-baja">
                 De baja
               </h2>
             </header>
             <ul className="sc-rows">{baja.map(oldRow)}</ul>
           </section>
         )}
-        <section className="sc-sec" aria-labelledby="pl-o-inv">
+        <section className="sc-sec" aria-labelledby="spl-o-inv">
           <header className="sc-sec__h">
-            <h2 className="sc-h2" id="pl-o-inv">
+            <h2 className="sc-h2" id="spl-o-inv">
               Invitados
             </h2>
             <span className="sc-small">Los de fuera que jugaron algún partido</span>
@@ -131,11 +131,11 @@ export function AntiguosScreen() {
               ))}
             </ul>
           ) : (
-            <p className="sc-small pl-quiet">Ningún invitado todavía. Los que se apuntan en una convocatoria salen aquí.</p>
+            <p className="sc-small spl-quiet">Ningún invitado todavía. Los que se apuntan en una convocatoria salen aquí.</p>
           )}
-          <p className="sc-small pl-note">Al darle de alta, sus partidos de invitado pasan a su ficha: sus minutos, goles y notas cuentan como suyos.</p>
+          <p className="sc-small spl-note">Al darle de alta, sus partidos de invitado pasan a su ficha: sus minutos, goles y notas cuentan como suyos.</p>
         </section>
-        <p className="sc-small pl-note">Archivar una temporada esconde a quien solo jugó en ella, y eliminarla ya no los deja perdidos: siguen aquí, con sus actas.</p>
+        <p className="sc-small spl-note">Archivar una temporada esconde a quien solo jugó en ella, y eliminarla ya no los deja perdidos: siguen aquí, con sus actas.</p>
       </div>
     </SalaScreen>
   );

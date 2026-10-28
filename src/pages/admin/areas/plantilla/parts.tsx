@@ -12,7 +12,7 @@ import "../../../../styles/vidrio/components.css";
 export function Shirt({ src, size, alt = "", vt, className = "" }: { src: string | undefined; size: "s" | "l" | "xl"; alt?: string; vt?: string; className?: string }) {
   const style: CSSProperties | undefined = vt ? { viewTransitionName: vt } : undefined;
   const cls = `${vt ? "sc-morph " : ""}${className}`.trim();
-  if (!src) return <span className={`pl-shirt0 sc-shirt--${size} ${cls}`.trim()} style={style} role={alt ? "img" : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true} />;
+  if (!src) return <span className={`spl-shirt0 sc-shirt--${size} ${cls}`.trim()} style={style} role={alt ? "img" : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true} />;
   return <img className={`sc-shirt sc-shirt--${size} ${cls}`.trim()} style={style} src={src} alt={alt} decoding="async" />;
 }
 
@@ -27,12 +27,12 @@ export function Icon({ name, size = 18, flip }: { name: PlIconName; size?: numbe
   if (name in EXTRA) {
     const d = EXTRA[name as keyof typeof EXTRA];
     return (
-      <svg className={flip ? "sc-i pl-flip" : "sc-i"} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <svg className={flip ? "sc-i spl-flip" : "sc-i"} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d={d} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
-  return <VIcon name={name as VIconName} size={size} className={flip ? "sc-i pl-flip" : "sc-i"} />;
+  return <VIcon name={name as VIconName} size={size} className={flip ? "sc-i spl-flip" : "sc-i"} />;
 }
 
 export type PlArea = "jugadores" | "socios" | "capitanes";
@@ -47,8 +47,8 @@ export function PlNav({ at }: { at: PlArea }) {
   ];
   const i = items.findIndex((x) => x.key === at);
   return (
-    <nav className="pl-nav" aria-label="Plantilla">
-      <div className="vd-seg vd-glass pl-seg" style={{ "--n": 3, "--i": i } as CSSProperties}>
+    <nav className="spl-nav" aria-label="Plantilla">
+      <div className="vd-seg vd-glass spl-seg" style={{ "--n": 3, "--i": i } as CSSProperties}>
         <span className="vd-shelf__bead" aria-hidden="true" />
         {items.map((x) => (
           <SalaLink key={x.key} to={x.to} className="vd-seg__b" aria-current={x.key === at ? "page" : undefined} aria-label={x.n ? `${x.t} · ${plural(x.n, "cosa por hacer", "cosas por hacer")}` : undefined}>

@@ -86,53 +86,53 @@ function SeasonTable({ sheet }: { sheet?: ReactNode }) {
   useRegisterCommands(cmds);
 
   return (
-    <SalaScreen title="Partidos" lede={line} fit className="pa pa-list" primary={{ label: "Nuevo partido", icon: "plus", keys: "n", popup: true, onClick: () => go("/admin/partidos/nuevo") }}>
-      <div className="pa-tools">
-        <div className="vd-seg vd-glass pa-seg" role="tablist" aria-label="Qué partidos ver" style={{ "--n": FILTERS.length, "--i": fi } as CSSProperties}>
+    <SalaScreen title="Partidos" lede={line} fit className="spa spa-list" primary={{ label: "Nuevo partido", icon: "plus", keys: "n", popup: true, onClick: () => go("/admin/partidos/nuevo") }}>
+      <div className="spa-tools">
+        <div className="vd-seg vd-glass spa-seg" role="tablist" aria-label="Qué partidos ver" style={{ "--n": FILTERS.length, "--i": fi } as CSSProperties}>
           <span className="vd-shelf__bead" aria-hidden="true" />
           {FILTERS.map(([id, label]) => (
-            <button key={id} type="button" role="tab" className="vd-seg__b" aria-selected={filter === id} aria-controls="pa-rows" onClick={() => listUi.set({ filter: id })}>
+            <button key={id} type="button" role="tab" className="vd-seg__b" aria-selected={filter === id} aria-controls="spa-rows" onClick={() => listUi.set({ filter: id })}>
               {label}
-              {id !== "todo" && <span className="pa-seg__n">{counts[id]}</span>}
+              {id !== "todo" && <span className="spa-seg__n">{counts[id]}</span>}
             </button>
           ))}
         </div>
-        <label className="pa-search">
+        <label className="spa-search">
           <span className="vd-vh">Buscar partido</span>
           <VIcon name="search" size={18} className="sc-i" />
           <input className="vd-input" type="search" placeholder="Rival o jornada (J8)" value={q} onChange={(e) => listUi.set({ q: e.target.value })} aria-keyshortcuts="/" autoComplete="off" />
         </label>
-        <SalaLink to="/admin/partidos/archivados" className="vd-link pa-archlink">
+        <SalaLink to="/admin/partidos/archivados" className="vd-link spa-archlink">
           <VIcon name="post" size={18} className="sc-i" />
           Archivados · {data.archivesLoading ? "…" : data.archivedMatches.length}
         </SalaLink>
       </div>
 
-      <section className="pa-season" aria-labelledby="pa-season-t">
-        <h2 className="vd-vh" id="pa-season-t">
+      <section className="spa-season" aria-labelledby="spa-season-t">
+        <h2 className="vd-vh" id="spa-season-t">
           La temporada
         </h2>
-        <div className="pa-scroll sc-scroll">
-          <div className="pa-thead" aria-hidden="true">
+        <div className="spa-scroll sc-scroll">
+          <div className="spa-thead" aria-hidden="true">
             <span>J</span>
             <span>Fecha</span>
             <span>Rival</span>
             <span>Dónde</span>
             <span>Resultado</span>
             <span>El carril</span>
-            <span className="pa-xl">Campo</span>
-            <span className="pa-xl">Anota</span>
-            <span className="pa-xl">MVP</span>
+            <span className="spa-xl">Campo</span>
+            <span className="spa-xl">Anota</span>
+            <span className="spa-xl">MVP</span>
           </div>
-          <ol className="pa-rows" id="pa-rows" aria-label={`Partidos de la ${name}: ${plural(shown.length, "fila", "filas")}`}>
+          <ol className="spa-rows" id="spa-rows" aria-label={`Partidos de la ${name}: ${plural(shown.length, "fila", "filas")}`}>
             {shown.map((r) => (
               <Row key={r.m.id} r={r} isNow={r.m.id === nowId} toca={toca(r)} />
             ))}
           </ol>
-          {!shown.length && fq && <p className="pa-empty">Ningún partido con «{q}».</p>}
-          {!shown.length && !fq && rows.length > 0 && <p className="pa-empty">Ningún partido con ese filtro.</p>}
+          {!shown.length && fq && <p className="spa-empty">Ningún partido con «{q}».</p>}
+          {!shown.length && !fq && rows.length > 0 && <p className="spa-empty">Ningún partido con ese filtro.</p>}
           {!rows.length && (
-            <div className="pa-empty pa-empty--all">
+            <div className="spa-empty spa-empty--all">
               <h3 className="sc-h3">Todavía no hay partidos</h3>
               <p className="sc-p">Crea el primero con «Nuevo partido»: rival, fecha y hora. El resto, cuando lo sepas.</p>
             </div>
@@ -181,41 +181,41 @@ function Row({ r, isNow, toca }: { r: MatchRowView; isNow: boolean; toca: boolea
     .filter(Boolean)
     .join(", ");
   return (
-    <li className={["pa-r", isNow ? "is-now" : "", toca ? "is-toca" : "", isOff(phase) ? "is-off" : ""].filter(Boolean).join(" ")}>
-      <SalaLink to={`/admin/partidos/${m.id}`} className="pa-row" aria-label={label}>
-        <span className="pa-row__j">{m.jornada ? `J${m.jornada}` : "—"}</span>
-        <span className="pa-row__when">
+    <li className={["spa-r", isNow ? "is-now" : "", toca ? "is-toca" : "", isOff(phase) ? "is-off" : ""].filter(Boolean).join(" ")}>
+      <SalaLink to={`/admin/partidos/${m.id}`} className="spa-row" aria-label={label}>
+        <span className="spa-row__j">{m.jornada ? `J${m.jornada}` : "—"}</span>
+        <span className="spa-row__when">
           <b>{Number.isFinite(t) ? shortDate(t) : "sin fecha"}</b>
           <span className="sc-clock">{Number.isFinite(t) ? clockTime(t) : ""}</span>
         </span>
-        <span className="pa-row__rival">
+        <span className="spa-row__rival">
           <span className="sc-rival">
             <i aria-hidden="true">{(m.rivalInitials || opponentInitials(rival)).slice(0, 2)}</i>
-            <span className="sc-morph pa-row__name" style={{ viewTransitionName: matchVt(m.id) }}>
+            <span className="sc-morph spa-row__name" style={{ viewTransitionName: matchVt(m.id) }}>
               {rival}
             </span>
           </span>
           {tag && <span className="sc-tag sc-tag--quiet">{tag}</span>}
           {isNow && <span className="sc-tag sc-tag--toca">Ahora</span>}
         </span>
-        <span className="pa-row__where">{m.home === false ? "Fuera" : "Casa"}</span>
-        <span className={`pa-row__res${phase === "pendiente" ? " is-toca" : ""}`}>
+        <span className="spa-row__where">{m.home === false ? "Fuera" : "Casa"}</span>
+        <span className={`spa-row__res${phase === "pendiente" ? " is-toca" : ""}`}>
           {sc ? (
             <>
               {letter && <span className={`sc-res sc-res--${letter}`}>{letter}</span>}
               {isLive(phase) && <span className="sc-tag sc-tag--live">En juego</span>}
-              <b className="sc-score pa-row__score">{score}</b>
+              <b className="sc-score spa-row__score">{score}</b>
             </>
           ) : (
-            <span className="pa-row__restext">{resText}</span>
+            <span className="spa-row__restext">{resText}</span>
           )}
         </span>
-        <span className="pa-row__carril">
-          <MiniCarril stations={stations} current={station} className="pa-mini" />
+        <span className="spa-row__carril">
+          <MiniCarril stations={stations} current={station} className="spa-mini" />
         </span>
-        <span className="pa-xl pa-row__x">{m.venue ? venueName(m.venue) : "—"}</span>
-        <span className="pa-xl pa-row__x">{m.mesa?.name || "—"}</span>
-        <span className="pa-xl pa-row__x">{mvp}</span>
+        <span className="spa-xl spa-row__x">{m.venue ? venueName(m.venue) : "—"}</span>
+        <span className="spa-xl spa-row__x">{m.mesa?.name || "—"}</span>
+        <span className="spa-xl spa-row__x">{mvp}</span>
       </SalaLink>
     </li>
   );

@@ -67,8 +67,8 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await expect(page.getByText("Análisis incorporado al borrador · se guarda con el acta")).toBeVisible();
     await expect(editor.getByRole("region", { name: "Observaciones detalladas" })).toContainText("3 observaciones del análisis");
     // (only a draft so far: «Ir a publicar», then «Publicar el acta» says what it does)
-    await page.locator(".ac-foot").getByRole("button", { name: "Ir a publicar", exact: true }).click();
-    await page.locator(".ac-foot").getByRole("button", { name: "Publicar el acta", exact: true }).click();
+    await page.locator(".sac-foot").getByRole("button", { name: "Ir a publicar", exact: true }).click();
+    await page.locator(".sac-foot").getByRole("button", { name: "Publicar el acta", exact: true }).click();
     await page.getByRole("dialog", { name: /^¿Publicar el acta de la/ }).getByRole("button", { name: "Publicar el acta" }).click();
     await expect(page.getByRole("region", { name: "Después del partido", exact: true })).toBeVisible();
 

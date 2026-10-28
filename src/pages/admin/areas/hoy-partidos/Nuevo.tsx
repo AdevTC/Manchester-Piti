@@ -109,7 +109,7 @@ export function NuevoSheet() {
       onClose={close}
       title="Nuevo partido"
       initialFocus={rivalRef}
-      className="pa-new"
+      className="spa-new"
       footer={
         <>
           <button type="button" className="vd-btn vd-glass vd-press" onClick={close} aria-disabled={busy || undefined}>
@@ -125,7 +125,7 @@ export function NuevoSheet() {
       }
     >
       <form
-        className="sc-form sc-form--1 pa-form"
+        className="sc-form sc-form--1 spa-form"
         aria-busy={busy}
         noValidate
         onSubmit={(e) => {
@@ -172,7 +172,7 @@ export function NuevoSheet() {
             </select>
           </label>
         )}
-        <div className="pa-pair">
+        <div className="spa-pair">
           <label className="sc-field">
             <span>Fecha</span>
             <input className="vd-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-invalid={tried === "fecha" || undefined} />
@@ -182,15 +182,15 @@ export function NuevoSheet() {
             <input className="vd-input" type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-invalid={tried === "fecha" || undefined} />
           </label>
         </div>
-        {!date && time && <p className="sc-small pa-note">Falta la fecha · la hora se queda puesta.</p>}
+        {!date && time && <p className="sc-small spa-note">Falta la fecha · la hora se queda puesta.</p>}
         {tried === "fecha" && (
-          <p className="sc-small pa-bad" role="alert">
+          <p className="sc-small spa-bad" role="alert">
             Pon una fecha y una hora válidas.
           </p>
         )}
         <div className="sc-field">
           <span id={`${id}-c`}>Condición</span>
-          <div className="pa-two" role="group" aria-labelledby={`${id}-c`}>
+          <div className="spa-two" role="group" aria-labelledby={`${id}-c`}>
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-pressed={home} onClick={() => setHome(true)}>
               Local
             </button>
@@ -202,7 +202,7 @@ export function NuevoSheet() {
         </div>
         <div className="sc-field">
           <span id={`${id}-k`}>Competición</span>
-          <div className="pa-two pa-three" role="group" aria-labelledby={`${id}-k`}>
+          <div className="spa-two spa-three" role="group" aria-labelledby={`${id}-k`}>
             {COMPETITIONS.map((c) => (
               <button key={c} type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-pressed={comp === c} onClick={() => setComp(c)}>
                 {c}
@@ -228,11 +228,11 @@ export function NuevoSheet() {
             <input className="vd-input" type="text" maxLength={120} placeholder="Se puede dejar para luego" value={venueOther} onChange={(e) => setVenueOther(e.target.value)} />
           </label>
         )}
-        <p className="sc-small pa-note">
+        <p className="sc-small spa-note">
           Iniciales: <b>{rv ? opponentInitials(rv) : "—"}</b> · el campo, los anotadores y el resto, en Datos.
         </p>
         {error && (
-          <p className="sc-small pa-bad" role="alert">
+          <p className="sc-small spa-bad" role="alert">
             {error}
           </p>
         )}

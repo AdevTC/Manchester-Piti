@@ -9,9 +9,9 @@ const hint = (mode: MapMode, isMain: boolean, isAlso: boolean) =>
 
 export function Mapa({ value, mode, label, onTap, was, alta }: { value: PositionSet; mode: MapMode; label: string; onTap?: (c: PosCode) => void; was?: PositionSet; alta?: boolean }) {
   return (
-    <div className={`pl-map${alta ? " pl-map--alta" : ""}`} role="group" aria-label={label}>
-      <span className="pl-map__half" aria-hidden="true" />
-      <span className="pl-map__box" aria-hidden="true" />
+    <div className={`spl-map${alta ? " spl-map--alta" : ""}`} role="group" aria-label={label}>
+      <span className="spl-map__half" aria-hidden="true" />
+      <span className="spl-map__box" aria-hidden="true" />
       {SPOTS.map((s) => {
         const isMain = value.main === s.c;
         const isAlso = value.also.includes(s.c);
@@ -21,7 +21,7 @@ export function Mapa({ value, mode, label, onTap, was, alta }: { value: Position
           <button
             key={s.c}
             type="button"
-            className={`pl-pos${isMain ? " is-main" : isAlso ? " is-also" : ""}${wasOn && !isMain && !isAlso ? " is-was" : ""}`}
+            className={`spl-pos${isMain ? " is-main" : isAlso ? " is-also" : ""}${wasOn && !isMain && !isAlso ? " is-was" : ""}`}
             style={{ left: `${s.x}%`, top: `${s.y}%` }}
             aria-pressed={isMain || isAlso}
             aria-label={`${s.c}, ${POSITIONS[s.c].name.toLocaleLowerCase("es")}${state}${onTap ? ` · toca para ${hint(mode, isMain, isAlso)}` : ""}`}

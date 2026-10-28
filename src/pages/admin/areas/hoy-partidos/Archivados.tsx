@@ -48,8 +48,8 @@ function Archive({ id }: { id: string | null }) {
   const back = id && !desktop ? { to: "/admin/partidos/archivados", label: "Volver a Archivados" } : { to: "/admin/partidos", label: "Volver a Partidos" };
   if (data.archivesError && !list.length) return <ScreenError what="los partidos archivados" onRetry={() => window.location.reload()} />;
   const listRegion = (
-    <Region title="Partidos archivados" count={loading ? "…" : String(list.length)} className="pa-arch__list">
-      <label className="pa-search">
+    <Region title="Partidos archivados" count={loading ? "…" : String(list.length)} className="spa-arch__list">
+      <label className="spa-search">
         <span className="vd-vh">Buscar partido archivado</span>
         <VIcon name="search" size={18} className="sc-i" />
         <input className="vd-input" type="search" placeholder="Buscar rival archivado" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
@@ -57,27 +57,27 @@ function Archive({ id }: { id: string | null }) {
       {loading ? (
         <ScreenLoading label="Cargando los archivados" />
       ) : (
-        <ol className="sc-rows pa-arows">
+        <ol className="sc-rows spa-arows">
           {shown.map((m) => (
             <ArchRow key={m.id} m={m} current={m.id === id} />
           ))}
         </ol>
       )}
-      {!loading && !list.length && <p className="pa-empty">No hay partidos archivados. Los que archives aparecerán aquí para consultarlos o reactivarlos.</p>}
-      {!loading && list.length > 0 && !shown.length && <p className="pa-empty">Ningún partido archivado con «{q}».</p>}
+      {!loading && !list.length && <p className="spa-empty">No hay partidos archivados. Los que archives aparecerán aquí para consultarlos o reactivarlos.</p>}
+      {!loading && list.length > 0 && !shown.length && <p className="spa-empty">Ningún partido archivado con «{q}».</p>}
     </Region>
   );
   const detail = (
-    <Region label="El partido archivado" className="pa-arch__one">
-      {!id && <p className="pa-empty pa-arch__hint">Elige uno de la lista para ver su acta en solo lectura.</p>}
-      {id && !one && !loading && <p className="pa-empty">Ese partido ya no está en el archivo.</p>}
+    <Region label="El partido archivado" className="spa-arch__one">
+      {!id && <p className="spa-empty spa-arch__hint">Elige uno de la lista para ver su acta en solo lectura.</p>}
+      {id && !one && !loading && <p className="spa-empty">Ese partido ya no está en el archivo.</p>}
       {one && <ArchDetail m={one} />}
     </Region>
   );
   return (
-    <SalaScreen title={title} headTitle={id ? title : "Archivados"} kicker={!id ? <SalaLink className="vd-link pa-up" to="/admin/partidos">‹ Partidos</SalaLink> : undefined} lede={id ? undefined : lede} headSub={id ? "Archivado" : `${plural(list.length, "partido", "partidos")} fuera del calendario`} back={back} fit className="pa pa-arch">
+    <SalaScreen title={title} headTitle={id ? title : "Archivados"} kicker={!id ? <SalaLink className="vd-link spa-up" to="/admin/partidos">‹ Partidos</SalaLink> : undefined} lede={id ? undefined : lede} headSub={id ? "Archivado" : `${plural(list.length, "partido", "partidos")} fuera del calendario`} back={back} fit className="spa spa-arch">
       {desktop ? (
-        <div className="sc-split pa-arch__grid">
+        <div className="sc-split spa-arch__grid">
           {listRegion}
           {detail}
         </div>
@@ -105,11 +105,11 @@ function ArchRow({ m, current }: { m: ArchivedMatch; current: boolean }) {
     <li>
       <SalaLink
         to={`/admin/partidos/archivados/${m.id}`}
-        className="sc-row sc-row--btn pa-arow"
+        className="sc-row sc-row--btn spa-arow"
         aria-current={current ? "page" : undefined}
         aria-label={`Archivado: Manchester Piti ${score ? `${score} ` : ""}${rival}, ${Number.isFinite(t) ? `${DayLong(t)} de ${yearOf(t)}` : "sin fecha"}, ${season}, ${why(m).toLowerCase()}${m.published ? "" : ", borrador"}`}
       >
-        <span className="pa-arow__when">
+        <span className="spa-arow__when">
           <b>{Number.isFinite(t) ? DayLong(t).split(" ").slice(1).join(" ") : "—"}</b>
           <span>{Number.isFinite(t) ? yearOf(t) : ""}</span>
         </span>
@@ -123,7 +123,7 @@ function ArchRow({ m, current }: { m: ArchivedMatch; current: boolean }) {
             {!m.published ? " · borrador" : m.draft ? " · con borrador" : ""}
           </span>
         </span>
-        <span className="pa-arow__res">
+        <span className="spa-arow__res">
           {letter && <span className={`sc-res sc-res--${letter}`}>{letter}</span>}
           <b className="sc-score">{score ?? "sin acta"}</b>
         </span>
@@ -178,19 +178,19 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
   };
   const lede = Number.isFinite(t) ? `${DayLong(t)} de ${yearOf(t)} · ${clockTime(t)}` : "Sin fecha";
   return (
-    <div className="pa-arch__d">
+    <div className="spa-arch__d">
       <p className="sc-k">Archivado · {seasonName}</p>
-      <h2 className="sc-h2 pa-arch__t">
+      <h2 className="sc-h2 spa-arch__t">
         Manchester Piti {score ?? "–"} {rival}
       </h2>
       <p className="sc-small">
         {lede} · {m.individuallyArchived ? `Archivado a mano${m.draft || !m.published ? " · con borrador" : ""}` : "Su temporada está archivada"}
       </p>
-      <p className="pa-ro">
+      <p className="spa-ro">
         <span className="sc-tag sc-tag--quiet">Solo lectura</span>
         <span>No aparece en el calendario ni suma a las estadísticas. Conserva sus eventos, votos y porras.</span>
       </p>
-      <dl className="pa-dl">
+      <dl className="spa-dl">
         {facts.map((x) => (
           <div key={x.k}>
             <dt>{x.k}</dt>
@@ -199,10 +199,10 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
         ))}
       </dl>
       {events.length > 0 && (
-        <ol className="sc-rows pa-arch__ev" aria-label="Eventos del acta archivada">
+        <ol className="sc-rows spa-arch__ev" aria-label="Eventos del acta archivada">
           {events.map((e) => (
-            <li key={e.id} className="sc-row pa-play">
-              <span className="pa-play__min sc-clock">{eventMinute(e) == null ? "—" : `${eventMinute(e)}′`}</span>
+            <li key={e.id} className="sc-row spa-play">
+              <span className="spa-play__min sc-clock">{eventMinute(e) == null ? "—" : `${eventMinute(e)}′`}</span>
               <span className="sc-row__t">
                 <b>
                   {EVENT_LABELS[e.type] ?? e.type}
@@ -216,20 +216,20 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
         </ol>
       )}
       {m.report?.trim() && (
-        <section className="pa-arch__cr" aria-label="La crónica">
+        <section className="spa-arch__cr" aria-label="La crónica">
           <h3 className="sc-h3">La crónica</h3>
           <p className="sc-p">{m.report}</p>
         </section>
       )}
-      <div className="pa-arch__a">
-        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" aria-disabled={blocked || undefined} aria-describedby="pa-react-why" aria-haspopup="dialog" onClick={() => (blocked ? status.show({ tone: "error", message: `No se puede: reactiva primero «${seasonName}» desde Club › Temporadas.` }) : setAsk("react"))}>
+      <div className="spa-arch__a">
+        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" aria-disabled={blocked || undefined} aria-describedby="spa-react-why" aria-haspopup="dialog" onClick={() => (blocked ? status.show({ tone: "error", message: `No se puede: reactiva primero «${seasonName}» desde Club › Temporadas.` }) : setAsk("react"))}>
           Reactivar
         </button>
-        <button type="button" className="vd-btn vd-glass vd-press pa-danger" aria-haspopup="dialog" onClick={() => setAsk("del")}>
+        <button type="button" className="vd-btn vd-glass vd-press spa-danger" aria-haspopup="dialog" onClick={() => setAsk("del")}>
           Borrar definitivamente
         </button>
       </div>
-      <p className="sc-small pa-why" id="pa-react-why">
+      <p className="sc-small spa-why" id="spa-react-why">
         {reactWhy}
       </p>
       <SalaSheet
@@ -237,7 +237,7 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
         center
         onClose={() => !busy && setAsk(null)}
         title={`¿Reactivar el partido contra ${rival}?`}
-        className="pa-dlg"
+        className="spa-dlg"
         footer={
           <>
             <button type="button" className="vd-btn vd-glass vd-press" onClick={() => setAsk(null)} aria-disabled={busy || undefined}>
@@ -250,12 +250,12 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
         }
       >
         <p className="sc-p">{lede}</p>
-        <ul className="pa-cons">
+        <ul className="spa-cons">
           <li>{m.published ? "Vuelve al calendario y a la web" : "Vuelve como borrador: sigue sin salir en el calendario hasta que lo publiques"}</li>
           <li>Suma otra vez a las estadísticas, los perfiles y el MVP</li>
         </ul>
         {error && (
-          <p className="sc-small pa-bad" role="alert">
+          <p className="sc-small spa-bad" role="alert">
             {error}
           </p>
         )}
@@ -266,20 +266,20 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
         alert
         onClose={() => !busy && setAsk(null)}
         title={`¿Borrar definitivamente ${rival}?`}
-        className="pa-dlg"
+        className="spa-dlg"
         footer={
           <>
             <button type="button" className="vd-btn vd-glass vd-press" onClick={() => setAsk(null)} aria-disabled={busy || undefined}>
               Cancelar
             </button>
-            <button type="button" className="vd-btn vd-glass vd-press pa-danger" onClick={() => void run("del")} aria-disabled={busy || undefined}>
+            <button type="button" className="vd-btn vd-glass vd-press spa-danger" onClick={() => void run("del")} aria-disabled={busy || undefined}>
               {busy ? "Borrando…" : "Borrar partido"}
             </button>
           </>
         }
       >
         <p className="sc-p">{lede}</p>
-        <ul className="pa-cons">
+        <ul className="spa-cons">
           <li>Se borran su acta, sus eventos, votos y porras</li>
           <li>Sus minutos y goles desaparecen de los perfiles</li>
           <li>
@@ -287,7 +287,7 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
           </li>
         </ul>
         {error && (
-          <p className="sc-small pa-bad" role="alert">
+          <p className="sc-small spa-bad" role="alert">
             {error}
           </p>
         )}

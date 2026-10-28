@@ -196,10 +196,10 @@ function Datos() {
   const busy = !!s.busy;
 
   return (
-    <div className="pa-datos">
-      <div className="pa-dscroll">
+    <div className="spa-datos">
+      <div className="spa-dscroll">
         {s.clash && (
-          <p className="pa-pend" role="status">
+          <p className="spa-pend" role="status">
             <b>{s.clash.kind === "mesa" ? `La mesa ha mandado ${plural(s.clash.count, "jugada", "jugadas")}` : "Otro capitán ha cambiado este partido"}</b>
             <span className="sc-small">{s.clash.lines.slice(0, 2).join(" · ")}</span>
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={s.takeIn}>
@@ -208,8 +208,8 @@ function Datos() {
           </p>
         )}
         {pend && (
-          <section className="pa-pend" aria-labelledby="pa-pend-t">
-            <h2 className="sc-h2" id="pa-pend-t">
+          <section className="spa-pend" aria-labelledby="spa-pend-t">
+            <h2 className="sc-h2" id="spa-pend-t">
               ¿Qué pasó con la {j}?
             </h2>
             <p className="sc-p">
@@ -228,8 +228,8 @@ function Datos() {
             </div>
           </section>
         )}
-        <div className="pa-dgrid">
-          <section className="pa-dsec" aria-labelledby={`${id}-d1`}>
+        <div className="spa-dgrid">
+          <section className="spa-dsec" aria-labelledby={`${id}-d1`}>
             <h2 className="sc-h3" id={`${id}-d1`}>
               El rival
             </h2>
@@ -255,13 +255,13 @@ function Datos() {
                 {err.code && <small className="is-bad">{err.code}</small>}
                 <small>De 2 a 4 letras, para la mesa y el directo. Vacío: {rivalCode(sheet.rival || "Rival")}.</small>
               </label>
-              <div className="sc-field sc-field--wide pa-logo">
+              <div className="sc-field sc-field--wide spa-logo">
                 <label className="sc-field">
                   <span>Escudo del rival (HTTPS, opcional)</span>
                   <input className="vd-input" type="url" placeholder="https://…" value={logo} onChange={(e) => set("rivalLogoUrl", e.target.value)} aria-invalid={!!err.logo || undefined} />
                 </label>
                 {logo && !err.logo && (
-                  <p className="pa-logo__p">
+                  <p className="spa-logo__p">
                     <img src={logo} alt="El escudo del rival, tal como sale en la web" width={44} height={44} />
                     <small className="is-ok">Se ve bien</small>
                   </p>
@@ -271,7 +271,7 @@ function Datos() {
             </div>
           </section>
 
-          <section className="pa-dsec" aria-labelledby={`${id}-d2`}>
+          <section className="spa-dsec" aria-labelledby={`${id}-d2`}>
             <h2 className="sc-h3" id={`${id}-d2`}>
               Cuándo
             </h2>
@@ -293,7 +293,7 @@ function Datos() {
               </label>
               <div className="sc-field">
                 <span id={`${id}-comp`}>Competición</span>
-                <div className="pa-two pa-three" role="group" aria-labelledby={`${id}-comp`}>
+                <div className="spa-two spa-three" role="group" aria-labelledby={`${id}-comp`}>
                   {COMPETITIONS.map((c) => (
                     <button key={c} type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-pressed={sheet.competition === c} onClick={() => set("competition", c)}>
                       {c}
@@ -318,12 +318,12 @@ function Datos() {
               <p className="sc-small sc-field--wide">Jornada: {m.jornada ? `J${m.jornada} · se numera sola por la fecha entre los partidos del calendario` : "sin jornada: la tendrá al publicarlo en el calendario"}.</p>
             </div>
             {askSeason && (
-              <div className="pa-ask vd-glass" role="alertdialog" aria-labelledby={`${id}-ask`}>
+              <div className="spa-ask vd-glass" role="alertdialog" aria-labelledby={`${id}-ask`}>
                 <h3 className="sc-h3" id={`${id}-ask`}>
                   ¿Pasar a la {data.seasons.find((x) => x.id === askSeason)?.name ?? "otra temporada"}?
                 </h3>
                 <p className="sc-small">Cada temporada tiene su plantilla: la convocatoria y el acta empiezan de cero.</p>
-                <ul className="pa-cons">
+                <ul className="spa-cons">
                   {called > 0 && <li>Se vacía la convocatoria ({plural(called, "jugador asignado", "jugadores asignados")})</li>}
                   {nEv > 0 && <li>Se borran {plural(nEv, "evento", "eventos")} y el marcador vuelve a 0–0</li>}
                   <li>No se guarda hasta que pulses «Guardar»</li>
@@ -334,7 +334,7 @@ function Datos() {
                   </button>
                   <button
                     type="button"
-                    className="vd-btn vd-glass vd-press pa-danger"
+                    className="vd-btn vd-glass vd-press spa-danger"
                     onClick={() => {
                       s.update((x) => changeSeason(x, askSeason));
                       setAskSeason(null);
@@ -347,7 +347,7 @@ function Datos() {
             )}
           </section>
 
-          <section className="pa-dsec" aria-labelledby={`${id}-d3`}>
+          <section className="spa-dsec" aria-labelledby={`${id}-d3`}>
             <h2 className="sc-h3" id={`${id}-d3`}>
               Dónde
             </h2>
@@ -380,7 +380,7 @@ function Datos() {
               )}
               <div className="sc-field">
                 <span id={`${id}-cond`}>Condición</span>
-                <div className="pa-two" role="group" aria-labelledby={`${id}-cond`}>
+                <div className="spa-two" role="group" aria-labelledby={`${id}-cond`}>
                   <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-pressed={sheet.home !== false} onClick={() => s.update((x) => ({ ...x, home: true, kit: "home" }))}>
                     Local
                   </button>
@@ -391,9 +391,9 @@ function Datos() {
               </div>
               <div className="sc-field">
                 <span id={`${id}-kit`}>Equipación</span>
-                <div className="pa-kit">
+                <div className="spa-kit">
                   <Shirt blank={false} kit={kitSrc} size="s" who={{ name: "", number: "" }} />
-                  <div className="pa-two" role="group" aria-labelledby={`${id}-kit`}>
+                  <div className="spa-two" role="group" aria-labelledby={`${id}-kit`}>
                     <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-pressed={kitSrc === "home"} onClick={() => set("kit", "home")}>
                       1ª celeste
                     </button>
@@ -406,11 +406,11 @@ function Datos() {
             </div>
           </section>
 
-          <section className="pa-dsec" aria-labelledby={`${id}-d4`}>
+          <section className="spa-dsec" aria-labelledby={`${id}-d4`}>
             <h2 className="sc-h3" id={`${id}-d4`}>
               Estado
             </h2>
-            <div className="vd-seg vd-glass pa-seg pa-seg--3" role="radiogroup" aria-labelledby={`${id}-d4`} style={{ "--n": 3, "--i": ESTADOS.findIndex((x) => x[0] === estado) } as CSSProperties}>
+            <div className="vd-seg vd-glass spa-seg spa-seg--3" role="radiogroup" aria-labelledby={`${id}-d4`} style={{ "--n": 3, "--i": ESTADOS.findIndex((x) => x[0] === estado) } as CSSProperties}>
               <span className="vd-shelf__bead" aria-hidden="true" />
               {ESTADOS.map(([k, label]) => (
                 <button key={k} type="button" role="radio" className="vd-seg__b" aria-checked={estado === k} onClick={() => setEstado(k)}>
@@ -419,7 +419,7 @@ function Datos() {
               ))}
             </div>
             {estado === "aplazado" && (
-              <div className="sc-form pa-apl">
+              <div className="sc-form spa-apl">
                 <label className="sc-field sc-field--wide">
                   <span>Motivo del aplazamiento</span>
                   <input className="vd-input" type="text" maxLength={POSTPONED_REASON_MAX} placeholder="Campo inundado, falta de árbitro…" value={sheet.postponedReason ?? ""} onChange={(e) => set("postponedReason", e.target.value)} aria-invalid={!!err.reason || undefined} />
@@ -435,22 +435,22 @@ function Datos() {
                 </label>
                 <p className="sc-small sc-field--wide">
                   {postponed.date ? `Al guardar avisamos a quien sigue las fechas y el calendario lo mueve al ${isoDay(postponed.date)}.` : "Sin nueva fecha: en la web sale «por decidir»."}{" "}
-                  <button type="button" className="vd-link pa-mini-link" onClick={() => set("postponedTo", null)}>
+                  <button type="button" className="vd-link spa-mini-link" onClick={() => set("postponedTo", null)}>
                     Por decidir
                   </button>
                 </p>
               </div>
             )}
-            {estado === "cancelado" && <p className="sc-small pa-apl">No cuenta para las estadísticas; en la web sale como cancelado{draft ? " (es un borrador: no sale en ningún sitio)" : ""}.</p>}
+            {estado === "cancelado" && <p className="sc-small spa-apl">No cuenta para las estadísticas; en la web sale como cancelado{draft ? " (es un borrador: no sale en ningún sitio)" : ""}.</p>}
           </section>
 
-          <section className="pa-dsec" aria-labelledby={`${id}-d5`}>
+          <section className="spa-dsec" aria-labelledby={`${id}-d5`}>
             <h2 className="sc-h3" id={`${id}-d5`}>
               Quién anota en la mesa
             </h2>
             <p className="sc-small">{scorerNames.length ? `Lo anota ${scorerNames.join(" y ")} desde la mesa` : "Nadie anota todavía: los capitanes pueden hacerlo siempre"}.</p>
-            {draft && <p className="sc-small pa-bad">Es un borrador: los anotadores se eligen cuando el partido esté en el calendario (la mesa solo abre partidos publicados).</p>}
-            <div className="sc-chips pa-people">
+            {draft && <p className="sc-small spa-bad">Es un borrador: los anotadores se eligen cuando el partido esté en el calendario (la mesa solo abre partidos publicados).</p>}
+            <div className="sc-chips spa-people">
               {people.map((u) => {
                 const on = scorers.includes(u.uid);
                 const name = u.nickname || u.displayName || "Socio";
@@ -465,7 +465,7 @@ function Datos() {
             {!people.length && <p className="sc-small">Nadie más en el vestuario: solo los capitanes, que ya pueden anotar siempre.</p>}
           </section>
 
-          <section className="pa-dsec" aria-labelledby={`${id}-d6`}>
+          <section className="spa-dsec" aria-labelledby={`${id}-d6`}>
             <h2 className="sc-h3" id={`${id}-d6`}>
               Vídeo y el tiempo
             </h2>
@@ -477,14 +477,14 @@ function Datos() {
                 {err.video && <small className="is-bad">{err.video}</small>}
                 {!video && <small>Pega el enlace del vídeo y su página tendrá el botón para verlo</small>}
               </label>
-              <p className="sc-field sc-field--wide pa-weather">
+              <p className="sc-field sc-field--wide spa-weather">
                 <span>El tiempo</span>
                 <b>{weather}</b>
                 <small>Lo pone el servidor al empezar; no se edita</small>
               </p>
               <p className="sc-small sc-field--wide">
                 La nota de quedada vive en la{" "}
-                <SalaLink className="vd-link pa-mini-link" to={`${base}/convocatoria`}>
+                <SalaLink className="vd-link spa-mini-link" to={`${base}/convocatoria`}>
                   convocatoria
                 </SalaLink>
                 : es la única y la ve todo el equipo.
@@ -494,9 +494,9 @@ function Datos() {
         </div>
       </div>
 
-      <footer className="pa-foot vd-glass" role="group" aria-label="Guardar los datos">
-        <p className="pa-foot__s" aria-live="polite">
-          <b className="pa-dirty">{s.dirty || s.saveLine !== "Sin guardar todavía" ? s.saveLine : draft ? "Borrador guardado" : "Guardado"}</b>
+      <footer className="spa-foot vd-glass" role="group" aria-label="Guardar los datos">
+        <p className="spa-foot__s" aria-live="polite">
+          <b className="spa-dirty">{s.dirty || s.saveLine !== "Sin guardar todavía" ? s.saveLine : draft ? "Borrador guardado" : "Guardado"}</b>
           <span>{footWhy}</span>
         </p>
         {s.dirty && (

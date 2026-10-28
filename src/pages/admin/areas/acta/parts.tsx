@@ -64,9 +64,9 @@ export function ActaNav({ on }: { on: "" | "narracion" | "historial" }) {
     ["historial", "Historial"],
   ];
   return (
-    <nav className="ac-tabs" aria-label="El acta">
+    <nav className="sac-tabs" aria-label="El acta">
       {tabs.map(([k, t]) => (
-        <SalaLink key={k || "acta"} to={`${base}/acta${k ? `/${k}` : ""}`} className={`ac-tab${on === k ? " is-on" : ""}`} aria-current={on === k ? "page" : undefined}>
+        <SalaLink key={k || "acta"} to={`${base}/acta${k ? `/${k}` : ""}`} className={`sac-tab${on === k ? " is-on" : ""}`} aria-current={on === k ? "page" : undefined}>
           {t}
         </SalaLink>
       ))}
@@ -80,14 +80,14 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
   const c = s.clash;
   const draftBar = s.serverDraft && !s.dirty && !c;
   return (
-    <div className="ac-bars">
+    <div className="sac-bars">
       {c && c.kind !== "mesa" && (
-        <div className="ac-bar is-mal" role="alert">
-          <p className="ac-bar__t">
+        <div className="sac-bar is-mal" role="alert">
+          <p className="sac-bar__t">
             <b>{c.kind === "draft" ? "Lo publicado ha cambiado desde que se guardó este borrador" : "Otro capitán ha cambiado este partido mientras editabas"}</b>
             <span>Tus cambios siguen aquí: recarga y se conservan, o descarta el borrador y vuelve a lo {s.published ? "publicado" : "guardado"}.</span>
           </p>
-          <div className="ac-bar__a">
+          <div className="sac-bar__a">
             {c.lines.length > 0 && (
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
                 Ver qué cambió
@@ -97,13 +97,13 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
               Recargar y conservar mis cambios
             </button>
             {(s.serverDraft || s.dirty) && (
-              <button type="button" className="vd-link ac-link" onClick={() => void s.discardDraft()} aria-disabled={s.busy === "discard" || undefined}>
+              <button type="button" className="vd-link sac-link" onClick={() => void s.discardDraft()} aria-disabled={s.busy === "discard" || undefined}>
                 {s.serverDraft && s.match.published ? "Descartar borrador" : "Descartar mis cambios"}
               </button>
             )}
           </div>
           {open && (
-            <ul className="ac-bar__list">
+            <ul className="sac-bar__list">
               {c.lines.map((l) => (
                 <li key={l}>{l}</li>
               ))}
@@ -112,28 +112,28 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
         </div>
       )}
       {s.offer && (
-        <div className="ac-bar" role="status">
-          <p className="ac-bar__t">
+        <div className="sac-bar" role="status">
+          <p className="sac-bar__t">
             <b>Hay cambios sin guardar en este dispositivo</b>
             <span>{s.offer.line}</span>
           </p>
-          <div className="ac-bar__a">
+          <div className="sac-bar__a">
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm vd-btn--pri" onClick={s.recover}>
               Recuperar cambios sin guardar de las {clockTime(s.offer.at)}
             </button>
-            <button type="button" className="vd-link ac-link" onClick={s.dismissOffer}>
+            <button type="button" className="vd-link sac-link" onClick={s.dismissOffer}>
               Descartar
             </button>
           </div>
         </div>
       )}
       {c?.kind === "mesa" && (
-        <div className="ac-bar" role="status">
-          <p className="ac-bar__t">
+        <div className="sac-bar" role="status">
+          <p className="sac-bar__t">
             <b>Hay {c.count === 1 ? "1 jugada nueva" : `${c.count} jugadas nuevas`} de la mesa</b>
             <span>Llegaron mientras editabas. Se incorporan y se conservan tus cambios.</span>
           </p>
-          <div className="ac-bar__a">
+          <div className="sac-bar__a">
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm vd-btn--pri" onClick={s.takeIn}>
               Incorporar
             </button>
@@ -141,20 +141,20 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
         </div>
       )}
       {draftBar && (
-        <div className="ac-bar" role="status">
-          <p className="ac-bar__t">
+        <div className="sac-bar" role="status">
+          <p className="sac-bar__t">
             <b>{s.published ? "Borrador encima de lo publicado" : "Borrador guardado"}</b>
             <span>
               {s.draftAt ? `Guardado ${clockTime(s.draftAt)} · ` : ""}
               {s.published ? "la web sigue enseñando lo publicado." : "solo lo ven los capitanes."}
             </span>
           </p>
-          <div className="ac-bar__a">
+          <div className="sac-bar__a">
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={onPublishTo}>
               {s.published ? "Publicar la corrección" : "Ir a publicar"}
             </button>
             {s.match.published && (
-              <button type="button" className="vd-link ac-link" onClick={() => void s.discardDraft()} aria-disabled={s.busy === "discard" || undefined}>
+              <button type="button" className="vd-link sac-link" onClick={() => void s.discardDraft()} aria-disabled={s.busy === "discard" || undefined}>
                 Descartar borrador
               </button>
             )}
@@ -168,9 +168,9 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
 /** A minute box (digits only, ≤ 150): «12′». */
 export function MinuteBox({ value, label, onChange, id }: { value: number | undefined; label: string; onChange: (text: string) => void; id?: string }) {
   return (
-    <span className="ac-min">
-      <input className="vd-input ac-min__in" data-minute={id} aria-label={label} type="text" inputMode="numeric" maxLength={3} placeholder="min" value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
-      <span className="ac-min__u" aria-hidden="true">
+    <span className="sac-min">
+      <input className="vd-input sac-min__in" data-minute={id} aria-label={label} type="text" inputMode="numeric" maxLength={3} placeholder="min" value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+      <span className="sac-min__u" aria-hidden="true">
         ′
       </span>
     </span>
@@ -180,7 +180,7 @@ export function MinuteBox({ value, label, onChange, id }: { value: number | unde
 /** «Ir a los datos del partido», «Abrir la mesa»… the empty states of a station. */
 export function ActaEmpty({ title, body, kicker, children }: { title: string; body: string; kicker?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="ac-empty">
+    <div className="sac-empty">
       {kicker}
       <h2 className="sc-h2">{title}</h2>
       <p className="sc-p">{body}</p>
@@ -194,9 +194,9 @@ export function ActaFoot({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
   const reason = footReason(s.review, s.published, s.dirty);
   const priOff = s.published ? !s.dirty && !s.serverDraft : false;
   return (
-    <footer className="ac-foot sc-primary sc-primary--pin" role="status" aria-live="polite">
-      <p className="ac-foot__s">
-        <b className="ac-foot__line">{s.saveLine}</b>
+    <footer className="sac-foot sc-primary sc-primary--pin" role="status" aria-live="polite">
+      <p className="sac-foot__s">
+        <b className="sac-foot__line">{s.saveLine}</b>
         <span>{reason}</span>
       </p>
       <button type="button" className="vd-btn vd-glass vd-press" onClick={() => void s.saveDraft()} aria-disabled={!!s.busy || undefined}>

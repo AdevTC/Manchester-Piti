@@ -138,7 +138,7 @@ describe("Socios", () => {
 
     // Dentro: the general first, then the captains and the socios; locks in words
     const dentro = within(section("Dentro")).getAllByRole("list")[0];
-    const [adrian, erik, kevin11] = within(dentro).getAllByRole("listitem").filter((li) => li.classList.contains("pl-person"));
+    const [adrian, erik, kevin11] = within(dentro).getAllByRole("listitem").filter((li) => li.classList.contains("spl-person"));
     expect(adrian).toHaveTextContent("@adrian_tc · tú Capitán general");
     expect(adrian).toHaveTextContent("ADRIÁN T.C. · 10");
     expect(adrian).toHaveTextContent("Entró con la clave del vestuario · desde el 1 sept");
@@ -149,7 +149,7 @@ describe("Socios", () => {
     expect(within(erik).getByRole("button", { name: "Quitar el acceso a @erik9" })).toHaveAttribute("aria-expanded", "false");
     expect(kevin11).toHaveTextContent("@kevin11 Socio");
     expect(kevin11).toHaveTextContent("Sin ficha");
-    expect(kevin11.querySelector(".pl-ini")).toHaveTextContent("K");
+    expect(kevin11.querySelector(".spl-ini")).toHaveTextContent("K");
     expect(kevin11).toHaveTextContent("Llamó a la puerta y le abrió erik9 · desde el 2 oct");
     expect(screen.queryByText(/sin acceso$/)).toBeNull();
 

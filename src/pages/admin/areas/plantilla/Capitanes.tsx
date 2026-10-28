@@ -160,9 +160,9 @@ function Capitanes({ data }: { data: AdminData }) {
     const give = act === "dar";
     const label = `${give ? "Dar el brazalete a" : "Quitar el brazalete a"} ${handleOf(m)}`;
     return (
-      <li key={m.uid} className="pl-person">
+      <li key={m.uid} className="spl-person">
         <div className="sc-row">
-          <span className={`pl-ini${hasArm ? ` pl-ini--arm is-${m.r}` : ""}`} aria-hidden="true">
+          <span className={`spl-ini${hasArm ? ` spl-ini--arm is-${m.r}` : ""}`} aria-hidden="true">
             {initialOf(m)}
             {hasArm && <b>C</b>}
           </span>
@@ -172,19 +172,19 @@ function Capitanes({ data }: { data: AdminData }) {
             {hasArm && m.email && <span>{m.email}</span>}
           </span>
           {act === "protegido" && (
-            <span className="pl-lock">
+            <span className="spl-lock">
               <Icon name="lock" size={16} />
               {mine ? "Eres tú · protegido" : "Protegido"}
             </span>
           )}
           {act === "ultimo" && (
-            <span className="pl-lock">
+            <span className="spl-lock">
               <Icon name="lock" size={16} />
               Último capitán
             </span>
           )}
           {act === "solo" && (
-            <span className="pl-lock">
+            <span className="spl-lock">
               <Icon name="lock" size={16} />
               Solo el capitán general
             </span>
@@ -196,17 +196,17 @@ function Capitanes({ data }: { data: AdminData }) {
           )}
         </div>
         {open && (
-          <div className="pl-confirm" role="group" aria-label={label}>
+          <div className="spl-confirm" role="group" aria-label={label}>
             <p className="sc-h3">
               {give ? "¿Dar el brazalete a" : "¿Quitar el brazalete a"} {handleOf(m)}?
             </p>
-            <ul className="pl-conseq">
+            <ul className="spl-conseq">
               {armConsequences(give, mine).map((t) => (
                 <li key={t}>{t}</li>
               ))}
             </ul>
             <div className="sc-btnrow">
-              <button type="button" className={`vd-btn vd-glass vd-press vd-btn--sm ${give ? "vd-btn--pri" : "pl-danger"}`} onClick={() => setArm(m, give ? "admin" : "user")}>
+              <button type="button" className={`vd-btn vd-glass vd-press vd-btn--sm ${give ? "vd-btn--pri" : "spl-danger"}`} onClick={() => setArm(m, give ? "admin" : "user")}>
                 {give ? "Dar el brazalete" : "Quitar el brazalete"}
               </button>
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => cancel(m.uid)}>
@@ -221,43 +221,43 @@ function Capitanes({ data }: { data: AdminData }) {
 
   return (
     <SalaScreen title="Capitanes" lede={LEDE} headSub="El brazalete y el capitán en el campo" actions={<PlNav at="capitanes" />} fit className="sc-pl pl--capitanes">
-      <div className="pl-cap" ref={root}>
-        <section className="pl-cap__arm" aria-labelledby="pl-c-arm">
+      <div className="spl-cap" ref={root}>
+        <section className="spl-cap__arm" aria-labelledby="spl-c-arm">
           <header className="sc-sec__h">
-            <h2 className="sc-h2" id="pl-c-arm">
+            <h2 className="sc-h2" id="spl-c-arm">
               El brazalete
             </h2>
             <span className="sc-small">Quien lo lleva entra en la sala</span>
           </header>
-          <h3 className="sc-h3 pl-sub" id="pl-c-with" tabIndex={-1} data-focus="arm-h">
+          <h3 className="sc-h3 spl-sub" id="spl-c-with" tabIndex={-1} data-focus="arm-h">
             Con brazalete <span className="sc-sec__n">{caps.length}</span>
           </h3>
-          <ul className="sc-rows" aria-labelledby="pl-c-with">
+          <ul className="sc-rows" aria-labelledby="spl-c-with">
             {caps.map(row)}
           </ul>
-          <h3 className="sc-h3 pl-sub" id="pl-c-soc" tabIndex={-1} data-focus="socios-h">
+          <h3 className="sc-h3 spl-sub" id="spl-c-soc" tabIndex={-1} data-focus="socios-h">
             Socios <span className="sc-sec__n">{socios.length}</span>
           </h3>
-          {!socios.length && <p className="sc-small pl-quiet">Todos los de dentro llevan el brazalete. Los nuevos entran por la puerta.</p>}
-          <ul className="sc-rows" aria-labelledby="pl-c-soc">
+          {!socios.length && <p className="sc-small spl-quiet">Todos los de dentro llevan el brazalete. Los nuevos entran por la puerta.</p>}
+          <ul className="sc-rows" aria-labelledby="spl-c-soc">
             {socios.map(row)}
           </ul>
         </section>
 
-        <section className="pl-cap__field" aria-labelledby="pl-c-field">
+        <section className="spl-cap__field" aria-labelledby="spl-c-field">
           <header className="sc-sec__h">
-            <h2 className="sc-h2" id="pl-c-field">
+            <h2 className="sc-h2" id="spl-c-field">
               El capitán en el campo
             </h2>
           </header>
           <p className="sc-small">Otra cosa distinta del brazalete: el que lleva la cinta en el campo y sale así en la web. No da permisos ni entra en la sala.</p>
           <ul className="sc-rows">
             {fields.map(({ s, v, cp, squad }) => {
-              const id = `pl-cap-${s.id}`;
+              const id = `spl-cap-${s.id}`;
               // (a captain who is no longer in the season's squad stays a choice, so the select says who he is)
               const opts = cp && !squad.some((x) => x.id === cp.id) ? [cp, ...squad] : squad;
               return (
-                <li key={s.id} className="sc-row pl-fcap">
+                <li key={s.id} className="sc-row spl-fcap">
                   <Shirt src={cp ? stillOf(shot(cp)) : stillOf(plain)} size="s" alt={cp ? `Camiseta de ${cp.name}` : "Sin capitán"} />
                   <span className="sc-row__t">
                     <b>
@@ -267,11 +267,11 @@ function Capitanes({ data }: { data: AdminData }) {
                     <span>{cp ? shirtLabel(cp) : "Sin capitán en el campo"}</span>
                   </span>
                   {s.archived ? (
-                    <span className="pl-fcap__tag">
+                    <span className="spl-fcap__tag">
                       <span className="sc-tag sc-tag--quiet">Archivada</span>
                     </span>
                   ) : (
-                    <label className="pl-fcap__sel" htmlFor={id}>
+                    <label className="spl-fcap__sel" htmlFor={id}>
                       <span className="vd-vh">Capitán en el campo de la {s.name}</span>
                       <select className="vd-input vd-glass" id={id} value={v} onChange={(e) => pickField(s.id, s.name, e.target.value, s.captainPlayerId ?? "")}>
                         <option value="">— Sin capitán —</option>
@@ -292,11 +292,11 @@ function Capitanes({ data }: { data: AdminData }) {
           </SalaLink>
         </section>
 
-        <aside className="pl-cap__rules" aria-labelledby="pl-c-rules">
-          <h2 className="sc-h3" id="pl-c-rules">
+        <aside className="spl-cap__rules" aria-labelledby="spl-c-rules">
+          <h2 className="sc-h3" id="spl-c-rules">
             Las normas del brazalete
           </h2>
-          <ul className="pl-rules">
+          <ul className="spl-rules">
             <li>Quien lleva el brazalete convoca, publica actas, abre la puerta y aprueba cuentas.</li>
             <li>{generalName ? `${generalName} es el capitán general` : "El capitán general"}: fundó el club y nadie le puede quitar ni el brazalete ni el acceso.</li>
             <li>Siempre queda al menos un capitán: el último no se puede quitar.</li>

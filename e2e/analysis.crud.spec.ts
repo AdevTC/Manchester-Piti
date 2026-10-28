@@ -36,7 +36,7 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await review.getByRole("button", { name: "Incorporar al borrador" }).click();
   await expect(page.getByText("Análisis incorporado al borrador · se guarda con el acta")).toBeVisible();
   // (Narración carries the acta's foot: the same acta)
-  await page.locator(".ac-foot").getByRole("button", { name: "Guardar cambios" }).click();
+  await page.locator(".sac-foot").getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByText(/Acta .* corregida · web al día/)).toBeVisible();
   // The full analysis lives in Números now: the match's Números screen opens El juego for this match.
   await page.goto("/partidos/preview-finished/numeros");

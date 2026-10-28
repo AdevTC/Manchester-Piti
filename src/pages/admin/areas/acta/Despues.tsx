@@ -44,7 +44,7 @@ export function DespuesScreen() {
   const pub = data.published.find((p) => p.id === match.id && p.status === "finished");
   if (!pub)
     return (
-      <section className="ac ac-desp" aria-label="Después del partido">
+      <section className="sac sac-desp" aria-label="Después del partido">
         <ActaEmpty
           title={phase === "final" || phase === "pendiente" ? "El acta aún no está publicada" : "Todavía no se ha jugado"}
           body="Cuando publiques el acta, aquí estarán el MVP con su votación, las notas congeladas, la porra, el coste del partido, la clasificación y los avisos que salieron."
@@ -183,14 +183,14 @@ function After({ pub }: { pub: ClubMatch }) {
 
   return (
     <ActaStillsFor kit={pub.kit} players={data.roster}>
-      <section className="ac ac-desp" aria-label="Después del partido">
-        <header className="ac-dh sc-morph" style={{ viewTransitionName: `ac-pub-${match.id.replace(/[^a-zA-Z0-9_-]/g, "_")}` }}>
-          <div className="ac-dh__r">
+      <section className="sac sac-desp" aria-label="Después del partido">
+        <header className="sac-dh sc-morph" style={{ viewTransitionName: `sac-pub-${match.id.replace(/[^a-zA-Z0-9_-]/g, "_")}` }}>
+          <div className="sac-dh__r">
             {scorers.length ? (
-              <ul className="ac-fan__goals" aria-label="Goles del Piti">
+              <ul className="sac-fan__goals" aria-label="Goles del Piti">
                 {scorers.map((x, i) => (
                   <li key={`${x}-${i}`}>
-                    <span className="ac-ball" aria-hidden="true" />
+                    <span className="sac-ball" aria-hidden="true" />
                     <span>{x}</span>
                   </li>
                 ))}
@@ -202,35 +202,35 @@ function After({ pub }: { pub: ClubMatch }) {
           </div>
         </header>
 
-        <div className="ac-despgrid">
-          <div className="ac-desp__col">
-            <section className="sc-sec ac-sec ac-mvpsec" aria-labelledby="ac-mvp-t">
+        <div className="sac-despgrid">
+          <div className="sac-desp__col">
+            <section className="sc-sec sac-sec sac-mvpsec" aria-labelledby="sac-mvp-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h2" id="ac-mvp-t">
+                <h2 className="sc-h2" id="sac-mvp-t">
                   El MVP
                 </h2>
                 <span className="sc-tag sc-tag--quiet">{mvp.tag}</span>
               </header>
               {!mvp.has ? (
-                <p className="ac-none">Este partido no tiene votación del MVP.</p>
+                <p className="sac-none">Este partido no tiene votación del MVP.</p>
               ) : (
                 <>
-                  <p className="ac-mvp__part">
+                  <p className="sac-mvp__part">
                     <b className="sc-num">{mvp.part}</b>
                   </p>
-                  <div className="ac-meter" role="img" aria-label={`Participación: ${mvp.part} (${mvp.pct} %)`}>
+                  <div className="sac-meter" role="img" aria-label={`Participación: ${mvp.part} (${mvp.pct} %)`}>
                     <i style={{ width: `${mvp.pct}%` }} />
                   </div>
                   <p className="sc-p">{mvp.close}</p>
                   {mvp.winner && (
-                    <p className="ac-mvp__win">
-                      <span className="ac-mvp" aria-hidden="true">
+                    <p className="sac-mvp__win">
+                      <span className="sac-mvp" aria-hidden="true">
                         MVP
                       </span>
                       {mvp.winner}
                     </p>
                   )}
-                  <div className="sc-btnrow ac-prop">
+                  <div className="sc-btnrow sac-prop">
                     {mvp.open && (
                       <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => void moveMvp("close")} aria-disabled={!!busy || undefined}>
                         {busy === "close" ? "Cerrando…" : "Cerrar ya"}
@@ -247,9 +247,9 @@ function After({ pub }: { pub: ClubMatch }) {
               )}
             </section>
 
-            <section className="sc-sec ac-sec" aria-labelledby="ac-notas-t">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-notas-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h2" id="ac-notas-t">
+                <h2 className="sc-h2" id="sac-notas-t">
                   Las notas
                 </h2>
               </header>
@@ -258,9 +258,9 @@ function After({ pub }: { pub: ClubMatch }) {
                   <p className="sc-small">
                     Calculadas al publicar (valoración Piti) · {plural(notas.length, "jugador", "jugadores")} · mejor {notas[0].name} {notas[0].text}
                   </p>
-                  <ol className="sc-rows ac-notas">
+                  <ol className="sc-rows sac-notas">
                     {notas.map((n) => (
-                      <li key={n.id} className="sc-row ac-nota" aria-label={n.label}>
+                      <li key={n.id} className="sc-row sac-nota" aria-label={n.label}>
                         <Shirt kit={pub.kit} num={numOf(n.id)} />
                         <span className="sc-row__t">
                           <b>{n.name}</b>
@@ -273,17 +273,17 @@ function After({ pub }: { pub: ClubMatch }) {
                 </>
               )}
               {notasFailed && (
-                <p className="ac-check is-mal">
-                  <span className="ac-check__i" aria-hidden="true">
+                <p className="sac-check is-mal">
+                  <span className="sac-check__i" aria-hidden="true">
                     !
                   </span>
-                  <span className="ac-check__t">
+                  <span className="sac-check__t">
                     <b>{priv.notasError ? "Las notas no se pudieron calcular al publicar" : "Sin notas guardadas para este partido"}</b>
                     <span>{priv.notasError ? `${priv.notasError.message} · ` : ""}La web enseña el partido sin notas y no sale «Ya están las notas».</span>
                   </span>
                 </p>
               )}
-              <div className="sc-btnrow ac-prop">
+              <div className="sc-btnrow sac-prop">
                 <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => void recalc()} aria-disabled={!!busy || undefined}>
                   {busy === "notas" ? "Recalculando…" : "Recalcular las notas"}
                 </button>
@@ -292,12 +292,12 @@ function After({ pub }: { pub: ClubMatch }) {
             </section>
           </div>
 
-          <div className="ac-desp__col">
-            <section className="sc-sec ac-sec" aria-labelledby="ac-rest-t">
-              <h2 className="vd-vh" id="ac-rest-t">
+          <div className="sac-desp__col">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-rest-t">
+              <h2 className="vd-vh" id="sac-rest-t">
                 Lo que queda después del partido
               </h2>
-              <ul className="sc-rows ac-after">
+              <ul className="sc-rows sac-after">
                 <li className="sc-row">
                   <span className="sc-row__t">
                     <b>La porra</b>
@@ -326,13 +326,13 @@ function After({ pub }: { pub: ClubMatch }) {
               </ul>
             </section>
 
-            <section className="sc-sec ac-sec" aria-labelledby="ac-push-t">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-push-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h3" id="ac-push-t">
+                <h2 className="sc-h3" id="sac-push-t">
                   Los avisos que salieron
                 </h2>
               </header>
-              {!sent.length && <p className="ac-none">No salió ningún aviso de este partido.</p>}
+              {!sent.length && <p className="sac-none">No salió ningún aviso de este partido.</p>}
               {sent.length > 0 && (
                 <ul className="sc-rows">
                   {sent.map((p) => (
@@ -349,13 +349,13 @@ function After({ pub }: { pub: ClubMatch }) {
               )}
             </section>
 
-            <section className="sc-sec ac-sec" aria-labelledby="ac-turn-t">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-turn-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h3" id="ac-turn-t">
+                <h2 className="sc-h3" id="sac-turn-t">
                   Los turnos
                 </h2>
               </header>
-              {!turns.turns.length && <p className="ac-none">Ningún turno en este partido.</p>}
+              {!turns.turns.length && <p className="sac-none">Ningún turno en este partido.</p>}
               {turns.turns.length > 0 && (
                 <ul className="sc-rows">
                   {turns.turns.map((t) => {
@@ -383,18 +383,18 @@ function After({ pub }: { pub: ClubMatch }) {
                   })}
                 </ul>
               )}
-              <SalaLink className="vd-link ac-link" to="/admin/club/turnos">
+              <SalaLink className="vd-link sac-link" to="/admin/club/turnos">
                 Cambiar los turnos
               </SalaLink>
             </section>
 
-            <section className="sc-sec ac-sec" aria-labelledby="ac-logro-t">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-logro-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h3" id="ac-logro-t">
+                <h2 className="sc-h3" id="sac-logro-t">
                   Los logros del partido
                 </h2>
               </header>
-              {!logros.length && <p className="ac-none">Sin logros nuevos en este partido.</p>}
+              {!logros.length && <p className="sac-none">Sin logros nuevos en este partido.</p>}
               {logros.length > 0 && (
                 <ul className="sc-rows">
                   {logros.map((l) => (
@@ -408,9 +408,9 @@ function After({ pub }: { pub: ClubMatch }) {
               )}
             </section>
 
-            <section className="sc-sec ac-sec" aria-labelledby="ac-vid-t">
+            <section className="sc-sec sac-sec" aria-labelledby="sac-vid-t">
               <header className="sc-sec__h">
-                <h2 className="sc-h3" id="ac-vid-t">
+                <h2 className="sc-h3" id="sac-vid-t">
                   Vídeo y fotos
                 </h2>
               </header>
@@ -418,7 +418,7 @@ function After({ pub }: { pub: ClubMatch }) {
                 <li className="sc-row">
                   <span className="sc-row__t">
                     <b>El vídeo</b>
-                    {pub.videoUrl ? <span className="ac-url">{pub.videoUrl}</span> : <span>Sin vídeo: pega el enlace de YouTube en los datos del partido.</span>}
+                    {pub.videoUrl ? <span className="sac-url">{pub.videoUrl}</span> : <span>Sin vídeo: pega el enlace de YouTube en los datos del partido.</span>}
                   </span>
                   {pub.videoUrl ? (
                     <a className="vd-btn vd-glass vd-press vd-btn--sm" href={pub.videoUrl} target="_blank" rel="noopener noreferrer">
@@ -441,19 +441,19 @@ function After({ pub }: { pub: ClubMatch }) {
                 </li>
               </ul>
               {pub.videoUrl && goals.length > 0 && (
-                <div className="ac-marks">
-                  <h3 className="ac-sub-h">Dónde empieza cada gol en el vídeo</h3>
+                <div className="sac-marks">
+                  <h3 className="sac-sub-h">Dónde empieza cada gol en el vídeo</h3>
                   <p className="sc-small">La moviola de la web salta a cada uno. Escribe el tiempo del vídeo, como 12:34.</p>
                   <ul className="sc-rows">
                     {goals.map((g) => (
-                      <li key={g.id} className="sc-row ac-mark">
+                      <li key={g.id} className="sc-row sac-mark">
                         <span className="sc-row__t">
                           <b>
                             Gol {g.n} · {g.kind === "og" ? `autogol de ${rival}` : nameOf(g.scorer ?? "")}
                           </b>
                           <span>{g.minute != null ? `Minuto ${g.minute}′ del partido` : "Sin minuto"}</span>
                         </span>
-                        <label className="ac-mark__in">
+                        <label className="sac-mark__in">
                           <span className="vd-vh">Tiempo del vídeo del gol {g.n}</span>
                           <input className="vd-input" type="text" inputMode="numeric" maxLength={8} placeholder="mm:ss" value={marks[g.id] ?? ""} onChange={(e) => setMarks((m) => ({ ...m, [g.id]: e.target.value.replace(/[^0-9:]/g, "") }))} />
                         </label>
@@ -471,10 +471,10 @@ function After({ pub }: { pub: ClubMatch }) {
           </div>
         </div>
 
-        <footer className="ac-foot sc-primary sc-primary--pin">
-          <p className="ac-foot__s">
-            <b className="ac-foot__line">Publicada · la web ya lo cuenta</b>
-            <button type="button" className="vd-link ac-link" onClick={() => go(`${base}/acta`)}>
+        <footer className="sac-foot sc-primary sc-primary--pin">
+          <p className="sac-foot__s">
+            <b className="sac-foot__line">Publicada · la web ya lo cuenta</b>
+            <button type="button" className="vd-link sac-link" onClick={() => go(`${base}/acta`)}>
               Corregir el acta
             </button>
           </p>

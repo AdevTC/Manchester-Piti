@@ -36,9 +36,9 @@ export function NarracionScreen() {
   useMatchShortcuts(s.match);
   if (s.loading) return <ScreenLoading label="Cargando el análisis" />;
   return (
-    <section className="ac ac-acta" aria-label="El análisis narrado">
+    <section className="sac sac-acta" aria-label="El análisis narrado">
       <ActaNav on="narracion" />
-      <div className="ac-sheet-body">
+      <div className="sac-sheet-body">
         <Narration s={s} />
         {/* (the same acta as «Lo apuntado»: saved from here too) */}
         <ActaFoot s={s} onPublishTo={() => go(`/admin/partidos/${s.match.id}/publicar`)} />
@@ -229,22 +229,22 @@ function Narration({ s }: { s: SheetSession }) {
   const coverage = sheet.analysisCoverage ?? "partial";
 
   return (
-    <div className="ac-narr">
-      <div className="ac-narr__col">
-        <header className="ac-narr__h">
+    <div className="sac-narr">
+      <div className="sac-narr__col">
+        <header className="sac-narr__h">
           <h2 className="sc-h2">Análisis narrado · {s.j}</h2>
           <p className="sc-p">Herramienta de experto: el partido acción a acción tal como lo cuenta la narración. El acta de cada domingo (goles, tarjetas, cambios) está en «Lo apuntado».</p>
         </header>
 
-        <section className="sc-sec ac-sec" aria-labelledby="ac-cov-t">
-          <h3 className="sc-h3" id="ac-cov-t">
+        <section className="sc-sec sac-sec" aria-labelledby="sac-cov-t">
+          <h3 className="sc-h3" id="sac-cov-t">
             Cobertura
           </h3>
-          <div className="ac-fieldrow">
-            <p className="ac-lbl" id="ac-cov-l">
+          <div className="sac-fieldrow">
+            <p className="sac-lbl" id="sac-cov-l">
               Cobertura del análisis
             </p>
-            <div className="vd-seg vd-glass ac-seg ac-seg--2" role="group" aria-labelledby="ac-cov-l">
+            <div className="vd-seg vd-glass sac-seg sac-seg--2" role="group" aria-labelledby="sac-cov-l">
               <button type="button" className="vd-seg__b" aria-pressed={coverage !== "complete"} onClick={() => update((v) => ({ ...v, analysisCoverage: "partial" }))}>
                 Parcial
               </button>
@@ -263,7 +263,7 @@ function Narration({ s }: { s: SheetSession }) {
                 inputMode="numeric"
                 maxLength={4}
                 aria-label="Duración real de juego (segundos, sin descanso)"
-                aria-describedby="ac-secs-n"
+                aria-describedby="sac-secs-n"
                 value={secs ?? ""}
                 onChange={(e) => {
                   const d = e.target.value.replace(/\D/g, "").slice(0, 4);
@@ -278,10 +278,10 @@ function Narration({ s }: { s: SheetSession }) {
                   });
                 }}
               />
-              <small id="ac-secs-n">{secs ? `${Math.floor(secs / 60)} min ${secs % 60} s de juego, sin el descanso.` : "Sin apuntar."}</small>
+              <small id="sac-secs-n">{secs ? `${Math.floor(secs / 60)} min ${secs % 60} s de juego, sin el descanso.` : "Sin apuntar."}</small>
             </label>
           </div>
-          <p className="ac-say" role="status">
+          <p className="sac-say" role="status">
             {durLine}
           </p>
           {secs && newDur !== sheet.duration && (
@@ -296,15 +296,15 @@ function Narration({ s }: { s: SheetSession }) {
               Ajustar la duración del partido
             </button>
           )}
-          <label className="sc-field ac-wide">
+          <label className="sc-field sac-wide">
             <span>Notas de cobertura</span>
-            <textarea className="vd-input" aria-label="Notas de cobertura" aria-describedby="ac-notes-n" maxLength={2000} value={sheet.analysisNotes ?? ""} onChange={(e) => update((v) => ({ ...v, analysisNotes: e.target.value.slice(0, 2000) }))} placeholder="Ej.: faltan las acciones de los primeros cinco minutos." />
-            <small id="ac-notes-n">{(sheet.analysisNotes ?? "").length} de 2000</small>
+            <textarea className="vd-input" aria-label="Notas de cobertura" aria-describedby="sac-notes-n" maxLength={2000} value={sheet.analysisNotes ?? ""} onChange={(e) => update((v) => ({ ...v, analysisNotes: e.target.value.slice(0, 2000) }))} placeholder="Ej.: faltan las acciones de los primeros cinco minutos." />
+            <small id="sac-notes-n">{(sheet.analysisNotes ?? "").length} de 2000</small>
           </label>
         </section>
 
-        <section className="sc-sec ac-sec" aria-labelledby="ac-imp-t">
-          <h3 className="sc-h3" id="ac-imp-t">
+        <section className="sc-sec sac-sec" aria-labelledby="sac-imp-t">
+          <h3 className="sc-h3" id="sac-imp-t">
             Importar una narración
           </h3>
           <p className="sc-small">Entrega el audio o dicta el partido en tu chat con el asistente y trae aquí el resultado: se revisa antes de entrar en el borrador; las acciones de antes se conservan.</p>
@@ -314,16 +314,16 @@ function Narration({ s }: { s: SheetSession }) {
             </button>
           </div>
           {context && (
-            <label className="sc-field ac-wide">
+            <label className="sc-field sac-wide">
               <span>Contexto del partido (solo lectura)</span>
               <textarea className="vd-input" readOnly value={context} rows={6} onFocus={(e) => e.target.select()} />
             </label>
           )}
-          <div className="sc-form ac-wide">
+          <div className="sc-form sac-wide">
             <label className="sc-field">
               <span>Archivo de acciones (.json, hasta 900 KB)</span>
               <input
-                className="vd-input ac-file"
+                className="vd-input sac-file"
                 type="file"
                 aria-label="Archivo de acciones (.json, hasta 900 KB)"
                 accept=".json,application/json"
@@ -359,7 +359,7 @@ function Narration({ s }: { s: SheetSession }) {
             </button>
           </div>
           {preview && (
-            <div className="ac-imp" role="region" aria-label="Revisión de la importación">
+            <div className="sac-imp" role="region" aria-label="Revisión de la importación">
               <NarrationReview
                 preview={preview}
                 info={info}
@@ -381,8 +381,8 @@ function Narration({ s }: { s: SheetSession }) {
           )}
         </section>
 
-        <section className="sc-sec ac-sec ac-rules" aria-labelledby="ac-rules-t">
-          <h3 className="sc-h3" id="ac-rules-t">
+        <section className="sc-sec sac-sec sac-rules" aria-labelledby="sac-rules-t">
+          <h3 className="sc-h3" id="sac-rules-t">
             Reglas de cobertura
           </h3>
           <AnalysisSettings
@@ -405,8 +405,8 @@ function Narration({ s }: { s: SheetSession }) {
         </section>
       </div>
 
-      <div className="ac-narr__col">
-        <section className="sc-sec ac-sec ac-obsec" aria-label="Observaciones del análisis">
+      <div className="sac-narr__col">
+        <section className="sc-sec sac-sec sac-obsec" aria-label="Observaciones del análisis">
           <NarratedObservations
             observations={sheet.analysis?.observations ?? []}
             nameOf={(id) => info(id).name}
@@ -419,12 +419,12 @@ function Narration({ s }: { s: SheetSession }) {
             issues={sheet.analysis?.issues}
             onResolveIssue={(id, resolution) => update((v) => ({ ...v, analysis: v.analysis ? { ...v.analysis, issues: v.analysis.issues?.map((q) => (q.id === id ? { ...q, resolved: resolution } : q)) } : undefined }))}
           />
-          {!(sheet.analysis?.observations ?? []).length && <p className="ac-none">Sin análisis narrado. Importa una narración para tener el partido acción a acción.</p>}
+          {!(sheet.analysis?.observations ?? []).length && <p className="sac-none">Sin análisis narrado. Importa una narración para tener el partido acción a acción.</p>}
         </section>
 
-        <section className="sc-sec ac-sec" aria-labelledby="ac-acts-t">
+        <section className="sc-sec sac-sec" aria-labelledby="sac-acts-t">
           <header className="sc-sec__h">
-            <h3 className="sc-h3" id="ac-acts-t">
+            <h3 className="sc-h3" id="sac-acts-t">
               Las acciones del acta
             </h3>
             <span className="sc-sec__n">{list.length}</span>
@@ -440,7 +440,7 @@ function Narration({ s }: { s: SheetSession }) {
               Añadir acción
             </button>
           </header>
-          <label className="sc-field ac-narrow">
+          <label className="sc-field sac-narrow">
             <span>Filtrar acciones</span>
             <select
               className="vd-input"
@@ -459,7 +459,7 @@ function Narration({ s }: { s: SheetSession }) {
             </select>
           </label>
           {event && (
-            <div ref={eventForm} tabIndex={-1} className="ac-ed vd-glass vd-glass--deep" role="group" aria-label="Editar acción detallada">
+            <div ref={eventForm} tabIndex={-1} className="sac-ed vd-glass vd-glass--deep" role="group" aria-label="Editar acción detallada">
               {importEditing && (
                 <p className="sc-small">
                   <b>Corrigiendo la importación.</b> Guardar aquí conserva el cambio para su revisión; todavía no modifica el acta.
@@ -491,9 +491,9 @@ function Narration({ s }: { s: SheetSession }) {
                   <span>Segundo del minuto</span>
                   <input className="vd-input" type="number" min="0" max="59" disabled={event.timingUnknown || event.minute == null} value={event.elapsedSeconds != null ? event.elapsedSeconds % 60 : ""} onChange={(e) => set({ elapsedSeconds: e.target.value === "" ? undefined : (event.minute ?? 0) * 60 + Number(e.target.value) })} />
                 </label>
-                <label className="sc-field ac-check-f">
+                <label className="sc-field sac-check-f">
                   <span>Minuto desconocido</span>
-                  <span className="ac-checkline">
+                  <span className="sac-checkline">
                     <input type="checkbox" checked={!!event.timingUnknown} onChange={(e) => set({ timingUnknown: e.target.checked, ...(e.target.checked ? { minute: undefined, elapsedSeconds: undefined } : {}) })} />
                     No se conoce el minuto
                   </span>
@@ -512,9 +512,9 @@ function Narration({ s }: { s: SheetSession }) {
                 {["goal", "goal_penalty", "goal_freekick"].includes(event.type) && (
                   <>
                     {players(event.assistPlayerId, (id) => set({ assistPlayerId: id, assistReviewed: true }), "Asistente")}
-                    <label className="sc-field ac-check-f">
+                    <label className="sc-field sac-check-f">
                       <span>Asistencia</span>
-                      <span className="ac-checkline">
+                      <span className="sac-checkline">
                         <input type="checkbox" checked={!!event.assistReviewed} onChange={(e) => set({ assistReviewed: e.target.checked })} />
                         Asistencia revisada (sin asistente si no se elige jugador)
                       </span>
@@ -542,9 +542,9 @@ function Narration({ s }: { s: SheetSession }) {
                     <option value="right">Derecha</option>
                   </select>
                 </label>
-                <label className="sc-field ac-check-f">
+                <label className="sc-field sac-check-f">
                   <span>Pase clave</span>
-                  <span className="ac-checkline">
+                  <span className="sac-checkline">
                     <input type="checkbox" checked={!!event.keyPass} onChange={(e) => set({ keyPass: e.target.checked })} />
                     Pase clave · acaba en remate
                   </span>
@@ -554,7 +554,7 @@ function Narration({ s }: { s: SheetSession }) {
                   <input className="vd-input" type="text" maxLength={300} value={event.note ?? ""} onChange={(e) => set({ note: e.target.value })} />
                 </label>
               </div>
-              <details className="ac-more">
+              <details className="sac-more">
                 <summary>Más detalle: envío, contacto, posesión, coordenadas y origen</summary>
                 <div className="sc-form">
                   <label className="sc-field">
@@ -598,7 +598,7 @@ function Narration({ s }: { s: SheetSession }) {
                 </div>
               </details>
               {message && (
-                <p className="ac-err" role="alert">
+                <p className="sac-err" role="alert">
                   {message}
                 </p>
               )}
@@ -612,15 +612,15 @@ function Narration({ s }: { s: SheetSession }) {
               </div>
             </div>
           )}
-          {!list.length && <p className="ac-none">{actions.length ? "Ninguna acción de ese tipo." : "Sin acciones: «Añadir acción» o importa una narración."}</p>}
+          {!list.length && <p className="sac-none">{actions.length ? "Ninguna acción de ese tipo." : "Sin acciones: «Añadir acción» o importa una narración."}</p>}
           {list.length > 0 && (
-            <ol className="sc-rows ac-acts">
+            <ol className="sc-rows sac-acts">
               {list.slice(at * 30, at * 30 + 30).map((e) => (
-                <li key={e.id} className="sc-row ac-act">
-                  <span className="ac-play__m">{e.minute == null ? "—" : `${e.minute}′${e.elapsedSeconds != null ? String(e.elapsedSeconds % 60).padStart(2, "0") : ""}`}</span>
+                <li key={e.id} className="sc-row sac-act">
+                  <span className="sac-play__m">{e.minute == null ? "—" : `${e.minute}′${e.elapsedSeconds != null ? String(e.elapsedSeconds % 60).padStart(2, "0") : ""}`}</span>
                   <button
                     type="button"
-                    className="ac-act__b"
+                    className="sac-act__b"
                     onClick={() => {
                       setImportEditing(false);
                       eventBaseline.current = JSON.stringify(e);
@@ -645,7 +645,7 @@ function Narration({ s }: { s: SheetSession }) {
             </ol>
           )}
           {list.length > 30 && (
-            <nav className="ac-pager" aria-label="Páginas de acciones">
+            <nav className="sac-pager" aria-label="Páginas de acciones">
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-disabled={at === 0 || undefined} onClick={() => at > 0 && setPage(at - 1)}>
                 Anterior
               </button>

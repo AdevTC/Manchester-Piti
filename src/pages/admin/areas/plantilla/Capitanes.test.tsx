@@ -26,9 +26,9 @@ vi.mock("../../data/useCaja", () => ({ useCajaClaims: () => ({ data: [], loading
 vi.mock("../../../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 
 const person = (over: Partial<PersonRow> & { uid: string }): PersonRow => ({ nickname: over.uid, displayName: "", email: `${over.uid}@piti.test`, role: "user", playerId: null, removed: false, ...over });
-const captains = () => within(screen.getByRole("list", { name: /^Con brazalete/ })).getAllByRole("listitem").filter((li) => li.classList.contains("pl-person"));
-const socios = () => within(screen.getByRole("list", { name: /^Socios/ })).queryAllByRole("listitem").filter((li) => li.classList.contains("pl-person"));
-const rowOf = (text: string) => screen.getAllByRole("listitem").find((li) => li.classList.contains("pl-person") && li.textContent?.includes(text))!;
+const captains = () => within(screen.getByRole("list", { name: /^Con brazalete/ })).getAllByRole("listitem").filter((li) => li.classList.contains("spl-person"));
+const socios = () => within(screen.getByRole("list", { name: /^Socios/ })).queryAllByRole("listitem").filter((li) => li.classList.contains("spl-person"));
+const rowOf = (text: string) => screen.getAllByRole("listitem").find((li) => li.classList.contains("spl-person") && li.textContent?.includes(text))!;
 const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live"))!;
 const fake = () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -56,16 +56,16 @@ describe("Capitanes", () => {
     expect(adrian).toHaveTextContent("@adrian_tc · tú");
     expect(adrian).toHaveTextContent("Capitán general · ADRIÁN T.C.");
     expect(adrian).toHaveTextContent("capitan.adrian.tc@gmail.com");
-    expect(adrian.querySelector(".pl-ini--arm.is-superadmin b")).toHaveTextContent("C");
+    expect(adrian.querySelector(".spl-ini--arm.is-superadmin b")).toHaveTextContent("C");
     expect(adrian).toHaveTextContent("Eres tú · protegido");
     expect(within(adrian).queryByRole("button")).toBeNull();
-    expect(erik.querySelector(".pl-ini--arm.is-admin b")).toHaveTextContent("C");
+    expect(erik.querySelector(".spl-ini--arm.is-admin b")).toHaveTextContent("C");
     expect(erik).toHaveTextContent("Capitán · ERIK");
     expect(within(erik).getByRole("button", { name: "Quitar el brazalete a @erik9" })).toHaveAttribute("aria-expanded", "false");
     const [kevin] = socios();
     expect(kevin).toHaveTextContent("@kevin11Socio");
-    expect(kevin.querySelector(".pl-ini--arm")).toBeNull();
-    expect(kevin.querySelector(".pl-ini")).toHaveTextContent("K");
+    expect(kevin.querySelector(".spl-ini--arm")).toBeNull();
+    expect(kevin.querySelector(".spl-ini")).toHaveTextContent("K");
     expect(within(kevin).getByRole("button", { name: "Dar el brazalete a @kevin11" })).toBeInTheDocument();
     const rules = screen.getByRole("complementary", { name: "Las normas del brazalete" });
     expect(rules).toHaveTextContent("el último no se puede quitar");
@@ -101,7 +101,7 @@ describe("Capitanes", () => {
     const red = screen.getByRole("group", { name: "Quitar el brazalete a @erik9" });
     expect(within(red).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Deja de ver la sala de control", "Sigue siendo socio: su carta y su voto no cambian"]);
     const go = within(red).getByRole("button", { name: "Quitar el brazalete" });
-    expect(go).toHaveClass("pl-danger");
+    expect(go).toHaveClass("spl-danger");
     await user.click(go);
     expect(caption()).toHaveTextContent("@erik9 deja el brazalete · sigue como socio");
     await act(async () => {
@@ -147,7 +147,7 @@ describe("Capitanes", () => {
     await screen.findByRole("heading", { level: 1, name: "Capitanes" });
     const jefe = rowOf("@jefe");
     expect(jefe).toHaveTextContent("Protegido");
-    expect(jefe.querySelector(".pl-ini--arm.is-superadmin")).not.toBeNull();
+    expect(jefe.querySelector(".spl-ini--arm.is-superadmin")).not.toBeNull();
     expect(within(jefe).queryByRole("button")).toBeNull();
   });
 
@@ -190,7 +190,7 @@ describe("Capitanes", () => {
     expect(within(rows[1]).queryByRole("combobox")).toBeNull();
     const tag = within(rows[1]).getByText("Archivada");
     expect(tag).toHaveClass("sc-tag", "sc-tag--quiet");
-    expect(tag.parentElement).toHaveClass("pl-fcap__tag");
+    expect(tag.parentElement).toHaveClass("spl-fcap__tag");
 
     await user.selectOptions(t1, "erik");
     expect(caption()).toHaveTextContent("Capitán de la T1: ERIK · sale con el brazalete en la web");

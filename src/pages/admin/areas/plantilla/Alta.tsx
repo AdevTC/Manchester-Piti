@@ -59,8 +59,8 @@ function Kit({ src, name, num }: { src: string | undefined; name: string; num: s
   }, [src, name, num, fonts]);
   return (
     <>
-      <canvas ref={ink} className="pl-kit__c" width={540} height={600} aria-hidden="true" />
-      <canvas ref={ghost} className="pl-kit__ghost" width={540} height={600} aria-hidden="true" />
+      <canvas ref={ink} className="spl-kit__c" width={540} height={600} aria-hidden="true" />
+      <canvas ref={ghost} className="spl-kit__ghost" width={540} height={600} aria-hidden="true" />
     </>
   );
 }
@@ -142,14 +142,14 @@ export function AltaScreen() {
   const posLine = a.main || a.also.length ? `${a.main ?? "Sin preferida"}${a.also.length ? ` · también ${a.also.join(", ")}` : ""}` : "Opcional · el primer toque es la preferida, los siguientes «también»; tocar otra vez la cambia";
   return (
     <SalaScreen title="Camiseta nueva" lede="La camiseta se estampa mientras escribes" headSub={`Alta de jugador · ${sName}`} back={{ to: "/admin/plantilla", label: "Volver a la plantilla" }} actions={desktop ? <PlNav at="jugadores" /> : undefined} fit className="sc-pl pl--alta pl--sub">
-      <div className="pl-alta sc-scroll">
-        <figure className="pl-kit" role="img" aria-label={kitLabel}>
+      <div className="spl-alta sc-scroll">
+        <figure className="spl-kit" role="img" aria-label={kitLabel}>
           <Kit src={blank} name={name} num={num} />
           <figcaption className="sc-small">La camiseta se estampa mientras escribes</figcaption>
         </figure>
-        <form className="pl-altaf" aria-label="Alta de jugador" onSubmit={submit} noValidate>
+        <form className="spl-altaf" aria-label="Alta de jugador" onSubmit={submit} noValidate>
           {a.guests.length > 0 && (
-            <p className="pl-altag" role="status">
+            <p className="spl-altag" role="status">
               <span className="sc-tag sc-tag--toca">Invitado</span>
               <span>
                 {a.guestName ?? name} vino de invitado {plural(a.guests.length, "vez", "veces")}: al darle de alta, esos partidos pasan a su ficha (sus minutos, goles y notas).
@@ -158,7 +158,7 @@ export function AltaScreen() {
           )}
           <div className="sc-form">
             <div className="sc-field">
-              <label className="pl-lab" htmlFor={`${uid}-n`}>
+              <label className="spl-lab" htmlFor={`${uid}-n`}>
                 Nombre en la camiseta
               </label>
               <input ref={nameRef} className="vd-input vd-glass" id={`${uid}-n`} type="text" maxLength={12} placeholder="PABLO" value={a.name} aria-invalid={!!a.name && !nameOk} aria-describedby={`${uid}-nh`} autoComplete="off" onChange={(e) => set({ name: e.currentTarget.value.toLocaleUpperCase("es") })} onKeyDown={onKey} />
@@ -167,7 +167,7 @@ export function AltaScreen() {
               </small>
             </div>
             <div className="sc-field">
-              <label className="pl-lab" htmlFor={`${uid}-d`}>
+              <label className="spl-lab" htmlFor={`${uid}-d`}>
                 Dorsal en la {sName}
               </label>
               <input className="vd-input vd-glass" id={`${uid}-d`} type="text" inputMode="numeric" maxLength={2} placeholder="1–99" value={a.num} aria-invalid={!!num && !numOk} aria-describedby={`${uid}-dh`} autoComplete="off" onChange={(e) => set({ num: e.currentTarget.value.replace(/\D/g, "").slice(0, 2) })} onKeyDown={onKey} />
@@ -176,15 +176,15 @@ export function AltaScreen() {
               </small>
             </div>
           </div>
-          <div className="pl-free" role="group" aria-label="Dorsales libres">
-            <span className="pl-lab">Libres</span>
+          <div className="spl-free" role="group" aria-label="Dorsales libres">
+            <span className="spl-lab">Libres</span>
             {free.map((d) => (
-              <button key={d} type="button" className="sc-chip vd-glass vd-press pl-free__d" aria-pressed={String(d) === num} aria-label={`Dorsal ${d}`} onClick={() => set({ num: String(d) })}>
+              <button key={d} type="button" className="sc-chip vd-glass vd-press spl-free__d" aria-pressed={String(d) === num} aria-label={`Dorsal ${d}`} onClick={() => set({ num: String(d) })}>
                 {d}
               </button>
             ))}
           </div>
-          <section className="pl-altapos" aria-labelledby={`${uid}-pos`}>
+          <section className="spl-altapos" aria-labelledby={`${uid}-pos`}>
             <h2 className="sc-h3" id={`${uid}-pos`}>
               Posiciones · opcional
             </h2>
@@ -208,8 +208,8 @@ export function AltaScreen() {
             />
             <p className="sc-small">{posLine}</p>
           </section>
-          <div className="pl-seasons" role="group" aria-label="Temporadas">
-            <p className="pl-lab">Temporadas</p>
+          <div className="spl-seasons" role="group" aria-label="Temporadas">
+            <p className="spl-lab">Temporadas</p>
             {live.map((s) => (
               <button key={s.id} type="button" className="vd-switch" role="switch" aria-checked={seasons.includes(s.id)} onClick={() => set({ seasons: seasons.includes(s.id) ? seasons.filter((x) => x !== s.id) : [...seasons, s.id] })}>
                 <span className="vd-switch__track" aria-hidden="true">
@@ -223,7 +223,7 @@ export function AltaScreen() {
           <p className="sc-small" id={`${uid}-why`}>
             {why}
           </p>
-          <div className="sc-primary sc-primary--pin pl-altaa">
+          <div className="sc-primary sc-primary--pin spl-altaa">
             <button type="submit" className="vd-btn vd-glass vd-press vd-btn--pri" aria-disabled={!ready || undefined} aria-describedby={`${uid}-why`}>
               Dar de alta
             </button>

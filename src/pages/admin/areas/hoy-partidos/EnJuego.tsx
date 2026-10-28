@@ -42,12 +42,12 @@ export function EnJuegoScreen() {
   const primary = useMemo<PrimarySpec | null>(() => (live ? { label: "Abrir la mesa", onClick: () => void navigate({ to: "/partidos/$matchId/mesa", params: { matchId: m.id } }) } : null), [live, navigate, m.id]);
   useStationPrimary(primary);
   const score = (letter: boolean) => (
-    <p className="pa-live__score">
+    <p className="spa-live__score">
       <span className="vd-vh">
         Manchester Piti {gf}, {rival} {ga}
         {letter ? ` · ${resultWord(r).toLowerCase()}` : ""}
       </span>
-      <span className="pa-live__us" aria-hidden="true">
+      <span className="spa-live__us" aria-hidden="true">
         PITI
       </span>
       <b className="sc-score" aria-hidden="true">
@@ -67,40 +67,40 @@ export function EnJuegoScreen() {
     </p>
   );
   return (
-    <div className="pa-juego">
+    <div className="spa-juego">
       {live && (
-        <section className="pa-live" aria-labelledby="pa-live-t">
-          <h2 className="vd-vh" id="pa-live-t">
+        <section className="spa-live" aria-labelledby="spa-live-t">
+          <h2 className="vd-vh" id="spa-live-t">
             El marcador en vivo
           </h2>
           {score(false)}
-          <p className="pa-live__clock">
+          <p className="spa-live__clock">
             <span className="sc-tag sc-tag--live">{phase === "descanso" ? "Descanso" : "En juego"}</span>
             <span className="sc-clock">
               <LiveClock start={kick} match={m} />
             </span>
             <span>{phase === "descanso" ? "Descanso" : m.clock?.phase === "second" ? "2ª parte" : "1ª parte"}</span>
           </p>
-          <p className="sc-small pa-live__who">{scorer ? `Anota ${scorer} desde la mesa` : "Nadie anota: lo hace un capitán"}</p>
+          <p className="sc-small spa-live__who">{scorer ? `Anota ${scorer} desde la mesa` : "Nadie anota: lo hace un capitán"}</p>
         </section>
       )}
       {phase === "antes" && (
-        <section className="pa-jnote" aria-labelledby="pa-jb-t">
-          <h2 className="sc-h2" id="pa-jb-t">
+        <section className="spa-jnote" aria-labelledby="spa-jb-t">
+          <h2 className="sc-h2" id="spa-jb-t">
             La mesa se abre el día del partido
           </h2>
           <p className="sc-p">La mesa se abre el día del partido ({Number.isFinite(kick) ? `${dayLong(kick)} a las ${clockTime(kick)}` : "sin fecha"}): se pasa lista, se pita el inicio y cada gol llega aquí al momento.</p>
           <p className="sc-p">
             <b>{scorer ? `Lo anota ${scorer} desde la mesa.` : "Nadie anota todavía."}</b>{" "}
-            <SalaLink className="vd-link pa-mini-link" to={`${base}/datos`}>
+            <SalaLink className="vd-link spa-mini-link" to={`${base}/datos`}>
               Elegir quién anota
             </SalaLink>
           </p>
         </section>
       )}
       {phase === "pendiente" && (
-        <section className="pa-jnote" aria-labelledby="pa-jp-t">
-          <h2 className="sc-h2" id="pa-jp-t">
+        <section className="spa-jnote" aria-labelledby="spa-jp-t">
+          <h2 className="sc-h2" id="spa-jp-t">
             No llegó a la mesa
           </h2>
           <p className="sc-p">La {j} no llegó a la mesa: nadie pitó el inicio el {Number.isFinite(kick) ? dayLong(kick) : "día del partido"}.</p>
@@ -115,16 +115,16 @@ export function EnJuegoScreen() {
         </section>
       )}
       {isOff(phase) && (
-        <section className="pa-jnote" aria-labelledby="pa-jo-t">
-          <h2 className="sc-h2" id="pa-jo-t">
+        <section className="spa-jnote" aria-labelledby="spa-jo-t">
+          <h2 className="sc-h2" id="spa-jo-t">
             Sin mesa
           </h2>
           <p className="sc-p">{phase === "aplazado" ? `Aplazado${m.postponedReason ? ` · ${m.postponedReason}` : ""}: la mesa se abrirá el día de la nueva fecha.` : "Cancelado: no habrá mesa."}</p>
         </section>
       )}
       {played && (
-        <section className="pa-jnote" aria-labelledby="pa-ja-t">
-          <h2 className="sc-h2" id="pa-ja-t">
+        <section className="spa-jnote" aria-labelledby="spa-ja-t">
+          <h2 className="sc-h2" id="spa-ja-t">
             Ya está en el acta
           </h2>
           {score(true)}
@@ -136,17 +136,17 @@ export function EnJuegoScreen() {
           </SalaLink>
         </section>
       )}
-      <section className="pa-cron" aria-labelledby="pa-cron-t">
+      <section className="spa-cron" aria-labelledby="spa-cron-t">
         <header className="sc-sec__h">
-          <h2 className="sc-h3" id="pa-cron-t">
+          <h2 className="sc-h3" id="spa-cron-t">
             La crónica de la mesa
           </h2>
           <span className="sc-sec__n">{plural(plays.length, "jugada", "jugadas")} · lo último arriba</span>
         </header>
-        <ol className="sc-rows pa-plays" aria-live={live ? "polite" : undefined}>
+        <ol className="sc-rows spa-plays" aria-live={live ? "polite" : undefined}>
           {plays.map((p) => (
-            <li key={p.id} className={`sc-row pa-play is-${p.cls === "rv" ? "suyo" : p.icon === "ball" ? "gol" : "otro"}`}>
-              <span className="pa-play__min sc-clock">{p.minute}′</span>
+            <li key={p.id} className={`sc-row spa-play is-${p.cls === "rv" ? "suyo" : p.icon === "ball" ? "gol" : "otro"}`}>
+              <span className="spa-play__min sc-clock">{p.minute}′</span>
               <span className="sc-row__t">
                 <b>{p.text}</b>
                 {p.detail && <span>{p.detail}</span>}

@@ -200,7 +200,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
     const fid = `${uid}-${f.k.replace(/:/g, "-")}`;
     return (
       <div className="sc-field" key={f.k}>
-        <label className="pl-lab" htmlFor={fid}>
+        <label className="spl-lab" htmlFor={fid}>
           {f.label}
         </label>
         <input
@@ -400,7 +400,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
   const outLine = player.archived ? `Está en el archivo: jugó en ${archivedNames(player, data.seasons)}, que está archivada.` : season ? `Está de baja: no juega la ${season.name}.` : "No juega ninguna temporada visible.";
   const kicker = inS ? `Ficha ${index} de ${total} · ${row.position ? LINE_ONE[row.position] : "sin posición"}` : player.archived ? "De una temporada archivada" : season ? `Fuera de la ${season.name}` : "Sin temporada";
   const src = st.still(row);
-  const kitVt = vt ? vtName("pl-shirt", id) : undefined;
+  const kitVt = vt ? vtName("spl-shirt", id) : undefined;
   const fields = (list: FieldSpec[]) => list.map(field);
   const shirtFields: FieldSpec[] = [
     { k: "shirtName", label: "Nombre en la camiseta", type: "text", mode: "text", max: 12, ph: "PABLO" },
@@ -421,9 +421,9 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
   const short = (n: string) => (/Temporada (\d+)/.exec(n) ? `T${/Temporada (\d+)/.exec(n)?.[1]}` : n);
 
   return (
-    <article className="pl-ficha" aria-labelledby={`${uid}-t`}>
+    <article className="spl-ficha" aria-labelledby={`${uid}-t`}>
       {!inS && (
-        <div className="pl-out" role="status">
+        <div className="spl-out" role="status">
           <p>
             <b>{outLine}</b> Sus actas, goles y su carta siguen ahí.
           </p>
@@ -434,27 +434,27 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           )}
         </div>
       )}
-      <header className="pl-fh">
-        <div className="pl-fh__kit">
+      <header className="spl-fh">
+        <div className="spl-fh__kit">
           <Shirt src={src ?? st.blank} size="xl" vt={kitVt} alt={`Camiseta de ${name}${row.number != null ? `, el ${row.number}` : ""}`} />
           {!src && st.blank && (
-            <small className="pl-fh__reprint">
+            <small className="spl-fh__reprint">
               La camiseta impresa se vuelve a estampar con {name}
               {row.number != null ? ` · ${row.number}` : ""}
             </small>
           )}
         </div>
-        <div className="pl-fh__t">
+        <div className="spl-fh__t">
           <p className="sc-k">{kicker}</p>
-          <h2 className="pl-fh__name" id={`${uid}-t`}>
+          <h2 className="spl-fh__name" id={`${uid}-t`}>
             <span className="sc-num">{row.number ?? "—"}</span> {name}
           </h2>
-          <p className="pl-fh__full">{row.full === "Sin nombre" ? "Nombre y apellidos sin poner" : row.full}</p>
-          <p className={`pl-fh__gaps ${row.gaps.length ? "is-gap" : "is-full"}`}>
+          <p className="spl-fh__full">{row.full === "Sin nombre" ? "Nombre y apellidos sin poner" : row.full}</p>
+          <p className={`spl-fh__gaps ${row.gaps.length ? "is-gap" : "is-full"}`}>
             {gapLine(row.gaps)}
-            {bad.length > 0 && <b className="pl-fh__dirty"> · Sin guardar: revisa lo marcado</b>}
+            {bad.length > 0 && <b className="spl-fh__dirty"> · Sin guardar: revisa lo marcado</b>}
           </p>
-          <div className="vd-seg vd-glass pl-state" role="group" aria-label={`Estado de ${name}`} style={{ "--n": 3, "--i": stI } as CSSProperties}>
+          <div className="vd-seg vd-glass spl-state" role="group" aria-label={`Estado de ${name}`} style={{ "--n": 3, "--i": stI } as CSSProperties}>
             <span className="vd-shelf__bead" aria-hidden="true" />
             <button type="button" className="vd-seg__b" aria-pressed={!injured && !sanctioned} onClick={() => setState("activo")}>
               Activo
@@ -467,7 +467,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
             </button>
           </div>
           {susp && (
-            <p className="pl-sancline">
+            <p className="spl-sancline">
               <span className="sc-tag sc-tag--toca">{sanctionStatus(susp, data.matches)}</span>
               <button type="button" className="vd-link" onClick={lift}>
                 Levantar la sanción
@@ -488,8 +488,8 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
             />
           )}
           {nums.games > 0 ? (
-            <dl className="pl-nums" aria-label={`${season?.name ?? "La temporada"} · ${plural(nums.games, "partido jugado", "partidos jugados")}`}>
-              <dt className="pl-nums__k">
+            <dl className="spl-nums" aria-label={`${season?.name ?? "La temporada"} · ${plural(nums.games, "partido jugado", "partidos jugados")}`}>
+              <dt className="spl-nums__k">
                 {season?.name ?? "La temporada"} · {plural(nums.games, "partido jugado", "partidos jugados")}
               </dt>
               <dd>
@@ -510,9 +510,9 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
               </dd>
             </dl>
           ) : (
-            <p className="sc-small pl-nums__none">{season ? `Sin minutos en la ${season.name} todavía` : "Sin partidos jugados"}</p>
+            <p className="sc-small spl-nums__none">{season ? `Sin minutos en la ${season.name} todavía` : "Sin partidos jugados"}</p>
           )}
-          <a className="vd-link pl-page" href={`/jugadores/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer">
+          <a className="vd-link spl-page" href={`/jugadores/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer">
             Ver su página
             <Icon name="expand" size={16} />
             <span className="vd-vh"> (se abre en otra pestaña)</span>
@@ -520,15 +520,15 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
         </div>
       </header>
 
-      <section className="sc-sec pl-sec" aria-labelledby={`${uid}-cam`}>
+      <section className="sc-sec spl-sec" aria-labelledby={`${uid}-cam`}>
         <header className="sc-sec__h">
           <h3 className="sc-h3" id={`${uid}-cam`}>
             Camiseta
           </h3>
         </header>
-        <div className="sc-form pl-form">{fields(shirtFields)}</div>
-        <div className="pl-seasons" role="group" aria-label="Temporadas">
-          <p className="pl-lab">Temporadas</p>
+        <div className="sc-form spl-form">{fields(shirtFields)}</div>
+        <div className="spl-seasons" role="group" aria-label="Temporadas">
+          <p className="spl-lab">Temporadas</p>
           {data.seasons.map((s) => (
             <button key={s.id} type="button" className="vd-switch" role="switch" aria-checked={saved.seasons.includes(s.id)} aria-disabled={s.archived || undefined} onClick={() => toggleSeason(s)}>
               <span className="vd-switch__track" aria-hidden="true">
@@ -540,13 +540,13 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           ))}
         </div>
         {sdSeasons.length > 0 && (
-          <div className="pl-det">
-            <button type="button" className="vd-link pl-det__b" aria-expanded={sdOpen || sdDirty} onClick={() => setSdOpen((o) => !o)}>
+          <div className="spl-det">
+            <button type="button" className="vd-link spl-det__b" aria-expanded={sdOpen || sdDirty} onClick={() => setSdOpen((o) => !o)}>
               Nombre o dorsal distinto en una temporada
             </button>
             {(sdOpen || sdDirty) &&
               sdSeasons.map((s) => (
-                <div className="pl-sd" key={s.id}>
+                <div className="spl-sd" key={s.id}>
                   <p className="sc-small">Solo en la {s.name} · vacío = el de arriba</p>
                   <div className="sc-form">
                     {fields([
@@ -560,7 +560,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
         )}
       </section>
 
-      <section className="sc-sec pl-sec" aria-labelledby={`${uid}-pos`}>
+      <section className="sc-sec spl-sec" aria-labelledby={`${uid}-pos`}>
         <header className="sc-sec__h">
           <h3 className="sc-h3" id={`${uid}-pos`}>
             Posiciones
@@ -571,8 +571,8 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           </span>
         </header>
         {proposal && !adj && (
-          <div className="pl-prop" role="group" aria-label={`Propuesta de ${name}`}>
-            <p className="pl-prop__t">
+          <div className="spl-prop" role="group" aria-label={`Propuesta de ${name}`}>
+            <p className="spl-prop__t">
               <span className="sc-tag sc-tag--toca">Te toca</span>
               <b>
                 {name} propone: {summaryText(proposal)}
@@ -607,16 +607,16 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           </div>
         )}
         {adj && (
-          <p className="pl-adj" role="status">
+          <p className="spl-adj" role="status">
             <span>Ajustando la propuesta de {name} · toca en el mapa: se guarda como ajustada</span>
             <button type="button" className="vd-link" onClick={() => setAdjusting(null)}>
               Cancelar
             </button>
           </p>
         )}
-        <div className="pl-posgrid">
-          <div className="pl-mapw">
-            <div className="vd-seg vd-glass pl-mode" role="group" aria-label="Qué marca un toque en el mapa" style={{ "--n": 2, "--i": mode === "also" ? 1 : 0 } as CSSProperties}>
+        <div className="spl-posgrid">
+          <div className="spl-mapw">
+            <div className="vd-seg vd-glass spl-mode" role="group" aria-label="Qué marca un toque en el mapa" style={{ "--n": 2, "--i": mode === "also" ? 1 : 0 } as CSSProperties}>
               <span className="vd-shelf__bead" aria-hidden="true" />
               <button type="button" className="vd-seg__b" aria-pressed={mode === "main"} onClick={() => (setMode("main"), setMapErr(""))}>
                 ★ Preferida
@@ -626,35 +626,35 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
               </button>
             </div>
             <Mapa value={shown} mode={mode} label={`Posiciones de ${name}`} onTap={onSpot} was={adj ? current : undefined} />
-            <p className="pl-map__key" aria-hidden="true">
+            <p className="spl-map__key" aria-hidden="true">
               <span>
-                <b className="pl-key">★</b> preferida
+                <b className="spl-key">★</b> preferida
               </span>
               <span>
-                <b className="pl-key">●</b> también · hasta 6
+                <b className="spl-key">●</b> también · hasta 6
               </span>
             </p>
             {mapErr && (
-              <p className="pl-err" role="alert">
+              <p className="spl-err" role="alert">
                 {mapErr}
               </p>
             )}
           </div>
-          <p className="pl-played">{played}</p>
+          <p className="spl-played">{played}</p>
         </div>
       </section>
 
-      <section className="sc-sec pl-sec" aria-labelledby={`${uid}-dat`}>
+      <section className="sc-sec spl-sec" aria-labelledby={`${uid}-dat`}>
         <header className="sc-sec__h">
           <h3 className="sc-h3" id={`${uid}-dat`}>
             Datos
           </h3>
         </header>
-        <div className="sc-form pl-form">{fields(dataFields)}</div>
-        <p className="sc-small pl-note">La foto solo se cambia aquí: la historia de la web la enseña, pero no la edita.</p>
+        <div className="sc-form spl-form">{fields(dataFields)}</div>
+        <p className="sc-small spl-note">La foto solo se cambia aquí: la historia de la web la enseña, pero no la edita.</p>
       </section>
 
-      <section className="sc-sec pl-sec" aria-labelledby={`${uid}-cue`}>
+      <section className="sc-sec spl-sec" aria-labelledby={`${uid}-cue`}>
         <header className="sc-sec__h">
           <h3 className="sc-h3" id={`${uid}-cue`}>
             Cuenta y web
@@ -682,7 +682,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
         </ul>
       </section>
 
-      <section className="sc-sec pl-sec" aria-labelledby={`${uid}-aus`}>
+      <section className="sc-sec spl-sec" aria-labelledby={`${uid}-aus`}>
         <header className="sc-sec__h">
           <h3 className="sc-h3" id={`${uid}-aus`}>
             Ausencias
@@ -715,7 +715,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
         )}
         {!member && <p className="sc-small">Sin cuenta en el vestuario: sus ausencias las apunta él cuando entre.</p>}
         {absForm && (
-          <form className="pl-absf" aria-label="Apuntar una ausencia" onSubmit={addAbsence} noValidate>
+          <form className="spl-absf" aria-label="Apuntar una ausencia" onSubmit={addAbsence} noValidate>
             <div className="sc-form">
               <label className="sc-field">
                 <span>Desde</span>
@@ -731,7 +731,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
               </label>
             </div>
             {absForm.err && (
-              <p className="pl-err" role="alert">
+              <p className="spl-err" role="alert">
                 {absForm.err}
               </p>
             )}
@@ -747,7 +747,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
         )}
       </section>
 
-      <section className="sc-sec pl-sec pl-end" aria-labelledby={`${uid}-baja`}>
+      <section className="sc-sec spl-sec spl-end" aria-labelledby={`${uid}-baja`}>
         <h3 className="vd-vh" id={`${uid}-baja`}>
           Baja
         </h3>
@@ -755,7 +755,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           <>
             <button
               type="button"
-              className="vd-btn vd-glass vd-press vd-btn--sm pl-baja"
+              className="vd-btn vd-glass vd-press vd-btn--sm spl-baja"
               aria-expanded={bajaOpen}
               onClick={() => {
                 setBajaOpen((o) => !o);
@@ -765,9 +765,9 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
               Dar de baja de la {season.name}
             </button>
             {bajaOpen && (
-              <div className="pl-confirm" role="group" aria-label="¿Dar de baja?">
+              <div className="spl-confirm" role="group" aria-label="¿Dar de baja?">
                 <p className="sc-h3">¿Dar de baja a {name}?</p>
-                <ul className="pl-conseq">
+                <ul className="spl-conseq">
                   <li>Deja la plantilla de la {season.name}</li>
                   <li>Sus actas, goles y su carta se quedan: no se borra nada</li>
                   <li>Se puede volver a dar de alta desde Antiguos</li>
@@ -788,7 +788,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           <>
             <button
               type="button"
-              className="vd-link pl-del"
+              className="vd-link spl-del"
               aria-expanded={delOpen}
               onClick={() => {
                 setDelOpen((o) => !o);
@@ -800,9 +800,9 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
               Borrar la ficha
             </button>
             {delOpen && (
-              <div className="pl-confirm pl-confirm--del" role="group" aria-label="¿Borrar la ficha?">
+              <div className="spl-confirm spl-confirm--del" role="group" aria-label="¿Borrar la ficha?">
                 <p className="sc-h3">¿Borrar la ficha de {name} para siempre?</p>
-                <ul className="pl-conseq">
+                <ul className="spl-conseq">
                   <li>Solo se puede porque nunca ha jugado: ningún acta ni convocatoria la cita</li>
                   <li>Desaparece de la plantilla, de las temporadas y de la web</li>
                   <li>Para dejar de contar con él, mejor «Dar de baja»</li>
@@ -812,7 +812,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
                   <input className="vd-input vd-glass" type="text" value={delQ} onChange={(e) => setDelQ(e.currentTarget.value)} autoComplete="off" />
                 </label>
                 <div className="sc-btnrow">
-                  <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm pl-danger" aria-disabled={!delOk || undefined} onClick={del}>
+                  <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm spl-danger" aria-disabled={!delOk || undefined} onClick={del}>
                     Borrar la ficha
                   </button>
                   <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => setDelOpen(false)}>
@@ -825,20 +825,20 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
         ) : (
           <p className="sc-small">{row.account === "vinculada" || row.account === "fuera" ? "Su ficha no se puede borrar: tiene una cuenta unida. Dar de baja nunca borra." : "Su ficha no se puede borrar: ha jugado y las actas la citan. Dar de baja nunca borra."}</p>
         )}
-        <p className="sc-small pl-savehint">Se guarda solo al salir de cada campo · «Deshacer» durante 5 s en la franja de abajo</p>
+        <p className="sc-small spl-savehint">Se guarda solo al salir de cada campo · «Deshacer» durante 5 s en la franja de abajo</p>
       </section>
 
-      <nav className="pl-fnav sc-primary sc-primary--pin" aria-label="Pasar de jugador">
+      <nav className="spl-fnav sc-primary sc-primary--pin" aria-label="Pasar de jugador">
         <button type="button" className="vd-ibtn vd-glass vd-press" aria-label={prev ? `Jugador anterior: ${prev.name}` : "Jugador anterior"} aria-keyshortcuts="ArrowLeft ArrowUp" aria-disabled={!prev || undefined} onClick={() => prev && open(prev.id, -1)}>
           <Icon name="arrow" size={20} flip />
         </button>
-        <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm pl-fnav__gap" aria-disabled={!nextGap || undefined} aria-label={nextGap ? `Siguiente sin completar: ${nextGap.name}` : "No queda otra ficha sin completar"} onClick={() => nextGap && open(nextGap.id, 1)}>
+        <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm spl-fnav__gap" aria-disabled={!nextGap || undefined} aria-label={nextGap ? `Siguiente sin completar: ${nextGap.name}` : "No queda otra ficha sin completar"} onClick={() => nextGap && open(nextGap.id, 1)}>
           {allDone ? "Todas completas" : nextGap ? "Siguiente sin completar" : "Es la última sin completar"}
         </button>
         <button type="button" className="vd-ibtn vd-glass vd-press" aria-label={next ? `Jugador siguiente: ${next.name}` : "Jugador siguiente"} aria-keyshortcuts="ArrowRight ArrowDown" aria-disabled={!next || undefined} onClick={() => next && open(next.id, 1)}>
           <Icon name="arrow" size={20} />
         </button>
-        <span className="pl-fnav__k" aria-hidden="true">
+        <span className="spl-fnav__k" aria-hidden="true">
           ← → o ↑ ↓ para pasar de jugador
         </span>
       </nav>
@@ -872,7 +872,7 @@ function SanctionBox({ name, editing, upcoming, onCancel, onSave }: { name: stri
   };
   const title = editing ? `Cambiar la sanción de ${name}` : `Sanción de ${name}`;
   return (
-    <form className="pl-sanc" aria-label={title} onSubmit={submit} noValidate>
+    <form className="spl-sanc" aria-label={title} onSubmit={submit} noValidate>
       <p className="sc-h3">{title}</p>
       <div className="vd-seg vd-glass" role="group" aria-label="Cómo se cuenta la sanción" style={{ "--n": 2, "--i": f.mode === "until" ? 1 : 0 } as CSSProperties}>
         <span className="vd-shelf__bead" aria-hidden="true" />
@@ -908,7 +908,7 @@ function SanctionBox({ name, editing, upcoming, onCancel, onSave }: { name: stri
         <input className="vd-input vd-glass" type="text" maxLength={SANCTION_LIMITS.reason} value={f.reason} onChange={(e) => set("reason", e.currentTarget.value)} placeholder="Federación, roja en Copa…" />
       </label>
       {err && (
-        <p className="pl-err" role="alert" id={`${uid}-e`}>
+        <p className="spl-err" role="alert" id={`${uid}-e`}>
           {err}
         </p>
       )}
