@@ -2,14 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetTapsForTesting, followHistory, pageChangeTypes, pageKeyOf, setAppTravel, startPageTransition, tapsSkipTransitions } from "./pageTransition";
 
-type FakeTransition = { finished: Promise<void>; skipTransition: ReturnType<typeof vi.fn>; end: () => void };
+type FakeTransition = { finished: Promise<void>; ready: Promise<void>; skipTransition: ReturnType<typeof vi.fn>; end: () => void };
 function fakeDocument() {
   const doc = document.implementation.createHTMLDocument("t");
   const started: FakeTransition[] = [];
   (doc as unknown as { startViewTransition: () => FakeTransition }).startViewTransition = () => {
     let end = () => {};
     const finished = new Promise<void>((resolve) => (end = resolve));
-    const t = { finished, skipTransition: vi.fn(), end };
+    const t: FakeTransition = { finished, ready: Promise.resolve(), skipTransition: vi.fn(), end };
     started.push(t);
     return t;
   };
@@ -47,6 +47,37 @@ describe("a tap during a View Transition", () => {
     tap();
     expect(first.skipTransition).not.toHaveBeenCalled();
     expect(second.skipTransition).toHaveBeenCalledTimes(1);
+  });
+
+  // (the transition's pseudo-elements took the pointerdown, so the browser sends the click to <html>)
+  function tabUnderTheFinger(doc: Document) {
+    const tab = doc.createElement("a");
+    doc.body.append(tab);
+    const clicked = vi.fn();
+    tab.addEventListener("click", clicked);
+    (doc as unknown as { elementFromPoint: () => Element }).elementFromPoint = () => tab;
+    return clicked;
+  }
+
+  it("sends the tap's lost click on to what is under the finger once the transition is over", async () => {
+    const { doc, start, tap } = fakeDocument();
+    tapsSkipTransitions(doc);
+    const clicked = tabUnderTheFinger(doc);
+    const t = start();
+    tap();
+    t.end();
+    await t.finished;
+    doc.documentElement.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 800 }));
+    expect(clicked).toHaveBeenCalledTimes(1);
+    expect((clicked.mock.calls[0][0] as MouseEvent).clientY).toBe(800);
+  });
+
+  it("leaves a click on the page alone when no transition was cut short", () => {
+    const { doc } = fakeDocument();
+    tapsSkipTransitions(doc);
+    const clicked = tabUnderTheFinger(doc);
+    doc.documentElement.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(clicked).not.toHaveBeenCalled();
   });
 });
 

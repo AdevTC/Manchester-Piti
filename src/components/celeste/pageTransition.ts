@@ -172,7 +172,10 @@ export function onViewTransition(watch: (t: ViewTransition, page: boolean) => vo
  * Every View Transition started through `document.startViewTransition` (the router's, the in-page ones) is
  * followed here:
  * - a tap during one finishes it at once and reaches what was tapped (Chrome's guidance): while one runs, its
- *   pseudo-elements cover the page and would swallow the tap (a page change is ~380 ms);
+ *   pseudo-elements cover the page (a page change is ~380 ms), so the tap's pointerdown lands on <html> and its click
+ *   follows it there (`pointer-events:none` on ::view-transition changes nothing in WebKit or Chrome). That click is
+ *   sent on to what is under the finger once the transition is gone: tapping the tab bar quickly lost every other tap;
+ * - a transition skipped or cut short rejects its `ready`, which nobody else waits for: handled here, not an error;
  * - a change of page takes the attributes startPageTransition armed and clears them when it is over. Once the next
  *   page is in, what it kept of the last one (a match page showing another match keeps its elements) is no longer
  *   leaving: the page that leaves and the one that comes are two groups, each where it is.
@@ -200,6 +203,7 @@ export function tapsSkipTransitions(doc: Document = document): void {
         ? wrap(arg)
         : { ...arg, update: wrap(arg.update) };
     const t = start(options);
+    t.ready.catch(() => {});
     running = t;
     const done = () => {
       if (running === t) running = null;
@@ -209,7 +213,30 @@ export function tapsSkipTransitions(doc: Document = document): void {
     for (const watch of watchers) watch(t, page !== null || pageTransitionActive());
     return t;
   };
-  doc.addEventListener("pointerdown", () => running?.skipTransition(), { capture: true, passive: true });
+  let skippedAt = -1;
+  doc.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!running) return;
+      skippedAt = e.timeStamp;
+      running.skipTransition();
+    },
+    { capture: true, passive: true },
+  );
+  doc.addEventListener(
+    "click",
+    (e) => {
+      const at = skippedAt;
+      skippedAt = -1;
+      if (at < 0 || e.target !== doc.documentElement || e.timeStamp - at > 1500 || running) return;
+      const under = doc.elementFromPoint(e.clientX, e.clientY);
+      if (!under || under === doc.documentElement || under === doc.body) return;
+      e.stopImmediatePropagation();
+      const { clientX, clientY, screenX, screenY, button, buttons, ctrlKey, shiftKey, altKey, metaKey } = e;
+      under.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, view: doc.defaultView, detail: 1, clientX, clientY, screenX, screenY, button, buttons, ctrlKey, shiftKey, altKey, metaKey }));
+    },
+    { capture: true },
+  );
 }
 
 /** Test-only. */
