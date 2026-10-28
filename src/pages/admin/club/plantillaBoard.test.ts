@@ -60,6 +60,27 @@ describe("plantillaBoard", () => {
   });
 });
 
+describe("r12 · a ficha held by someone who is out, and «Sancionados»", () => {
+  it("a removed member without the r12 stamp (or who left on his own) still holds it; one a captain removed does not", () => {
+    const people = [
+      { uid: "u1", playerId: "a", removed: true, removedBy: null, nickname: "viejo" },
+      { uid: "u2", playerId: "b", removed: true, removedBy: "u2", nickname: "sefue" },
+      { uid: "u3", playerId: "c", removed: true, removedBy: "cap", nickname: "quitado" },
+    ];
+    expect(accountOf("a", { people, claims: [] })).toEqual({ state: "fuera", who: "viejo" });
+    expect(accountOf("b", { people, claims: [] })).toEqual({ state: "fuera", who: "sefue" });
+    expect(accountOf("c", { people, claims: [] })).toEqual({ state: "sin", who: "" });
+  });
+  it("«Sancionados» is a chip of its own; a held ficha counts as «Sin cuenta»", () => {
+    const rows = boardRows(plantillaRows([p("a", { ...full, number: 1 }), p("b", { ...full, number: 2 })], SEASONS, "t1"), { people: [{ uid: "u1", playerId: "a", removed: true }], claims: [] }, new Set(["b"]));
+    expect(rows.map((r) => [r.id, r.account, r.sanctioned])).toEqual([
+      ["a", "fuera", false],
+      ["b", "sin", true],
+    ]);
+    expect(filterChips(rows).map((c) => `${c.label} ${c.n}`)).toEqual(["Sancionados 1", "Sin cuenta 2"]);
+  });
+});
+
 describe("gapsOf reads positions through the resolver", () => {
   it("a word that names a line is not a gap", () => {
     expect(gapsOf({ ...full, naturalPosition: "Defensa" })).toEqual([]);
