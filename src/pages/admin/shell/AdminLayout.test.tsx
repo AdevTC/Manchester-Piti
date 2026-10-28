@@ -6,7 +6,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { useToast } from "../ui/toastContext";
 import { LayerProvider } from "../ui/layers";
@@ -44,6 +44,13 @@ vi.mock("../../perfil/useProfileData", () => ({
   }),
 }));
 vi.mock("../../../components/jersey3d/usePageKitStills", () => ({ usePageKitStills: () => () => undefined }));
+
+// The avatar's «Tú» (with the role in its label) and the sala's search are lazy chunks: imported cold on a CI runner
+// they took longer than a findBy waits, and a different test failed each run. In before the tests, the lazy() calls
+// resolve at once (the module is cached), and the tests still use the real ones.
+beforeAll(async () => {
+  await Promise.all([import("../../../components/vidrio/account/AccountSheet"), import("./SalaSearchDialog")]);
+}, 30_000);
 
 const WIDTH = window.innerWidth;
 const wide = (w: number) => Object.defineProperty(window, "innerWidth", { configurable: true, value: w });
