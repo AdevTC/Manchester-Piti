@@ -78,7 +78,7 @@ export function TurnosScreen() {
       status.show({ tag: "Turnos", message: `Turnos guardados · ${plural(sending.jobs.length, "turno", "turnos")}` });
       return true;
     } catch (e) {
-      setErr(`No se han podido guardar los turnos: ${apiError(e)}. Tus cambios siguen aquí.`);
+      setErr(`No se han podido guardar los turnos: ${apiError(e).replace(/.$/, "")}. Tus cambios siguen aquí.`);
       status.show({ tone: "error", message: "No se han podido guardar los turnos · tus cambios siguen aquí", retry: () => void save(force) });
       return false;
     } finally {
@@ -104,7 +104,7 @@ export function TurnosScreen() {
     : !jobs.length && sid
       ? { label: "Empezar con los turnos de siempre", onClick: start }
       : null;
-  const lede = season ? (jobs.length ? `${la(season.name)} · ${plural(jobs.length, "turno", "turnos")} · uno por partido` : `${la(season.name)} · sin turnos todavía`) : "Sin temporada";
+  const lede = season ? (jobs.length ? `${season.name} · ${plural(jobs.length, "turno", "turnos")} · uno por partido` : `${season.name} · sin turnos todavía`) : "Sin temporada";
 
   return (
     <RoomScreen room="turnos" lede={lede} primary={primary}>

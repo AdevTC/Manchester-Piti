@@ -65,7 +65,7 @@ export function EquipacionesScreen() {
       status.show({ tag: "Equipaciones", message: "Equipaciones guardadas · El club ya las enseña" });
       return true;
     } catch (e) {
-      setErr(`No se han podido guardar las equipaciones: ${apiError(e)}. Tus cambios siguen aquí.`);
+      setErr(`No se han podido guardar las equipaciones: ${apiError(e).replace(/.$/, "")}. Tus cambios siguen aquí.`);
       status.show({ tone: "error", message: "No se han podido guardar las equipaciones", retry: () => void save() });
       return false;
     } finally {

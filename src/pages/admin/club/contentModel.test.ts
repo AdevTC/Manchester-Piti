@@ -21,6 +21,7 @@ import {
   storyIssues,
   storyOf,
   withoutPublishing,
+  withoutUndefined,
   type PlayerStory,
 } from "./contentModel";
 
@@ -44,7 +45,8 @@ describe("sections", () => {
   });
   it("slices the content per section", () => {
     expect(sliceOf(live, "frase")).toEqual({ intro: live.intro, location: "Madrid", founded: "", venue: "" });
-    expect(Object.keys(sliceOf(live, "contacto"))).toEqual(["email", "instagram", "youtube", "photoUrl"]);
+    // (M-45: the networks' list goes with the contact, beside the old two fields)
+    expect(Object.keys(sliceOf(live, "contacto"))).toEqual(["email", "instagram", "youtube", "photoUrl", "socials"]);
   });
   it("compares content ignoring key order and stray spaces", () => {
     expect(canonical({ a: " x ", b: [{ q: "1", a: "2" }] })).toBe(canonical({ b: [{ a: "2", q: "1" }], a: "x" }));
@@ -137,8 +139,21 @@ describe("publishPlan", () => {
     expect(plan.sections).toEqual(["historias", "galeria"]);
     expect(plan.content?.intro).toBe("Cambiada por otro capitán");
     expect(plan.content?.gallery).toHaveLength(2);
-    expect(plan.stories).toEqual([{ id: "kevin", data: { bio: "Once", quote: "", photoUrl: "" } }]);
+    expect(plan.stories).toEqual([{ id: "kevin", data: { bio: "Once" } }]);
     expect(publishPlan(putStoryDrafts(NO_DRAFTS, { kevin: { bio: "x", quote: "", photoUrl: "" } }, liveStory, 1), live, liveStory).content).toBeNull();
+  });
+
+  it("B-CLUB-06: a story writes only what its draft changed — a photo put in the ficha meanwhile is never written back over", () => {
+    const d = putStoryDrafts(NO_DRAFTS, { kevin: { ...liveStory("kevin"), quote: "A por ellos" } }, liveStory, 1);
+    // the ficha changed his photo after the draft was saved
+    const later = (id: string): PlayerStory => (id === "kevin" ? { ...liveStory("kevin"), photoUrl: "https://x.es/nueva.jpg" } : liveStory(id));
+    const plan = publishPlan(d, live, later);
+    expect(plan.stories).toEqual([{ id: "kevin", data: { quote: "A por ellos" } }]);
+    expect(plan.stories[0].data).not.toHaveProperty("photoUrl");
+  });
+
+  it("withoutUndefined: what Firestore refuses (an empty sponsor date, a field never set) is left out, at any depth", () => {
+    expect(withoutUndefined({ a: 1, b: undefined, c: [{ from: undefined, name: "Bar" }] })).toEqual({ a: 1, c: [{ name: "Bar" }] });
   });
 });
 

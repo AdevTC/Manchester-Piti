@@ -78,7 +78,7 @@ export function ClasificacionScreen() {
       status.show({ tag: "Tabla", message: `Guardada: ${saysText(rowsOut, draftJornada(sending))} · llega «Ya está la clasificación» al equipo` });
       return true;
     } catch (e) {
-      const msg = `No se ha podido guardar la clasificación: ${apiError(e)}. Tu tabla sigue aquí, sin perder nada.`;
+      const msg = `No se ha podido guardar la clasificación: ${apiError(e).replace(/.$/, "")}. Tu tabla sigue aquí, sin perder nada.`;
       setErr(msg);
       status.show({ tone: "error", message: "No se ha podido guardar la clasificación · tu tabla sigue aquí", retry: () => void save(force) });
       return false;
@@ -121,7 +121,7 @@ export function ClasificacionScreen() {
     ? { label: saving ? "Guardando…" : "Guardar la clasificación", onClick: () => void save(), disabled: saving || errs.length > 0 || conflict, why: errs[0] ?? (conflict ? "Otro capitán ha guardado antes: elige qué tabla se queda." : undefined) }
     : { label: "Pegar desde la liga", onClick: () => setPaste({ text: "", parsed: null }) };
   const er = editKey ? rows.find((r) => r.k === editKey) : undefined;
-  const lede = season ? (saved ? `${la(season.name)} · ${saved.rows.length} equipos · ${saysText(saved.rows, saved.jornada)}` : `${la(season.name)} · sin tabla todavía`) : "Sin temporada";
+  const lede = season ? (saved ? `${season.name} · ${saved.rows.length} equipos · ${saysText(saved.rows, saved.jornada)}` : `${season.name} · sin tabla todavía`) : "Sin temporada";
 
   return (
     <RoomScreen room="clasificacion" lede={lede} primary={primary}>

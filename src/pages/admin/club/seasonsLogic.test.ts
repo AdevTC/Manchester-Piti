@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerDoc, SeasonDoc } from "../../../lib/schemas";
 import { matchState, mergeMatches, type AdminMatch } from "../data/adminLogic";
-import { archiveImpact, copyRosterPlan, countsNote, nextSeasonName, seasonCards, seasonNameError, seasonShowcase, seasonTag } from "./seasonsLogic";
+import { archiveImpact, copyLeftOut, copyRosterPlan, countsNote, nextSeasonName, seasonCards, seasonNameError, seasonShowcase, seasonTag } from "./seasonsLogic";
 
 const NOW = Date.UTC(2026, 10, 2, 9);
 const day = 86_400_000;
@@ -72,6 +72,16 @@ describe("copyRosterPlan", () => {
     ]);
     expect(copyRosterPlan(players, "t0")).toEqual([{ id: "adrian", shirtName: "ADRI", number: 7 }]);
     expect(copyRosterPlan(players, "t2")).toEqual([]);
+  });
+
+  it("B-CLUB-11: who has no dorsal is named, and comes along without one when asked", () => {
+    expect(copyLeftOut(players, "t1")).toEqual(["SIN"]);
+    expect(copyRosterPlan(players, "t1").map((e) => e.id)).not.toContain("sin");
+    expect(copyRosterPlan(players, "t1", true)).toEqual([
+      { id: "erik", shirtName: "ERIK", number: 9 },
+      { id: "adrian", shirtName: "ADRIÁN T.C.", number: 10 },
+      { id: "sin", shirtName: "SIN", number: null },
+    ]);
   });
 });
 
