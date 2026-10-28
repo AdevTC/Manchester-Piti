@@ -5,7 +5,7 @@ import { dateMillis } from "../../../../../functions/src/matchEngine";
 import type { ActaReview, AdminMatch, ContentGap } from "../../data/adminLogic";
 import type { CarrilPhase } from "../../partido/carril";
 import { clockTime, shortDate } from "../../data/adminLogic";
-import { DayLong, dateNum, dayKey, dayName, dayShort, euros, list, monthShort, plural, rel, relDay } from "./fmt";
+import { DayFull, dateNum, dayKey, dayName, dayShort, euros, list, monthShort, plural, rel, relDay } from "./fmt";
 import { jWord } from "./matchWords";
 import { rivalCode } from "../../../../lib/eventMeta";
 
@@ -201,7 +201,7 @@ export function semana(o: {
 
 /** The line under «Hoy». */
 export function hoyLede(now: number, hero: { m: AdminMatch; phase: CarrilPhase } | null): string {
-  const day = DayLong(now);
+  const day = DayFull(now);
   if (!hero) return `${day} · no hay partidos a la vista`;
   const { m, phase } = hero;
   if (phase === "juego" || phase === "descanso") return `${day} · el Piti está jugando: se apunta en la mesa`;

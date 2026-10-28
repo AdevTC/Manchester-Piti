@@ -41,6 +41,8 @@ import { useSheetSession } from "../acta/sheetSession";
 import { Shirt, type Kit } from "./Shirt";
 import { useShirts } from "./useShirts";
 import type { DocumentData } from "firebase/firestore";
+// (the Vidrio controls these screens use, vd-seg and vd-switch: the sala does not load them by itself)
+import "../../../../styles/vidrio/components.css";
 import "./partidos.css";
 
 type From = "quien" | "siete" | "banco";
@@ -250,17 +252,22 @@ function Convocatoria() {
     const who = { name: p?.name ?? nameOf(id), number: p?.number ?? null };
     const pl = placeOf(id);
     const x = pick?.id === id && pick.from === from;
+    const src = guest ? undefined : still(who);
     return (
       <button key={`${from}-${id}`} type="button" className={`pa-peg is-${pl || "free"}`} aria-label={`${guest ? `${nameOf(id)}` : who.name}, ${answerOf(id)}, ${placeWord(id)}${editable ? ": elegir dónde" : ""}`} aria-expanded={x} onClick={open(id, from)}>
-        <Shirt src={guest ? undefined : still(who)} who={who} kit={kit} size="s" />
+        <Shirt src={src} who={who} kit={kit} size="s" />
         {pl && (
           <i className="pa-peg__tag" aria-hidden="true">
             {pl === "siete" ? "7" : "B"}
           </i>
         )}
-        <small className="pa-peg__note" aria-hidden="true">
-          {from === "banco" ? cap(answerOf(id)) : note || who.name}
-        </small>
+        {/* (the printed shirt says the name: under it only what it doesn't — the answer on the banquillo, an absence,
+            the name of a guest or while the photo renders) */}
+        {(from === "banco" || note || !src) && (
+          <small className="pa-peg__note" aria-hidden="true">
+            {from === "banco" ? cap(answerOf(id)) : note || who.name}
+          </small>
+        )}
       </button>
     );
   };

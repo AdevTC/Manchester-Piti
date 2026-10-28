@@ -3,7 +3,7 @@
 // siete; en juego: the score, the clock and the plays; after: the acta or what the web says; «¿Se jugó?» for one
 // that never reached la mesa, M-04, B-HOY-11), «Te toca» with one action per row and the done ones folded (M-05),
 // and what comes next. ≥ 1100 it is one screen: the hero and Te toca scroll inside.
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { VIcon } from "../../../../components/vidrio/VIcon";
 import { withGuestNames } from "../../../../lib/derived/guests";
@@ -19,6 +19,8 @@ import { LiveClock } from "../../live/LiveParts";
 import { liveLog } from "../../live/liveModel";
 import { stationLabel } from "../../partido/carril";
 import { useAdmin } from "../../shell/context";
+import { useRegisterCommands } from "../../palette/registry";
+import type { PaletteCommand } from "../../palette/search";
 import { SalaScreen, ScreenError, ScreenLoading, type PrimarySpec } from "../../shell/Screen";
 import { SalaLink } from "../../shell/SalaLink";
 import { useSalaGo } from "../../shell/salaHref";
@@ -66,7 +68,7 @@ function HoyBody({ data }: { data: AdminData }) {
   );
   const done = useMemo(() => {
     const mvpClosed = [...rows].reverse().find((r) => r.phase === "publicado" && r.m.voteClosesAt && r.m.voteClosesAt <= data.now);
-    return hechas({ matches: rows, mvp: mvpClosed ? { j: jWord(mvpClosed.m), total: 0 } : null, next: data.next ? { m: data.next.match, called: data.next.match.starters?.length ?? 0 } : null }).map((h) => (h.title.startsWith("MVP") ? { ...h, detail: data.mvp ? capitalize(data.mvp) : "Cerrado" } : h));
+    return hechas({ matches: rows, mvp: mvpClosed ? { j: jWord(mvpClosed.m), total: 0 } : null, next: data.next ? { m: data.next.match, called: (data.next.match.starters?.length ?? 0) + (data.next.match.bench?.length ?? 0) } : null }).map((h) => (h.title.startsWith("MVP") ? { ...h, detail: data.mvp ? capitalize(data.mvp) : "Cerrado" } : h));
   }, [rows, data.now, data.next, data.mvp]);
   const after = rows.filter((r) => r.phase === "antes" && (!heroRow || r.t > heroRow.t) && r.m.id !== heroRow?.m.id).slice(0, width >= 1800 ? 4 : 3);
 
@@ -74,6 +76,19 @@ function HoyBody({ data }: { data: AdminData }) {
   const absences = useTeamAbsences(madridDate(data.now));
   const answers = useMemo(() => (heroRow ? answersOf({ match: heroRow.m, roster: data.roster, answers: answersHero.data, absences }) : null), [heroRow, data.roster, answersHero.data, absences]);
 
+  // (a week wider than the screen opens on yesterday and today, not on the last jornada)
+  const daysRef = useRef<HTMLOListElement>(null);
+  const todayKey = days.find((d) => d.today)?.key;
+  useLayoutEffect(() => {
+    const ol = daysRef.current;
+    if (!ol || ol.scrollWidth <= ol.clientWidth + 1) return;
+    const today = ol.querySelector<HTMLElement>('[aria-current="date"]');
+    const from = (today?.previousElementSibling as HTMLElement | null) ?? today;
+    if (from) ol.scrollLeft = Math.max(0, from.offsetLeft - ol.offsetLeft);
+  }, [todayKey]);
+  // ⌘K: what Te toca asks first
+  const cmds = useMemo<PaletteCommand[]>(() => toca.slice(0, 4).map((t) => ({ id: `hoy:${t.id}`, group: "Acciones", icon: "•", title: t.title, description: t.action, keywords: "te toca pendiente", run: () => go(t.path) })), [toca, go]);
+  useRegisterCommands(cmds);
   const primary = heroPrimary(heroRow, answers, go, data.season && !rows.some((r) => r.m.seasonId === data.season?.id));
   return (
     <SalaScreen title="Hoy" lede={lede} primary={primary} fit className="hy">
@@ -81,7 +96,7 @@ function HoyBody({ data }: { data: AdminData }) {
         <h2 className="vd-vh" id="hy-week-t">
           La semana
         </h2>
-        <ol className="hy-days" aria-label="Los días hasta el próximo partido">
+        <ol ref={daysRef} className="hy-days" aria-label="Los días hasta el próximo partido">
           {days.map((d) => (
             <li key={d.key} className={["hy-day", d.today ? "is-today" : "", d.past ? "is-past" : "", d.hitos.length ? "has-hitos" : ""].filter(Boolean).join(" ")} aria-current={d.today ? "date" : undefined}>
               <p className="hy-day__d">

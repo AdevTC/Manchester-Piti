@@ -44,7 +44,7 @@
 .pa-row__when .sc-clock{font-size:13px;color:var(--vd-ink2)}
 .pa-row__rival{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .pa-row__rival .sc-rival{min-width:0}
-.pa-row__name{font-size:16px;font-weight:700;overflow-wrap:anywhere;color:var(--vd-ink-strong)}
+.pa-row__name{font-size:16px;font-weight:700;overflow-wrap:anywhere}
 .pa-row__where{font-size:14px;color:var(--vd-ink)}
 .pa-row__res{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0;white-space:nowrap}
 .pa-row__score{font-size:24px}
@@ -66,7 +66,7 @@
 .pa-form{gap:14px}
 .pa-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .pa-two{display:flex;gap:8px;flex-wrap:wrap}
-.pa-two .vd-btn{flex:1 1 0;min-width:0}
+.pa-two .vd-btn{flex:1 1 auto;min-width:max-content;padding-left:12px;padding-right:12px}
 .pa-new .sc-field>span:first-child,.pa-new .sc-field small{color:var(--vd-g-ink)}
 .pa-new .sc-field small{color:var(--vd-g-ink2)}
 .pa-new .sc-field small.is-ok{color:var(--vd-g-ink)}
@@ -173,7 +173,7 @@
 .pa-pend{display:grid;gap:8px;justify-items:start;margin:0 0 12px;padding:14px 16px;border-radius:18px;box-shadow:inset 0 0 0 1.5px var(--vd-celeste),0 0 0 4px rgba(108,171,221,.14)}
 .pa-dgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:0 40px}
 .pa-dsec{padding:14px 0 18px;border-top:1px solid var(--vd-rule);min-width:0}
-.pa-dsec>.sc-h3{margin:0 0 12px}
+.pa-datos .pa-dsec>.sc-h3{margin:0 0 12px}
 .pa-dsec .sc-form{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 .pa-logo{display:grid;gap:8px}
 .pa-logo__p{margin:0;display:flex;align-items:center;gap:10px}

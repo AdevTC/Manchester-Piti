@@ -23,6 +23,9 @@ export const monthShort = (ms: number): string => MONTHS_SHORT[Number(madridDate
 export const dayLong = (ms: number): string => `${dayName(ms)} ${dateNum(ms)} ${monthShort(ms)}`;
 /** «Domingo 8 nov». */
 export const DayLong = (ms: number): string => capital(dayLong(ms));
+const MONTH_FMT = new Intl.DateTimeFormat("es-ES", { timeZone: TZ, month: "long" });
+/** «Miércoles 28 de octubre» (Hoy's line). */
+export const DayFull = (ms: number): string => capital(`${dayName(ms)} ${dateNum(ms)} de ${MONTH_FMT.format(ms)}`);
 /** The year in Madrid. */
 export const yearOf = (ms: number): number => Number(madridDate(ms).slice(0, 4));
 
@@ -33,7 +36,7 @@ export function relDay(ms: number, now: number): string {
   if (diff === 1) return "mañana";
   if (diff === -1) return "ayer";
   if (diff > 1 && diff < 7) return `el ${dayName(ms)}`;
-  return `el ${dateNum(ms)} ${monthShort(ms)}`;
+  return `el ${dayShort(ms)} ${dateNum(ms)} ${monthShort(ms)}`;
 }
 const ymd = (ms: number): [number, number, number] => {
   const [y, m, d] = madridDate(ms).split("-").map(Number);
@@ -58,6 +61,7 @@ export function left(at: number, now: number): string {
   const days = Math.floor(d / D);
   const hours = Math.floor((d % D) / H);
   const mins = Math.floor((d % H) / 60_000);
+  if (days >= 2) return `${days} días`;
   if (days) return `${days} d${hours ? ` ${hours} h` : ""}`;
   if (hours) return `${hours} h${mins ? ` ${mins} min` : ""}`;
   return `${Math.max(1, mins)} min`;

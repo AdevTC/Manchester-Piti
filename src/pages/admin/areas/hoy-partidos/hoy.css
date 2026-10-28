@@ -111,8 +111,9 @@
   .hy-carril .sc-station b{white-space:normal;overflow:visible}
 }
 @container (max-width:759px){
-  .hy-carril{grid-template-columns:repeat(var(--n,6),minmax(96px,1fr));overflow-x:auto;scrollbar-width:none;margin-left:calc(var(--sc-gut) * -1);margin-right:calc(var(--sc-gut) * -1);padding:0 var(--sc-gut)}
-  .hy-carril::before{left:calc(var(--sc-gut) + 48px);right:calc(var(--sc-gut) + 48px)}
+  .hy-carril .sc-station b{white-space:normal;overflow:visible}
+  .hy-carril{grid-template-columns:repeat(var(--n,6),minmax(108px,1fr));overflow-x:auto;scrollbar-width:none;margin-left:calc(var(--sc-gut) * -1);margin-right:calc(var(--sc-gut) * -1);padding:0 var(--sc-gut)}
+  .hy-carril::before{left:calc(var(--sc-gut) + 54px);right:calc(var(--sc-gut) + 54px)}
   .hy-carril::-webkit-scrollbar{display:none}
 }
 /* desktop: one screen, the page never scrolls; the regions scroll inside */

@@ -30,6 +30,8 @@ import { useSheetSession } from "../acta/sheetSession";
 import { isoDay, plural } from "./fmt";
 import { COMPETITIONS, isDraftOnly, isPlayed } from "./matchWords";
 import { Shirt } from "./Shirt";
+// (the Vidrio controls these screens use, vd-seg and vd-switch: the sala does not load them by itself)
+import "../../../../styles/vidrio/components.css";
 import "./partidos.css";
 
 type Estado = "programado" | "aplazado" | "cancelado";
@@ -494,7 +496,7 @@ function Datos() {
 
       <footer className="pa-foot vd-glass" role="group" aria-label="Guardar los datos">
         <p className="pa-foot__s" aria-live="polite">
-          <b className="pa-dirty">{s.saveLine}</b>
+          <b className="pa-dirty">{s.dirty || s.saveLine !== "Sin guardar todavía" ? s.saveLine : draft ? "Borrador guardado" : "Guardado"}</b>
           <span>{footWhy}</span>
         </p>
         {s.dirty && (

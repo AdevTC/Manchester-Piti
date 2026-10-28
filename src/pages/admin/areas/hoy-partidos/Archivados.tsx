@@ -22,6 +22,8 @@ import { useStatus } from "../../shell/statusContext";
 import { useFrame } from "../../ui/frame";
 import { DayLong, fold, plural, yearOf } from "./fmt";
 import { opponentInitials } from "../../../../lib/clubAnalytics";
+// (the Vidrio controls these screens use, vd-seg and vd-switch: the sala does not load them by itself)
+import "../../../../styles/vidrio/components.css";
 import "./partidos.css";
 
 export function ArchivadosScreen() {
@@ -113,7 +115,7 @@ function ArchRow({ m, current }: { m: ArchivedMatch; current: boolean }) {
         </span>
         <span className="sc-row__t">
           <b className="sc-rival">
-            <i aria-hidden="true">{opponentInitials(rival)}</i>
+            <i aria-hidden="true">{opponentInitials(rival).slice(0, 2)}</i>
             {rival}
           </b>
           <span>

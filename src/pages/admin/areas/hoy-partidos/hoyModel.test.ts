@@ -71,10 +71,10 @@ describe("the week and the line under «Hoy»", () => {
   });
 
   it("the line says the moment: «¿se jugó?», a correction in a draft (B-HOY-07), the next match", () => {
-    expect(hoyLede(NOW, { m: match({}), phase: "pendiente" })).toBe("Lunes 2 nov · la J2 no llegó a la mesa: ¿se jugó?");
-    expect(hoyLede(NOW, { m: match({ draft: true }), phase: "publicado" })).toBe("Lunes 2 nov · acta publicada, con una corrección en borrador");
-    expect(hoyLede(NOW, { m: match({ date: NOW + D, home: false, rival: "Red Demons" }), phase: "antes" })).toBe("Lunes 2 nov · mañana juega el Piti en el campo de Red Demons");
-    expect(hoyLede(NOW, null)).toBe("Lunes 2 nov · no hay partidos a la vista");
+    expect(hoyLede(NOW, { m: match({}), phase: "pendiente" })).toBe("Lunes 2 de noviembre · la J2 no llegó a la mesa: ¿se jugó?");
+    expect(hoyLede(NOW, { m: match({ draft: true }), phase: "publicado" })).toBe("Lunes 2 de noviembre · acta publicada, con una corrección en borrador");
+    expect(hoyLede(NOW, { m: match({ date: NOW + D, home: false, rival: "Red Demons" }), phase: "antes" })).toBe("Lunes 2 de noviembre · mañana juega el Piti en el campo de Red Demons");
+    expect(hoyLede(NOW, null)).toBe("Lunes 2 de noviembre · no hay partidos a la vista");
   });
 });
 
@@ -116,7 +116,9 @@ describe("fmt", () => {
   it("relDay, left, isoDay", () => {
     expect(relDay(NOW + D, NOW)).toBe("mañana");
     expect(relDay(NOW + 3 * D, NOW)).toBe("el jueves");
-    expect(left(NOW + 2 * D + 4 * 3_600_000, NOW)).toBe("2 d 4 h");
+    expect(left(NOW + 2 * D + 4 * 3_600_000, NOW)).toBe("2 días");
+    expect(left(NOW + D + 4 * 3_600_000, NOW)).toBe("1 d 4 h");
+    expect(relDay(NOW + 13 * D, NOW)).toBe("el dom 15 nov");
     expect(isoDay("2026-11-12")).toBe("12 nov");
   });
 });

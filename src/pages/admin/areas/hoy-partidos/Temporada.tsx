@@ -7,6 +7,7 @@
 import { useMemo, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { VIcon } from "../../../../components/vidrio/VIcon";
 import { venueName } from "../../../../lib/derived/venue";
+import { opponentInitials } from "../../../../lib/clubAnalytics";
 import { clockTime, shortDate } from "../../data/adminLogic";
 import { MiniCarril } from "../../partido/CarrilNav";
 import { useRegisterCommands } from "../../palette/registry";
@@ -20,6 +21,8 @@ import { DayLong, fold, plural } from "./fmt";
 import { groupOf, hasScore, isDraftOnly, isLive, isOff, isPlayed, jWord, matchVt, rowToca } from "./matchWords";
 import { useMatchRows, type MatchRowView } from "./useMatchRows";
 import { listUi, type Filter } from "./listUi";
+// (the Vidrio controls these screens use, vd-seg and vd-switch: the sala does not load them by itself)
+import "../../../../styles/vidrio/components.css";
 import "./partidos.css";
 
 const FILTERS: [Filter, string][] = [
@@ -74,8 +77,11 @@ function SeasonTable({ sheet }: { sheet?: ReactNode }) {
   const fi = Math.max(0, FILTERS.findIndex((f) => f[0] === filter));
 
   const cmds = useMemo<PaletteCommand[]>(
-    () => [{ id: "partidos:archivados", group: "Acciones", icon: "post", title: "Partidos archivados", description: plural(data.archivedMatches.length, "partido", "partidos"), keywords: "archivo reactivar", run: () => go("/admin/partidos/archivados") }],
-    [data.archivedMatches.length, go],
+    () => [
+      { id: "partidos:archivados", group: "Acciones", icon: "▤", title: "Partidos archivados", description: plural(data.archivedMatches.length, "partido", "partidos"), keywords: "archivo reactivar", run: () => go("/admin/partidos/archivados") },
+      ...(data.next ? [{ id: "partidos:datos", group: "Acciones" as const, icon: "✎", title: `Datos de la ${jWord(data.next.match)}`, description: `${data.next.match.rival || "Rival"} · campo, hora, anotadores`, keywords: "encuentro campo hora anotador datos", run: () => go(`/admin/partidos/${data.next!.match.id}/datos`) }] : []),
+    ],
+    [data.archivedMatches.length, data.next, go],
   );
   useRegisterCommands(cmds);
 
@@ -184,6 +190,7 @@ function Row({ r, isNow, toca }: { r: MatchRowView; isNow: boolean; toca: boolea
         </span>
         <span className="pa-row__rival">
           <span className="sc-rival">
+            <i aria-hidden="true">{(m.rivalInitials || opponentInitials(rival)).slice(0, 2)}</i>
             <span className="sc-morph pa-row__name" style={{ viewTransitionName: matchVt(m.id) }}>
               {rival}
             </span>

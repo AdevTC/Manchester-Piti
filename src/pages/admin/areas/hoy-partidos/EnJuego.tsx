@@ -18,6 +18,8 @@ import type { PrimarySpec } from "../../shell/Screen";
 import { SalaLink } from "../../shell/SalaLink";
 import { dayLong, plural } from "./fmt";
 import { isLive, isOff, isPlayed } from "./matchWords";
+// (the Vidrio controls these screens use, vd-seg and vd-switch: the sala does not load them by itself)
+import "../../../../styles/vidrio/components.css";
 import "./partidos.css";
 
 const SCORE_DASH = "⁠–⁠";
