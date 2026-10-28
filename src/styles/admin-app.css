@@ -395,3 +395,5 @@
    them together on one line; Clasificación keeps its own .cl-adm .empty) */
 .adm .ad-empty{display:grid;gap:6px;justify-items:start;max-width:560px;margin:8px 0 16px}
 .adm .ad-empty small{font-size:14px;color:var(--soft)}
+/* (r12 · B-SH-17: no text under 11.5 px in the sala; admin.css is generated, so its one small mark is raised here) */
+.adm .tabs4 .tk{font-size:11.5px}
