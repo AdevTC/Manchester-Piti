@@ -1,4 +1,4 @@
-// The admin frame's width (the `.vx.adm` container, measured by AdminLayout with a ResizeObserver): views
+// The admin frame's width (the `.vx.sc` container, measured by AdminLayout with a ResizeObserver): views
 // and layers use it for the same breakpoints the CSS container queries use (desktop ≥ 1100 px, r12).
 import { createContext, useContext } from "react";
 

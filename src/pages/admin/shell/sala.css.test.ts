@@ -7,9 +7,7 @@ type Fs = { readFileSync: (path: string, encoding: "utf8") => string };
 const fsModule = "node:fs";
 const { readFileSync } = (await import(/* @vite-ignore */ fsModule)) as Fs;
 const css = readFileSync("src/pages/admin/shell/sala.css", "utf8"); // vitest runs from the repo root
-// (admin.css is generated and pinned by its own test: its one small mark, the tabs' ✓ / !, is raised in admin-app.css)
-const admin = readFileSync("src/styles/admin-app.css", "utf8");
-const generated = readFileSync("src/styles/admin.css", "utf8");
+const layout = readFileSync("src/pages/admin/shell/AdminLayout.tsx", "utf8");
 
 describe("sala.css", () => {
   it("every font-size is 11.5 px or more", () => {
@@ -17,11 +15,12 @@ describe("sala.css", () => {
     expect(sizes.length).toBeGreaterThan(20);
     expect(sizes.filter((s) => s < 11.5)).toEqual([]);
   });
-  it("…and so is today's admin CSS, until it goes", () => {
-    const tiny = [...admin.matchAll(/font(?:-size)?:\s*(?:[\d]+\s+)?([\d.]+)px/g)].map((m) => Number(m[1])).filter((s) => s < 11.5);
-    expect(tiny).toEqual([]);
-    const small = [...generated.matchAll(/([^{}]+)\{[^}]*font(?:-size)?:\s*(?:\d+\s+)?([\d.]+)px/g)].filter((m) => Number(m[2]) < 11.5).map((m) => m[1].trim());
-    for (const sel of small) expect(admin, sel).toContain(`${sel}{font-size:11.5px}`);
+  it("the sala is Vidrio alone: no admin v2 CSS, no `.adm` root, none of its variables", () => {
+    expect(layout).not.toMatch(/styles\/admin(-app)?\.css/);
+    expect(layout).not.toMatch(/\badm\b/);
+    expect(css).not.toMatch(/\.adm\b/);
+    // (the v2 frame's own variables: whatever still reads one gets a Vidrio token instead)
+    expect(css).not.toMatch(/var\(--(red|amber|panel2?|pline|deep|shirt|led|glass|wall|wall-line|railbar|pegdot|sheet|pop|scrim|stick)[,)]/);
   });
   it("no maqueta pieces", () => {
     expect(css).not.toMatch(/sc-strip|sc-interp|--sc-strip-h/);

@@ -184,7 +184,7 @@ test("el admin cargado directamente tiene su barra con los cinco sitios y sus co
   await expect(side.getByRole("link", { name: /^Partidos/ })).toHaveAttribute("aria-current", "page");
   await expect(page.locator(".sc-dock")).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1, name: "Partidos" })).toBeVisible();
-  const root = page.locator(".vx.adm");
+  const root = page.locator(".vx.sc");
   await expect(root).toHaveCSS("container-type", "inline-size");
   expect(await root.evaluate((el) => getComputedStyle(el).getPropertyValue("--bg").trim())).not.toBe("");
 });

@@ -21,6 +21,10 @@ export interface SalaSheetProps {
   /** role=alertdialog: it asks before something that cannot be undone. */
   alert?: boolean;
   initialFocus?: RefObject<HTMLElement | null>;
+  /** Where the focus goes when it closes (by default, whatever had it when it opened). */
+  returnFocus?: RefObject<HTMLElement | null>;
+  /** The id of the line that describes it (aria-describedby: the lede of a confirmation). */
+  describedBy?: string;
   closeLabel?: string;
   className?: string;
   children?: ReactNode;
@@ -30,15 +34,15 @@ export function SalaSheet(props: SalaSheetProps) {
   return props.open ? <SheetLayer {...props} /> : null;
 }
 
-function SheetLayer({ onClose, title, kicker, footer, center, alert, initialFocus, closeLabel = "Cerrar", className = "", children }: SalaSheetProps) {
+function SheetLayer({ onClose, title, kicker, footer, center, alert, initialFocus, returnFocus, describedBy, closeLabel = "Cerrar", className = "", children }: SalaSheetProps) {
   const ref = useRef<HTMLDivElement>(null);
   const host = useLayerHost();
   const id = useId();
-  const { isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus });
+  const { isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus, returnFocus });
   const node = (
     <>
       <div className="sc-scrim" onClick={isTop ? onClose : undefined} aria-hidden="true" />
-      <div ref={ref} className={`sc-sheet vd-glass vd-glass--deep${center ? " sc-sheet--center" : ""} ${className}`.trim()} role={alert ? "alertdialog" : "dialog"} aria-modal="true" aria-labelledby={id} tabIndex={-1}>
+      <div ref={ref} className={`sc-sheet vd-glass vd-glass--deep${center ? " sc-sheet--center" : ""} ${className}`.trim()} role={alert ? "alertdialog" : "dialog"} aria-modal="true" aria-labelledby={id} aria-describedby={describedBy} tabIndex={-1}>
         <span className="sc-sheet__grab" aria-hidden="true" />
         <div className="sc-sheet__h">
           <h2 className="sc-h3" id={id}>

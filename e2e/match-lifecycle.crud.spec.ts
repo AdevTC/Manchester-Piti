@@ -46,7 +46,7 @@ for (const mobile of [false, true]) test(`un partido terminado se archiva, consu
     await page.screenshot({ path: `.emulator-data/management-acta-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
     await manage.click();
     await page.getByRole("menuitem", { name: "Archivar…" }).click();
-    const archive = page.getByRole("dialog", { name: `¿Archivar el partido contra ${rival}?` });
+    const archive = page.getByRole("alertdialog", { name: `¿Archivar el partido contra ${rival}?` });
     await expect(archive).toContainText("Conserva el acta");
     await archive.getByRole("button", { name: "Archivar partido", exact: true }).click();
     await expect(page.getByText(new RegExp(`${rival} · fuera del calendario`))).toBeVisible();

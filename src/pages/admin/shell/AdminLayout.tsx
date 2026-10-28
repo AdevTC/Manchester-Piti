@@ -34,8 +34,7 @@ import { OFFLINE_LINE, useOnline, useSalaSeason, useSeasonParam } from "./season
 import { useSalaShortcuts } from "./shortcuts";
 import { StatusProvider } from "./StatusStrip";
 // The Vidrio tokens, glass, reading pieces and chrome the frame builds on (loaded here too: /admin can be the first
-// page loaded — a refresh, a bookmark, a push link), then today's admin styles (the views wave 2 replaces) and the
-// sala's own, last.
+// page loaded — a refresh, a bookmark, a push link), then the sala's own, last.
 import "../../../styles/vestuario.css";
 import "../../../styles/celeste/base.css";
 import "../../../styles/vidrio/tokens.css";
@@ -45,8 +44,6 @@ import "../../../styles/vidrio/chrome.css";
 import "../../../styles/vidrio/transitions.css";
 // (the system's shared components the screens use: vd-seg tabs, the shelf…)
 import "../../../styles/vidrio/components.css";
-import "../../../styles/admin.css";
-import "../../../styles/admin-app.css";
 import "./sala.css";
 
 /** The frame's inner width, live (ResizeObserver on the root). */
@@ -87,7 +84,7 @@ export function AdminLayout() {
   return (
     <MotionConfig reducedMotion="user">
       <FrameContext.Provider value={frame}>
-        <div ref={rootRef} className={`vx adm sc ${frame.desktop ? "d" : "m"} ${size}`}>
+        <div ref={rootRef} className={`vx sc ${frame.desktop ? "d" : "m"} ${size}`}>
           <LayerProvider appRef={appRef}>
             <StatusProvider>{captain ? <CaptainSala appRef={appRef} viewer={viewer} desktop={frame.desktop} /> : <DoorSala appRef={appRef} viewer={viewer} desktop={frame.desktop} />}</StatusProvider>
           </LayerProvider>

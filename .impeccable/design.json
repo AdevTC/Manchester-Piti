@@ -517,7 +517,7 @@
       "**Don't** introduce flat grey SaaS cards, equal-weight card grids, or a neutral palette outside the club's navy, sky, gold and their tints.",
       "**Don't** draw admin edges with layout-shifting borders, or change geometry on selection; use inset rings.",
       "**Don't** round the lower third or turn it into a toast; it stays a 4px broadcast strap.",
-      "**Don't** hand-edit `src/styles/admin.css`; it is generated from the Design canvas. App-only rules go in `src/styles/admin-app.css` or a per-area file such as `src/pages/admin/club/plantilla.css`.",
+      "**Don't** style the Sala de control outside Vidrio: its shared pieces are `src/pages/admin/shell/sala.css` (`sc-*`) and each area's rules go in its own file (`src/pages/admin/areas/<área>/*.css`).",
       "**Don't** wrap or clip a display name; size it to its container."
     ]
   }
