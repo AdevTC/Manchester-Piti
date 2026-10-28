@@ -254,6 +254,8 @@ function Narration({ s }: { s: SheetSession }) {
                 type="text"
                 inputMode="numeric"
                 maxLength={4}
+                aria-label="Duración real de juego (segundos, sin descanso)"
+                aria-describedby="ac-secs-n"
                 value={secs ?? ""}
                 onChange={(e) => {
                   const d = e.target.value.replace(/\D/g, "").slice(0, 4);
@@ -268,7 +270,7 @@ function Narration({ s }: { s: SheetSession }) {
                   });
                 }}
               />
-              <small>{secs ? `${Math.floor(secs / 60)} min ${secs % 60} s de juego, sin el descanso.` : "Sin apuntar."}</small>
+              <small id="ac-secs-n">{secs ? `${Math.floor(secs / 60)} min ${secs % 60} s de juego, sin el descanso.` : "Sin apuntar."}</small>
             </label>
           </div>
           <p className="ac-say" role="status">
@@ -288,8 +290,8 @@ function Narration({ s }: { s: SheetSession }) {
           )}
           <label className="sc-field ac-wide">
             <span>Notas de cobertura</span>
-            <textarea className="vd-input" maxLength={2000} value={sheet.analysisNotes ?? ""} onChange={(e) => update((v) => ({ ...v, analysisNotes: e.target.value.slice(0, 2000) }))} placeholder="Ej.: faltan las acciones de los primeros cinco minutos." />
-            <small>{(sheet.analysisNotes ?? "").length} de 2000</small>
+            <textarea className="vd-input" aria-label="Notas de cobertura" aria-describedby="ac-notes-n" maxLength={2000} value={sheet.analysisNotes ?? ""} onChange={(e) => update((v) => ({ ...v, analysisNotes: e.target.value.slice(0, 2000) }))} placeholder="Ej.: faltan las acciones de los primeros cinco minutos." />
+            <small id="ac-notes-n">{(sheet.analysisNotes ?? "").length} de 2000</small>
           </label>
         </section>
 
@@ -315,6 +317,7 @@ function Narration({ s }: { s: SheetSession }) {
               <input
                 className="vd-input ac-file"
                 type="file"
+                aria-label="Archivo de acciones (.json, hasta 900 KB)"
                 accept=".json,application/json"
                 onChange={(e) => {
                   const f = e.target.files?.[0];

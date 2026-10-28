@@ -65,7 +65,9 @@ function Publish({ s }: { s: SheetSession }) {
   const { gf, ga } = score(sheet);
   const rows = goalRows(sheet);
   const missing = rows.filter((g) => g.open);
-  const noMin = rows.filter((g) => g.minute === undefined);
+  // (the goals that came without minute stay listed while their minute is typed)
+  const [noMinIds] = useState(() => rows.filter((g) => g.minute === undefined).map((g) => g.id));
+  const noMin = rows.filter((g) => g.minute === undefined || noMinIds.includes(g.id));
   const assist = rows.filter((g) => !g.open && g.kind !== "og" && !g.assist && g.assistReviewed !== true);
   const blockers = checkRows(review).filter((c) => c.k === "mal");
   const called = [...sheet.starters, ...sheet.bench];
@@ -183,7 +185,7 @@ function Publish({ s }: { s: SheetSession }) {
                     </span>
                     <label className="sc-field">
                       <span>Minuto del gol {g.n}</span>
-                      <input className="vd-input ac-min__in" type="text" inputMode="numeric" maxLength={3} placeholder="min" value="" onChange={(e) => s.update((x) => setMinute(x, g.id, e.target.value))} />
+                      <input className="vd-input ac-min__in" type="text" inputMode="numeric" maxLength={3} placeholder="min" value={g.minute ?? ""} onChange={(e) => s.update((x) => setMinute(x, g.id, e.target.value))} />
                     </label>
                   </li>
                 ))}
@@ -277,8 +279,8 @@ function Publish({ s }: { s: SheetSession }) {
             <p className="ac-cron__h">{headline}</p>
             <label className="sc-field">
               <span>Crónica</span>
-              <textarea className="vd-input ac-cron__t" maxLength={10000} value={sheet.report} onChange={(e) => s.update((v) => ({ ...v, report: e.target.value.slice(0, 10000) }))} placeholder="Lo que pasó, contado para la afición" />
-              <small>{sheet.report.length.toLocaleString("es-ES")} de 10.000 · se puede retocar antes de publicar</small>
+              <textarea className="vd-input ac-cron__t" aria-label="Crónica" aria-describedby="ac-cron-n" maxLength={10000} value={sheet.report} onChange={(e) => s.update((v) => ({ ...v, report: e.target.value.slice(0, 10000) }))} placeholder="Lo que pasó, contado para la afición" />
+              <small id="ac-cron-n">{sheet.report.length.toLocaleString("es-ES")} de 10.000 · se puede retocar antes de publicar</small>
             </label>
             <div className="sc-btnrow">
               <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={summary}>
@@ -295,8 +297,8 @@ function Publish({ s }: { s: SheetSession }) {
             </header>
             <label className="sc-field">
               <span>Foto del partido (HTTPS)</span>
-              <input className="vd-input" type="url" maxLength={300} placeholder="https://…" value={sheet.photoUrl ?? ""} onChange={(e) => s.update((v) => ({ ...v, photoUrl: e.target.value.slice(0, 300) }))} />
-              {photo && (okHttps(photo) ? <small className="is-ok">✓ Se ve bien</small> : <small className="is-bad">No es HTTPS</small>)}
+              <input className="vd-input" type="url" aria-label="Foto del partido (HTTPS)" aria-describedby="ac-photo-w" maxLength={300} placeholder="https://…" value={sheet.photoUrl ?? ""} onChange={(e) => s.update((v) => ({ ...v, photoUrl: e.target.value.slice(0, 300) }))} />
+              {photo && (okHttps(photo) ? <small id="ac-photo-w" className="is-ok">✓ Se ve bien</small> : <small id="ac-photo-w" className="is-bad">No es HTTPS</small>)}
             </label>
             <h3 className="ac-sub-h">Galería · {gallery.length} de 20</h3>
             {!gallery.length && <p className="ac-none">Sin fotos en la galería.</p>}
@@ -318,8 +320,8 @@ function Publish({ s }: { s: SheetSession }) {
             <form className="ac-inline" onSubmit={addGal}>
               <label className="sc-field">
                 <span>Añadir foto a la galería (HTTPS)</span>
-                <input className="vd-input" type="url" maxLength={300} placeholder="https://…" value={gal} onChange={(e) => setGal(e.target.value.slice(0, 300))} />
-                {galBad && <small className="is-bad">Tiene que empezar por https://</small>}
+                <input className="vd-input" type="url" aria-label="Añadir foto a la galería (HTTPS)" aria-describedby="ac-gal-w" maxLength={300} placeholder="https://…" value={gal} onChange={(e) => setGal(e.target.value.slice(0, 300))} />
+                {galBad && <small id="ac-gal-w" className="is-bad">Tiene que empezar por https://</small>}
               </label>
               <button type="submit" className="vd-btn vd-glass vd-press vd-btn--sm" aria-disabled={gallery.length >= 20 || undefined}>
                 Añadir

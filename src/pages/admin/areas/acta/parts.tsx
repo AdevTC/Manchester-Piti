@@ -95,7 +95,7 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
             </button>
             {(s.serverDraft || s.dirty) && (
               <button type="button" className="vd-link ac-link" onClick={() => void s.discardDraft()} aria-disabled={s.busy === "discard" || undefined}>
-                {s.serverDraft && s.published ? "Descartar borrador" : "Descartar mis cambios"}
+                {s.serverDraft && s.match.published ? "Descartar borrador" : "Descartar mis cambios"}
               </button>
             )}
           </div>
@@ -150,7 +150,7 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={onPublishTo}>
               {s.published ? "Publicar la corrección" : "Ir a publicar"}
             </button>
-            {s.published && (
+            {s.match.published && (
               <button type="button" className="vd-link ac-link" onClick={() => void s.discardDraft()} aria-disabled={s.busy === "discard" || undefined}>
                 Descartar borrador
               </button>
@@ -165,13 +165,12 @@ export function ActaBars({ s, onPublishTo }: { s: SheetSession; onPublishTo: () 
 /** A minute box (digits only, ≤ 150): «12′». */
 export function MinuteBox({ value, label, onChange, id }: { value: number | undefined; label: string; onChange: (text: string) => void; id?: string }) {
   return (
-    <label className="ac-min">
-      <span className="vd-vh">{label}</span>
-      <input className="vd-input ac-min__in" data-minute={id} type="text" inputMode="numeric" maxLength={3} placeholder="min" value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+    <span className="ac-min">
+      <input className="vd-input ac-min__in" data-minute={id} aria-label={label} type="text" inputMode="numeric" maxLength={3} placeholder="min" value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
       <span className="ac-min__u" aria-hidden="true">
         ′
       </span>
-    </label>
+    </span>
   );
 }
 

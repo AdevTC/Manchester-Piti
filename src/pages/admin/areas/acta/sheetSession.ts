@@ -147,7 +147,9 @@ export function useSheetSession(): SheetSession {
 
   const j = jLabel(match);
   const rival = sheet.rival.trim() || "Rival";
-  const published = match.published && match.status === "finished";
+  // (what the web has: the published version, finished — a finished draft over a match in the calendar is not yet)
+  const pub = data.published.find((p) => p.id === match.id);
+  const published = !!pub && pub.status === "finished";
   const publishedClean = published && !match.draft && !dirty;
   const review = useMemo(() => reviewMatch(sheet, roster.map((p) => p.id), data.now, publishedClean, nameOf), [sheet, roster, data.now, publishedClean, nameOf]);
   const foot = footerOf({ phase, inCalendar: match.published, draft: match.draft, status: match.status ?? "scheduled", date: sheet.date, review });
@@ -155,7 +157,6 @@ export function useSheetSession(): SheetSession {
   const draftAt = st.savedAt ?? (match.draft ? (match.draftSavedAt ?? null) : null);
 
   // ── the match moved under the edits ──
-  const pub = data.published.find((p) => p.id === match.id);
   const overtaken = staleDraft(match, pub);
   // (taken in: the edits carry the published revision now, the next save resolves it)
   const stale = overtaken && (value.revision ?? 0) !== overtaken.revision ? overtaken : null;

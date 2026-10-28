@@ -442,9 +442,8 @@ function ActaEditor({ s }: { s: SheetSession }) {
               {(sheet.guests ?? []).length > 0 && (
                 <ul className="sc-rows">
                   {(sheet.guests ?? []).map((g) => {
-                    const ref = `guest:${g.id}`;
-                    const inPlay = guestInUse(sheet.events, ref);
-                    const where = guestSlot(sheet, ref) === "T" ? "En el siete" : "En el banquillo";
+                    const inPlay = guestInUse(sheet.events, g.id);
+                    const where = guestSlot(sheet, g.id) === "T" ? "En el siete" : "En el banquillo";
                     return (
                       <li key={g.id} className="sc-row ac-guest">
                         <Shirt kit={sheet.kit} />
@@ -452,7 +451,7 @@ function ActaEditor({ s }: { s: SheetSession }) {
                           <b>{g.name}</b>
                           <span>Invitado · {where}</span>
                         </span>
-                        <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-disabled={inPlay || undefined} aria-label={inPlay ? `No se puede quitar a ${g.name}: sale en el acta` : `Quitar a ${g.name}`} onClick={() => (inPlay ? status.show({ tone: "error", message: `No se puede quitar a ${g.name}: sale en el acta` }) : dropGuest(ref))}>
+                        <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-disabled={inPlay || undefined} aria-label={inPlay ? `No se puede quitar a ${g.name}: sale en el acta` : `Quitar a ${g.name}`} onClick={() => (inPlay ? status.show({ tone: "error", message: `No se puede quitar a ${g.name}: sale en el acta` }) : dropGuest(g.id))}>
                           Quitar
                         </button>
                       </li>
@@ -685,9 +684,13 @@ function ScorerPick(p: {
   }
   const num = (id: string) => (isGuestId(id) ? "INV" : (s.info(id).number ?? "—").toString());
   const choose = (id: string) => (step === 1 ? p.onScorer(id) : p.onAssist(id));
-  const typed = (v: string) => {
+  // (a dorsal picks as soon as no other dorsal starts with it: «1» waits while there is a 10 or a 14; Enter picks it)
+  const typed = (v: string, enter = false) => {
     const d = v.replace(/\D/g, "").slice(0, 2);
-    const hit = d ? [...onField, ...rest].find((id) => num(id) === d) : undefined;
+    const all = [...onField, ...rest];
+    const exact = d ? all.find((id) => num(id) === d) : undefined;
+    const longer = d ? all.some((id) => num(id) !== d && num(id).startsWith(d)) : false;
+    const hit = exact && (enter || !longer) ? exact : undefined;
     if (hit) {
       setDorsal("");
       choose(hit);
@@ -738,7 +741,7 @@ function ScorerPick(p: {
       )}
       <label className="ac-pick__dorsal">
         <span>Teclea el dorsal del {step === 1 ? "goleador" : "asistente"}</span>
-        <input className="vd-input" type="text" inputMode="numeric" maxLength={2} value={dorsal} onChange={(e) => typed(e.target.value)} placeholder="Dorsal" />
+        <input className="vd-input" type="text" inputMode="numeric" maxLength={2} value={dorsal} onChange={(e) => typed(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), typed(dorsal, true))} placeholder="Dorsal" />
       </label>
       <p className="ac-pick__gt">{at != null ? `En el campo en el ${at}′ · titulares primero` : "En el campo · titulares primero"}</p>
       {grid(onField)}
