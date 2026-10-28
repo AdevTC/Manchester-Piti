@@ -16,8 +16,6 @@ import { clockTime, jLabel, shortDate } from "../data/adminLogic";
 import type { MatchLifecycleRequest } from "../data/archivedMatches";
 import { useWhistled } from "../data/whistleStore";
 import { MatchLifecycleDialog } from "../partidos/MatchLifecycleDialog";
-import type { MatchTab } from "../shell/nav";
-import { MatchEditorStation } from "../areas/interim/MatchEditorStation";
 import { useAdmin } from "../shell/context";
 import { useSalaHead } from "../shell/head";
 import { screenOf, stationName } from "../shell/places";
@@ -34,9 +32,6 @@ import { Carril } from "./CarrilNav";
 import { PartidoContext, type Partido } from "./partidoContext";
 import { LifecycleContext } from "./lifecycle";
 import { PrimaryContext, PrimaryStore, useStationPrimaryValue } from "./primary";
-
-/** TEMPORARY (r12): the stations today's MatchEditor still draws, and its tab for each (see the body below). */
-const INTERIM_EDITOR: Partial<Record<Station, MatchTab>> = { datos: "encuentro" };
 
 export function PartidoLayout() {
   const { matchId = "" } = useParams({ strict: false }) as { matchId?: string };
@@ -182,10 +177,7 @@ function MatchFrame({ matchId, station: inAddress, sub }: { matchId: string; sta
               <Carril stations={stations} current={station} />
             </nav>
             <div className="sc-match__body">
-              {/* (TEMPORARY: the stations still drawn by today's workspace keep ONE editor mounted across them, as its
-                  tabs did, so its unsaved edits survive a change of station; each area removes its line from
-                  INTERIM_EDITOR when it draws its station, and the outlet takes over) */}
-              {INTERIM_EDITOR[sub ? "acta" : station] ? <MatchEditorStation tab={INTERIM_EDITOR[sub ? "acta" : station]!} /> : <Outlet />}
+              <Outlet />
               {primary && <PrimaryAction spec={primary} place="pin" />}
             </div>
           </div>
