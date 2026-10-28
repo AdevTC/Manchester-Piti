@@ -1,0 +1,8 @@
+/* ===== r12 · HOY Y PARTIDOS · what the area's screens share: the plain shirt while its photo renders ===== */
+.hp-shirt{position:relative;display:grid;place-items:center;box-sizing:border-box}
+.hp-shirt svg{position:absolute;inset:4% 6%;width:88%;height:88%}
+.hp-shirt path{fill:var(--vd-celeste);stroke:rgba(255,255,255,.55);stroke-width:2;stroke-linejoin:round}
+.hp-shirt--away path{fill:#141a24;stroke:rgba(255,255,255,.3)}
+.hp-shirt.is-blank path{fill:none;stroke:var(--vd-rule2);stroke-dasharray:5 4}
+.hp-shirt b{position:relative;margin-top:14%;font-size:calc(var(--sw,64px) * .36);font-weight:800;font-family:'Barlow Condensed',var(--vd-sans,system-ui),sans-serif;color:#0b1a33;line-height:1}
+.hp-shirt--away b{color:#fff}
