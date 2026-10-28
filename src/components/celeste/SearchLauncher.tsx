@@ -4,8 +4,9 @@
 // that leaves the address alone, growing out of the button (a View Transition: the button lends it its name,
 // tu-search, as the board's go({from, name}) does) and shrinking back into it; on a phone (where the board draws it
 // as the whole screen) it is the address /buscar, so «atrás» closes it. The dialog (SearchDialog: the data and the
-// results) loads when it is first wanted; the focus goes back to wherever it was when the search opened.
-import { useCallback, useEffect, useRef, useState } from "react";
+// results) loads when it is first wanted; the focus goes back to wherever it was when the search opened. Another
+// place (the Sala de control) passes its own dialog, keeps it a dialog on the phone too and may leave «/» alone.
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "@tanstack/react-router";
 import { TuIcon } from "../vidrio/tu/ui";
@@ -14,17 +15,24 @@ import { isShot, supportsViewTransitions } from "../vidrio/env";
 import { isSearchShortcut } from "./searchShortcut";
 import "./search.css";
 
-type DialogComponent = typeof import("./SearchDialog").SearchDialog;
-/** The dialog's chunk, asked for once (a hover, a focus, the opening): a failure lets the next try ask again. */
-let pending: Promise<DialogComponent> | null = null;
-const loadDialog = (): Promise<DialogComponent> =>
-  (pending ??= import("./SearchDialog").then(
-    (m) => m.SearchDialog,
-    (e: unknown) => {
-      pending = null;
+/** What the launcher opens: closed with `refocus` false when a result was chosen (the next screen is on its way). */
+export type SearchDialogComponent = ComponentType<{ onClose: (refocus?: boolean) => void }>;
+export type SearchDialogLoader = () => Promise<SearchDialogComponent>;
+
+const webDialog: SearchDialogLoader = () => import("./SearchDialog").then((m) => m.SearchDialog);
+/** Each dialog's chunk, asked for once (a hover, a focus, the opening): a failure lets the next try ask again. */
+const pending = new Map<SearchDialogLoader, Promise<SearchDialogComponent>>();
+function loadDialog(loader: SearchDialogLoader): Promise<SearchDialogComponent> {
+  let p = pending.get(loader);
+  if (!p) {
+    p = loader().catch((e: unknown) => {
+      pending.delete(loader);
       throw e;
-    },
-  ));
+    });
+    pending.set(loader, p);
+  }
+  return p;
+}
 
 /** Another dialog is up (the avisos panel, a sheet): the keys leave it alone. */
 const modalOpen = () => !!document.querySelector('[aria-modal="true"]');
@@ -54,11 +62,20 @@ function lendUntilDone(el: HTMLElement) {
   const t = window.setTimeout(done, 2000);
 }
 
-export function SearchLauncher() {
+export interface SearchLauncherProps {
+  /** The dialog to open (default: the web's SearchDialog). */
+  loader?: SearchDialogLoader;
+  /** On a phone, go to /buscar (default) or open the dialog there too (false). */
+  phoneRoute?: boolean;
+  /** «/» opens it too (default); false leaves «/» to the page (the sala's list search). */
+  slash?: boolean;
+}
+
+export function SearchLauncher({ loader = webDialog, phoneRoute = true, slash = true }: SearchLauncherProps = {}) {
   const router = useRouter({ warn: false });
   const [open, setOpen] = useState(false);
   /** The dialog, once its chunk is here (it stays for the next openings). */
-  const [Dialog, setDialog] = useState<DialogComponent | null>(null);
+  const [Dialog, setDialog] = useState<SearchDialogComponent | null>(null);
   /** The dialog's chunk failed to arrive (offline, a new deploy): said once, in words, instead of nothing. */
   const [failed, setFailed] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -69,7 +86,7 @@ export function SearchLauncher() {
     returnTo.current = at instanceof HTMLElement && at !== document.body ? at : button.current;
     setFailed(false);
     const btn = button.current;
-    if (router && isPhone()) {
+    if (router && phoneRoute && isPhone()) {
       // (the phone: the address /buscar, its screen growing out of the button)
       if (btn && morphs()) btn.style.viewTransitionName = NAME;
       tuGo("up", async () => {
@@ -78,7 +95,7 @@ export function SearchLauncher() {
       });
       return;
     }
-    loadDialog().then(
+    loadDialog(loader).then(
       (c) => {
         const opening = () => {
           if (btn) btn.style.viewTransitionName = "";
@@ -96,7 +113,7 @@ export function SearchLauncher() {
         setFailed(true);
       },
     );
-  }, [router]);
+  }, [router, phoneRoute, loader]);
 
   const close = useCallback((refocus = true) => {
     if (!refocus) {
@@ -123,13 +140,13 @@ export function SearchLauncher() {
   useEffect(() => {
     if (open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (!isSearchShortcut(e) || modalOpen()) return;
+      if (!isSearchShortcut(e) || (!slash && e.key === "/") || modalOpen()) return;
       e.preventDefault();
       show();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, show]);
+  }, [open, show, slash]);
 
   const key = isMac() ? "⌘K" : "Ctrl K";
 
@@ -143,10 +160,10 @@ export function SearchLauncher() {
         title={`Buscar (${key})`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-keyshortcuts={isMac() ? "Meta+K /" : "Control+K /"}
+        aria-keyshortcuts={`${isMac() ? "Meta+K" : "Control+K"}${slash ? " /" : ""}`}
         onClick={show}
-        onPointerEnter={() => void loadDialog().catch(() => undefined)}
-        onFocus={() => void loadDialog().catch(() => undefined)}
+        onPointerEnter={() => void loadDialog(loader).catch(() => undefined)}
+        onFocus={() => void loadDialog(loader).catch(() => undefined)}
       >
         <TuIcon name="search" />
         <span className="tu-cbtn__t">Buscar</span>
