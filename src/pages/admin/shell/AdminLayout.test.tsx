@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { adminFixture, mountAdmin, NOW, setAdminData } from "../../../test/adminKit";
+import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { useToast } from "../ui/toastContext";
 import { LayerProvider } from "../ui/layers";
 import { SalaSheet } from "./Sheet";
@@ -20,12 +20,11 @@ vi.mock("../../../context/AuthContext", () => ({
 }));
 vi.mock("../data/useCaja", () => ({ useCajaClaims: () => ({ data: [{ status: "pendiente" }, { status: "pendiente" }, { status: "confirmado" }], loading: false, error: false }) }));
 vi.mock("../../vestuario/live", async (orig) => ({ ...(await orig<typeof import("../../vestuario/live")>()), useMatchScorers: () => ({ data: who.scorers, loading: false, error: false }) }));
-vi.mock("../../../lib/clubData", async (orig) => {
-  const real = await orig<typeof import("../../../lib/clubData")>();
-  const { fixturePublished } = await import("../../../test/adminKit");
-  return { ...real, useClubData: () => ({ matches: fixturePublished, players: [], loading: false, error: null }) };
-});
-vi.mock("../../../hooks/useMatchClock", () => ({ useMatchClock: () => NOW }));
+// (the door reads the public matches: the fixture's, set in beforeEach — importing the kit here would deadlock the mock)
+const club = vi.hoisted(() => ({ matches: [] as unknown[] }));
+vi.mock("../../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../../lib/clubData")>()), useClubData: () => ({ matches: club.matches, players: [], loading: false, error: null }) }));
+// (adminKit's NOW: Monday 2 Nov 2026, 10:00 in Madrid)
+vi.mock("../../../hooks/useMatchClock", () => ({ useMatchClock: () => Date.UTC(2026, 10, 2, 9, 0) }));
 vi.mock("../../../lib/clubApi", () => ({ apiError: (e: unknown) => (e instanceof Error ? e.message : String(e)) }));
 
 const WIDTH = window.innerWidth;
@@ -39,6 +38,7 @@ beforeEach(() => {
   who.playerId = "adrian";
   who.scorers = [];
   who.logout = async () => undefined;
+  club.matches = fixturePublished;
   setAdminData(adminFixture());
 });
 afterEach(() => wide(WIDTH));

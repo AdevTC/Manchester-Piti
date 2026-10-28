@@ -70,12 +70,13 @@ function MatchFrame({ matchId, station: inAddress, sub }: { matchId: string; sta
   const { modalOpen } = useLayerStack();
   const match = data.matches.find((m) => m.id === matchId)!;
   const review = data.reviewOf(match);
-  const phase = carrilPhase(match, data.now, whistled.has(match.id));
+  const publishedFinal = data.published.some((p) => p.id === match.id && p.status === "finished");
+  const phase = carrilPhase(match, data.now, whistled.has(match.id), publishedFinal);
   const auto = stationOf(phase);
   const station = inAddress ?? auto;
   const stations = useMemo(
-    () => stationsOf({ match, now: data.now, whistled: whistled.has(match.id), review, rsvp: data.next?.match.id === match.id ? data.next.rsvp : null, mvpOpen: /abiert/i.test(data.mvp) && phase === "publicado" }),
-    [match, data.now, whistled, review, data.next, data.mvp, phase],
+    () => stationsOf({ match, now: data.now, whistled: whistled.has(match.id), review, rsvp: data.next?.match.id === match.id ? data.next.rsvp : null, mvpOpen: /abiert/i.test(data.mvp) && phase === "publicado", publishedFinal }),
+    [match, data.now, whistled, review, data.next, data.mvp, phase, publishedFinal],
   );
   const j = jLabel(match);
   const rival = match.rival || "Rival por confirmar";

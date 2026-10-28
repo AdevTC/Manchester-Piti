@@ -32,7 +32,8 @@ describe("what the frame knows of an address", () => {
     expect(at("/admin/partidos/m1/datos")).toMatchObject({ place: "partidos", matchId: "m1", station: "datos", screen: "datos" });
     expect(at("/admin/partidos/m1")).toMatchObject({ matchId: "m1", station: undefined, screen: "partido" });
     expect(at("/admin/partidos/m1/acta/historial")).toMatchObject({ station: "acta", screen: "acta-historial" });
-    expect(at("/admin/partidos/nuevo")).toMatchObject({ screen: "nuevo", matchId: undefined });
+    expect(at("/admin/partidos/nuevo").screen).toBe("nuevo");
+    expect(at("/admin/partidos/nuevo").matchId).toBeUndefined();
     expect(at("/admin/partidos/archivados/m9")).toMatchObject({ screen: "archivado", matchId: "m9" });
   });
   it("an address the sala does not have", () => {

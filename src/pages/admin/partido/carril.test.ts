@@ -34,7 +34,8 @@ describe("the carril", () => {
     expect(words(input({ date: NOW + 2 * 24 * H, mesa: { name: "Jorge", since: NOW } }))["en-juego"]).toBe("luego · Anota Jorge");
   });
   it("played, not published: the acta is yours, publishing once it adds up", () => {
-    const played = { date: NOW - 4 * H, status: "finished", clock: { phase: "ended" } } as Partial<AdminMatch>;
+    // (the acta being written is a draft over the calendar's scheduled copy)
+    const played = { date: NOW - 4 * H, status: "finished", draft: true } as Partial<AdminMatch>;
     expect(words(input(played, { goalsFor: 3, goalsAgainst: 2, missingScorers: 1 }))).toMatchObject({ acta: "toca · Falta 1 goleador", publicar: "luego · Antes, el acta" });
     expect(words(input(played, { goalsFor: 3, goalsAgainst: 2, cuadra: true }))).toMatchObject({ acta: "toca · Cuadra", publicar: "toca · Lista" });
   });
@@ -49,11 +50,11 @@ describe("the carril", () => {
   });
   it("published: done in words; a correction in a draft is yours again, not «final sin publicar» (B-HOY-07)", () => {
     const pub = { date: NOW - 30 * H, status: "finished", published: true, goalsFor: 1, goalsAgainst: 8 } as Partial<AdminMatch>;
-    expect(words(input(pub, { goalsFor: 1, goalsAgainst: 8, cuadra: true }))).toMatchObject({ acta: "hecho · 1–8 · perdido", publicar: "hecho · En la web", despues: "hecho · Al día" });
+    expect(words(input(pub, { goalsFor: 1, goalsAgainst: 8, cuadra: true }))).toMatchObject({ acta: "hecho · 1–8 · derrota", publicar: "hecho · En la web", despues: "hecho · Al día" });
     const fix = { ...pub, draft: true } as Partial<AdminMatch>;
-    expect(carrilPhase({ ...base, ...fix } as AdminMatch, NOW)).toBe("publicado");
+    expect(carrilPhase({ ...base, ...fix } as AdminMatch, NOW, false, true)).toBe("publicado");
     expect(phaseWord("publicado", { published: true, draft: true })).toBe("Publicado · con una corrección en borrador");
-    expect(words(input(fix, { cuadra: true }))).toMatchObject({ acta: "toca · Corrección en borrador", publicar: "toca · La web cuenta la anterior" });
+    expect(words(input(fix, { cuadra: true }, { publishedFinal: true }))).toMatchObject({ acta: "toca · Corrección en borrador", publicar: "toca · La web cuenta la anterior" });
   });
   it("aplazado or cancelado: Datos says so and is where the match opens", () => {
     expect(words(input({ status: "postponed" })).datos).toBe("toca · Aplazado");

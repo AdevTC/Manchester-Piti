@@ -34,6 +34,8 @@ export interface CarrilInput {
   rsvp?: RsvpCounts | null;
   /** «MVP abierto» while its vote is open. */
   mvpOpen?: boolean;
+  /** The calendar's copy is a finished acta (see carrilPhase). */
+  publishedFinal?: boolean;
 }
 
 const D = 86_400_000;
@@ -41,15 +43,19 @@ const NAME: Record<Station, string> = { convocatoria: "Convocatoria", datos: "Da
 const ICON: Record<Station, VIconName> = { convocatoria: "shirt", datos: "cal", "en-juego": "mesa", acta: "post", publicar: "share", despues: "star" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export function carrilPhase(m: AdminMatch, now: number, whistled = false): CarrilPhase {
+/** `publishedFinal`: the calendar's own copy is a finished acta (data.published), so a draft over it is a correction
+ *  (the merged match cannot tell: the draft's status wins). */
+export function carrilPhase(m: AdminMatch, now: number, whistled = false, publishedFinal = false): CarrilPhase {
   if (m.status === "cancelled") return "cancelado";
   if (m.status === "postponed") return "aplazado";
   // (a published acta with a correction in a draft is still the web's: «publicado», never «final sin publicar»)
-  if (m.published && m.status === "finished") return "publicado";
+  if (publishedFinal && m.published) return "publicado";
   const mo = matchMoment(m, now, whistled);
   if (mo === "publicado") return "publicado";
   if (mo === "juego") return m.clock?.phase === "halftime" ? "descanso" : "juego";
-  if (mo === "final") return isUnwhistled(m, now) && !(m.events ?? []).length ? "pendiente" : "final";
+  // (past its window, never on la mesa — no clock started, nothing written, not marked finished: «¿Se jugó?»)
+  const untouched = m.status !== "finished" && !(m.events ?? []).length && (!m.clock || m.clock.phase === "ready" || isUnwhistled(m, now));
+  if (mo === "final") return untouched ? "pendiente" : "final";
   return "antes";
 }
 
@@ -62,8 +68,8 @@ export function stationOf(phase: CarrilPhase): Station {
   return "convocatoria";
 }
 
-export function stationsOf({ match: m, now, whistled = false, review, rsvp, mvpOpen }: CarrilInput): StationView[] {
-  const ph = carrilPhase(m, now, whistled);
+export function stationsOf({ match: m, now, whistled = false, review, rsvp, mvpOpen, publishedFinal = false }: CarrilInput): StationView[] {
+  const ph = carrilPhase(m, now, whistled, publishedFinal);
   const played = ph === "final" || ph === "publicado" || ph === "pendiente";
   const live = ph === "juego" || ph === "descanso";
   const off = ph === "aplazado" || ph === "cancelado";
