@@ -396,3 +396,6 @@
 /* Narración carries the acta's foot too (the same buffer: saved from here) */
 @container (min-width:1100px){.ac-sheet-body:has(>.ac-narr){grid-template-rows:minmax(0,1fr) auto}}
 @container (max-width:1099px){.ac-sheet-body>.ac-narr{padding-bottom:var(--ac-foot-h)}}
+/* (B-ACTA-03) a closed block lays nothing out: its content is gone, not just skipped (the form blocks stay native)
+ */
+.ac-narr details:not([open])>:not(summary){display:none}

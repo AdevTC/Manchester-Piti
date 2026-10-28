@@ -4,6 +4,8 @@
 import { useContext, useMemo, useState, type ReactNode } from "react";
 import { KitStillContext, type Kit } from "../../../../components/jersey3d/kitStill";
 import { usePageKitStills } from "../../../../components/jersey3d/usePageKitStills";
+// (the Vidrio pieces the acta draws: the segmented controls, the nota's traffic light .nb)
+import "../../../../styles/vidrio/components.css";
 import { clockTime } from "../../data/adminLogic";
 import { useShell } from "../../shell/context";
 import { SalaLink } from "../../shell/SalaLink";
