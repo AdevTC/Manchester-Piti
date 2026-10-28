@@ -38,8 +38,24 @@ export function pageKeyOf(pathname: string): string | null {
   if (p === "/vestuario" || p.startsWith("/vestuario/")) return "vestuario";
   if (p === "/perfil" || p.startsWith("/perfil/") || p === "/avisos" || p.startsWith("/avisos/")) return "tu";
   if (p === "/buscar") return "buscar";
-  if (p === "/admin" || p.startsWith("/admin/") || p === "/pizarra" || p.startsWith("/invitacion/")) return null;
+  // (the Sala de control is an app of its own whose screens are pages among themselves: r12, law 4)
+  if (p === "/admin" || p.startsWith("/admin/")) return `${SALA}${p}`;
+  if (p === "/pizarra" || p.startsWith("/invitacion/")) return null;
   return "otra";
+}
+const SALA = "sala:";
+const isSala = (key: string) => key.startsWith(SALA);
+
+/** How an app of its own (the Sala de control) travels between its screens: the direction, and whether what heads
+ *  the screen stays put while only the screen travels (`keep`, html[data-vd-keep]: a match's stations). Installed by
+ *  the app's layout (shell/AdminLayout); without it its screens go right. */
+export interface AppTravel {
+  direction: SwapDirection;
+  keep?: boolean;
+}
+let appTravel: ((fromPath: string, toPath: string) => AppTravel) | null = null;
+export function setAppTravel(fn: ((fromPath: string, toPath: string) => AppTravel) | null): void {
+  appTravel = fn;
 }
 
 /** The change of page waiting for its View Transition (the router's starts a moment after the tap), and the parts of
@@ -49,14 +65,16 @@ let watch = 0;
 /** Marks the direction for the router's View Transition about to run (html[data-vd-page], and [data-vd-out] on what
  *  leaves), and clears it once that transition is over: a page whose code is still downloading starts its
  *  transition late, so a fixed timer would clear it too soon. */
-export function startPageTransition(direction: SwapDirection): void {
+export function startPageTransition(direction: SwapDirection, keep = false): void {
   if (typeof document === "undefined" || !supportsViewTransitions()) return;
   const root = document.documentElement;
   root.dataset.vdDir = direction;
   root.dataset.vdPage = "";
   if (prefersReducedMotion()) root.dataset.vdCalm = "";
   else delete root.dataset.vdCalm;
-  const content = document.querySelector(".vx > main, .vx > .nu-main");
+  if (keep) root.dataset.vdKeep = "";
+  else delete root.dataset.vdKeep;
+  const content = document.querySelector(".vx > main, .vx > .nu-main, .vx > .sc-app > main");
   const out = content ? [content, ...content.querySelectorAll('[class*="vd-reg-"]')] : [];
   for (const el of out) el.setAttribute("data-vd-out", "");
   const mine = ++watch;
@@ -66,6 +84,7 @@ export function startPageTransition(direction: SwapDirection): void {
     delete root.dataset.vdDir;
     delete root.dataset.vdPage;
     delete root.dataset.vdCalm;
+    delete root.dataset.vdKeep;
   };
   armed = { id: mine, clear, out };
   // (a page change that never transitions — a redirect elsewhere, a failed load — lets go after a while)
@@ -122,12 +141,15 @@ export function pageChangeTypes(info: ChangeInfo): string[] | false {
   const from = pageKeyOf(info.fromLocation.pathname);
   const to = pageKeyOf(info.toLocation.pathname);
   if (from === null || to === null || from === to) return false;
+  // (into or out of the sala: two apps, no choreography between them)
+  if (isSala(from) !== isSala(to)) return false;
   const step = action.type === "BACK" || action.type === "FORWARD" || action.type === "GO";
   if (step && animated) return false;
   const back = action.type === "BACK" || (action.type === "GO" && (action.index ?? 0) < 0);
   const forward = action.type === "FORWARD" || (action.type === "GO" && (action.index ?? 0) > 0);
-  const direction: SwapDirection = back ? "left" : forward ? "right" : pageDirection(from, to);
-  startPageTransition(direction);
+  const app = isSala(from) ? (appTravel?.(info.fromLocation?.pathname ?? "", info.toLocation.pathname) ?? { direction: "right" as const }) : null;
+  const direction: SwapDirection = back ? "left" : forward ? "right" : app ? app.direction : pageDirection(from, to);
+  startPageTransition(direction, !!app?.keep);
   return ["vd-page", back ? "vd-back" : "vd-forward"];
 }
 

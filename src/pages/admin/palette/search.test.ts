@@ -4,7 +4,7 @@ import { buildPaletteGroups, commandMatches, flatten, normalize, type PaletteCom
 const run = () => undefined;
 const cmd = (c: Partial<PaletteCommand> & Pick<PaletteCommand, "id" | "group" | "title">): PaletteCommand => ({ icon: "·", run, ...c });
 const COMMANDS: PaletteCommand[] = [
-  cmd({ id: "s:plantilla", group: "Secciones", title: "Plantilla" }),
+  cmd({ id: "s:plantilla", group: "Sitios", title: "Plantilla" }),
   cmd({ id: "a:nuevo", group: "Acciones", title: "Nuevo partido", description: "Rival, fecha y campo", keywords: "crear" }),
   ...Array.from({ length: 12 }, (_, i) =>
     cmd({ id: `m:${i + 1}`, group: "Partidos", title: `J${i + 1} · Rival ${i + 1}`, exact: [`J${i + 1}`], whenEmpty: i + 1 === 7 || i + 1 === 8 }),
@@ -40,11 +40,11 @@ describe("commandMatches", () => {
 });
 
 describe("buildPaletteGroups", () => {
-  it("with no query: actions, sections, the pinned matches, no players; groups in the designed order", () => {
+  it("with no query: actions, places, the pinned matches, no players; groups in the designed order", () => {
     expect(titles("")).toEqual([
       ["Acciones", ["a:nuevo"]],
+      ["Sitios", ["s:plantilla"]],
       ["Partidos", ["m:7", "m:8"]],
-      ["Secciones", ["s:plantilla"]],
       ["Herramientas", ["x:extra"]],
     ]);
   });
@@ -53,7 +53,7 @@ describe("buildPaletteGroups", () => {
     expect(titles("adrian")).toEqual([["Jugadores", ["p:adrian"]]]);
     expect(titles("rival")[1]).toEqual(["Partidos", ["m:1", "m:2", "m:3", "m:4", "m:5", "m:6"]]);
     expect(titles("plantilla")).toEqual([
-      ["Secciones", ["s:plantilla"]],
+      ["Sitios", ["s:plantilla"]],
       ["Herramientas", ["x:extra"]],
     ]);
   });

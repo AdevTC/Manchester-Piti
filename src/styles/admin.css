@@ -206,7 +206,7 @@ position:relative;overflow:hidden;font-size:15px;line-height:1.4;color:var(--ink
 .adm .tabs4{margin-left:auto;display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--panel)}
 .adm .tabs4 button{height:42px;padding:0 14px;border-radius:11px;font-size:14px;font-weight:600;color:var(--soft);display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .adm .tabs4 button[aria-selected=true]{background:var(--chip);color:var(--ink);box-shadow:inset 0 -2px 0 var(--sky),inset 0 0 0 1px var(--pline)}
-.adm .tabs4 .tk{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700}
+.adm .tabs4 .tk{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700}
 .adm .tabs4 .tk.ok{background:rgba(108,171,221,.2);color:var(--accent)}
 .adm .tabs4 .tk.wn{background:rgba(255,181,71,.2);color:var(--amber)}
 .adm .db{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:16px 20px 20px}

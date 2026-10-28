@@ -70,7 +70,7 @@
 .adm .pl3f .okb{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:999px;font-family:'Geist';font-size:12px;font-weight:700;color:var(--pill-on-ink);background:var(--sky)}
 .adm .pl3f .unsv{font-family:'Geist';font-size:12px;font-weight:700;color:var(--amber)}
 .adm .pl3f .sl2{display:inline-flex;gap:3px;flex-wrap:wrap}
-.adm .pl3f .sl2 i{display:grid;place-items:center;min-width:28px;height:20px;padding:0 5px;border-radius:5px;font-style:normal;font-family:'Geist';font-size:10.5px;font-weight:700;color:var(--pill-on-ink);background:var(--sky)}
+.adm .pl3f .sl2 i{display:grid;place-items:center;min-width:28px;height:20px;padding:0 5px;border-radius:5px;font-style:normal;font-family:'Geist';font-size:11.5px;font-weight:700;color:var(--pill-on-ink);background:var(--sky)}
 .adm .pl3f .sl2 i.no{color:var(--muted);background:transparent;outline:1px dashed var(--muted);outline-offset:-1px}
 .adm .pl3f .who{display:flex;align-items:baseline;gap:12px;min-width:0;font-family:'Anybody';font-weight:900;font-size:clamp(30px,4.2cqi,56px);line-height:1;letter-spacing:-.01em;overflow-wrap:anywhere}
 .adm .pl3f .who b{color:var(--sky);font-variant-numeric:tabular-nums}
@@ -199,7 +199,7 @@
 .adm .pc3 .tg{display:flex;gap:8px;min-height:16px}
 .adm .pc3 .tg em{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:12px;font-weight:700;color:var(--amber)}
 .adm .pc3 .sl2{display:inline-flex;gap:3px;flex-wrap:wrap;justify-content:center}
-.adm .pc3 .sl2 i{display:grid;place-items:center;min-width:26px;height:18px;padding:0 4px;border-radius:5px;font-style:normal;font-size:10px;font-weight:700;color:var(--pill-on-ink);background:var(--sky)}
+.adm .pc3 .sl2 i{display:grid;place-items:center;min-width:26px;height:18px;padding:0 4px;border-radius:5px;font-style:normal;font-size:11.5px;font-weight:700;color:var(--pill-on-ink);background:var(--sky)}
 .adm .pc3 .sl2 i.no{color:var(--muted);background:transparent;outline:1px dashed var(--muted);outline-offset:-1px}
 .adm .pc3.new{background:none;box-shadow:none;outline:1.5px dashed var(--pline);outline-offset:-1.5px}
 .adm .pc3.new .nm b{color:var(--accent)}

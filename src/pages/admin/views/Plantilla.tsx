@@ -13,7 +13,8 @@
 // line. Phones: the list (or cromos) is the screen; a player opens his ficha full screen. CSV export.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import { useViewSearch } from "../shell/interimSearch";
 import { serverTimestamp } from "firebase/firestore";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { summaryText } from "../../../components/posiciones/mapaNav";
@@ -80,7 +81,7 @@ export function Plantilla() {
   const navigate = useNavigate();
   const theme = useDocumentTheme();
   const { modalOpen } = useLayerStack();
-  const search: { jugador?: unknown; nuevo?: unknown; dorsal?: unknown; vista?: unknown } = useSearch({ strict: false });
+  const search: { jugador?: unknown; nuevo?: unknown; dorsal?: unknown; vista?: unknown } = useViewSearch();
   const openId = search.jugador != null && search.jugador !== "" ? String(search.jugador) : null;
   const altaOpen = !openId && truthy(search.nuevo);
   const altaDorsal = dorsalParam(search.dorsal);

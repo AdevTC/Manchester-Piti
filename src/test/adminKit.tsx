@@ -1,5 +1,5 @@
-// Test kit for the admin (no Firebase, no real router tree): an AdminData fixture built with the real
-// domain logic, and mountAdmin() — the real AdminLayout on a memory router with the admin's routes.
+// Test kit for the admin (no Firebase): an AdminData fixture built with the real domain logic, and mountAdmin() —
+// the real Sala de control (its frame, the match's layout) on a memory router with the sala's addresses.
 // In a test file:
 //   vi.mock("<…>/pages/admin/data/useAdminData", async () => ({ useAdminData: (await import("<…>/test/adminMocks")).currentAdminData }));
 //   vi.mock("<…>/context/AuthContext", async () => ({ useAuth: (await import("<…>/test/adminMocks")).fakeAuth }));
@@ -7,7 +7,15 @@
 //   vi.mock("../../../lib/clubApi", () => ({ apiError: String, resolvePlayerClaim: vi.fn(() => Promise.resolve({ data: {} })) }));
 //   setAdminData(adminFixture()); const router = mountAdmin("/admin");
 import { render } from "@testing-library/react";
-import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, redirect, RouterProvider, type AnyRoute } from "@tanstack/react-router";
+import { legacyHref } from "../lib/legacyUrls";
+import { PartidoLayout } from "../pages/admin/partido/PartidoLayout";
+import { NotFoundScreen } from "../pages/admin/shell/Screen";
+import * as HP from "../pages/admin/areas/hoy-partidos/screens";
+import * as AC from "../pages/admin/areas/acta/screens";
+import * as PL from "../pages/admin/areas/plantilla/screens";
+import * as CJ from "../pages/admin/areas/caja/Caja";
+import * as CL from "../pages/admin/areas/club/screens";
 import type { ReactElement } from "react";
 import type { MatchEvent } from "../../functions/src/matchEngine";
 import type { ClubMatch } from "../lib/clubData";
@@ -152,6 +160,7 @@ export function adminFixture({
     now,
     seasons,
     season: seasons[0],
+    autoSeason: seasons[0],
     players: fixturePlayers,
     roster,
     matches,
@@ -187,31 +196,77 @@ const Marker = (name: string): View => {
   const C = () => <p data-testid="view">{name}</p>;
   return C;
 };
+/** Which of the sala's areas a test wants real (today's views inside their new screens); the rest are markers
+ *  («vista partidos», «estación datos»…). The keys are the old views': passing one turns its screens on. */
+type ViewKey = "hoy" | "partidos" | "detalle" | "convocar" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido" | "caja" | "clasificacion" | "turnos";
 /**
- * The real AdminLayout on a memory router at `path`. Views are markers («vista partidos»…) unless
- * given (`views.hoy`, `views.partidos`…).
+ * The real Sala de control (AdminLayout, the match's PartidoLayout) on a memory router at `path`, with the new
+ * addresses (router.tsx's admin tree) and every old one redirected the way the app does (lib/legacyUrls).
  */
-type ViewKey = "hoy" | "partidos" | "detalle" | "convocar" | "fichas" | "plantilla" | "temporadas" | "capitanes" | "contenido" | "caja";
 export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> = {}) {
-  const root = createRootRoute({ component: () => <Outlet /> });
+  const on = (k: ViewKey) => !!views[k];
+  const root = createRootRoute({
+    component: () => <Outlet />,
+    beforeLoad: ({ location }) => {
+      const href = legacyHref(location.pathname + location.searchStr);
+      if (href) throw redirect({ href, replace: true });
+    },
+  });
   const admin = createRoute({ getParentRoute: () => root, path: "/admin", component: AdminLayout });
-  const child = (p: string, key: ViewKey) => createRoute({ getParentRoute: () => admin, path: p, component: views[key] ?? Marker(`vista ${key}`) });
-  const partidos = child("partidos", "partidos");
-  const detail = createRoute({ getParentRoute: () => partidos, path: "$matchId", component: views.detalle ?? Marker("detalle") });
+  const r = (parent: AnyRoute, p: string, component: View) => createRoute({ getParentRoute: () => parent, path: p, component });
+  const partidos = createRoute({ getParentRoute: () => admin, path: "partidos" });
+  const match = createRoute({ getParentRoute: () => partidos, path: "$matchId", component: PartidoLayout });
+  const real = on("partidos") || on("detalle");
+  const st = (name: string, Real: View) => (real ? Real : Marker(`estación ${name}`));
+  const plantilla = createRoute({ getParentRoute: () => admin, path: "plantilla" });
+  const caja = createRoute({ getParentRoute: () => admin, path: "caja" });
+  const club = createRoute({ getParentRoute: () => admin, path: "club" });
   const tree = root.addChildren([
     admin.addChildren([
-      child("/", "hoy"),
-      partidos.addChildren([detail]),
-      child("convocar", "convocar"),
-      child("fichas", "fichas"),
-      child("plantilla", "plantilla"),
-      child("temporadas", "temporadas"),
-      child("capitanes", "capitanes"),
-      child("contenido", "contenido"),
-      child("caja", "caja"),
+      r(admin, "/", on("hoy") ? HP.HoyScreen : Marker("vista hoy")),
+      partidos.addChildren([
+        r(partidos, "/", on("partidos") ? HP.TemporadaScreen : Marker("vista partidos")),
+        r(partidos, "nuevo", on("partidos") ? HP.NuevoScreen : Marker("vista nuevo")),
+        r(partidos, "archivados", on("partidos") ? HP.ArchivadosScreen : Marker("vista archivados")),
+        r(partidos, "archivados/$matchId", on("partidos") ? HP.ArchivadoScreen : Marker("vista archivado")),
+        match.addChildren([
+          r(match, "/", real ? HP.StationAuto : Marker("estación de su momento")),
+          r(match, "convocatoria", on("convocar") || real ? HP.ConvocatoriaScreen : Marker("estación convocatoria")),
+          r(match, "datos", st("datos", HP.DatosScreen)),
+          r(match, "en-juego", st("en-juego", HP.EnJuegoScreen)),
+          r(match, "acta", st("acta", AC.ActaScreen)),
+          r(match, "acta/narracion", st("narración", AC.NarracionScreen)),
+          r(match, "acta/historial", st("historial", AC.HistorialScreen)),
+          r(match, "publicar", st("publicar", AC.PublicarScreen)),
+          r(match, "despues", st("después", AC.DespuesScreen)),
+        ]),
+      ]),
+      plantilla.addChildren([
+        r(plantilla, "/", on("plantilla") ? PL.JugadoresScreen : Marker("vista plantilla")),
+        r(plantilla, "alta", on("plantilla") ? PL.AltaScreen : Marker("vista alta")),
+        r(plantilla, "cromos", on("plantilla") ? PL.CromosScreen : Marker("vista cromos")),
+        r(plantilla, "antiguos", PL.AntiguosScreen),
+        r(plantilla, "socios", on("fichas") ? PL.SociosScreen : Marker("vista socios")),
+        r(plantilla, "capitanes", on("capitanes") ? PL.CapitanesScreen : Marker("vista capitanes")),
+        r(plantilla, "$playerId", on("plantilla") ? PL.FichaScreen : Marker("vista ficha")),
+      ]),
+      caja.addChildren([r(caja, "/", on("caja") ? CJ.CajaScreen : Marker("vista caja")), r(caja, "coste/$matchId", on("caja") ? CJ.CosteScreen : Marker("vista coste"))]),
+      club.addChildren([
+        r(club, "/", CL.OficinaScreen),
+        r(club, "temporadas", on("temporadas") ? CL.TemporadasScreen : Marker("vista temporadas")),
+        r(club, "clasificacion", on("clasificacion") ? CL.ClasificacionScreen : Marker("vista clasificación")),
+        r(club, "web", on("contenido") ? CL.WebScreen : Marker("vista web")),
+        r(club, "web/$seccion", on("contenido") ? CL.WebSeccionScreen : Marker("vista web sección")),
+        r(club, "turnos", on("turnos") ? CL.TurnosScreen : Marker("vista turnos")),
+        r(club, "vestuario", CL.VestuarioScreen),
+        r(club, "avisos", CL.AvisosScreen),
+        r(club, "equipaciones", CL.EquipacionesScreen),
+      ]),
+      r(admin, "$", NotFoundScreen),
     ]),
     createRoute({ getParentRoute: () => root, path: "/", component: Marker("la web") }),
     createRoute({ getParentRoute: () => root, path: "/vestuario", component: Marker("el vestuario") }),
+    createRoute({ getParentRoute: () => root, path: "/perfil", component: Marker("el perfil") }),
     // the ways out of the sala (Ver en la web, Abrir la pizarra, Abrir la mesa)
     createRoute({ getParentRoute: () => root, path: "/pizarra", component: Marker("la pizarra") }),
     createRoute({ getParentRoute: () => root, path: "/partidos/$matchId", component: Marker("la ficha del partido") }),
@@ -222,3 +277,4 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
   render(<RouterProvider router={router} />);
   return router;
 }
+

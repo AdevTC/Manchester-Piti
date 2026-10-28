@@ -1,0 +1,403 @@
+/* ===== r12 · Sala de control · the frame and the shared pieces every area builds with (sc-*). Ported from the
+   boards' base.css (piti-diseno/src/admin/src/admin/base.css) without the maqueta strip. Vidrio: the light field
+   behind, reading on it in rows with hairlines, glass only on what is touched. Every text ≥ 11.5 px (B-SH-17).
+   The root is `.vx.adm.sc` (the `.vx` size container; `.adm` keeps today's views styled until wave 2 replaces
+   them); `.sc-app` is the app (inert while a modal is open) and the element the container queries style. ===== */
+
+.vx.adm.sc{--sc-top-h:84px;--sc-status-h:40px;--sc-dock-h:72px;position:relative;isolation:isolate;height:100dvh;min-height:480px;overflow:hidden;
+  background:var(--vd-noche);color:var(--vd-ink);font-family:var(--vd-sans);font-size:15px;line-height:1.4}
+:root[data-theme="light"] .vx.adm.sc{background:#e8f0f8}
+.sc>.vd-sky{position:absolute;inset:0;z-index:0;height:auto}
+.sc-app{--sc-gut:18px;position:relative;z-index:2;height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;min-height:0}
+.sc-i{width:20px;height:20px;flex:none}
+.sc button{font-family:inherit}
+.sc :focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+.sc .vd-vh,.sc-vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+
+/* ---------- the desktop bar: the web's own (header.vx-top), in the flow ---------- */
+.sc header.vx-top.sc-top{position:relative;grid-row:1;display:none;padding:18px 32px 0}
+.sc-top .vx-brand{display:flex;align-items:center;gap:10px;min-width:0;text-decoration:none}
+.sc-top .vx-brand img{width:36px;height:36px;flex:none}
+.sc-top .vx-nav{display:flex;justify-content:center}
+.sc-top .vx-nav-in{display:flex}
+.sc-top .vx-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:nowrap;min-width:0;gap:10px}
+.sc-brand__t{display:grid;gap:1px;min-width:0}
+.sc-brand__name{font-weight:720;font-size:17px;font-variation-settings:'wdth' 92;letter-spacing:-.02em;color:var(--vd-ink-strong);white-space:nowrap}
+.sc-brand__season{font-size:12.5px;font-weight:600;color:var(--vd-ink2);white-space:nowrap}
+.sc-nav .vx-nav-in a{gap:8px}
+.sc-count{font-style:normal;display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;box-sizing:border-box;border-radius:999px;font-size:12.5px;font-weight:760;font-feature-settings:'tnum' 1;
+  background:var(--vd-celeste);color:#05122b}
+.sc .sc-search{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min-width:46px}
+.sc-search__t{font-size:14.5px;font-weight:600}
+.sc-search__k{font-family:var(--vd-sans);font-size:12px;font-weight:650;opacity:.8;padding:2px 6px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.sc-web{text-decoration:none}
+.sc-web .sc-i{width:16px;height:16px}
+.sc-acctwrap{position:relative}
+.sc-acct{position:relative}
+.sc-arm{position:absolute;left:28px;bottom:2px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:800;font-style:normal;background:#fff;color:#0c1733;box-shadow:0 0 0 2px var(--vd-marino)}
+.sc-arm.is-general{background:var(--vd-oro)}
+.sc-menu{position:absolute;right:0;top:54px;z-index:40;width:270px;padding:8px;border-radius:22px;display:grid;gap:2px;--vd-r:22px}
+.sc-menu__who{margin:0;padding:10px 12px 8px;display:grid;gap:2px;border-bottom:1px solid var(--vd-rule)}
+.sc-menu__who b{font-size:15px;color:var(--vd-g-ink)}
+.sc-menu__who span{font-size:13px;color:var(--vd-g-ink2)}
+.sc-menu__g{margin:8px 12px 2px;font-size:12.5px;font-weight:700;color:var(--vd-g-ink2)}
+.sc-menu :is(button,a){display:flex;align-items:center;gap:10px;min-height:44px;text-align:left;padding:0 12px;border:0;border-radius:14px;background:none;color:var(--vd-g-ink);font-size:15px;font-weight:560;cursor:pointer;text-decoration:none}
+.sc-menu :is(button,a):hover,.sc-menu :is(button,a):focus-visible{background:rgba(108,171,221,.16)}
+.sc-menu [role="menuitemradio"] span{flex:1;min-width:0}
+.sc-menu [role="menuitemradio"] small{display:block;font-size:12.5px;color:var(--vd-g-ink2)}
+.sc-menu [role="menuitemradio"][aria-checked="true"]{font-weight:680}
+.sc-menu__sep{height:1px;margin:4px 8px;background:var(--vd-rule)}
+.sc-menu--phone{position:fixed;top:72px;right:12px}
+
+/* ---------- the phone and tablet header ---------- */
+.sc-phead{grid-row:2;display:flex;align-items:center;gap:10px;padding:12px var(--sc-gut) 8px;min-height:64px;box-sizing:border-box}
+.sc-phead__t{flex:1;min-width:0}
+.sc-phead__t .sc-phead__h{margin:0;font-weight:720;font-size:25px;line-height:1.05;letter-spacing:-.02em;font-variation-settings:'wdth' 94;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.sc-phead__t p+p{margin:2px 0 0;font-size:13.5px;line-height:1.35;color:var(--vd-ink2)}
+.sc-acct--phone{padding:0 5px}
+.sc-acct--phone .sc-arm{left:28px}
+
+.sc-offline{grid-row:3;margin:0 var(--sc-gut) 6px;display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.4;
+  background:rgba(255,200,120,.14);box-shadow:inset 0 0 0 1px rgba(255,200,120,.45);color:var(--vd-ink)}
+.sc-offline b{color:var(--vd-ink-strong)}
+
+/* ---------- the screen ---------- */
+.sc-main{grid-row:4;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:0 0 calc(var(--sc-dock-h) + 20px);outline:none}
+.sc-app.has-sheet .sc-main{overflow:hidden}
+.sc-app:not(:has(.sc-dock)) .sc-main{padding-bottom:24px}
+
+/* ---------- the status strip: reserved, never over a control (the frame's foot, under the dock on phones) ---------- */
+.sc-status{grid-row:5;display:flex;align-items:center;gap:10px;min-height:var(--sc-status-h);box-sizing:border-box;padding:0 var(--sc-gut);font-size:13.5px;color:var(--vd-ink2);border-top:1px solid var(--vd-rule);background:linear-gradient(180deg,rgba(8,18,39,0),rgba(8,18,39,.22))}
+:root[data-theme="light"] .sc-status{background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.4))}
+.sc-status__live{display:contents}
+.sc-status__tag{flex:none;font-weight:760;font-size:12.5px;letter-spacing:.01em;padding:3px 9px;border-radius:999px;background:var(--vd-celeste);color:#05122b}
+.sc-status.is-error .sc-status__tag{background:var(--vd-roja);color:#fff}
+.sc-status__msg{flex:1;min-width:0;color:var(--vd-ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3}
+.sc-status__act{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:0;border-radius:999px;background:rgba(108,171,221,.2);color:var(--vd-ink-strong);font-weight:700;font-size:14px;cursor:pointer}
+.sc-status__x{flex:none;width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:50%;background:none;color:var(--vd-ink2);cursor:pointer}
+.sc-status__rest{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-status.is-on{animation:sc-st-in .32s var(--vd-ease)}
+@keyframes sc-st-in{from{transform:translateY(6px);opacity:.4}}
+
+/* ---------- the dock (phone and tablet): five places, the current one on the bead ---------- */
+.sc-dock{position:fixed!important;z-index:20!important;left:12px;right:12px;bottom:calc(var(--sc-status-h) + 10px);max-width:560px;margin:0 auto;height:64px;border-radius:999px;display:flex;align-items:stretch;padding:5px;box-sizing:border-box;--vd-r:999px;view-transition-name:vd-dock}
+.sc-dock__in{position:relative;flex:1;display:flex;align-items:stretch;min-width:0}
+.sc-dock__in .vd-bead{position:absolute;z-index:0;top:0;bottom:0;left:0;width:var(--vd-bw,0);border-radius:999px;pointer-events:none;translate:var(--vd-bx,0) 0;background:var(--vd-bead);box-shadow:var(--vd-bead-shadow);transition:translate .62s var(--vd-spring),width .62s var(--vd-spring)}
+.sc-dock__in[data-vd-bead-still] .vd-bead{transition:none}
+.sc-dock__a{position:relative;z-index:1;flex:1;display:grid;justify-items:center;align-content:center;gap:2px;min-width:0;border-radius:999px;text-decoration:none;color:var(--vd-g-ink2);font-size:12px;font-weight:620}
+.sc-dock__a[aria-current="page"]{color:var(--vd-g-ink)}
+.sc-dock__i{position:relative;display:grid;place-items:center}
+.sc-dock__i .sc-count{position:absolute;top:-6px;left:14px;min-width:18px;height:18px;font-size:11.5px;padding:0 4px}
+.sc-dock__l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* ---------- layers: the palette and its scrim ---------- */
+.sc-layer{position:fixed;inset:0;z-index:44;background:rgba(2,8,26,.42);backdrop-filter:blur(2px)}
+:root[data-theme="light"] .sc-layer{background:rgba(12,23,51,.22)}
+.sc-pal{position:fixed;z-index:45;left:50%;top:10%;transform:translateX(-50%);width:min(640px,calc(100% - 28px));max-height:min(560px,76%);display:flex;flex-direction:column;border-radius:26px;overflow:hidden;--vd-r:26px;color:var(--vd-g-ink);font-family:var(--vd-sans)}
+.sc-pal__in{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--vd-rule)}
+.sc-pal__q{flex:1;min-width:0;height:44px;border:0;background:none;color:var(--vd-g-ink);font:inherit;font-size:17px;outline:none}
+.sc-pal__in kbd{font-family:var(--vd-sans);font-size:12px;color:var(--vd-g-ink2);padding:2px 7px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.sc-pal__list{overflow:auto;padding:6px 8px 10px}
+.sc-pal__gt{margin:10px 10px 4px;font-size:12.5px;font-weight:700;color:var(--vd-g-ink2)}
+.sc-pal__o{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1px 12px;min-height:48px;padding:6px 12px;border-radius:14px;cursor:pointer;color:var(--vd-g-ink)}
+.sc-pal__o b{font-size:15px;font-weight:620}
+.sc-pal__o small{grid-column:1;font-size:13px;color:var(--vd-g-ink2)}
+.sc-pal__o kbd{grid-column:2;grid-row:1/span 2;font-family:var(--vd-sans);font-size:12px;color:var(--vd-g-ink2);padding:2px 7px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.sc-pal__o[aria-selected="true"]{background:rgba(108,171,221,.2);box-shadow:inset 0 0 0 1px rgba(108,171,221,.4)}
+.sc-pal__none{margin:18px 12px;color:var(--vd-g-ink2)}
+.sc-pal__foot{margin:0;display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--vd-rule);font-size:12.5px;color:var(--vd-g-ink2)}
+
+/* ---------- the door, loading, error, not found ---------- */
+.sc-door{max-width:560px;margin:8vh auto 0;padding:0 var(--sc-gut);display:grid;justify-items:start;gap:12px}
+.sc-door__crest{width:72px;height:72px;border-radius:50%}
+.sc-door__k{margin:0;font-size:14px;font-weight:650;color:var(--vd-celeste-ink)}
+.sc-door__t{margin:0;font-size:36px;line-height:1.02;font-weight:720;font-variation-settings:'wdth' 94;letter-spacing:-.02em;color:var(--vd-ink-strong)}
+.sc-door__p{margin:0;font-size:16.5px;line-height:1.5;color:var(--vd-ink)}
+.sc-door__a{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.sc-door__a .vd-btn{text-decoration:none}
+.sc-loading{padding:28px var(--sc-gut);display:grid;gap:14px;max-width:1100px}
+.sc-loading i{display:block;height:18px;border-radius:9px;background:linear-gradient(90deg,var(--vd-rule),var(--vd-rule2),var(--vd-rule));background-size:200% 100%;animation:sc-skel 1.4s linear infinite}
+.sc-loading i:nth-child(1){width:40%;height:30px}.sc-loading i:nth-child(2){width:72%}.sc-loading i:nth-child(3){width:64%}.sc-loading i:nth-child(4){width:80%}.sc-loading i:nth-child(5){width:50%}
+.sc-loading span{font-size:14px;color:var(--vd-ink2)}
+@keyframes sc-skel{to{background-position:-200% 0}}
+.sc-failed{max-width:560px;margin:10vh auto 0;padding:0 var(--sc-gut);display:grid;gap:10px;justify-items:start}
+.sc-failed h1,.sc-failed h2{margin:0;font-size:28px;line-height:1.1;font-weight:720;color:var(--vd-ink-strong)}
+.sc-failed p{margin:0;font-size:16px;line-height:1.5}
+.sc-failed code{font-family:var(--vd-mono);font-size:13px}
+
+/* ---------- desktop (≥ 1100) ---------- */
+@container (min-width:1100px){
+  .sc-app{--sc-gut:32px}
+  .sc header.vx-top.sc-top{display:grid}
+  .sc-phead{display:none}
+  .sc-main{padding:0}
+  .sc-offline{margin:12px var(--sc-gut) 0}
+}
+@container (min-width:1800px){
+  .sc-app{--sc-gut:44px}
+  .sc header.vx-top.sc-top{padding:22px 44px 0}
+}
+@container (max-width:1379px){.sc-search__t,.sc-search__k{display:none}header.vx-top .vx-actions .sc-search{width:46px;flex:0 0 46px;padding:0}.sc-web{padding:0 12px}}
+@container (max-width:1279px){.sc-brand__t{display:none}}
+@container (max-width:699px){.sc-app{--sc-gut:16px}.sc-status{padding:0 14px}}
+
+/* ============================================================================================================
+   Shared pieces (the areas build their screens with these; their own CSS only adds what is theirs)
+   ============================================================================================================ */
+
+/* a screen: its head (kicker, title, line, actions, the one primary action) and its body */
+.sc-screen{box-sizing:border-box;padding:6px var(--sc-gut) 28px;max-width:1720px;margin:0 auto;width:100%}
+.sc-screen--fit{height:100%;min-height:0;display:flex;flex-direction:column;padding-bottom:0}
+.sc-screen--fit>.sc-screen__body{flex:1;min-height:0}
+.sc-shead{display:flex;align-items:flex-end;gap:12px 18px;flex-wrap:wrap;padding:14px 0 18px}
+.sc-shead__t{flex:1 1 320px;min-width:0}
+.sc-shead__a{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sc-k{margin:0 0 4px;font-size:13.5px;font-weight:650;color:var(--vd-celeste-ink)}
+.sc-h1{margin:0;font-size:30px;line-height:1.04;font-weight:720;font-variation-settings:'wdth' 94;letter-spacing:-.022em;color:var(--vd-ink-strong);text-wrap:balance}
+.sc-h2{margin:0;font-size:22px;line-height:1.1;font-weight:700;font-variation-settings:'wdth' 96;letter-spacing:-.016em;color:var(--vd-ink-strong)}
+.sc-h3{margin:0;font-size:17px;line-height:1.2;font-weight:680;letter-spacing:-.01em;color:var(--vd-ink-strong)}
+.sc-lede{margin:6px 0 0;font-size:15.5px;line-height:1.45;color:var(--vd-ink2);max-width:72ch}
+.sc-p{margin:0;font-size:15px;line-height:1.5;color:var(--vd-ink);max-width:72ch}
+.sc-small{font-size:13.5px;line-height:1.4;color:var(--vd-ink2)}
+.sc-num{font-weight:780;font-variation-settings:'wdth' 110;font-feature-settings:'tnum' 1,'lnum' 1;letter-spacing:-.03em;color:var(--vd-ink-strong)}
+.sc-score{font-weight:800;font-variation-settings:'wdth' 112;font-feature-settings:'tnum' 1,'lnum' 1;letter-spacing:-.045em;line-height:.9;color:var(--vd-ink-strong);white-space:nowrap}
+.sc-clock{font-family:var(--vd-mono);font-weight:500;font-feature-settings:'tnum' 1}
+.sc-actions-row,.sc-btnrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+@container (min-width:1100px){.sc-h1{font-size:36px}.sc-shead{padding:18px 0 20px}}
+/* the tablet and the phone: the frame's header already says the title and its line; the screen's head keeps its
+   actions (its h1 stays for the screen readers: one h1 per screen, B-SH-09) */
+@container (max-width:1099px){
+  .sc-shead--framed .sc-shead__t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  .sc-shead--framed{padding:4px 0 12px}
+  .sc-shead--framed:not(:has(.sc-shead__a)){padding:0}
+}
+
+/* sections inside a screen: a title and a rule, never a box */
+.sc-sec{padding:16px 0 4px}
+.sc-sec+.sc-sec{border-top:1px solid var(--vd-rule)}
+.sc-sec__h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.sc-sec__h :is(.sc-h2,.sc-h3){flex:1 1 auto}
+.sc-sec__n{font-size:14px;font-weight:700;color:var(--vd-ink2);font-feature-settings:'tnum' 1}
+
+/* the ledger: rows with hairlines (lists and tables) */
+.sc-rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--vd-rule)}
+.sc-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;min-height:56px;padding:9px 2px;border-bottom:1px solid var(--vd-rule);box-sizing:border-box}
+.sc-row__t{min-width:0;display:grid;gap:2px}
+.sc-row__t b{font-size:15.5px;font-weight:650;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.sc-row__t span{font-size:13.5px;line-height:1.35;color:var(--vd-ink2)}
+.sc-row--btn{width:100%;border:0;border-bottom:1px solid var(--vd-rule);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:0;text-decoration:none}
+.sc-row--btn:hover{background:rgba(108,171,221,.07)}
+.sc-row--btn[aria-current="page"],.sc-row--btn[aria-current="true"],.sc-row.is-on{background:rgba(108,171,221,.12);box-shadow:inset 3px 0 0 var(--vd-celeste)}
+.sc-table{width:100%;border-collapse:collapse;font-size:14.5px}
+.sc-table th{position:sticky;top:0;z-index:1;text-align:left;font-size:12.5px;font-weight:700;color:var(--vd-ink2);padding:8px;border-bottom:1px solid var(--vd-rule2);background:var(--sc-th-bg,transparent);backdrop-filter:blur(10px)}
+.sc-table td{padding:9px 8px;border-bottom:1px solid var(--vd-rule);vertical-align:middle}
+.sc-table .is-num{text-align:right;font-feature-settings:'tnum' 1}
+
+/* words that mark state: «Te toca», «Hecho», «Falta», «En juego», the rival's code — never colour alone */
+.sc-tag{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12.5px;font-weight:700;white-space:nowrap;box-sizing:border-box;
+  background:rgba(108,171,221,.14);color:var(--vd-celeste-ink);box-shadow:inset 0 0 0 1px rgba(108,171,221,.35)}
+.sc-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.sc-tag--toca{background:rgba(108,171,221,.2);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+.sc-tag--toca::before{background:var(--vd-celeste);box-shadow:0 0 0 3px rgba(108,171,221,.3)}
+.sc-tag--hecho{background:none;box-shadow:none;color:var(--vd-ink2);padding:0}
+.sc-tag--hecho::before{content:"✓";width:auto;height:auto;background:none;font-size:12px}
+.sc-tag--mal{background:rgba(229,72,77,.14);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-roja)}
+.sc-tag--mal::before{content:"!";width:14px;height:14px;display:grid;place-items:center;font-size:11.5px;font-weight:900;color:#fff;background:var(--vd-roja)}
+.sc-tag--live{background:rgba(255,93,93,.14);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1px rgba(255,93,93,.5)}
+.sc-tag--live::before{background:var(--vd-live);animation:sc-live 1.6s ease-in-out infinite}
+.sc-tag--quiet{background:none;box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink2)}
+.sc-tag--quiet::before{display:none}
+.sc-tag--prop{background:none;color:var(--vd-celeste-ink);box-shadow:inset 0 0 0 1px currentColor;border-radius:8px}
+.sc-tag--prop::before{content:"◆";width:auto;height:auto;background:none;font-size:11.5px}
+@keyframes sc-live{50%{opacity:.35}}
+.sc-res{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;font-size:13.5px;font-weight:800;box-shadow:inset 0 0 0 1.5px var(--vd-rule2);color:var(--vd-ink-strong)}
+.sc-res--G{box-shadow:inset 0 0 0 1.5px var(--vd-celeste);color:var(--vd-celeste-ink)}
+.sc-res--P{box-shadow:inset 0 0 0 1.5px var(--vd-rival);color:var(--vd-rival)}
+.sc-rival{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--vd-rival)}
+.sc-rival i{font-style:normal;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:11.5px;font-weight:800;color:var(--vd-rival);box-shadow:inset 0 0 0 1.5px var(--vd-rival)}
+
+/* a proposal (changes the server or the data model): visible and labelled */
+.sc-prop{position:relative;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px rgba(108,171,221,.5);background:rgba(108,171,221,.06)}
+.sc-prop__l{display:inline-flex;margin:0 0 6px;font-size:12px;font-weight:760;color:var(--vd-celeste-ink)}
+
+/* glass pieces */
+.sc-chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:0;border-radius:var(--vd-r-ctl);font-size:14.5px;font-weight:620;color:var(--vd-g-ink);cursor:pointer;--vd-r:var(--vd-r-ctl)}
+.sc-chip[aria-pressed="true"]{--vd-g-tint:rgba(108,171,221,.34);color:var(--vd-g-ink)}
+.sc-chips{display:flex;flex-wrap:wrap;gap:8px}
+.sc-chips--scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.sc-chips--scroll::-webkit-scrollbar{display:none}
+
+/* forms: a label over its glass field, the hint or the error under it */
+.sc-form{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.sc-form--1{grid-template-columns:minmax(0,1fr)}
+.sc-field{display:grid;gap:6px;min-width:0}
+.sc-field>span:first-child{font-size:13.5px;font-weight:650;color:var(--vd-ink)}
+.sc-field :is(.vd-input,select,textarea){width:100%;box-sizing:border-box}
+.sc-field textarea{min-height:96px;resize:vertical;padding:10px 12px;font:inherit;font-size:15px;line-height:1.45}
+.sc-field small{font-size:13px;line-height:1.35;color:var(--vd-ink2)}
+.sc-field small.is-ok{color:var(--vd-celeste-ink)}
+.sc-field small.is-bad{color:var(--vd-ink-strong)}
+.sc-field small.is-bad::before{content:"! ";color:var(--vd-roja);font-weight:900}
+.sc-field--wide{grid-column:1/-1}
+
+/* the printed shirt still (540×600, the shirt at x 63–476, y 46–594): always whole, never cut */
+.sc-shirt{display:block;width:var(--sw,64px);height:calc(var(--sw,64px) * 1.1);object-fit:contain;object-position:50% 50%;flex:none;filter:drop-shadow(0 8px 14px rgba(2,8,26,.35))}
+:root[data-theme="light"] .sc-shirt{filter:drop-shadow(0 8px 14px rgba(30,60,110,.22))}
+.sc-shirt--xs{--sw:34px}.sc-shirt--s{--sw:46px}.sc-shirt--m{--sw:64px}.sc-shirt--l{--sw:110px}.sc-shirt--xl{--sw:180px}
+
+/* ---------- the carril: the jornada's stations as touchable glass nodes joined by a line ---------- */
+.sc-carril{position:relative;display:grid;grid-template-columns:repeat(var(--n,6),minmax(0,1fr));gap:0;list-style:none;margin:0;padding:0}
+.sc-carril::before{content:"";position:absolute;left:calc(100% / var(--n,6) / 2);right:calc(100% / var(--n,6) / 2);top:22px;height:2px;background:var(--vd-rule2);border-radius:2px}
+.sc-carril li{position:relative;display:grid;justify-items:center;text-align:center;min-width:0}
+.sc-station{display:grid;justify-items:center;gap:6px;min-width:44px;max-width:100%;padding:0 4px 4px;border:0;background:none;color:inherit;font:inherit;cursor:pointer;text-decoration:none}
+.sc-station__dot{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;--vd-r:999px;color:var(--vd-g-ink2)}
+.sc-station__dot .sc-i{width:19px;height:19px}
+.sc-station b{font-size:13.5px;font-weight:680;color:var(--vd-ink-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.sc-station small{font-size:12.5px;line-height:1.25;color:var(--vd-ink2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.sc-station.is-hecho .sc-station__dot{color:var(--vd-celeste-ink)}
+.sc-station.is-toca .sc-station__dot{color:var(--vd-ink-strong);box-shadow:inset 0 0 0 2px var(--vd-celeste),0 0 0 4px rgba(108,171,221,.22)}
+.sc-station.is-toca small{color:var(--vd-ink-strong);font-weight:650}
+.sc-station.is-ahora .sc-station__dot{box-shadow:inset 0 0 0 2px var(--vd-live)}
+.sc-station.is-luego small{color:var(--vd-ink2)}
+.sc-station[aria-current="page"] .sc-station__dot{--vd-g-tint:rgba(108,171,221,.46);color:var(--vd-ink-strong);view-transition-name:sc-station}
+.sc-station[aria-current="page"] b{color:var(--vd-celeste-ink)}
+.sc-station[aria-current="page"]::after{content:"";display:block;width:28px;height:3px;border-radius:2px;background:var(--vd-celeste);margin-top:2px}
+.sc-station:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px;border-radius:12px}
+/* the mini carril (Hoy's rows, the season's table): six dots, the current one lit, its words beside */
+.sc-carril--mini{width:156px;max-width:100%}
+.sc-carril--mini::before{top:9px}
+.sc-carril--mini .sc-station{padding:0;cursor:default}
+.sc-carril--mini .sc-station__dot{width:20px;height:20px}
+.sc-carril--mini .sc-station__dot .sc-i{width:11px;height:11px}
+.sc-carril--mini .is-luego .sc-station__dot{opacity:.55}
+.sc-carril--mini .is-toca .sc-station__dot{box-shadow:inset 0 0 0 1.5px var(--vd-celeste),0 0 0 3px rgba(108,171,221,.22)}
+.sc-carril--mini .is-ahora .sc-station__dot{box-shadow:inset 0 0 0 1.5px var(--vd-live)}
+.sc-carril--mini .is-cur .sc-station__dot{--vd-g-tint:rgba(108,171,221,.5);color:var(--vd-ink-strong);opacity:1}
+.sc-mini{display:grid;gap:4px;min-width:0}
+.sc-mini__w{font-size:12.5px;line-height:1.3;color:var(--vd-ink2)}
+.sc-mini__w b{color:var(--vd-ink-strong);font-weight:650}
+.sc-mini__w.is-toca::before{content:"";display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:var(--vd-celeste);vertical-align:1px}
+
+/* ---------- the match: its head and its carril (the stations draw under it) ---------- */
+.sc-match{display:flex;flex-direction:column;min-height:0}
+.sc-mhead{display:flex;align-items:flex-end;gap:12px 20px;flex-wrap:wrap;padding:12px 0 14px}
+.sc-mhead__t{flex:1 1 360px;min-width:0}
+.sc-mhead__k{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap}
+.sc-mhead__up{display:inline-flex;align-items:center;min-height:44px;font-size:13.5px;font-weight:650;color:var(--vd-ink-strong);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--vd-rule2)}
+.sc-mhead__h{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sc-mhead__h .sc-rival{font-weight:720}
+.sc-mhead__s{margin:8px 0 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--vd-ink2)}
+.sc-mhead__kp{display:none}
+.sc-mhead__a{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sc-mhead__a .vd-btn{text-decoration:none}
+.sc-mhead__a .vd-btn--sm .sc-i{width:16px;height:16px}
+.sc-carril-wrap{padding:2px 0 12px;border-bottom:1px solid var(--vd-rule)}
+.sc-match__body{min-height:0;padding-top:14px}
+@container (max-width:1099px){
+  .sc-carril-wrap{position:sticky;top:0;z-index:6;margin:0 calc(var(--sc-gut) * -1);padding:6px var(--sc-gut) 8px;overflow-x:auto;scrollbar-width:none;
+    background:linear-gradient(180deg,rgba(8,18,39,.94) 70%,rgba(8,18,39,0))}
+  :root[data-theme="light"] .sc-carril-wrap{background:linear-gradient(180deg,rgba(232,240,248,.94) 70%,rgba(232,240,248,0))}
+  .sc-carril-wrap::-webkit-scrollbar{display:none}
+  .sc-carril-wrap .sc-carril{grid-template-columns:repeat(6,minmax(100px,1fr));min-width:640px}
+  .sc-mhead .sc-mhead__up{display:none}
+  .sc-mhead{padding-top:4px}
+  .sc-mhead__t .sc-k,.sc-mhead__h{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  .sc-mhead__s{margin-top:0}
+  .sc-mhead__kp{display:inline}
+  .sc-mhead__a{margin-left:auto}
+  .sc-mhead__pri{display:none}
+}
+@container (max-width:699px){.sc-carril-wrap .sc-station small{font-size:12px}}
+@container (min-width:1100px){.sc-mhead .sc-h1{font-size:40px}}
+
+/* ---------- desktop split: a list and its detail side by side (nothing over the work) ---------- */
+.sc-split{display:grid;grid-template-columns:minmax(0,1fr);gap:0;min-height:0}
+@container (min-width:1100px){.sc-split{grid-template-columns:minmax(360px,.9fr) minmax(0,1.4fr);gap:28px}}
+/* a region that scrolls inside (≥ 1100: the page never scrolls, law 7), its head stuck at the top and its foot
+   fading while more waits below, as in Números; only when it really scrolls (a scroller that cannot scroll has an
+   inactive timeline, so no mask). No fade at the top: the sticky head sits there */
+.sc-region{display:flex;flex-direction:column;min-height:0;min-width:0}
+.sc-region__h{position:sticky;top:0;z-index:2;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:10px 0;background:var(--sc-region-bg,transparent)}
+.sc-region__h :is(.sc-h2,.sc-h3){flex:1 1 auto}
+.sc-scroll{min-height:0;overflow:auto;scrollbar-width:thin}
+@property --sc-fb{syntax:'<length>';inherits:false;initial-value:0px}
+@keyframes sc-edges{0%{--sc-fb:30px}94%{--sc-fb:30px}100%{--sc-fb:0px}}
+@container (min-width:1100px){
+  .sc-region{height:100%}
+  .sc-region>.sc-scroll{flex:1}
+  .sc .sc-scroll{overscroll-behavior:contain;
+    -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 calc(100% - var(--sc-fb)),transparent);
+    mask-image:linear-gradient(to bottom,#000 0,#000 calc(100% - var(--sc-fb)),transparent);
+    animation:sc-edges linear both;animation-timeline:scroll(self)}
+}
+@container (max-width:1099px){.sc-region__h{position:static}}
+
+/* ---------- sheets: phone = from the bottom over a scrim; desktop = the side panel (or centred) ---------- */
+.sc-scrim{position:fixed;inset:0;z-index:42;background:rgba(2,8,26,.42)}
+:root[data-theme="light"] .sc-scrim{background:rgba(12,23,51,.22)}
+.sc-sheet{position:fixed;z-index:43;left:0;right:0;bottom:0;max-height:86dvh;display:flex;flex-direction:column;border-radius:28px 28px 0 0;overflow:hidden;--vd-r:28px;color:var(--vd-g-ink);font-family:var(--vd-sans);outline:none}
+.sc-sheet__grab{width:44px;height:5px;border-radius:3px;background:var(--vd-rule2);margin:8px auto 0;flex:none}
+.sc-sheet__h{display:flex;align-items:center;gap:10px;padding:12px 12px 10px 18px;border-bottom:1px solid var(--vd-rule)}
+.sc-sheet__h .sc-h3{flex:1;color:var(--vd-g-ink)}
+.sc-sheet__k{display:block;font-size:12.5px;font-weight:650;color:var(--vd-g-ink2)}
+.sc-sheet__b{padding:14px 18px 18px;overflow:auto;color:var(--vd-g-ink);min-height:0}
+.sc-sheet__f{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding:12px 18px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--vd-rule)}
+@media (min-width:1100px){
+  .sc-sheet{left:auto;right:24px;top:24px;bottom:calc(var(--sc-status-h,40px) + 16px);width:min(520px,40%);max-height:none;border-radius:28px}
+  .sc-sheet--center{right:auto;left:50%;top:12%;bottom:auto;transform:translateX(-50%);width:min(560px,92%);max-height:76%}
+  .sc-sheet .sc-sheet__grab{display:none}
+}
+
+/* ---------- the one primary action: on the phone and the tablet, pinned above the dock in the thumb zone, on a
+   tray of its own (blurred and nearly opaque, fading in at the top) so what scrolls under it never reads through ---------- */
+.sc-primary{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sc-primary .vd-btn{text-decoration:none}
+.sc-primary--pin{display:none}
+@container (max-width:1099px){
+  .sc-shead .sc-primary--head{display:none}
+  /* a sticky inset counts from the scroller's padding edge, which already leaves the dock's room: -16px sets the tray
+     2px above the dock, or 8px above the status strip where there is no dock (inside a match, a ficha) */
+  .sc-primary--pin{display:flex;position:sticky;bottom:-16px;z-index:5;padding:14px 0 8px;margin-top:8px;isolation:isolate}
+  .sc-primary--pin::before{content:"";position:absolute;z-index:-1;inset:0 calc(var(--sc-gut) * -1);pointer-events:none;background:linear-gradient(180deg,rgba(8,18,39,.55) 0,rgba(8,18,39,.9) 14px);-webkit-backdrop-filter:blur(14px) saturate(1.1);backdrop-filter:blur(14px) saturate(1.1);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12px);mask-image:linear-gradient(180deg,transparent 0,#000 12px)}
+  :root[data-theme="light"] .sc-primary--pin::before{background:linear-gradient(180deg,rgba(232,240,248,.6) 0,rgba(232,240,248,.94) 14px)}
+  .sc-primary--pin .vd-btn{flex:1}
+}
+.sc-why{margin:0;font-size:13.5px;line-height:1.35;color:var(--vd-ink2)}
+
+/* today's views inside the new frame, until wave 2 replaces each one (their own `.adm` styles still apply) */
+.sc-interim{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.sc-main>.sc-interim{height:100%}
+.sc-match .sc-interim .det>.dh{display:none}
+.sc-interim .det{border:0}
+
+/* View Transitions (law 4: the screen leaves → what is shared morphs → the next one comes in; never both at once):
+   the change of screen is the web's change of page (components/celeste/pageTransition), on the sala's <main>; the
+   top bar and the dock stay, the bead slides, and these names travel (rows → their detail heads) */
+html[data-vd-page] .vx > .sc-app > main{view-transition-name:vd-page}
+html[data-vd-page] .vx > .sc-app > main[data-vd-out]{view-transition-name:vd-page-out}
+.sc-morph{view-transition-class:vd-morph}
+/* a change of station keeps the match's head and carril where they are (only the station's screen travels) */
+html[data-vd-page][data-vd-keep] .sc-mhead{view-transition-name:sc-mhead}
+html[data-vd-page][data-vd-keep] .sc-carril-wrap{view-transition-name:sc-carril}
+html[data-vd-page][data-vd-keep]::view-transition-group(sc-mhead),html[data-vd-page][data-vd-keep]::view-transition-group(sc-carril){animation:none;z-index:2}
+html[data-vd-page][data-vd-keep]::view-transition-old(sc-mhead),html[data-vd-page][data-vd-keep]::view-transition-old(sc-carril){animation:none;opacity:0}
+html[data-vd-page][data-vd-keep]::view-transition-new(sc-mhead),html[data-vd-page][data-vd-keep]::view-transition-new(sc-carril){animation:none}
+html[data-vd-page]::view-transition-group(sc-station){animation-duration:var(--vd-d-morph);animation-timing-function:var(--vd-spring);z-index:3}
+
+@media (prefers-reduced-motion:reduce){
+  .sc *,.sc *::before,.sc *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+/* (today's admin.css zeroes every h1–h3 and p inside .vx.adm: the sala's own margins win back, until it goes) */
+.vx.adm.sc .sc-k{margin:0 0 4px}
+.vx.adm.sc .sc-lede{margin:6px 0 0}
+.vx.adm.sc .sc-mhead__s{margin:8px 0 0}
+.vx.adm.sc .sc-phead__t p+p{margin:2px 0 0}
+.vx.adm.sc .sc-menu__g{margin:8px 12px 2px}
+.vx.adm.sc .sc-pal__gt{margin:10px 10px 4px}
+.vx.adm.sc .sc-pal__none{margin:18px 12px}
+.vx.adm.sc .sc-prop__l{margin:0 0 6px}
+.vx.adm.sc .sc-offline{margin:0 var(--sc-gut) 6px}
+@container (min-width:1100px){.vx.adm.sc .sc-offline{margin:12px var(--sc-gut) 0}}
+@container (max-width:1099px){.vx.adm.sc .sc-mhead__s{margin-top:0}}

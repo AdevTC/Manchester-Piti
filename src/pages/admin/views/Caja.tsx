@@ -7,7 +7,8 @@
 // asks, then sets `void` and the movement stays in the log, crossed out. The sums are derived/caja's, the
 // same the vestuario's «La caja» reads.
 import { useMemo, useState } from "react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import { useViewSearch } from "../shell/interimSearch";
 import { dateMillis } from "../../../lib/clubData";
 import { jornadaOf } from "../../../lib/derived/jornada";
 import {
@@ -58,7 +59,7 @@ export function Caja() {
   const toast = useToast();
   const writes = useCajaWrites();
   const navigate = useNavigate();
-  const search: { coste?: unknown } = useSearch({ strict: false });
+  const search: { coste?: unknown } = useViewSearch();
   const costeParam = typeof search.coste === "string" && search.coste ? search.coste : typeof search.coste === "number" ? String(search.coste) : "";
   const costeMatch = costeParam ? data.matches.find((m) => m.id === costeParam) : undefined;
 

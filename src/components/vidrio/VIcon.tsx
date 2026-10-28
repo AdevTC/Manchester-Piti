@@ -118,6 +118,19 @@ const GLYPHS = {
       <circle cx="12" cy="20" r="1.3" fill="currentColor" />
     </>
   ),
+  // (the Sala de control's: back, more, add, the menu and the strip's undo — r12's sprite)
+  chevL: <path {...S} strokeWidth={2.2} d="M15 5l-7 7 7 7" />,
+  chevR: <path {...S} strokeWidth={2.2} d="M9 5l7 7-7 7" />,
+  chevD: <path {...S} strokeWidth={2.2} d="M5 9l7 7 7-7" />,
+  plus: <path {...S} strokeWidth={2.2} d="M12 5v14M5 12h14" />,
+  dots: (
+    <>
+      <circle fill="currentColor" cx="5" cy="12" r="1.8" />
+      <circle fill="currentColor" cx="12" cy="12" r="1.8" />
+      <circle fill="currentColor" cx="19" cy="12" r="1.8" />
+    </>
+  ),
+  undo: <path {...S} strokeWidth={2} d="M9 7L4 12l5 5M4 12h10a6 6 0 010 12h-2" />,
 } satisfies Record<string, ReactNode>;
 
 export type VIconName = keyof typeof GLYPHS;

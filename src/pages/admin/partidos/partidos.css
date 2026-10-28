@@ -6,7 +6,7 @@
 .adm .match-list-stack{display:flex;flex-direction:column;min-height:0;min-width:0;gap:12px}
 .adm .match-list-stack>.ml{flex:1;min-height:0}
 .adm .archive-list-note{padding:0 8px;margin:0 0 10px}
-.adm .archive-list .mr .j b{font-family:Geist,system-ui,sans-serif;font-size:10px;line-height:1.4}
+.adm .archive-list .mr .j b{font-family:Geist,system-ui,sans-serif;font-size:11.5px;line-height:1.4}
 .adm.m .match-list-stack{flex:1}
 .adm.m .match-detail-host{display:contents}
 .adm .match-management{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;flex:0 0 auto;gap:8px;padding:8px 16px;border-bottom:1px solid var(--pline)}

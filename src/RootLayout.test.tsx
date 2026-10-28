@@ -107,14 +107,23 @@ describe("RootLayout · /admin for a member who is not a captain", () => {
     expect(screen.queryByText("Solo para la capitanía")).toBeNull();
   });
 
-  it("«Solo para la capitanía», back to the vestuario, in the Celeste chrome (not the old menu)", async () => {
+  it("a member without the armband gets the sala's own frame (it says «Solo para la capitanía» itself: B-SH-16), no site chrome", async () => {
     who.role = "member";
     who.member = true;
     open("/admin");
-    expect(await screen.findByRole("heading", { level: 1, name: "Solo para la capitanía" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Volver al vestuario" })).toHaveAttribute("href", "/vestuario");
-    expect(screen.queryByText("sala de control")).toBeNull();
+    expect(await screen.findByTestId("admin-frame")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Navegación principal" })).toBeNull();
+    expect(document.querySelector(".club-footer")).toBeNull();
     expect(legacyMenu()).toBeNull();
+  });
+
+  it("the sala's <main> is its own: the layout around it is not a second one (B-SH-04)", async () => {
+    who.role = "admin";
+    who.member = true;
+    open("/admin");
+    await screen.findByText("sala de control");
+    expect(document.querySelectorAll("main")).toHaveLength(0);
+    expect(document.getElementById("contenido")).toBeNull();
   });
 
   it("a captain gets the Sala de control", async () => {
@@ -148,13 +157,12 @@ describe("RootLayout · /admin/<an address it does not have>", () => {
     expect(router.state.location.pathname).toBe("/admin/nada");
   });
 
-  it("a member who is not a captain: the capitanía panel, as on any /admin address", async () => {
+  it("a member who is not a captain: the sala's frame, as on any /admin address (it shows the capitanía panel)", async () => {
     who.role = "member";
     who.member = true;
     open("/admin/nada");
-    expect(await screen.findByRole("heading", { level: 1, name: "Solo para la capitanía" })).toBeInTheDocument();
-    expect(screen.queryByText("Esta sección no existe")).toBeNull();
-    expect(screen.queryByText("sala de control")).toBeNull();
+    expect(await screen.findByTestId("admin-frame")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fuera de juego" })).toBeNull();
   });
 
   it("a fan: the door", async () => {

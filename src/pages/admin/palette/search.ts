@@ -1,8 +1,8 @@
 // The command palette's model (pure): what a command is, and how a query becomes the grouped results.
-// Groups come in the designed order (Acciones, Partidos, Jugadores, Secciones, then anything a view adds).
+// Groups come in the designed order (Acciones, Sitios, Partidos, Jugadores, then anything a view adds).
 import { normalize, textMatches } from "../../../lib/derived/search";
 
-export type PaletteGroup = "Acciones" | "Secciones" | "Partidos" | "Jugadores" | (string & {});
+export type PaletteGroup = "Acciones" | "Sitios" | "Partidos" | "Jugadores" | (string & {});
 export interface PaletteCommand {
   /** Unique across the palette (prefix with your view, e.g. "plantilla:exportar"). */
   id: string;
@@ -30,7 +30,8 @@ export interface PaletteSection {
   items: PaletteCommand[];
 }
 
-const GROUP_ORDER = ["Acciones", "Partidos", "Jugadores", "Secciones"];
+// (the boards' order: what you can do, the five places, then what you look for)
+const GROUP_ORDER = ["Acciones", "Sitios", "Partidos", "Jugadores"];
 /** Partidos / Jugadores list at most this many (the design's 6). */
 export const GROUP_LIMIT: Record<string, number> = { Partidos: 6, Jugadores: 6 };
 

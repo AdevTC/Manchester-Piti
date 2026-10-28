@@ -1,9 +1,11 @@
-// The Sala de control's keyboard: `g` then a section's key jumps there (g h Hoy, g p Partidos, g c Convocar,
-// g l pLantilla, g f Cuentas (fichas), g t Temporadas, g k capitanes, g o cOntenido) and `[` folds / unfolds the rail
-// on wide screens. Never while typing (inputs, textareas, selects, contenteditable), never with a modifier,
-// never while a layer is open (the palette, a modal, the Más sheet: they own the keyboard).
+// The Sala de control's keyboard (DIRECTION.md § Atajos): `g` then a place's key jumps there (g h Hoy · g p
+// Partidos · g l pLantilla · g a cAja · g b cluB), `/` goes to the screen's search («buscar en listas»: the first
+// search field of the screen, <input type="search"> or role=searchbox), `n` opens «Nuevo partido» (a screen that
+// handles `n` itself calls preventDefault first). ⌘K / Ctrl K is the frame's (the palette); ← → between stations
+// is the match's (partido/). Never while typing, never with a modifier, never while a layer is open (the palette,
+// a sheet, a dialog: they own the keyboard).
 import { useEffect, useRef } from "react";
-import { sectionForGo, type SectionKey } from "./nav";
+import { placeForGo, type PlaceKey } from "./places";
 
 /** How long the `g` waits for its second key. */
 export const CHORD_MS = 1500;
@@ -19,51 +21,54 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return !["button", "checkbox", "radio", "range", "reset", "submit", "color", "file", "image"].includes(type);
 }
 
-export type ChordResult = { kind: "none" } | { kind: "armed" } | { kind: "go"; section: SectionKey } | { kind: "rail" };
-/**
- * One key of the chord (pure): `armedAt` = when `g` was pressed (or null). Returns what to do and the new
- * armed time. `[` toggles the rail; `g` arms; a section key within CHORD_MS of `g` goes there.
- */
-export function chordStep(armedAt: number | null, key: string, now: number): { result: ChordResult; armedAt: number | null } {
+export type KeyResult = { kind: "none" } | { kind: "armed" } | { kind: "go"; place: PlaceKey } | { kind: "search" } | { kind: "nuevo" };
+/** One key (pure): `armedAt` = when `g` was pressed (or null). Returns what to do and the new armed time. */
+export function keyStep(armedAt: number | null, key: string, now: number): { result: KeyResult; armedAt: number | null } {
   const armed = armedAt !== null && now - armedAt <= CHORD_MS;
   if (armed) {
-    const section = sectionForGo(key);
-    if (section) return { result: { kind: "go", section }, armedAt: null };
+    const place = placeForGo(key);
+    if (place) return { result: { kind: "go", place }, armedAt: null };
   }
   if (key === "g" || key === "G") return { result: { kind: "armed" }, armedAt: now };
-  if (key === "[") return { result: { kind: "rail" }, armedAt: null };
+  if (key === "/") return { result: { kind: "search" }, armedAt: null };
+  if (key === "n" || key === "N") return { result: { kind: "nuevo" }, armedAt: null };
   return { result: { kind: "none" }, armedAt: null };
 }
 
-/**
- * Listens on the document. `blocked()` = a layer is open (no shortcuts); `onRail` is left out where the rail
- * can't fold (below 1200 px, phones).
- */
-export function useShellShortcuts({ onGo, onRail, blocked }: { onGo: (k: SectionKey) => void; onRail?: () => void; blocked: () => boolean }) {
-  const latest = useRef({ onGo, onRail, blocked });
+/** The screen's list search, if it has one (inside the sala's <main>). */
+export function screenSearch(root: ParentNode = document): HTMLElement | null {
+  return root.querySelector<HTMLElement>('.sc-main input[type="search"], .sc-main [role="searchbox"]');
+}
+
+/** Listens on the document. `blocked()` = a layer is open. */
+export function useSalaShortcuts({ onGo, onNuevo, blocked }: { onGo: (k: PlaceKey) => void; onNuevo: () => void; blocked: () => boolean }) {
+  const latest = useRef({ onGo, onNuevo, blocked });
   useEffect(() => {
-    latest.current = { onGo, onRail, blocked };
+    latest.current = { onGo, onNuevo, blocked };
   });
   useEffect(() => {
     let armedAt: number | null = null;
     const onKey = (e: KeyboardEvent) => {
-      // AltGr (Ctrl+Alt on Windows) is how a Spanish keyboard types `[`: not a modifier here
-      const altGr = e.getModifierState?.("AltGraph") ?? false;
-      if (e.defaultPrevented || e.repeat || e.metaKey || (!altGr && (e.ctrlKey || e.altKey)) || isTypingTarget(e.target)) return;
-      const { onGo: go, onRail: rail, blocked: isBlocked } = latest.current;
-      if (isBlocked()) {
+      if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      const l = latest.current;
+      if (l.blocked()) {
         armedAt = null;
         return;
       }
-      const step = chordStep(armedAt, e.key, Date.now());
+      const step = keyStep(armedAt, e.key, Date.now());
       armedAt = step.armedAt;
       const r = step.result;
       if (r.kind === "go") {
         e.preventDefault();
-        go(r.section);
-      } else if (r.kind === "rail" && rail) {
+        l.onGo(r.place);
+      } else if (r.kind === "search") {
+        const field = screenSearch();
+        if (!field) return;
         e.preventDefault();
-        rail();
+        field.focus();
+      } else if (r.kind === "nuevo") {
+        e.preventDefault();
+        l.onNuevo();
       }
     };
     document.addEventListener("keydown", onKey);

@@ -1,16 +1,18 @@
-// What the admin shell shares with its views: the one useAdminData() result (read it with useAdmin(),
-// never call useAdminData() again in a view), shell actions (palette, theme) and
-// router-free targets.
+// What the frame shares with every screen: the one useAdminData() result (read it with useAdmin(), never call
+// useAdminData() again in a screen), the frame's actions (the palette, the theme) and useAdminGo(), which turns a
+// router-free target (today's «Por hacer», a button, the palette) into a navigation to its new address.
 import { createContext, useCallback, useContext } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { AdminData } from "../data/useAdminData";
-import { SECTION, type AdminTarget } from "./nav";
+import { NEXT_MATCH, type Station } from "../../../lib/adminUrls";
+import { SECTION, type AdminTarget, type MatchTab } from "./nav";
+import { useSeasonParam, withSeason } from "./salaHref";
 
 export const AdminDataContext = createContext<AdminData | null>(null);
-/** The admin's data (counters, matches, roster, claims…), from the shell. */
+/** The sala's data (matches, roster, claims, the overview…), from the frame. */
 export function useAdmin(): AdminData {
   const d = useContext(AdminDataContext);
-  if (!d) throw new Error("useAdmin() reads the data AdminLayout provides.");
+  if (!d) throw new Error("useAdmin() reads the data the Sala de control's frame provides.");
   return d;
 }
 
@@ -22,44 +24,49 @@ export interface ShellApi {
 export const ShellContext = createContext<ShellApi>({ openPalette: () => undefined, theme: "dark", toggleTheme: () => undefined });
 export const useShell = (): ShellApi => useContext(ShellContext);
 
-/** Turns an AdminTarget (from Por hacer, a button, the palette) into a navigation. */
+const TAB_STATION: Record<MatchTab, Station> = { encuentro: "datos", convocatoria: "convocatoria", acta: "acta", publicar: "publicar" };
+
+/** A target's new address (the router's `href`), or null for the ones that leave the sala through a route. */
+export function targetHref(t: AdminTarget): string {
+  switch (t.section) {
+    case "partidos":
+      if (t.nuevo) return "/admin/partidos/nuevo";
+      if (!t.matchId) return "/admin/partidos";
+      return `/admin/partidos/${t.matchId}${t.vitrina ? "/despues" : t.tab ? `/${TAB_STATION[t.tab]}` : ""}`;
+    case "convocar":
+      return `/admin/partidos/${t.matchId ?? NEXT_MATCH}/convocatoria`;
+    case "enjuego":
+      return t.matchId ? `/partidos/${t.matchId}/mesa` : "/admin";
+    case "plantilla":
+      return t.nuevo ? "/admin/plantilla/alta" : t.playerId ? `/admin/plantilla/${t.playerId}` : "/admin/plantilla";
+    case "fichas":
+      return "/admin/plantilla/socios?ver=fichas";
+    case "contenido":
+      return `/admin/club/web${t.seccion ? `/${t.seccion}` : ""}`;
+    case "caja":
+      return t.matchId ? `/admin/caja/coste/${t.matchId}` : "/admin/caja";
+    case "web":
+      return t.matchId ? `/partidos/${t.matchId}` : t.playerId ? `/jugadores/${t.playerId}` : "/";
+    case "pizarra":
+      return "/pizarra";
+    default:
+      return SECTION[t.section].path;
+  }
+}
+
+/** Turns an AdminTarget into a navigation, keeping the sala's season. */
 export function useAdminGo(): (target: AdminTarget) => void {
   const navigate = useNavigate();
+  const season = useSeasonParam();
   return useCallback(
     (t: AdminTarget) => {
-      switch (t.section) {
-        case "partidos":
-          if (t.matchId) void navigate({ to: "/admin/partidos/$matchId", params: { matchId: t.matchId }, search: { tab: t.tab, vitrina: t.vitrina || undefined } });
-          else void navigate({ to: "/admin/partidos", search: { nuevo: t.nuevo || undefined } });
-          return;
-        case "enjuego":
-          if (t.matchId) void navigate({ to: "/partidos/$matchId/mesa", params: { matchId: t.matchId } });
-          else void navigate({ to: "/admin" });
-          return;
-        case "convocar":
-          void navigate({ to: "/admin/convocar", search: { j: t.matchId } });
-          return;
-        case "plantilla":
-          void navigate({ to: "/admin/plantilla", search: { jugador: t.playerId, nuevo: t.nuevo || undefined } });
-          return;
-        case "contenido":
-          void navigate({ to: "/admin/contenido", search: { seccion: t.seccion } });
-          return;
-        case "caja":
-          void navigate({ to: "/admin/caja", search: { coste: t.matchId } });
-          return;
-        case "pizarra":
-          void navigate({ to: "/pizarra", search: { tablero: t.tablero, season: t.seasonId } });
-          return;
-        case "web":
-          if (t.matchId) void navigate({ to: "/partidos/$matchId", params: { matchId: t.matchId } });
-          else if (t.playerId) void navigate({ to: "/jugadores/$playerId", params: { playerId: t.playerId } });
-          else void navigate({ to: "/" });
-          return;
-        default:
-          void navigate({ to: SECTION[t.section].path });
+      if (t.section === "pizarra") {
+        void navigate({ to: "/pizarra", search: { tablero: t.tablero, season: t.seasonId } });
+        return;
       }
+      const href = targetHref(t);
+      void navigate({ href: href.startsWith("/admin") ? withSeason(href, season) : href });
     },
-    [navigate],
+    [navigate, season],
   );
 }

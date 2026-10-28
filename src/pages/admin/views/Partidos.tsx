@@ -7,7 +7,8 @@
 // (?nuevo; the N key opens it too). Archiving is reversible; deletion is permanent and only reported
 // after backend confirmation. Archived documents live in a separate, read-only collection view.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useViewSearch } from "../shell/interimSearch";
 import { flushSync } from "react-dom";
 import { apiError, deleteMatch } from "../../../lib/clubApi";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
@@ -56,13 +57,13 @@ export function Partidos() {
   const { desktop } = useFrame();
   const whistled = useWhistled();
   const params = useParams({ strict: false }) as { matchId?: string };
-  const search = useSearch({ strict: false }) as PartidosSearch;
+  const search = useViewSearch<PartidosSearch & { archivados?: boolean }>();
   const matchId = params.matchId;
   const tabParam = isTab(search.tab) ? search.tab : undefined;
   const nuevo = isOn(search.nuevo);
   const [filter, setFilter] = useState<ListFilter>("todo");
   const [query, setQuery] = useState("");
-  const [archiveMode, setArchiveMode] = useState(false);
+  const [archiveMode, setArchiveMode] = useState(!!search.archivados);
   const [lifecycle, setLifecycle] = useState<MatchLifecycleRequest | null>(null);
   // A confirmed deletion stays hidden while realtime snapshots catch up.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());

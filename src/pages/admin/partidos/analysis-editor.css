@@ -8,16 +8,16 @@
 .ae-review-events>li,.ae-question{padding:16px;background:var(--sheet);border-radius:14px;box-shadow:inset 0 0 0 1px var(--pline);min-width:0}
 .ae-review-event-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;font-size:14px}
 .ae-review-event-head .btn{margin-left:auto}
-.ae-change{padding:5px 9px;background:var(--panel);border-radius:999px;font-size:11px;font-weight:700;box-shadow:inset 0 0 0 1px var(--pline)}
+.ae-change{padding:5px 9px;background:var(--panel);border-radius:999px;font-size:11.5px;font-weight:700;box-shadow:inset 0 0 0 1px var(--pline)}
 .ae-change.added{color:var(--sky)}
 .ae-change.updated{color:var(--amber)}
 .ae-review blockquote{margin:12px 0;padding:10px 14px;border-left:2px solid var(--sky);color:var(--soft);background:var(--panel);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
-.ae-review blockquote small{display:block;margin-bottom:4px;font-size:11px;font-weight:650}
+.ae-review blockquote small{display:block;margin-bottom:4px;font-size:11.5px;font-weight:650}
 .ae-review-diff{display:grid;gap:0;margin:0;font-size:13px}
 .ae-review-diff>div{padding:12px 0;border-top:1px solid var(--pline)}
 .ae-review-diff dt{font-weight:700;color:var(--ink);margin-bottom:8px}
 .ae-review-diff dd{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:14px;color:var(--soft);overflow-wrap:anywhere}
-.ae-review-diff small{display:block;font:11px 'Geist Mono',monospace;color:var(--muted);margin-bottom:4px}
+.ae-review-diff small{display:block;font:11.5px 'Geist Mono',monospace;color:var(--muted);margin-bottom:4px}
 .ae-review-questions{display:grid;gap:12px;margin:18px 0}
 .ae-review-questions>h4,.ae-review-questions>p{margin:0}
 .ae-review-muted{color:var(--muted)}
