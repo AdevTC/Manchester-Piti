@@ -74,22 +74,25 @@ test('la mesa: «Gol del Piti» con su goleador llega una sola vez al partido (l
     if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/liveEvent')) requests.push(request.postDataJSON().data);
   });
   await page.goto('/partidos/preview-bench/mesa');
-  await page.getByRole('button',{name:'Gol del Piti',exact:true}).click();
-  const sheet=page.getByRole('dialog',{name:'¿Quién marcó?'});
-  await sheet.getByRole('button',{name:/Mario/}).click();
+  // (r12: the goal counts at one tap; then the pitch asks «¿Quién marcó?» and his shirt answers)
+  await page.getByRole('button',{name:/^Gol del Piti/}).click();
+  await expect(page.getByText('¿Quién marcó?')).toBeVisible();
+  await page.getByRole('button',{name:/^mario\b.*: marcó él$/i}).click();
   await expect.poll(()=>requests.filter(r=>r.action==='add').length).toBeGreaterThan(0);
   const add=requests.find(r=>r.action==='add')!;
-  expect(add).toMatchObject({action:'add',event:{type:'goal',playerId:'improvement-player-6'}});
+  expect(add).toMatchObject({action:'add',event:{type:'goal'}});
   expect(add.requestId).toBeTruthy();
-  const goals=async()=>{
+  const plays=async()=>{
     const stored=await page.request.get('http://127.0.0.1:8080/v1/projects/demo-manchester-piti/databases/(default)/documents/matches/preview-bench');
     expect(stored.ok()).toBe(true);
-    const events=((await stored.json()).fields.events.arrayValue.values ?? []) as {mapValue:{fields:{id:{stringValue:string}}}}[];
-    return events.filter(event=>event.mapValue.fields.id.stringValue===`live-${add.requestId}`).length;
+    const events=((await stored.json()).fields.events.arrayValue.values ?? []) as {mapValue:{fields:{id:{stringValue:string};playerId?:{stringValue:string}}}}[];
+    return events.filter(event=>event.mapValue.fields.id.stringValue===`live-${add.requestId}`);
   };
-  await expect.poll(goals).toBe(1);
+  await expect.poll(async()=>(await plays()).length).toBe(1);
+  // (the scorer reaches that same play, in its add or as its edit)
+  await expect.poll(async()=>(await plays())[0]?.mapValue.fields.playerId?.stringValue).toBe('improvement-player-6');
   // (a retry of the same play keeps its requestId: still once after the queue settles and a reload)
   await page.reload();
-  await expect(page.getByRole('button',{name:'Gol del Piti',exact:true})).toBeVisible();
-  expect(await goals()).toBe(1);
+  await expect(page.getByRole('button',{name:/^Gol del Piti/})).toBeVisible();
+  expect((await plays()).length).toBe(1);
 });
