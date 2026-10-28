@@ -7,11 +7,11 @@
 // siguiente sin completar · siguiente» on every width (B-CLUB-07). Each field saves itself when you leave it, if it is
 // valid (an invalid one is never written, and leaving with it asks first), behind «Deshacer».
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
-import { deleteDoc, doc as fsDoc, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc as fsDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../../firebase";
 import { useAuth } from "../../../../context/AuthContext";
 import { summaryText } from "../../../../components/posiciones/mapaNav";
-import { madridDate } from "../../../../lib/derived/absences";
+import { ABSENCE_NOTE_MAX, absenceFields, absenceFormProblem, madridDate } from "../../../../lib/derived/absences";
 import { plural } from "../../../../lib/derived/words";
 import { resolvePositions, sanitizePositions, type PosCode, type PositionSet } from "../../../../lib/positions";
 import { editPositionsPayload, proposalKey, proposalState, reviewPayload } from "../../../../lib/positionsEdit";
@@ -338,9 +338,39 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
 
   // ── ausencias (H-CLUB-05): what he said in the vestuario; a captain can take one away ──
   const today = madridDate(data.now);
-  const absences = useAbsences(today).data.filter((a) => a.playerId === id);
-  const removeAbsence = (a: (typeof absences)[number]) =>
+  const stored = useAbsences(today).data.filter((a) => a.playerId === id);
+  // (r12: a captain writes one for him from here — only with his member linked, signed `by` the captain; it shows
+  // at once while it waits behind «Deshacer», and goes away if undone or not written)
+  const member = row.account === "vinculada" ? data.people.find((p) => !p.removed && p.playerId === id) : undefined;
+  const [absNew, setAbsNew] = useState<{ key: string; from: string; to: string; note: string }[]>([]);
+  const [absForm, setAbsForm] = useState<{ from: string; to: string; note: string; err: string } | null>(null);
+  const absences = [...stored, ...absNew.filter((n) => !stored.some((a) => a.from === n.from && a.to === n.to && a.note === n.note)).map((n) => ({ id: n.key, from: n.from, to: n.to, note: n.note, pending: true }))].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+  const removeAbsence = (a: { id: string; from: string; to: string }) =>
     status.defer({ tag: "Ausencia", message: `Quitada la ausencia de ${name} (del ${dm(a.from)} al ${dm(a.to)})`, commit: () => deleteDoc(fsDoc(db, "absences", a.id)), errorMessage: "No se ha podido quitar la ausencia" });
+  const addAbsence = (e: FormEvent) => {
+    e.preventDefault();
+    if (!absForm || !member || !user) return;
+    const { from, to } = absForm;
+    const err = !from || !to ? "Pon desde qué día y hasta qué día." : to < from ? "El último día va después del primero." : absenceFormProblem(from, to, today);
+    if (err) {
+      setAbsForm({ ...absForm, err });
+      return;
+    }
+    const fields = absenceFields({ uid: member.uid, name: member.nickname, playerId: id }, from, to, absForm.note);
+    const key = `nueva-${from}-${to}-${Date.now()}`;
+    const drop = () => setAbsNew((l) => l.filter((x) => x.key !== key));
+    setAbsNew((l) => [...l, { key, from, to, note: fields.note ?? "" }]);
+    setAbsForm(null);
+    status.defer({
+      tag: "Ausencia",
+      message: `${name} no está del ${dm(from)} al ${dm(to)} · sale en la convocatoria`,
+      commit: () => addDoc(collection(db, "absences"), { ...fields, createdAt: serverTimestamp(), by: user.uid }),
+      onUndo: drop,
+      onError: drop,
+      onDone: drop,
+      errorMessage: `No se ha podido apuntar la ausencia de ${name}`,
+    });
+  };
 
   // ── baja, alta otra vez, borrar ──
   const restore = () => {
@@ -657,6 +687,12 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           <h3 className="sc-h3" id={`${uid}-aus`}>
             Ausencias
           </h3>
+          {member && (
+            <button type="button" className="vd-link" aria-expanded={!!absForm} onClick={() => setAbsForm(absForm ? null : { from: "", to: "", note: "", err: "" })}>
+              <Icon name="plus" size={16} />
+              Apuntar una ausencia
+            </button>
+          )}
         </header>
         {absences.length ? (
           <ul className="sc-rows">
@@ -668,7 +704,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
                   </b>
                   <span>{a.note || "Sin motivo"}</span>
                 </span>
-                <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-label={`Quitar la ausencia de ${name} del ${dm(a.from)}`} onClick={() => removeAbsence(a)}>
+                <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-label={`Quitar la ausencia de ${name} del ${dm(a.from)}`} aria-disabled={"pending" in a || undefined} onClick={() => !("pending" in a) && removeAbsence(a)}>
                   Quitar
                 </button>
               </li>
@@ -676,6 +712,38 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
           </ul>
         ) : (
           <p className="sc-small">Sin ausencias apuntadas. Las que avisa él desde el vestuario salen aquí y en la convocatoria.</p>
+        )}
+        {!member && <p className="sc-small">Sin cuenta en el vestuario: sus ausencias las apunta él cuando entre.</p>}
+        {absForm && (
+          <form className="pl-absf" aria-label="Apuntar una ausencia" onSubmit={addAbsence} noValidate>
+            <div className="sc-form">
+              <label className="sc-field">
+                <span>Desde</span>
+                <input className="vd-input vd-glass" type="date" value={absForm.from} onChange={(e) => setAbsForm({ ...absForm, from: e.currentTarget.value, err: "" })} />
+              </label>
+              <label className="sc-field">
+                <span>Hasta (incluido)</span>
+                <input className="vd-input vd-glass" type="date" value={absForm.to} onChange={(e) => setAbsForm({ ...absForm, to: e.currentTarget.value, err: "" })} />
+              </label>
+              <label className="sc-field sc-field--wide">
+                <span>Motivo · opcional</span>
+                <input className="vd-input vd-glass" type="text" maxLength={ABSENCE_NOTE_MAX} value={absForm.note} onChange={(e) => setAbsForm({ ...absForm, note: e.currentTarget.value })} placeholder="De viaje, trabajo…" />
+              </label>
+            </div>
+            {absForm.err && (
+              <p className="pl-err" role="alert">
+                {absForm.err}
+              </p>
+            )}
+            <div className="sc-btnrow">
+              <button type="submit" className="vd-btn vd-glass vd-press vd-btn--pri vd-btn--sm">
+                Apuntar
+              </button>
+              <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => setAbsForm(null)}>
+                Cancelar
+              </button>
+            </div>
+          </form>
         )}
       </section>
 

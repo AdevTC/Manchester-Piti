@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   promote: vi.fn((d: unknown) => Promise.resolve({ data: { matches: 1, seasons: ["t1"], d } })),
   absences: [] as Absence[],
   deleteDoc: vi.fn((ref: unknown) => Promise.resolve(void ref)),
+  addDoc: vi.fn((ref: unknown, data: unknown) => Promise.resolve({ id: "nueva", ref, data })),
 }));
 vi.mock("../../data/useAdminData", async () => ({ useAdminData: (await import("../../../../test/adminMocks")).currentAdminData }));
 vi.mock("../../../../context/AuthContext", async () => ({ useAuth: (await import("../../../../test/adminMocks")).fakeAuth }));
@@ -27,7 +28,7 @@ vi.mock("../../../../lib/clubApi", () => ({ apiError: (e: unknown) => String(e),
 vi.mock("../../club/useClubWrites", () => ({ useClubWrites: () => h.writes }));
 vi.mock("../../../../components/jersey3d/useShirtStills", () => ({ useShirtStills: () => () => undefined }));
 vi.mock("../../../vestuario/live", async (orig) => ({ ...(await orig<typeof import("../../../vestuario/live")>()), useAbsences: () => ({ data: h.absences, loading: false, error: false }) }));
-vi.mock("firebase/firestore", async (orig) => ({ ...(await orig<typeof import("firebase/firestore")>()), deleteDoc: (ref: unknown) => h.deleteDoc(ref) }));
+vi.mock("firebase/firestore", async (orig) => ({ ...(await orig<typeof import("firebase/firestore")>()), deleteDoc: (ref: unknown) => h.deleteDoc(ref), addDoc: (ref: unknown, data: unknown) => h.addDoc(ref, data) }));
 
 const WIDTH = window.innerWidth;
 const views = { plantilla: PlantillaArea };
@@ -52,6 +53,7 @@ describe("Plantilla · Jugadores", () => {
     Object.values(h.writes).forEach((f) => f.mockClear());
     h.promote.mockClear();
     h.deleteDoc.mockClear();
+    h.addDoc.mockClear();
     h.absences = [];
     setAdminData(adminFixture());
   });
@@ -332,6 +334,49 @@ describe("Plantilla · Jugadores", () => {
     await user.click(within(f).getByRole("button", { name: "Quitar la ausencia de ERIK del 10 nov" }));
     await later();
     expect(h.deleteDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it("«Apuntar una ausencia» for his linked member: shown at once, written signed after 5 s; «Deshacer» writes nothing", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mountAdmin("/admin/plantilla/erik", views);
+    const f = await screen.findByRole("article");
+    const open = async () => {
+      await user.click(within(f).getByRole("button", { name: "Apuntar una ausencia" }));
+      return within(f).getByRole("form", { name: "Apuntar una ausencia" });
+    };
+    let form = await open();
+    await user.click(within(form).getByRole("button", { name: "Apuntar" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("Pon desde qué día y hasta qué día.");
+    fireEvent.change(within(form).getByLabelText("Desde"), { target: { value: "2026-11-12" } });
+    fireEvent.change(within(form).getByLabelText("Hasta (incluido)"), { target: { value: "2026-11-10" } });
+    await user.click(within(form).getByRole("button", { name: "Apuntar" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("El último día va después del primero.");
+    fireEvent.change(within(form).getByLabelText("Hasta (incluido)"), { target: { value: "2026-11-19" } });
+    await user.type(within(form).getByLabelText(/Motivo/), "De viaje");
+    await user.click(within(form).getByRole("button", { name: "Apuntar" }));
+    expect(f).toHaveTextContent("Del 12 nov al 19 nov");
+    expect(caption()).toHaveTextContent("ERIK no está del 12 nov al 19 nov · sale en la convocatoria");
+    await later();
+    expect(h.addDoc).toHaveBeenCalledTimes(1);
+    expect(h.addDoc.mock.calls[0][1]).toMatchObject({ uid: "a2", playerId: "erik", name: "erik9", from: "2026-11-12", to: "2026-11-19", note: "De viaje", by: "a1" });
+    // undone: nothing written, nothing left
+    form = await open();
+    fireEvent.change(within(form).getByLabelText("Desde"), { target: { value: "2026-11-25" } });
+    fireEvent.change(within(form).getByLabelText("Hasta (incluido)"), { target: { value: "2026-11-26" } });
+    await user.click(within(form).getByRole("button", { name: "Apuntar" }));
+    expect(f).toHaveTextContent("Del 25 nov al 26 nov");
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    await later(6000);
+    expect(h.addDoc).toHaveBeenCalledTimes(1);
+    expect(f).not.toHaveTextContent("Del 25 nov al 26 nov");
+  });
+
+  it("no member linked: no form, a line that says why", async () => {
+    mountAdmin("/admin/plantilla/tello", views);
+    const f = await screen.findByRole("article");
+    expect(within(f).queryByRole("button", { name: "Apuntar una ausencia" })).toBeNull();
+    expect(f).toHaveTextContent("Sin cuenta en el vestuario: sus ausencias las apunta él cuando entre.");
   });
 
   it("B-CLUB-08: a load error says it in the singular", async () => {
