@@ -55,6 +55,9 @@ async function nuevoPartido(page: Page, o: { rival: string; date: string; time: 
   await expect(page.getByText(new RegExp(`Borrador · ${o.rival} creado`))).toBeVisible();
   // (r12: the new match opens on its Datos station)
   await expect(page).toHaveURL(/\/admin\/partidos\/[^/?]+\/datos/);
+  // (the match's own screen, not the list still on screen while the match's code arrives: the list shows another
+  // match's workspace beside it on the desktop)
+  await expect(page.locator(".sc-match .det")).toBeVisible();
   if (o.venue) await page.getByLabel("Nombre del campo").fill(o.venue);
   return new URL(page.url()).pathname.split("/")[3] ?? "";
 }
