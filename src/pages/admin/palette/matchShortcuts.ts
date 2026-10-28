@@ -27,6 +27,7 @@ export function pizarraCommand(m: ShortcutMatch, board: string, go: (t: AdminTar
     description: "El siete oficial · sales de la sala de control",
     hint: "ir",
     keywords: "pizarra tablero oficial siete charla",
+    href: "/pizarra",
     run: () => go({ section: "pizarra", tablero: board, seasonId: m.seasonId }),
   };
 }
@@ -42,6 +43,7 @@ export function webCommand(m: ShortcutMatch, go: (t: AdminTarget) => void): Pale
     description: `${matchName(m)} · la página pública del partido`,
     hint: "ir",
     keywords: "web publica ficha partido",
+    href: `/partidos/${m.id}`,
     run: () => go({ section: "web", matchId: m.id }),
   };
 }

@@ -1,6 +1,6 @@
 // What the frame shares with every screen: the one useAdminData() result (read it with useAdmin(), never call
-// useAdminData() again in a screen), the frame's actions (the palette, the theme) and useAdminGo(), which turns a
-// router-free target (today's «Por hacer», a button, the palette) into a navigation to its new address.
+// useAdminData() again in a screen), the frame's actions (the theme) and useAdminGo(), which turns a router-free
+// target (today's «Por hacer», a button, a command of the search) into a navigation to its new address.
 import { createContext, useCallback, useContext } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { AdminData } from "../data/useAdminData";
@@ -17,11 +17,10 @@ export function useAdmin(): AdminData {
 }
 
 export interface ShellApi {
-  openPalette: () => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
 }
-export const ShellContext = createContext<ShellApi>({ openPalette: () => undefined, theme: "dark", toggleTheme: () => undefined });
+export const ShellContext = createContext<ShellApi>({ theme: "dark", toggleTheme: () => undefined });
 export const useShell = (): ShellApi => useContext(ShellContext);
 
 const TAB_STATION: Record<MatchTab, Station> = { encuentro: "datos", convocatoria: "convocatoria", acta: "acta", publicar: "publicar" };

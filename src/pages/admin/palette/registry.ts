@@ -1,4 +1,4 @@
-// The palette's command registry: the shell registers the built-ins (Acciones, Sitios, Partidos,
+// The sala search's command registry: the shell registers the built-ins (Acciones, Sitios, Partidos,
 // Jugadores) and every view can add its own while it is mounted:
 //
 //   const cmds = useMemo<PaletteCommand[]>(() => [{ id: "plantilla:exportar", group: "Acciones", icon: "↓",
@@ -6,7 +6,7 @@
 //   useRegisterCommands(cmds);
 //
 // Pass a memoized array: the registry is updated whenever its identity changes. Commands leave the
-// palette when the view unmounts.
+// search when the view unmounts.
 import { createContext, useContext, useEffect, useId, useSyncExternalStore } from "react";
 import type { PaletteCommand } from "./search";
 
@@ -37,11 +37,11 @@ export class CommandRegistry {
 export const RegistryContext = createContext<CommandRegistry | null>(null);
 function useRegistry(): CommandRegistry {
   const r = useContext(RegistryContext);
-  if (!r) throw new Error("The command palette needs a <CommandRegistryProvider> (AdminLayout provides one).");
+  if (!r) throw new Error("The sala's search needs a <CommandRegistryProvider> (AdminLayout provides one).");
   return r;
 }
 
-/** Adds `commands` to the palette while the calling component is mounted. */
+/** Adds `commands` to the sala's search while the calling component is mounted. */
 export function useRegisterCommands(commands: readonly PaletteCommand[]): void {
   const registry = useRegistry();
   const id = useId();
@@ -51,7 +51,7 @@ export function useRegisterCommands(commands: readonly PaletteCommand[]): void {
   useEffect(() => () => registry.delete(id), [registry, id]);
 }
 
-/** Every registered command (the palette reads this). */
+/** Every registered command (the sala's search reads this: shell/SalaSearch). */
 export function usePaletteCommands(): readonly PaletteCommand[] {
   const registry = useRegistry();
   return useSyncExternalStore(registry.subscribe, registry.getSnapshot, registry.getSnapshot);

@@ -36,36 +36,35 @@
 .sc-nav .vx-nav-in a{gap:8px}
 .sc-count{font-style:normal;display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;box-sizing:border-box;border-radius:999px;font-size:12.5px;font-weight:760;font-feature-settings:'tnum' 1;
   background:var(--vd-celeste);color:#05122b}
-.sc .sc-search{display:inline-flex;align-items:center;justify-content:center;gap:8px}
-header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min-width:46px}
-.sc-search__t{font-size:14.5px;font-weight:600}
-.sc-search__k{font-family:var(--vd-sans);font-size:12px;font-weight:650;opacity:.8;padding:2px 6px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
 .sc-web{text-decoration:none}
 .sc-web .sc-i{width:16px;height:16px}
 .sc-acctwrap{position:relative}
-.sc-acct{position:relative}
-.sc-arm{position:absolute;left:28px;bottom:2px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:800;font-style:normal;background:#fff;color:#0c1733;box-shadow:0 0 0 2px var(--vd-marino)}
-.sc-arm.is-general{background:var(--vd-oro)}
+/* the web's search and avatar (SalaSearch, AccountGate in its sala mode): tu-chrome.css and search.css draw them
+   under header.vx-top, the desktop bar; the phone's header is .sc-phead, so the same here */
+.sc-phead :is(.tu-cbtn,.tu-acct){--vd-r:999px;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:9px;height:46px;min-width:46px;padding:0;border:0;color:var(--vd-g-ink);font:600 14px var(--vd-sans);cursor:pointer;text-decoration:none}
+.sc-phead .tu-cbtn .tu-i{width:20px;height:20px;flex:none;display:block}
+.sc-phead :is(.tu-cbtn__t,.tu-cbtn__k,.tu-acct__name){display:none}
+.sc-phead .tu-acct{padding:0 6px}
+.sc-phead .tu-acct>i{position:relative;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:750;background:var(--vd-celeste);color:var(--vd-marino)}
+.sc-phead .tu-acct__dot{position:absolute;top:-2px;right:-3px;width:11px;height:11px;border-radius:50%;background:var(--vd-celeste);box-shadow:0 0 0 2px var(--vd-noche)}
+.sc-phead :is(.tu-cbtn,.tu-acct)[aria-expanded="true"]{box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+.sc-phead :is(.tu-cbtn,.tu-acct):focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+/* (in the web's layer, outside .sc: a command's keys in the search, the sala's season in «Tú») */
+.tu-sr__keys{font:650 12px var(--vd-sans);padding:4px 7px;border-radius:7px;box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-g-ink2);white-space:nowrap}
+.tu-tu__season{display:grid;gap:1px;padding:8px 0 4px;border-top:1px solid var(--vd-rule)}
+.tu-tu__season .tu-label{padding:0 10px 4px;color:var(--vd-g-ink2);font-size:13.5px}
 .sc-menu{position:absolute;right:0;top:54px;z-index:40;width:270px;padding:8px;border-radius:22px;display:grid;gap:2px;--vd-r:22px}
 .sc-menu__who{margin:0;padding:10px 12px 8px;display:grid;gap:2px;border-bottom:1px solid var(--vd-rule)}
 .sc-menu__who b{font-size:15px;color:var(--vd-g-ink)}
 .sc-menu__who span{font-size:13px;color:var(--vd-g-ink2)}
-.sc-menu__g{margin:8px 12px 2px;font-size:12.5px;font-weight:700;color:var(--vd-g-ink2)}
 .sc-menu :is(button,a){display:flex;align-items:center;gap:10px;min-height:44px;text-align:left;padding:0 12px;border:0;border-radius:14px;background:none;color:var(--vd-g-ink);font-size:15px;font-weight:560;cursor:pointer;text-decoration:none}
 .sc-menu :is(button,a):hover,.sc-menu :is(button,a):focus-visible{background:rgba(108,171,221,.16)}
-.sc-menu [role="menuitemradio"] span{flex:1;min-width:0}
-.sc-menu [role="menuitemradio"] small{display:block;font-size:12.5px;color:var(--vd-g-ink2)}
-.sc-menu [role="menuitemradio"][aria-checked="true"]{font-weight:680}
-.sc-menu__sep{height:1px;margin:4px 8px;background:var(--vd-rule)}
-.sc-menu--phone{position:fixed;top:72px;right:12px}
 
 /* ---------- the phone and tablet header ---------- */
 .sc-phead{grid-row:2;display:flex;align-items:center;gap:10px;padding:12px var(--sc-gut) 8px;min-height:64px;box-sizing:border-box}
 .sc-phead__t{flex:1;min-width:0}
 .sc-phead__t .sc-phead__h{margin:0;font-weight:720;font-size:25px;line-height:1.05;letter-spacing:-.02em;font-variation-settings:'wdth' 94;color:var(--vd-ink-strong);overflow-wrap:anywhere}
 .sc-phead__t p+p{margin:2px 0 0;font-size:13.5px;line-height:1.35;color:var(--vd-ink2)}
-.sc-acct--phone{padding:0 5px}
-.sc-acct--phone .sc-arm{left:28px}
 
 .sc-offline{grid-row:3;margin:0 var(--sc-gut) 6px;display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.4;
   background:rgba(255,200,120,.14);box-shadow:inset 0 0 0 1px rgba(255,200,120,.45);color:var(--vd-ink)}
@@ -101,21 +100,6 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 .sc-dock__l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 
 /* ---------- layers: the palette and its scrim ---------- */
-.sc-layer{position:fixed;inset:0;z-index:44;background:rgba(2,8,26,.42);backdrop-filter:blur(2px)}
-:root[data-theme="light"] .sc-layer{background:rgba(12,23,51,.22)}
-.sc-pal{position:fixed;z-index:45;left:50%;top:10%;transform:translateX(-50%);width:min(640px,calc(100% - 28px));max-height:min(560px,76%);display:flex;flex-direction:column;border-radius:26px;overflow:hidden;--vd-r:26px;color:var(--vd-g-ink);font-family:var(--vd-sans)}
-.sc-pal__in{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--vd-rule)}
-.sc-pal__q{flex:1;min-width:0;height:44px;border:0;background:none;color:var(--vd-g-ink);font:inherit;font-size:17px;outline:none}
-.sc-pal__in kbd{font-family:var(--vd-sans);font-size:12px;color:var(--vd-g-ink2);padding:2px 7px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
-.sc-pal__list{overflow:auto;padding:6px 8px 10px}
-.sc-pal__gt{margin:10px 10px 4px;font-size:12.5px;font-weight:700;color:var(--vd-g-ink2)}
-.sc-pal__o{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1px 12px;min-height:48px;padding:6px 12px;border-radius:14px;cursor:pointer;color:var(--vd-g-ink)}
-.sc-pal__o b{font-size:15px;font-weight:620}
-.sc-pal__o small{grid-column:1;font-size:13px;color:var(--vd-g-ink2)}
-.sc-pal__o kbd{grid-column:2;grid-row:1/span 2;font-family:var(--vd-sans);font-size:12px;color:var(--vd-g-ink2);padding:2px 7px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
-.sc-pal__o[aria-selected="true"]{background:rgba(108,171,221,.2);box-shadow:inset 0 0 0 1px rgba(108,171,221,.4)}
-.sc-pal__none{margin:18px 12px;color:var(--vd-g-ink2)}
-.sc-pal__foot{margin:0;display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--vd-rule);font-size:12.5px;color:var(--vd-g-ink2)}
 
 /* ---------- the door, loading, error, not found ---------- */
 .sc-door{max-width:560px;margin:8vh auto 0;padding:0 var(--sc-gut);display:grid;justify-items:start;gap:12px}
@@ -147,7 +131,7 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
   .sc-app{--sc-gut:44px}
   .sc header.vx-top.sc-top{padding:22px 44px 0}
 }
-@container (max-width:1379px){.sc-search__t,.sc-search__k{display:none}header.vx-top .vx-actions .sc-search{width:46px;flex:0 0 46px;padding:0}.sc-web{padding:0 12px}}
+@container (max-width:1379px){.vx.sc header.vx-top .tu-cbtn--sr :is(.tu-cbtn__t,.tu-cbtn__k){display:none}.vx.sc header.vx-top .tu-cbtn.tu-cbtn--sr{padding:0}.sc-web{padding:0 12px}}
 @container (max-width:1279px){.sc-brand__t{display:none}}
 @container (max-width:699px){.sc-app{--sc-gut:16px}.sc-status{padding:0 14px}}
 
@@ -424,9 +408,6 @@ html[data-vd-page]::view-transition-group(sc-station){animation-duration:var(--v
 .vx.sc .sc-lede{margin:6px 0 0}
 .vx.sc .sc-mhead__s{margin:8px 0 0}
 .vx.sc .sc-phead__t p+p{margin:2px 0 0}
-.vx.sc .sc-menu__g{margin:8px 12px 2px}
-.vx.sc .sc-pal__gt{margin:10px 10px 4px}
-.vx.sc .sc-pal__none{margin:18px 12px}
 .vx.sc .sc-prop__l{margin:0 0 6px}
 .vx.sc .sc-offline{margin:0 var(--sc-gut) 6px}
 @container (min-width:1100px){.vx.sc .sc-offline{margin:12px var(--sc-gut) 0}}
