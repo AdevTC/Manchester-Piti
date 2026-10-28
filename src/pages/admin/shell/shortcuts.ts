@@ -1,8 +1,8 @@
 // The Sala de control's keyboard (DIRECTION.md § Atajos): `g` then a place's key jumps there (g h Hoy · g p
 // Partidos · g l pLantilla · g a cAja · g b cluB), `/` goes to the screen's search («buscar en listas»: the first
 // search field of the screen, <input type="search"> or role=searchbox), `n` opens «Nuevo partido» (a screen that
-// handles `n` itself calls preventDefault first). ⌘K / Ctrl K is the frame's (the palette); ← → between stations
-// is the match's (partido/). Never while typing, never with a modifier, never while a layer is open (the palette,
+// handles `n` itself calls preventDefault first). ⌘K / Ctrl K is the search's (SalaSearch); ← → between stations
+// is the match's (partido/). Never while typing, never with a modifier, never while a layer is open (the search,
 // a sheet, a dialog: they own the keyboard).
 import { useEffect, useRef } from "react";
 import { placeForGo, type PlaceKey } from "./places";

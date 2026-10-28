@@ -1,10 +1,12 @@
 // The Sala de control's frame in its three forms (r12 boards SC-Admin390/820/1440/1920, shell.html):
 //   desktop (≥ 1100): the web's top bar — the crest and «Sala de control» (with the season under it), the glass
 //     capsule «Hoy · Partidos · Plantilla · Caja · Club» with its bead and counters, «Buscar ⌘K», «Ver la web ↗» and
-//     the avatar with the armband and its menu;
+//     the avatar;
 //   tablet (700–1099) and phone: the header with the screen's title, its line and «‹» when it has a way back, the
 //     search and the avatar; at the foot the glass dock with the five places and their counters (hidden inside a
 //     match, a ficha or any screen with a way back).
+// The search and the avatar are the web's (SalaSearch: SearchLauncher with the sala's commands; AccountGate in its
+// sala mode: «Tú» with «Ver la web», the sala's season and the captain's role).
 // Then the offline line (M-22), the screen (the one <main>, B-SH-04) and the status strip. The light field is
 // behind everything; glass only on what is touched.
 import { useRef, type ReactNode, type RefObject } from "react";
@@ -13,13 +15,20 @@ import { VidrioSky } from "../../../components/vidrio/VidrioSky";
 import { VIcon } from "../../../components/vidrio/VIcon";
 import { useBead } from "../../../components/celeste/bead";
 import { useLightPointer } from "../../../components/vidrio/useLightPointer";
-import { AccountButton, type Viewer } from "./Account";
+import { AccountGate } from "../../../components/celeste/AccountGate";
+import { SalaSearch } from "./SalaSearch";
 import { SalaLink } from "./SalaLink";
 import { goKeys, placeLabel, PLACES, type PlaceKey } from "./places";
 import type { SalaSeason } from "./season";
 import { OFFLINE_LINE } from "./season";
 import { StatusStrip } from "./StatusStrip";
 import type { SalaHead } from "./head";
+
+/** Who looks: his nickname and his role in words («Capitán general», «Capitán», «Socio»). */
+export interface Viewer {
+  name: string;
+  role: string;
+}
 
 export interface FrameProps {
   /** `door`: someone without the armband — no places, no search. */
@@ -33,9 +42,6 @@ export interface FrameProps {
   online: boolean;
   /** The status strip at rest. */
   rest: string;
-  dark: boolean;
-  onTheme: () => void;
-  onSearch?: () => void;
   /** ≥ 1100 (the frame's width, measured). */
   desktop: boolean;
   /** The app (inert while a modal layer is open). */
@@ -43,14 +49,15 @@ export interface FrameProps {
   children: ReactNode;
 }
 
-export function SalaFrame({ mode, place, head, counts, viewer, season, online, rest, dark, onTheme, onSearch, desktop, appRef, children }: FrameProps) {
+export function SalaFrame({ mode, place, head, counts, viewer, season, online, rest, desktop, appRef, children }: FrameProps) {
   const sala = mode === "sala";
+  const account = { name: viewer.name, role: viewer.role, season: sala ? season : null };
   const dock = sala && !desktop && !head.back;
   return (
     <>
       <VidrioSky light="noche" floodlit={false} />
       <div ref={appRef} className={`sc-app${dock ? " has-dock" : ""}`}>
-        {desktop && <TopBar sala={sala} place={place} counts={counts} viewer={viewer} season={season} dark={dark} onTheme={onTheme} onSearch={onSearch} />}
+        {desktop && <TopBar sala={sala} place={place} counts={counts} account={account} season={season} />}
         {!desktop && (
           <header className="sc-phead">
             {head.back && (
@@ -62,12 +69,8 @@ export function SalaFrame({ mode, place, head, counts, viewer, season, online, r
               <p className="sc-phead__h">{head.title}</p>
               {head.sub && <p>{head.sub}</p>}
             </div>
-            {sala && onSearch && (
-              <button type="button" className="vd-ibtn vd-glass vd-press" onClick={onSearch} aria-label="Buscar" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
-                <VIcon name="search" size={20} />
-              </button>
-            )}
-            <AccountButton viewer={viewer} phone season={season} dark={dark} onTheme={onTheme} />
+            {sala && <SalaSearch />}
+            <AccountGate sala={account} />
           </header>
         )}
         {!online && (
@@ -88,7 +91,7 @@ export function SalaFrame({ mode, place, head, counts, viewer, season, online, r
   );
 }
 
-function TopBar({ sala, place, counts, viewer, season, dark, onTheme, onSearch }: { sala: boolean; place: PlaceKey | null; counts?: Record<PlaceKey, number>; viewer: Viewer; season?: SalaSeason | null; dark: boolean; onTheme: () => void; onSearch?: () => void }) {
+function TopBar({ sala, place, counts, account, season }: { sala: boolean; place: PlaceKey | null; counts?: Record<PlaceKey, number>; account: Viewer & { season?: SalaSeason | null }; season?: SalaSeason | null }) {
   const capsule = useRef<HTMLDivElement | null>(null);
   useBead(capsule, "sala-capsule", place ?? undefined, JSON.stringify(counts ?? {}));
   useLightPointer(capsule);
@@ -127,21 +130,13 @@ function TopBar({ sala, place, counts, viewer, season, dark, onTheme, onSearch }
         <span aria-hidden="true" />
       )}
       <div className="vx-actions sc-actions">
-        {sala && onSearch && (
-          <button type="button" className="sr-btn sc-search vd-glass vd-press" onClick={onSearch} aria-label="Buscar (Ctrl K)" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
-            <VIcon name="search" size={20} />
-            <span className="sc-search__t">Buscar</span>
-            <kbd className="sc-search__k" aria-hidden="true">
-              ⌘K
-            </kbd>
-          </button>
-        )}
+        {sala && <SalaSearch />}
         <a className="vd-btn vd-glass vd-press vd-btn--sm sc-web" href="/" target="_blank" rel="noopener">
           Ver la web
           <VIcon name="expand" size={16} />
           <span className="vd-vh"> (se abre en otra pestaña)</span>
         </a>
-        <AccountButton viewer={viewer} season={season} dark={dark} onTheme={onTheme} />
+        <AccountGate sala={account} />
       </div>
     </header>
   );

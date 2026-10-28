@@ -1,6 +1,6 @@
 // The Sala de control's frame (r12): the desktop bar with the capsule, the tablet/phone header and the dock, who
 // looks (a captain, the door, the anotador's mesa), the match's head and carril, the shared pieces (the status
-// strip, the sheet, the palette, the keyboard) and the redirects of the old addresses, on a memory router with the
+// strip, the sheet, the web's search and avatar in their sala mode, the keyboard) and the redirects of the old addresses, on a memory router with the
 // real AdminLayout and PartidoLayout. The screens are markers (adminKit) unless a test needs a real one.
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -12,6 +12,7 @@ import { useToast } from "../ui/toastContext";
 import { LayerProvider } from "../ui/layers";
 import { SalaSheet } from "./Sheet";
 import { StatusProvider, StatusStrip } from "./StatusStrip";
+import { publishViewer } from "../../../hooks/viewerSignal";
 
 const who = vi.hoisted(() => ({ role: "superadmin" as string, uid: "a1", nickname: "adrian_tc", playerId: "adrian" as string | undefined, logout: async () => undefined as void, scorers: [] as string[] }));
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
@@ -26,6 +27,23 @@ vi.mock("../../../lib/clubData", async (orig) => ({ ...(await orig<typeof import
 // (adminKit's NOW: Monday 2 Nov 2026, 10:00 in Madrid)
 vi.mock("../../../hooks/useMatchClock", () => ({ useMatchClock: () => Date.UTC(2026, 10, 2, 9, 0) }));
 vi.mock("../../../lib/clubApi", () => ({ apiError: (e: unknown) => (e instanceof Error ? e.message : String(e)) }));
+// (the avatar is the web's «Tú»: its inbox and its profile data stubbed — the captain, a jugador, nothing waiting —
+// and no printed shirts)
+vi.mock("../../perfil/bandeja/useInbox", () => ({
+  useInbox: () => ({ viewer: { who: "jugador", captain: true }, member: true, uid: "a1", now: 0, loading: false, failed: false, list: [], reads: { seenAt: null, read: {}, unread: () => false, mark: async () => undefined, markAll: async () => undefined }, unread: 0, pends: [], openPend: 0, feed: [], stacks: [], loose: [], stackOf: () => undefined, next: null, topics: [], muted: [], matchName: () => "" }),
+}));
+vi.mock("../../perfil/useProfileData", () => ({
+  useProfileData: () => ({
+    nickname: "adrian_tc",
+    google: { name: "Adrián" },
+    shirt: { number: "4", current: "ADRIAN", fullName: "Adrián Torres Calvo" },
+    card: { number: "4", showNumbers: false, rating: null, tierName: "", posLong: "Central", totals: { played: 2 } },
+    ficha: { state: "vinculada" },
+    captain: { doorRequests: [] },
+    access: { sinceText: "octubre" },
+  }),
+}));
+vi.mock("../../../components/jersey3d/usePageKitStills", () => ({ usePageKitStills: () => () => undefined }));
 
 const WIDTH = window.innerWidth;
 const wide = (w: number) => Object.defineProperty(window, "innerWidth", { configurable: true, value: w });
@@ -40,8 +58,13 @@ beforeEach(() => {
   who.logout = async () => undefined;
   club.matches = fixturePublished;
   setAdminData(adminFixture());
+  // (RootLayout publishes who is signed in; the avatar is «Tú» once he is)
+  publishViewer({ member: true, admin: true, playerId: "adrian" });
 });
-afterEach(() => wide(WIDTH));
+afterEach(() => {
+  wide(WIDTH);
+  publishViewer({ member: false, admin: false, playerId: null });
+});
 
 describe("the desktop (≥ 1100): the web's bar with the capsule", () => {
   it("the crest and «Sala de control», the five places with their g + letter, their counters in words, search, the web, the avatar", async () => {
@@ -55,53 +78,33 @@ describe("the desktop (≥ 1100): the web's bar with the capsule", () => {
     // only what is yours to do, as a number and in words (the caja: the payments waiting)
     expect(within(nav).getByRole("link", { name: "Caja · 2 cosas por hacer" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sala de control, Hoy" })).toHaveAttribute("href", "/admin");
-    expect(screen.getByRole("button", { name: "Buscar (Ctrl K)" })).toHaveAttribute("aria-keyshortcuts", "Control+K Meta+K");
+    // (the web's search button and avatar: ⌘K / Ctrl K only, «/» stays the screen's list search)
+    expect(screen.getByRole("button", { name: "Buscar (Ctrl K)" })).toHaveAttribute("aria-keyshortcuts", "Control+K");
     expect(screen.getByRole("link", { name: /Ver la web/ })).toHaveAttribute("target", "_blank");
-    expect(screen.getByRole("button", { name: "adrian_tc, Capitán general: abrir el menú" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Tú, Adrian_tc, Capitán general" })).toHaveAttribute("aria-haspopup", "dialog");
     // one <main> (B-SH-04), the frame's, and no dock on the desktop
     expect(document.querySelectorAll("main")).toHaveLength(1);
     expect(document.querySelector("main")).toHaveAttribute("id", "contenido");
     expect(document.querySelector(".sc-dock")).toBeNull();
   });
 
-  it("the avatar's menu: Mi perfil, the sala's season (the one picker), the theme and «Salir»", async () => {
+  it("the avatar is the web's «Tú» with the sala's things: «Ver la web» (not «Admin»), the sala's season, the role in its line", async () => {
     wide(1440);
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos");
-    await user.click(await screen.findByRole("button", { name: /abrir el menú/ }));
-    const menu = screen.getByRole("menu", { name: "Tu cuenta" });
-    expect(within(menu).getByRole("menuitem", { name: "Mi perfil" })).toHaveAttribute("href", "/perfil");
-    const seasons = within(menu).getAllByRole("menuitemradio");
+    await user.click(await screen.findByRole("button", { name: /Capitán general/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Adrián Torres" });
+    expect(within(sheet).getByText("Capitán general · @adrian_tc")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: /^Ver la web/ })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: /^Admin/ })).toBeNull();
+    for (const t of [/^Tu carta/, /^Avisos/, /^Ajustes/, /^Cuenta/, /^Salir en este dispositivo/]) expect(within(sheet).getByRole("button", { name: t })).toBeInTheDocument();
+    expect(within(sheet).getByRole("group", { name: "Tema" })).toBeInTheDocument();
+    const seasons = within(within(sheet).getByRole("radiogroup", { name: "Temporada de la sala" })).getAllByRole("radio");
     expect(seasons.map((s) => s.textContent)).toEqual(["Temporada 1La de ahora", "Temporada 0 · pre-PitiArchivada"]);
     expect(seasons[0]).toHaveAttribute("aria-checked", "true");
     await user.click(seasons[1]);
     await waitFor(() => expect(router.state.location.search).toMatchObject({ season: "t0" }));
     expect(router.state.location.pathname).toBe("/admin/partidos");
-  });
-
-  it("«Salir en este dispositivo» that fails says why and leaves no «Has salido» behind (B-SH-08)", async () => {
-    wide(1440);
-    who.logout = async () => {
-      throw new Error("sin red");
-    };
-    const user = userEvent.setup();
-    mountAdmin("/admin");
-    await user.click(await screen.findByRole("button", { name: /abrir el menú/ }));
-    await user.click(screen.getByRole("menuitem", { name: "Salir en este dispositivo" }));
-    const dialog = screen.getByRole("alertdialog", { name: "¿Salir en este dispositivo?" });
-    await user.click(within(dialog).getByRole("button", { name: "Salir" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("No se ha podido cerrar la sesión: sin red");
-    expect(sessionStorage.getItem("mp_door_notice")).toBeNull();
-  });
-
-  it("…and that works leaves the door its greeting", async () => {
-    wide(1440);
-    const user = userEvent.setup();
-    mountAdmin("/admin");
-    await user.click(await screen.findByRole("button", { name: /abrir el menú/ }));
-    await user.click(screen.getByRole("menuitem", { name: "Salir en este dispositivo" }));
-    await user.click(within(screen.getByRole("alertdialog", { name: "¿Salir en este dispositivo?" })).getByRole("button", { name: "Salir" }));
-    await waitFor(() => expect(sessionStorage.getItem("mp_door_notice")).toBe("Has salido en este dispositivo"));
   });
 });
 
@@ -147,7 +150,7 @@ describe("who looks", () => {
     expect(screen.getByRole("link", { name: "Volver al vestuario" })).toHaveAttribute("href", "/vestuario");
     expect(screen.queryByRole("navigation", { name: "Sala de control" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Buscar/ })).toBeNull();
-    expect(screen.getByRole("button", { name: /Socio: abrir el menú/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /, Socio$/ })).toBeInTheDocument();
   });
 
   it("the anotador of the match that matters now sees his mesa (M-21)", async () => {
@@ -222,8 +225,8 @@ describe("the old addresses (DIRECTION.md § Redirecciones), the season kept", (
   });
 });
 
-describe("the keyboard and the palette", () => {
-  it("g then p goes to Partidos; n opens «Nuevo partido»; ⌘K opens the palette with the places", async () => {
+describe("the keyboard and the search", () => {
+  it("g then p goes to Partidos; n opens «Nuevo partido»; ⌘K opens the web's search with the sala's commands", async () => {
     wide(1440);
     const user = userEvent.setup();
     const router = mountAdmin("/admin");
@@ -233,13 +236,31 @@ describe("the keyboard and the palette", () => {
     await user.keyboard("n");
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/nuevo"));
     await user.keyboard("{Control>}k{/Control}");
-    const dialog = screen.getByRole("dialog", { name: "Buscar" });
+    const dialog = await screen.findByRole("dialog", { name: "Buscar en la sala de control" });
     const sitios = within(dialog).getByRole("group", { name: "Sitios" });
     expect(within(sitios).getAllByRole("option").map((o) => o.querySelector("b")?.textContent)).toEqual(["Hoy", "Partidos", "Plantilla", "Caja", "Club"]);
     expect(within(sitios).getByRole("option", { name: /Caja/ })).toHaveAttribute("aria-keyshortcuts", "g a");
+    expect(within(dialog).getByRole("group", { name: "Acciones" })).toHaveTextContent("Nuevo partido");
+    // (the preview: what it is and where it leads)
+    expect(within(dialog).getByRole("complementary", { name: "Vista previa" })).toHaveTextContent("/admin/partidos");
     await user.type(within(dialog).getByRole("combobox"), "erik");
     await user.keyboard("{Enter}");
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/erik"));
+    expect(screen.queryByRole("dialog", { name: "Buscar en la sala de control" })).toBeNull();
+  });
+
+  it("the button opens it (a dialog on the phone too), a jornada finds its match, Esc empties the field and then closes", async () => {
+    wide(390);
+    const user = userEvent.setup();
+    mountAdmin("/admin");
+    await user.click(await screen.findByRole("button", { name: "Buscar (Ctrl K)" }));
+    const dialog = await screen.findByRole("dialog", { name: "Buscar en la sala de control" });
+    // (the field keeps what the last opening left, as the web's does)
+    await user.clear(within(dialog).getByRole("combobox"));
+    await user.type(within(dialog).getByRole("combobox"), "j3");
+    expect(within(dialog).getAllByRole("option")[0]).toHaveTextContent("J3 · MAD SKY");
+    await user.keyboard("{Escape}{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Buscar en la sala de control" })).toBeNull());
   });
 });
 

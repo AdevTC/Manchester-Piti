@@ -1,4 +1,4 @@
-// Holds the palette's command registry (registry.ts) for the admin shell.
+// Holds the sala search's command registry (registry.ts) for the admin shell.
 import { useState, type ReactNode } from "react";
 import { CommandRegistry, RegistryContext } from "./registry";
 

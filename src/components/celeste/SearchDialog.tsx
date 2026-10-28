@@ -85,6 +85,12 @@ export function SearchDialog({ onClose, page, initial, onState }: SearchDialogPr
       toggle();
       return;
     }
+    if (g.to === "run") {
+      // (the web lists none: the Sala de control's search does)
+      onClose(false);
+      g.run();
+      return;
+    }
     if (g.to === "account") {
       onClose(!!page);
       openAccount(() => void router.navigate({ href: g.href }));

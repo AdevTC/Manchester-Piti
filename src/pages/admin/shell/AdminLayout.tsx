@@ -2,8 +2,9 @@
 // (a captain gets the sala; anyone else inside, «Solo para la capitanía» in the same frame: the anotador with his
 // mesa, M-21), measures the frame (≥ 1100 desktop · 700–1099 tablet · phone), and owns what every screen shares:
 // the one useAdminData() (the season of the address: the frame's picker), the layers (Esc, focus trap, inert),
-// the status strip, the unsaved-changes guard, the palette (⌘K) and its registry, the frame's head (title, line
-// and way back), the dock's counters, the keyboard (g + place, `/`, `n`) and how a change of screen travels
+// the status strip, the unsaved-changes guard, the search's commands (⌘K opens the web's search with them: the
+// frame's SalaSearch) and their registry, the frame's head (title, line and way back), the dock's counters, the
+// keyboard (g + place, `/`, `n`) and how a change of screen travels
 // (law 4, on the web's page transitions). Motion follows the device's reduced-motion setting.
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -14,18 +15,16 @@ import { useClock } from "../../../hooks/useClock";
 import { setAppTravel } from "../../../components/celeste/pageTransition";
 import { useAdminData, type AdminData } from "../data/useAdminData";
 import { clockTime } from "../data/adminLogic";
-import { CommandPalette } from "../palette/CommandPalette";
 import { CommandRegistryProvider } from "../palette/CommandRegistryProvider";
 import { useRegisterCommands } from "../palette/registry";
 import { FrameContext, frameOf } from "../ui/frame";
 import { GuardProvider } from "../ui/GuardProvider";
 import { useLayerStack } from "../ui/layerCore";
 import { LayerProvider } from "../ui/layers";
-import type { Viewer } from "./Account";
 import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
 import { useDockCounts } from "./counters";
 import { Door } from "./Door";
-import { SalaFrame } from "./Frame";
+import { SalaFrame, type Viewer } from "./Frame";
 import { HeadContext, HeadStore, useRegisteredHead } from "./head";
 import { salaCommands } from "./salaCommands";
 import { useSalaGo } from "./salaHref";
@@ -73,13 +72,7 @@ export function AdminLayout() {
   const { profile } = useAuth();
   const nick = profile?.nickname || "capitán";
   const captain = isCaptain(profile?.role);
-  const viewer: Viewer = {
-    name: nick,
-    role: ROLE[profile?.role ?? ""] ?? (profile?.playerId ? "Jugador" : "Socio"),
-    initials: nick.charAt(0).toLocaleUpperCase("es"),
-    captain,
-    general: profile?.role === "superadmin",
-  };
+  const viewer: Viewer = { name: nick, role: ROLE[profile?.role ?? ""] ?? (profile?.playerId ? "Jugador" : "Socio") };
   const size = width < 700 ? "is-phone" : width < 1100 ? "is-tablet" : width >= 1800 ? "is-desk is-big" : "is-desk";
   return (
     <MotionConfig reducedMotion="user">
@@ -96,14 +89,13 @@ export function AdminLayout() {
 
 /** Someone inside without the armband: the door, in the sala's frame (no places, no data of the captains). */
 function DoorSala({ appRef, viewer, desktop }: { appRef: RefObject<HTMLDivElement | null>; viewer: Viewer; desktop: boolean }) {
-  const { theme, toggle } = useTheme();
   const online = useOnline();
   const now = useClock(60_000);
   useEffect(() => {
     document.title = "Solo para la capitanía · Sala de control";
   }, []);
   return (
-    <SalaFrame mode="door" place={null} head={{ title: "Sala de control" }} viewer={viewer} online={online} rest={online ? `Todo guardado · ${clockTime(now)}` : "Sin conexión"} dark={theme === "dark"} onTheme={toggle} desktop={desktop} appRef={appRef}>
+    <SalaFrame mode="door" place={null} head={{ title: "Sala de control" }} viewer={viewer} online={online} rest={online ? `Todo guardado · ${clockTime(now)}` : "Sin conexión"} desktop={desktop} appRef={appRef}>
       <Door />
     </SalaFrame>
   );
@@ -138,20 +130,10 @@ function Sala({ appRef, viewer, desktop, data }: { appRef: RefObject<HTMLDivElem
   const go = useSalaGo();
   const navigate = useNavigate();
   const { modalOpen } = useLayerStack();
-  const [palette, setPalette] = useState(false);
 
-  // ⌘K / Ctrl K opens the palette from anywhere in the sala.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === "k" || e.key === "K")) {
-        e.preventDefault();
-        setPalette(true);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
-  useSalaShortcuts({ onGo: (k) => go(PLACE[k].path), onNuevo: () => go("/admin/partidos/nuevo"), blocked: () => modalOpen || palette });
+  // (⌘K / Ctrl K is the search's: SalaSearch. A dialog of the web's own — the search, «Tú» — is not on the sala's
+  // layer stack: its aria-modal blocks the sala's keys too.)
+  useSalaShortcuts({ onGo: (k) => go(PLACE[k].path), onNuevo: () => go("/admin/partidos/nuevo"), blocked: () => modalOpen || !!document.querySelector('[aria-modal="true"]') });
 
   // How a change of screen travels (the web's page transitions run it: law 4).
   useEffect(() => {
@@ -162,7 +144,7 @@ function Sala({ appRef, viewer, desktop, data }: { appRef: RefObject<HTMLDivElem
     document.title = `${head.title} · Sala de control`;
   }, [head.title]);
 
-  const shell = useMemo<ShellApi>(() => ({ openPalette: () => setPalette(true), theme, toggleTheme: toggle }), [theme, toggle]);
+  const shell = useMemo<ShellApi>(() => ({ theme, toggleTheme: toggle }), [theme, toggle]);
   const adminGo = useAdminGo();
   const fichaId = info.screen === "ficha" ? info.playerId : undefined;
   const commands = useMemo(() => salaCommands(data, { go, theme, toggleTheme: toggle, navigate, adminGo, fichaId }, counts), [data, go, theme, toggle, navigate, adminGo, fichaId, counts]);
@@ -171,11 +153,10 @@ function Sala({ appRef, viewer, desktop, data }: { appRef: RefObject<HTMLDivElem
   const rest = online ? `Todo guardado · ${clockTime(data.now)}` : `Sin conexión · ${OFFLINE_LINE}`;
   return (
     <ShellContext.Provider value={shell}>
-      <SalaFrame mode="sala" place={info.place} head={head} counts={counts} viewer={viewer} season={season} online={online} rest={rest} dark={theme === "dark"} onTheme={toggle} onSearch={() => setPalette(true)} desktop={desktop} appRef={appRef}>
+      <SalaFrame mode="sala" place={info.place} head={head} counts={counts} viewer={viewer} season={season} online={online} rest={rest} desktop={desktop} appRef={appRef}>
         {/* (each screen says its own loading and error, with ScreenLoading / ScreenError: the frame is there at once) */}
         <Outlet />
       </SalaFrame>
-      <CommandPalette open={palette} onClose={() => setPalette(false)} />
     </ShellContext.Provider>
   );
 }

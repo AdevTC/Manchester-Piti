@@ -31,8 +31,10 @@ vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loa
 
 const WIDTH = window.innerWidth;
 const palette = async (user: ReturnType<typeof userEvent.setup>, query: string) => {
+  // (⌘K: the web's search with the sala's commands; its field keeps what the last opening left)
   await user.keyboard("{Control>}k{/Control}");
-  const dialog = screen.getByRole("dialog", { name: "Buscar" });
+  const dialog = await screen.findByRole("dialog", { name: "Buscar en la sala de control" });
+  await user.clear(within(dialog).getByRole("combobox"));
   await user.type(within(dialog).getByRole("combobox"), query);
   return within(dialog).getByRole("listbox", { name: "Resultados" });
 };

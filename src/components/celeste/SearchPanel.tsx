@@ -6,11 +6,11 @@
 // then closes. Empty, it offers «Lo próximo», four «Acciones» and the recent searches (each one removable,
 // «Borrar» all). The model is pure (searchModel searchView); the data and where a choice leads come from
 // SearchDialog, so this is testable bare. It floats in the boards' layer (TuLayer, `o-buscar`).
-import { useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { readRecent, rememberSearch, RECENT_KEY } from "../../lib/recentSearches";
 import { KitStillContext } from "../jersey3d/kitStill";
 import { TuIcon, TuLayer } from "../vidrio/tu/ui";
-import { countText, fold, goLabel, nextScope, SCOPES, searchView, type SrEntry, type SrScope, type SrViewerKind } from "./searchModel";
+import { countText, fold, goLabel, nextScope, SCOPES, searchView, type SrEntry, type SrOptions, type SrScope, type SrViewerKind } from "./searchModel";
 import "./search.css";
 
 export interface SearchPanelProps {
@@ -26,6 +26,13 @@ export interface SearchPanelProps {
   onState?: (s: { q: string; scope: SrScope }) => void;
   /** /buscar: an address of its own (no page under it, so no scrim). */
   page?: boolean;
+  /** Another place's search (the Sala de control's): where to search (default SCOPES), its words and empty field
+   *  (searchView's options), its title, the field's name and a line more for the foot. The web passes none. */
+  scopes?: readonly (readonly [SrScope, string])[];
+  options?: SrOptions;
+  heading?: string;
+  fieldLabel?: string;
+  footExtra?: ReactNode;
 }
 
 /** Storage may be missing or blocked: the list then lives only in this visit. */
@@ -47,7 +54,7 @@ function ShirtStill({ num, className }: { num?: string; className?: string }) {
   return <img className={className} src={still.src} alt="" width={540} height={600} />;
 }
 
-export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onState, page }: SearchPanelProps) {
+export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onState, page, scopes = SCOPES, options, heading = "Buscar en la web", fieldLabel = "Busca jugadores, partidos, rivales y cosas que hacer", footExtra }: SearchPanelProps) {
   const [q, setQ] = useState(initial?.q ?? "");
   const [scope, setScopeRaw] = useState<SrScope>(initial?.scope ?? "todo");
   const [act, setAct] = useState(0);
@@ -58,7 +65,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
   const listId = useId();
   const oid = (i: number) => `${listId}-o${i}`;
 
-  const view = useMemo(() => searchView(entries, { q, scope, more }, viewer), [entries, q, scope, more, viewer]);
+  const view = useMemo(() => searchView(entries, { q, scope, more }, viewer, options), [entries, q, scope, more, viewer, options]);
   const n = view.flat.length;
   const at = n ? Math.min(act, n - 1) : -1;
   const active = at >= 0 ? view.flat[at] : null;
@@ -105,7 +112,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Tab" && !e.altKey) {
       e.preventDefault();
-      setScope(nextScope(scope, e.shiftKey));
+      setScope(nextScope(scope, e.shiftKey, scopes));
       return;
     }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -160,7 +167,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
       {!page && <div className="tu-scrim" aria-hidden="true" onClick={onClose} />}
       <div className="vd-glass vd-glass--deep tu-sr" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={onDialogKey}>
         <h2 className="vd-vh" id={titleId}>
-          Buscar en la web
+          {heading}
         </h2>
         <div className="tu-sr__field">
           <TuIcon name="search" />
@@ -174,7 +181,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
             ref={input}
             type="text"
             role="combobox"
-            aria-label="Busca jugadores, partidos, rivales y cosas que hacer"
+            aria-label={fieldLabel}
             aria-autocomplete="list"
             aria-expanded={n > 0}
             aria-controls={listId}
@@ -207,7 +214,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
           </button>
         </div>
         <div className="tu-sr__scopes" data-scroll-x="1" role="group" aria-label="Dónde buscar (Tab para cambiar)">
-          {SCOPES.map(([id, t]) => {
+          {scopes.map(([id, t]) => {
             const on = view.scope === id;
             return (
               <button key={id} type="button" className={`tu-sr__sc${on ? " is-on" : ""}`} aria-pressed={on} onClick={() => setScope(id)}>
@@ -248,6 +255,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
                         id={oid(k)}
                         role="option"
                         aria-selected={on}
+                        aria-keyshortcuts={e.keys ? e.keys.toLowerCase() : undefined}
                         className={`tu-sr__hit k-${e.kind}${on ? " is-sel" : ""}`}
                         onPointerDown={(ev) => ev.preventDefault()}
                         onPointerMove={() => k !== at && setAct(k)}
@@ -274,6 +282,11 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
                           <span className={`tu-res is-${e.res}`} aria-hidden="true">
                             {e.res}
                           </span>
+                        )}
+                        {e.keys && (
+                          <kbd className="tu-sr__keys" aria-hidden="true">
+                            {e.keys}
+                          </kbd>
                         )}
                         <kbd className="tu-sr__go" aria-hidden="true">
                           Intro
@@ -410,6 +423,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
           <span aria-hidden="true">
             <kbd>Esc</kbd> vaciar y cerrar
           </span>
+          {footExtra && <span aria-hidden="true">{footExtra}</span>}
           {typed && <span className="tu-sr__count">{countText(view.total)}</span>}
         </div>
         <p className="vd-vh" role="status">

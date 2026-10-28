@@ -141,8 +141,9 @@ export type SrScope = "todo" | "jugador" | "partido" | "rival" | "tu" | "accion"
 export type Res = "G" | "E" | "P";
 
 /** What choosing it does: go to an address (`anchor`: then show that block), open «Tú» / «Entrar» (the header's
- *  account control; `href` when it is not there), or switch the theme. */
-export type SrGo = { to: "href"; href: string; anchor?: string } | { to: "account"; href: string } | { to: "theme" };
+ *  account control; `href` when it is not there), switch the theme, or run a command of its own (the Sala de
+ *  control's: its search lists the sala's commands). */
+export type SrGo = { to: "href"; href: string; anchor?: string } | { to: "account"; href: string } | { to: "theme" } | { to: "run"; run: () => void };
 
 export interface SrPreview {
   line: string;
@@ -171,6 +172,10 @@ export interface SrEntry {
   res?: Res;
   /** A rival's initials. */
   ini?: string;
+  /** Its keyboard shortcut («g h», «N»: the sala's), shown as a key cap and in aria-keyshortcuts. */
+  keys?: string;
+  /** With `empty` (searchView's options): false keeps it off the empty field. */
+  idle?: boolean;
   pv: SrPreview;
   go: SrGo;
 }
@@ -544,13 +549,25 @@ export function scoreOfEntry(e: SrEntry, q: string): number {
 }
 
 /** The scope a Tab (or Shift+Tab) moves to. */
-export const nextScope = (s: SrScope, back = false): SrScope => {
-  const ids = SCOPES.map((x) => x[0]);
+export const nextScope = (s: SrScope, back = false, scopes: readonly (readonly [SrScope, string])[] = SCOPES): SrScope => {
+  const ids = scopes.map((x) => x[0]);
   return ids[(ids.indexOf(s) + (back ? -1 : 1) + ids.length) % ids.length];
 };
 
+/** Another place's words and empty field (the Sala de control's search); the web passes none. */
+export interface SrOptions {
+  /** Group (and scope) titles in place of GROUP_TITLE's. */
+  titles?: Partial<Record<SrKind, string>>;
+  /** The field's hint for «Todo». */
+  hint?: string;
+  /** The empty field lists these kinds, in this order (each entry unless its `idle` is false), instead of «Lo
+   *  próximo» and the four «Acciones». */
+  empty?: readonly SrKind[];
+}
+
 /** What the dialog shows for `state` (component.js searchModel). */
-export function searchView(all: readonly SrEntry[], state: SrState, viewer: SrViewerKind): SrView {
+export function searchView(all: readonly SrEntry[], state: SrState, viewer: SrViewerKind, opts: SrOptions = {}): SrView {
+  const TITLE = opts.titles ? { ...GROUP_TITLE, ...opts.titles } : GROUP_TITLE;
   const pre = prefixOf(state.q);
   const scope = pre.scope ?? state.scope;
   const q0 = pre.q0;
@@ -576,7 +593,13 @@ export function searchView(all: readonly SrEntry[], state: SrState, viewer: SrVi
       const xs = sorted.filter((h) => h.e.kind === g && h.e !== best).map((h) => h.e);
       if (!xs.length) continue;
       const cap = scope !== "todo" || state.more[g] ? xs.length : 3;
-      groups.push({ key: g, title: GROUP_TITLE[g], items: xs.slice(0, cap), more: xs.length - Math.min(cap, xs.length) });
+      groups.push({ key: g, title: TITLE[g], items: xs.slice(0, cap), more: xs.length - Math.min(cap, xs.length) });
+    }
+  } else if (opts.empty) {
+    for (const g of opts.empty) {
+      const xs = all.filter((e) => e.kind === g && e.idle !== false);
+      const cap = g === "accion" && !state.more.accion ? 4 : xs.length;
+      if (xs.length) groups.push({ key: g, title: TITLE[g], items: xs.slice(0, cap), more: Math.max(0, xs.length - cap) });
     }
   } else {
     const acts = all.filter((e) => e.kind === "accion");
@@ -609,7 +632,7 @@ export function searchView(all: readonly SrEntry[], state: SrState, viewer: SrVi
       }
     }
   const flat = groups.flatMap((g) => g.items);
-  const where = scope === "todo" ? "" : ` en ${GROUP_TITLE[scope].toLowerCase()}`;
+  const where = scope === "todo" ? "" : ` en ${TITLE[scope].toLowerCase()}`;
   return {
     scope,
     q,
@@ -621,8 +644,8 @@ export function searchView(all: readonly SrEntry[], state: SrState, viewer: SrVi
     none,
     sugg,
     noneText: `Nada con «${q0.trim()}»${where}.`,
-    hint: scope === "todo" ? (viewer === "fan" ? "Un jugador, una jornada, un rival o algo que hacer" : "Un jugador, una jornada o algo tuyo") : `Busca en ${GROUP_TITLE[scope].toLowerCase()}`,
-    chip: scope === "todo" ? "" : GROUP_TITLE[scope],
+    hint: scope === "todo" ? (opts.hint ?? (viewer === "fan" ? "Un jugador, una jornada, un rival o algo que hacer" : "Un jugador, una jornada o algo tuyo")) : `Busca en ${TITLE[scope].toLowerCase()}`,
+    chip: scope === "todo" ? "" : TITLE[scope],
   };
 }
 

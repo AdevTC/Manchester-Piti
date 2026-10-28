@@ -3,7 +3,9 @@
 // «N cosas más te tocan» to the bandeja), your places as a menu (↑ ↓ Intro, Esc closes), the theme (Día · Noche ·
 // Sistema) and «Salir en este dispositivo» (Cuenta with its confirmation open). A fan: «Entrar con Google» and «¿Juegas
 // en el Piti? Pide entrar al vestuario», «Avisos sin cuenta» and the search. A dialog that grows out of the avatar
-// (desktop: under it; phone: over the tab bar); the focus goes back to the avatar.
+// (desktop: under it; phone: over the tab bar); the focus goes back to the avatar. In the Sala de control (`sala`)
+// it is the same sheet with the sala's things: «Ver la web» where the web says «Admin», the sala's season picker and
+// the captain's role in the line.
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
@@ -36,6 +38,16 @@ interface Item {
   icon: TuIconName;
   badge: number;
   go: () => void;
+}
+
+/** The Sala de control's part of «Tú»: the captain's role («Capitán general») and the sala's one season picker. */
+export interface AccountSala {
+  role: string;
+  season?: {
+    season: { id: string; name: string } | null;
+    options: { id: string; name: string; archived: boolean; current: boolean }[];
+    pick: (id: string) => void;
+  } | null;
 }
 
 /** Opens and closes a sheet out of its button (the board's openSurface / closeSurface). */
@@ -100,8 +112,40 @@ function MenuList({ items }: { items: Item[] }) {
   );
 }
 
+/** The sala's season, as menu rows (one checked; picking it closes the sheet). */
+function SalaSeasons({ season, close }: { season: NonNullable<AccountSala["season"]>; close: () => void }) {
+  return (
+    <div className="tu-tu__season" role="radiogroup" aria-labelledby="tu-ss-t">
+      <span className="tu-label" id="tu-ss-t">
+        Temporada de la sala
+      </span>
+      {season.options.map((o) => {
+        const on = season.season?.id === o.id;
+        return (
+          <button
+            key={o.id}
+            type="button"
+            className="tu-mi"
+            role="radio"
+            aria-checked={on}
+            data-nav="1"
+            onClick={() => {
+              season.pick(o.id);
+              close();
+            }}
+          >
+            <TuIcon name={on ? "check" : "cal"} />
+            <span className="tu-mi__t">{o.name}</span>
+            <small className="tu-mi__h">{o.current ? "La de ahora" : o.archived ? "Archivada" : "Otra temporada"}</small>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The member's avatar («J Jordi», a dot while something waits on him) and his «Tú». */
-export function MemberAccount({ name, here }: { name: string; here?: boolean }) {
+export function MemberAccount({ name, here, sala }: { name: string; here?: boolean; sala?: AccountSala }) {
   const inbox = useInbox();
   const btn = useRef<HTMLButtonElement | null>(null);
   const s = useSurface("tu-acct", btn);
@@ -109,7 +153,7 @@ export function MemberAccount({ name, here }: { name: string; here?: boolean }) 
   const jugador = inbox.viewer.who === "jugador";
   const shown = name || "Tú";
   const waits = inbox.openPend;
-  const label = `${jugador ? "Tú, " : "Tu cuenta, "}${shown}${waits ? `, ${pl(waits, "cosa pendiente", "cosas pendientes")}` : ""}`;
+  const label = `${jugador ? "Tú, " : "Tu cuenta, "}${shown}${sala ? `, ${sala.role}` : ""}${waits ? `, ${pl(waits, "cosa pendiente", "cosas pendientes")}` : ""}`;
   return (
     <>
       <button
@@ -131,7 +175,7 @@ export function MemberAccount({ name, here }: { name: string; here?: boolean }) 
         {s.open && (
           <>
             <div className="tu-scrim" aria-hidden="true" onClick={() => s.close()} />
-            {inbox.member ? <MemberSheet inbox={inbox} say={toast.say} close={s.close} /> : <FanSheet close={s.close} />}
+            {inbox.member ? <MemberSheet inbox={inbox} say={toast.say} close={s.close} sala={sala} /> : <FanSheet close={s.close} />}
           </>
         )}
         {toast.node}
@@ -140,7 +184,7 @@ export function MemberAccount({ name, here }: { name: string; here?: boolean }) 
   );
 }
 
-function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => void; close: (refocus?: boolean) => void }) {
+function MemberSheet({ inbox, say, close, sala }: { inbox: Inbox; say: (t: string) => void; close: (refocus?: boolean) => void; sala?: AccountSala }) {
   const d = useProfileData(readTuMaqueta());
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -157,7 +201,10 @@ function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => 
   const pending = d.ficha.state === "pendiente";
   const rated = card.showNumbers && card.rating !== null;
   const title = shortName(jugador && d.shirt.fullName ? d.shirt.fullName : d.google.name || d.nickname) || "Tú";
-  const line = jugador
+  // (in the sala the role leads the line: the pill is hidden on a phone)
+  const line = sala
+    ? [sala.role, nick].filter(Boolean).join(" · ")
+    : jugador
     ? [nick, num, card.posLong].filter(Boolean).join(" · ")
     : who === "socio"
       ? [nick, "socio sin ficha"].filter(Boolean).join(" · ")
@@ -172,7 +219,7 @@ function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => 
     { t: "Ajustes", hint: "", icon: "gear", badge: 0, go: go("/perfil/ajustes") },
     { t: "Cuenta", hint: "", icon: "user", badge: 0, go: go("/perfil/cuenta") },
     ...(inbox.viewer.captain ? [{ t: "Capitanía", hint: doors ? `${doors} en la puerta` : "Nadie en la puerta", icon: "door" as const, badge: doors, go: go("/perfil/capitania") }] : []),
-    ...(inbox.viewer.captain ? [{ t: "Admin", hint: "Sala de control", icon: "shield" as const, badge: 0, go: go("/admin") }] : []),
+    ...(sala ? [{ t: "Ver la web", hint: "La web del club", icon: "expand" as const, badge: 0, go: go("/") }] : inbox.viewer.captain ? [{ t: "Admin", hint: "Sala de control", icon: "shield" as const, badge: 0, go: go("/admin") }] : []),
   ];
   const salir = () => {
     close(false);
@@ -206,6 +253,7 @@ function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => 
         </section>
       )}
       <MenuList items={items} />
+      {sala?.season && sala.season.options.length > 1 && <SalaSeasons season={sala.season} close={() => close()} />}
       <Theme />
       <footer className="tu-tu__foot">
         <button type="button" className="tu-mi tu-mi--quiet" data-nav="1" onClick={salir}>

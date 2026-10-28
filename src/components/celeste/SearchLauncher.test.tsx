@@ -56,3 +56,22 @@ it("Ctrl+K and «/» open it from the page, but not from inside a field", async 
   await inAct(() => fireEvent.keyDown(document.body, { key: "/" }));
   expect(await screen.findByRole("dialog")).toBeInTheDocument();
 });
+
+it("another place's dialog (the sala's): its loader, and «/» left to the page", async () => {
+  const Sala = ({ onClose }: { onClose: (refocus?: boolean) => void }) => (
+    <div role="dialog" aria-modal="true" aria-label="Buscar en la sala de control">
+      <button type="button" onClick={() => onClose()}>
+        Cerrar
+      </button>
+    </div>
+  );
+  const loader = vi.fn(async () => Sala);
+  render(<SearchLauncher loader={loader} phoneRoute={false} slash={false} />);
+  const button = screen.getByRole("button", { name: /^Buscar \(/ });
+  expect(button.getAttribute("aria-keyshortcuts")).not.toContain("/");
+  await inAct(() => fireEvent.keyDown(document.body, { key: "/" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await inAct(() => fireEvent.click(button));
+  expect(await screen.findByRole("dialog", { name: "Buscar en la sala de control" })).toBeInTheDocument();
+  expect(loader).toHaveBeenCalledTimes(1);
+});
