@@ -137,7 +137,9 @@ describe("Publicación y cálculo del backend", () => {
         updateDoc(doc(db("member"), coll, "item"), { name: "Cambio" }),
       );
       await assertFails(deleteDoc(doc(db(), coll, "item")));
-      await assertSucceeds(deleteDoc(doc(db("admin"), coll, "item")));
+      // (B-CLUB-05: a ficha is deleted only through deletePlayer, never from a client)
+      if (coll === "players") await assertFails(deleteDoc(doc(db("admin"), coll, "item")));
+      else await assertSucceeds(deleteDoc(doc(db("admin"), coll, "item")));
     });
   }
   it("una sesión Google sin la clave no puede administrar aunque tenga rol", async () => {
@@ -1926,5 +1928,130 @@ describe("MVP: el recuento sigue siendo del backend", () => {
     await assertFails(getDoc(doc(db("member"), "matches", "m1", "votes", "other")));
     await assertFails(getDocs(collection(db("member"), "matches", "m1", "votes")));
     await assertFails(getDocs(collection(db(), "matches", "m1", "votes")));
+  });
+});
+
+describe("r12 · la Sala de control", () => {
+  it("B-CLUB-05: nobody deletes a ficha from a client (deletePlayer checks that no acta cites it)", async () => {
+    await seed("players/p1", { firstName: "Erik", seasons: [] });
+    await assertFails(deleteDoc(doc(db("admin"), "players", "p1")));
+    await assertFails(deleteDoc(doc(db("super"), "players", "p1")));
+    await assertFails(deleteDoc(doc(db("member"), "players", "p1")));
+  });
+  it("M-40: any captain gives the brazalete; only the capitán general takes it from another captain", async () => {
+    await seed("users/cap2", { email: "cap2@test.dev", nickname: "cap2", role: "admin" });
+    await assertSucceeds(updateDoc(doc(db("admin"), "users", "member"), { role: "admin" }));
+    await assertFails(updateDoc(doc(db("admin"), "users", "cap2"), { role: "user" }));
+    await assertFails(updateDoc(doc(db("admin"), "users", "member"), { role: "user" }));
+    await assertSucceeds(updateDoc(doc(db("super"), "users", "member"), { role: "user" }));
+    await assertSucceeds(updateDoc(doc(db("super"), "users", "cap2"), { role: "user" }));
+    // his own, always; and never the general's
+    await assertSucceeds(updateDoc(doc(db("admin"), "users", "admin"), { role: "user" }));
+    await assertFails(updateDoc(doc(db("super"), "users", "super"), { role: "user" }));
+  });
+  it("B-CNV-01: «Recordatorios automáticos» also on a match that is only a draft (never archived or deleted)", async () => {
+    const off = { auto: false, by: "admin", at: serverTimestamp() };
+    await seed("matchDrafts/d1", { status: "scheduled", seasonId: "t1" });
+    await assertSucceeds(setDoc(doc(db("admin"), "convocatoriaReminders", "d1"), off));
+    await assertFails(setDoc(doc(db("member"), "convocatoriaReminders", "d1"), { ...off, by: "member" }));
+    await seed("matchDrafts/d2", { status: "scheduled", seasonId: "t1", archived: true });
+    await assertFails(setDoc(doc(db("admin"), "convocatoriaReminders", "d2"), off));
+    await seed("matchDrafts/d3", { status: "scheduled", seasonId: "t1" });
+    await seed("matchTombstones/d3", { deletedAt: Timestamp.now() });
+    await assertFails(setDoc(doc(db("admin"), "convocatoriaReminders", "d3"), off));
+    await assertFails(setDoc(doc(db("admin"), "convocatoriaReminders", "nope"), off));
+  });
+  it("M-17: a captain corrects someone's absence (dates and note), signed; nobody else edits one", async () => {
+    const theirs = { uid: "other", playerId: null, name: "other", from: "2026-10-12", to: "2026-10-19", createdAt: Timestamp.fromMillis(0) };
+    await seed("absences/a1", theirs);
+    const edit = (over: object) => ({ from: "2026-10-13", to: "2026-10-18", note: "Vuelve antes", editedBy: "admin", editedAt: serverTimestamp(), ...over });
+    await assertSucceeds(updateDoc(doc(db("admin"), "absences", "a1"), edit({})));
+    for (const bad of [edit({ from: "2026-10-20" }), edit({ to: "2027-03-01" }), edit({ from: "13/10/2026" }), edit({ note: "x".repeat(141) }), edit({ editedBy: "other" }), edit({ editedAt: Timestamp.fromMillis(0) }), edit({ uid: "member" }), edit({ extra: 1 })])
+      await assertFails(updateDoc(doc(db("admin"), "absences", "a1"), bad));
+    const { editedBy: _b, editedAt: _a, ...unsigned } = edit({});
+    void _b;
+    void _a;
+    await assertFails(updateDoc(doc(db("admin"), "absences", "a1"), unsigned));
+    await assertFails(updateDoc(doc(db("other"), "absences", "a1"), edit({ editedBy: "other" })));
+    await assertFails(updateDoc(doc(db("member"), "absences", "a1"), edit({ editedBy: "member" })));
+  });
+  it("M-20: a rejected payment notice may carry its reason (≤ 130); a confirmation never does", async () => {
+    const pending = { uid: "member", playerId: "ana", seasonId: "t1", concept: "Cuota", amount: 2500, at: Timestamp.fromMillis(0), status: "pendiente" };
+    for (const id of ["c1", "c2", "c3"]) await seed("cajaClaims/" + id, pending);
+    const no = (reason?: unknown) => ({ status: "rechazado", resolvedBy: "admin", resolvedAt: serverTimestamp(), ...(reason === undefined ? {} : { reason }) });
+    await assertSucceeds(updateDoc(doc(db("admin"), "cajaClaims", "c1"), no("No me ha llegado el Bizum")));
+    await assertFails(updateDoc(doc(db("admin"), "cajaClaims", "c2"), no("x".repeat(131))));
+    await assertFails(updateDoc(doc(db("admin"), "cajaClaims", "c2"), no(5)));
+    await assertSucceeds(updateDoc(doc(db("admin"), "cajaClaims", "c2"), no()));
+    const cap = db("admin");
+    const batch = writeBatch(cap);
+    batch.set(doc(cap, "cajaMovs", "mv1"), { ...cajaMovFields("t1", { kind: "pago", playerId: "ana", amount: 2500, concept: "Cuota", date: "2026-10-19", matchId: null }, "admin"), createdAt: serverTimestamp() });
+    batch.update(doc(cap, "cajaClaims", "c3"), { status: "confirmado", resolvedBy: "admin", resolvedAt: serverTimestamp(), movId: "mv1", reason: "nada" });
+    await assertFails(batch.commit());
+  });
+  describe("clubContent: equipaciones, trofeos y redes (M-19, M-45)", () => {
+    const content = { intro: "Hola", story: "Historia", location: "", founded: "", venue: "", email: "", instagram: "", youtube: "", photoUrl: "", milestones: [], sponsors: [{ name: "Bar Pepe", url: "", logo: "", featured: true, from: "2026-10-01", to: "2027-06-30" }], gallery: [] };
+    const kit = { name: "1ª", note: "Celeste de la casa", colors: [{ name: "Celeste", hex: "#6cabdd" }, { name: "Oro", hex: "#d4af37" }] };
+    it("a captain keeps kits, trophies and socials beside the rest; absent is fine", async () => {
+      await assertSucceeds(setDoc(doc(db("admin"), "clubContent", "main"), content));
+      await assertSucceeds(
+        setDoc(doc(db("admin"), "clubContent", "main"), {
+          ...content,
+          kits: { home: kit, away: { ...kit, name: "2ª" } },
+          trophies: [{ name: "Copa de otoño", date: "2026-11-15", photoUrl: "https://example.test/copa.jpg" }],
+          socials: [{ net: "instagram", url: "https://www.instagram.com/manchesterpiti" }, { net: "tiktok", url: "https://www.tiktok.com/@piti" }, { net: "whatsapp", url: "https://wa.me/34600000000" }],
+        }),
+      );
+      await assertFails(setDoc(doc(db("member"), "clubContent", "main"), { ...content, kits: { home: kit } }));
+    });
+    it("refuses malformed ones", async () => {
+      const bad: object[] = [
+        { kits: { third: kit } },
+        { kits: { home: { ...kit, colors: [] } } },
+        { kits: { home: { ...kit, colors: Array.from({ length: 5 }, () => kit.colors[0]) } } },
+        { kits: { home: { ...kit, note: "x".repeat(201) } } },
+        { kits: { home: { ...kit, extra: 1 } } },
+        { kits: "celeste" },
+        { trophies: Array.from({ length: 31 }, () => ({ name: "Copa" })) },
+        { trophies: "Copa" },
+        { socials: [{ net: "myspace", url: "https://myspace.com/piti" }] },
+        { socials: [{ net: "x", url: "http://x.com/piti" }] },
+        { socials: [{ net: "x", url: "https://x.com/" + "a".repeat(300) }] },
+        { socials: [{ net: "x", url: "https://x.com/piti", extra: 1 }] },
+        { socials: Array.from({ length: 9 }, () => ({ net: "web", url: "https://piti.test" })) },
+      ];
+      for (const b of bad) await assertFails(setDoc(doc(db("admin"), "clubContent", "main"), { ...content, ...b }));
+    });
+  });
+  it("M-20: the content's shared draft (clubDrafts/content) is the captains' only", async () => {
+    const draft = (over: object = {}) => ({ club: { contacto: { value: { email: "a@b.c" }, base: { email: "" }, at: 1 } }, stories: {}, by: "admin", byName: "admin", at: serverTimestamp(), ...over });
+    await assertSucceeds(setDoc(doc(db("admin"), "clubDrafts", "content"), draft()));
+    await assertSucceeds(getDoc(doc(db("admin"), "clubDrafts", "content")));
+    await assertSucceeds(getDoc(doc(db("super"), "clubDrafts", "content")));
+    await assertFails(getDoc(doc(db("member"), "clubDrafts", "content")));
+    await assertFails(getDoc(doc(db(), "clubDrafts", "content")));
+    for (const bad of [draft({ by: "other" }), draft({ at: Timestamp.fromMillis(0) }), draft({ extra: 1 }), draft({ club: "x" }), draft({ byName: "x".repeat(41) })])
+      await assertFails(setDoc(doc(db("admin"), "clubDrafts", "content"), bad));
+    await assertFails(setDoc(doc(db("admin"), "clubDrafts", "other"), draft()));
+    await assertFails(setDoc(doc(db("member"), "clubDrafts", "content"), draft({ by: "member" })));
+    await assertSucceeds(deleteDoc(doc(db("admin"), "clubDrafts", "content")));
+  });
+  it("M-18: «Lo que se ha mandado» (pushSent) is read by the captains and written by nobody", async () => {
+    await seed("pushSent/s1", { title: "Final", devices: 3, members: 2, at: Timestamp.now() });
+    await assertSucceeds(getDoc(doc(db("admin"), "pushSent", "s1")));
+    await assertSucceeds(getDocs(query(collection(db("admin"), "pushSent"), orderBy("at", "desc"), limit(20))));
+    await assertFails(getDoc(doc(db("member"), "pushSent", "s1")));
+    await assertFails(getDoc(doc(db(), "pushSent", "s1")));
+    await assertFails(setDoc(doc(db("admin"), "pushSent", "s2"), { title: "x" }));
+  });
+  it("M-11: the ratings' 7 days count from actaPublishedAt, whatever the MVP window says", async () => {
+    const DAY = 86_400_000;
+    const rating = { score: 4, name: "member", playerId: null, at: serverTimestamp() };
+    // reopened by hand: the MVP closes tomorrow, but the acta was published 8 days ago
+    await seed("matches/reopened", { status: "finished", voteClosesAt: Date.now() + DAY, actaPublishedAt: Date.now() - 8 * DAY });
+    await assertFails(setDoc(doc(db("member"), "matches", "reopened", "ratings", "member"), rating));
+    // closed by hand right after publishing: the 7 days are still open
+    await seed("matches/closed", { status: "finished", voteClosesAt: Date.now() - 60_000, actaPublishedAt: Date.now() - DAY });
+    await assertSucceeds(setDoc(doc(db("member"), "matches", "closed", "ratings", "member"), rating));
   });
 });

@@ -30,6 +30,26 @@ it("allows lifecycle calls the full backend cleanup window without extending liv
   expect(fx.timeouts.get("liveEvent")).toBeUndefined();
 });
 
+it("r12: each wrapper calls its callable by name, the long ones with their window", async () => {
+  const api = await import("./clubApi");
+  await api.remindNow({ matchId: "m1" });
+  await api.setMvpVote({ matchId: "m1", action: "close" });
+  await api.saveMatchReport({ matchId: "m1", report: "Dos líneas" });
+  await api.recalcMatchNotas({ matchId: "m1" });
+  await api.discardMatchDraft({ matchId: "m1" });
+  await api.setVideoMarks({ matchId: "m1", marks: { g1: 30 } });
+  await api.addMatchGuest({ matchId: "m1", name: "Rafa" });
+  await api.setMatchDuration({ matchId: "m1", minutes: 60 });
+  await api.correctPrediction({ matchId: "m1", uid: "u1", remove: true });
+  await api.recomputeSeasonPorra({ seasonId: "t1" });
+  await api.deletePlayer({ playerId: "p1" });
+  await api.deleteSeason({ seasonId: "t0" });
+  await api.promoteGuest({ playerId: "p1", guests: [{ matchId: "m1", guestId: "g1" }] });
+  await api.sendCaptainNotice({ text: "Hola", audience: "todos" });
+  expect(fx.calls.map((c) => c.name)).toEqual(["remindNow", "setMvpVote", "saveMatchReport", "recalcMatchNotas", "discardMatchDraft", "setVideoMarks", "addMatchGuest", "setMatchDuration", "correctPrediction", "recomputeSeasonPorra", "deletePlayer", "deleteSeason", "promoteGuest", "sendCaptainNotice"]);
+  expect([fx.timeouts.get("deleteSeason"), fx.timeouts.get("promoteGuest"), fx.timeouts.get("recalcMatchNotas")]).toEqual([540_000, 540_000, 120_000]);
+});
+
 describe("liveEvent drops undefined keys before the callable", () => {
   it("from the envelope and from the event (a match without a clock, a team chance)", async () => {
     await liveEvent({ action: "add", matchId: "m1", requestId: "r1", clockRevision: undefined, manualTime: false, event: { type: "chance", minute: 12, playerId: undefined, assistPlayerId: undefined, inPlayerId: undefined } });

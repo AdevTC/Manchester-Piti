@@ -149,4 +149,15 @@ describe("«Ya está el siete» (the official seven on the pizarra)", () => {
     expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j7" }, { ...j8, status: "cancelled" })).toBeNull();
     expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j7" }, { ...j8, archived: true })).toBeNull();
   });
+  it("PZ-B-PAR-03: nothing for a match already kicked off, past its hour or postponed", () => {
+    const before8 = j8.date - 3600_000;
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8" }, j8, before8)?.title).toBe("Ya está el siete");
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8" }, j8, j8.date + 60_000)).toBeNull();
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8" }, { ...j8, clock: { phase: "first" } }, before8)).toBeNull();
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8" }, { ...j8, clock: { phase: "ended" } }, before8)).toBeNull();
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8" }, { ...j8, liveEndedAt: before8 }, before8)).toBeNull();
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8" }, { ...j8, status: "postponed" }, before8)).toBeNull();
+    // (the season's official has no match: always news)
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: null }, null, j8.date + 60_000)).not.toBeNull();
+  });
 });

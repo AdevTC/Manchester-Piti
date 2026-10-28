@@ -163,10 +163,13 @@ const first = clockReading(m.clock, Date.now()).firstSeconds;
 await denied("liveEvent", david, add("break-goal", "goal", { playerId: ids[1] }), "FAILED_PRECONDITION");
 await ok("liveEvent", david, add("q-goal", "goal", { playerId: ids[0] }, { clockRevision: 0, tappedElapsed: 60, period: 1 }));
 assert.equal((await byId("live-q-goal")).elapsedSeconds, 60); checks++;
-await denied("liveEvent", david, add("q-late", "chance", { playerId: ids[1] }, { tappedElapsed: first + 120, period: 1 }), "FAILED_PRECONDITION", /fuera del tiempo/);
-await denied("liveEvent", david, add("q-early2", "chance", { playerId: ids[1] }, { tappedElapsed: first + 10, period: 2 }), "FAILED_PRECONDITION", /2ª parte/);
+// (queued = tapped against an older clock: `clockRevision: 0`)
+await denied("liveEvent", david, add("q-late", "chance", { playerId: ids[1] }, { clockRevision: 0, tappedElapsed: first + 120, period: 1 }), "FAILED_PRECONDITION", /fuera del tiempo/);
+await denied("liveEvent", david, add("q-early2", "chance", { playerId: ids[1] }, { clockRevision: 0, tappedElapsed: first + 10, period: 2 }), "FAILED_PRECONDITION", /2ª parte/);
 // a player already off can't have a play after he left: the real conflict, in words
-await denied("liveEvent", david, add("q-off", "foul", { playerId: ids[6] }, { tappedElapsed: heldElapsed + 5, period: 1 }), "FAILED_PRECONDITION", /campo/);
+await denied("liveEvent", david, add("q-off", "foul", { playerId: ids[6] }, { clockRevision: 0, tappedElapsed: heldElapsed + 5, period: 1 }), "FAILED_PRECONDITION", /campo/);
+// B-MESA-08: tapped against the clock as it is now (the break), it is a live play: the break's rule applies
+await denied("liveEvent", david, add("b-tap", "chance", { playerId: ids[1] }, { tappedElapsed: first, period: 1 }), "FAILED_PRECONDITION", /descanso/);
 
 // ---- a wave of changes at the break («Arrancar con N cambios»): one operation, all or none, idempotent
 {
@@ -182,7 +185,7 @@ await denied("liveEvent", david, add("q-off", "foul", { playerId: ids[6] }, { ta
   // tapped at the break and uploaded from the queue, like la mesa does
   const wave = await ok("liveEvent", pablo, many("w1", [[ids[4], ids[8]], [ids[3], ids[6]]], { tappedElapsed: first, period: 1 }));
   assert.deepEqual(wave.eventIds, ["live-w1-0", "live-w1-1"]); checks++;
-  { const e = await byId("live-w1-1"); assert.equal(e.type, "substitution"); assert.equal(e.playerId, ids[3]); assert.equal(e.inPlayerId, ids[6]); assert.equal(e.byUid, pablo.uid); assert.equal(e.elapsedSeconds, first); assert.equal(e.queued, true); checks += 6; }
+  { const e = await byId("live-w1-1"); assert.equal(e.type, "substitution"); assert.equal(e.playerId, ids[3]); assert.equal(e.inPlayerId, ids[6]); assert.equal(e.byUid, pablo.uid); assert.equal(e.elapsedSeconds, first); assert.equal(e.queued, undefined, "B-MESA-08: sent against the current clock, not queued"); checks += 6; }
   // the same request again (a retry after a lost answer): nothing doubles
   assert.deepEqual((await ok("liveEvent", pablo, many("w1", [[ids[4], ids[8]], [ids[3], ids[6]]], { tappedElapsed: first, period: 1 }))).eventIds, ["live-w1-0", "live-w1-1"]); checks++;
   assert.equal((await snap()).events.length, before + 2); checks++;
@@ -203,7 +206,7 @@ await ok("controlMatchClock", david, { matchId, action: "second", revision: m.cl
 await ref.update({ "clock.secondStartedAt": Date.now() - 180_000 });
 m = await snap();
 await ok("liveEvent", pablo, add("q-second", "corner", { playerId: ids[1] }, { tappedElapsed: first + 90, period: 2 }));
-{ const e = await byId("live-q-second"); assert.equal(e.period, 2); assert.equal(e.elapsedSeconds, first + 90); checks += 2; }
+{ const e = await byId("live-q-second"); assert.equal(e.period, 2); assert.equal(e.elapsedSeconds, first + 90); assert.equal(e.queued, undefined); checks += 3; }
 
 // ---- a duplicate still pending at the final whistle blocks the publication
 await ok("liveEvent", david, add("og-a", "opponent_goal"));

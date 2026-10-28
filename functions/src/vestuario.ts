@@ -8,6 +8,9 @@ import { z } from "zod";
 import { db, idSchema, parse, memberAs, admin } from "./common.js";
 
 import { nameFor } from "./names.js";
+import { holderGone } from "./doorLogic.js";
+
+const linkFree = (holder: FirebaseFirestore.DocumentSnapshot | null) => holderGone(holder ? { exists: holder.exists, removedAt: holder.get("removedAt") } : null);
 
 const DAY = 24 * 60 * 60_000;
 // (a claim has no match: the ficha's own name, as the jugador page shows it — nameFor without a season)
@@ -27,7 +30,8 @@ export const requestPlayerClaim = onCall(async (req) => {
     throw new HttpsError("failed-precondition", "Crea tu perfil del vestuario primero.");
   if (profile.get("playerId") === playerId)
     throw new HttpsError("already-exists", "Esa ficha ya es tuya.");
-  if (link.exists && link.get("uid") !== uid)
+  // (linked to someone a captain removed: free to ask for — B-CLUB-02)
+  if (link.exists && link.get("uid") !== uid && !linkFree(await db.doc(`users/${link.get("uid")}`).get()))
     throw new HttpsError("already-exists", "Esa ficha ya está vinculada a otro miembro.");
   await db.doc(`playerClaims/${uid}`).set({
     playerId,
@@ -66,9 +70,12 @@ async function settleClaim(uid: string, approve: boolean, by: string) {
     const previousRef =
       previous && previous !== playerId ? db.doc(`playerLinks/${previous}`) : null;
     const previousLink = previousRef ? await tx.get(previousRef) : null;
+    const holder = approve && link.exists && link.get("uid") !== uid ? await tx.get(db.doc(`users/${link.get("uid")}`)) : null;
     if (approve) {
-      if (link.exists && link.get("uid") !== uid)
+      // (linked to someone a captain removed: the ficha is free — B-CLUB-02; their pointer to it goes)
+      if (link.exists && link.get("uid") !== uid && !linkFree(holder))
         throw new HttpsError("already-exists", "Esa ficha ya está vinculada a otro miembro.");
+      if (holder?.exists && holder.get("playerId") === playerId) tx.update(holder.ref, { playerId: FieldValue.delete() });
       if (previousRef && previousLink?.get("uid") === uid) tx.delete(previousRef);
       tx.set(linkRef, { uid, at: FieldValue.serverTimestamp() });
       tx.update(userRef, { playerId });

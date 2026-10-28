@@ -70,7 +70,10 @@ export function noticeId(notice: Pick<Notice, "tag" | "log" | "title" | "body" |
 /** What sendTo keeps of a notice (null: not kept): its doc id and fields. */
 export function noticeRecord(notice: Notice, uid: string | null | undefined, now: number): { id: string; doc: NoticeDoc } | null {
   const who = noticeAudience(notice, uid);
-  if (!who) return null;
+  return who ? noticeRecordAs(notice, who, now) : null;
+}
+/** The same, for an audience given rather than inferred (a captain's notice by hand: «Mandar un aviso a mano»). */
+export function noticeRecordAs(notice: Notice, who: { audience: NoticeAudience; uid?: string }, now: number): { id: string; doc: NoticeDoc } {
   const doc: NoticeDoc = { topic: notice.topic, title: notice.title, body: notice.body, url: notice.url, at: now, audience: who.audience, expireAt: now + NOTICE_TTL_MS };
   if (who.uid) doc.uid = who.uid;
   return { id: noticeId(notice, who.audience, who.uid, now), doc };
