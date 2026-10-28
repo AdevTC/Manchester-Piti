@@ -43,6 +43,8 @@ import "../../../styles/vidrio/glass.css";
 import "../../../styles/vidrio/reading.css";
 import "../../../styles/vidrio/chrome.css";
 import "../../../styles/vidrio/transitions.css";
+// (the system's shared components the screens use: vd-seg tabs, the shelf…)
+import "../../../styles/vidrio/components.css";
 import "../../../styles/admin.css";
 import "../../../styles/admin-app.css";
 import "./sala.css";

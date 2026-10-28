@@ -283,6 +283,40 @@ describe("the shared pieces", () => {
     expect(screen.getByText("Todo guardado · 20:00")).toBeInTheDocument();
   });
 
+  it("what waits behind «Deshacer» is written when the tab closes or the app is hidden, not lost", async () => {
+    const user = userEvent.setup();
+    const commits: string[] = [];
+    function Deferrer() {
+      const status = useToast();
+      return (
+        <button type="button" onClick={() => status.defer({ message: "ERIK · pago apuntado", commit: async () => void commits.push("pago") })}>
+          apuntar
+        </button>
+      );
+    }
+    render(
+      <StatusProvider>
+        <Deferrer />
+        <StatusStrip rest="Todo guardado · 20:00" />
+      </StatusProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "apuntar" }));
+    expect(commits).toEqual([]);
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    expect(commits).toEqual(["pago"]);
+    // (once only: the timer that was waiting does not write it again)
+    await user.click(screen.getByRole("button", { name: "apuntar" }));
+    // (an own property over the prototype's getter, removed after)
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    Reflect.deleteProperty(document, "visibilityState");
+    expect(commits).toEqual(["pago", "pago"]);
+  });
+
   it("the sheet always has a real «Cerrar» (B-SH-05); Esc closes it too", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

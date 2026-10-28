@@ -81,10 +81,8 @@
 @container (max-width:1099px){
   /* the frame's head already goes back to the caja: no hidden link that still takes the focus */
   .cj .cj-back{display:none}
-  /* one «Cobrar cuota» below 1100: the pinned one; the screen fills the scroller so the pin sits at its foot */
+  /* one «Cobrar cuota» below 1100: the pinned one (sala.css makes the screen fill the scroller, the pin at its foot) */
   .cj .cj-acts__main{display:none}
-  .cj.sc-screen--fit{height:auto;min-height:100%}
-  .cj>.sc-screen__body{flex:1 0 auto}
   .cj .cj-tlede{margin:0 0 14px}
   .cj .cj-part:not(.is-tab){display:none}
 }
