@@ -25,6 +25,14 @@ describe("cajaClaims", () => {
     expect(cajaClaimResolveFields("cap", "rechazado", "m9")).toEqual({ status: "rechazado", resolvedBy: "cap" });
     expect(claimPagoFields(claim(), "cap", 0)).toEqual({ seasonId: "s1", kind: "pago", playerId: "p1", amount: 2500, concept: "Cuota", date: "2026-10-19", matchId: null, by: "cap", void: false });
   });
+  it("M-20: a rejection may say why (trimmed, ≤ 130, left out when empty); a confirmation never does", () => {
+    expect(cajaClaimResolveFields("cap", "rechazado", undefined, "  No me ha llegado el Bizum ")).toEqual({ status: "rechazado", resolvedBy: "cap", reason: "No me ha llegado el Bizum" });
+    expect(cajaClaimResolveFields("cap", "rechazado", undefined, "   ")).toEqual({ status: "rechazado", resolvedBy: "cap" });
+    expect(cajaClaimResolveFields("cap", "rechazado", undefined, "x".repeat(200)).reason).toHaveLength(130);
+    expect(cajaClaimResolveFields("cap", "confirmado", "m9", "por si acaso")).toEqual({ status: "confirmado", resolvedBy: "cap", movId: "m9" });
+    expect(parseCajaClaim("c1", { uid: "u1", playerId: "p1", seasonId: "s1", amount: 10, status: "rechazado", reason: " Era de otro " })).toMatchObject({ reason: "Era de otro" });
+    expect(parseCajaClaim("c1", { uid: "u1", playerId: "p1", seasonId: "s1", amount: 10, status: "confirmado", reason: "x" })).not.toHaveProperty("reason");
+  });
   it("pending first (oldest first), then the resolved newest first; the member's words", () => {
     const list = [claim({ id: "a", status: "confirmado", at: 1 }), claim({ id: "b", at: 5 }), claim({ id: "c", at: 2 }), claim({ id: "d", status: "rechazado", at: 9 })];
     expect(sortClaims(list).map((c) => c.id)).toEqual(["c", "b", "d", "a"]);
