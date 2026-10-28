@@ -52,7 +52,8 @@ export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Part
   return {
     match: {
       id: "m7", seasonId: "s1", rival: "Atlético Demo", rivalShort: "ATL", rivalInitials: "AD", competition: "Liga", round: null, lineup: { fromBoard: false, system: null }, hasStandings: false, home: true,
-      date: T0, score: { us: 0, them: 0 }, queuedGoals: { us: 0, them: 0 }, clock: clock(c), published: false, pendingDuplicates: 0, ...m,
+      date: T0, score: { us: 0, them: 0 }, queuedGoals: { us: 0, them: 0 }, clock: clock(c), published: false, pendingDuplicates: 0,
+      venue: "Campo de pruebas", duration: 50, kit: "home", voteClosesAt: null, report: "", guests: 0, ...m,
     },
     field, bench, events: [],
     presence: [
@@ -61,7 +62,8 @@ export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Part
     ],
     me: { uid: "u-pablo", name: "Pablo", admin: false },
     queue: { online: true, pending: 0, byPlayer: {}, items: [], review: [], lastTryAt: null },
-    lastOwn: null, nextSub: null,
+    lastOwn: null, nextSub: null, plan: [], order: [], scorers: [{ uid: "u-pablo", name: "Pablo" }], scorerOptions: [],
+    galones: { captainId: null, viceId: null, takers: { penalties: [], freekicks: [], corners: [] } }, secondHalf: null,
     nameOf: (id: string) => players.find((p) => p.id === id)?.name ?? id,
     notice: "",
     actions: {
@@ -76,8 +78,12 @@ export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Part
       resend: vi.fn(),
       discard: vi.fn(),
       retryNow: vi.fn(),
+      addGuest: vi.fn(async () => "guest:g1"),
+      setDuration: vi.fn(async () => {}),
+      saveReport: vi.fn(async () => {}),
+      setScorers: vi.fn(async () => {}),
     },
-    nav: { cronica: vi.fn(), mesa: vi.fn(), exit: vi.fn(), acta: vi.fn(), pizarra: vi.fn() },
+    nav: { cronica: vi.fn(), mesa: vi.fn(), exit: vi.fn(), acta: vi.fn(), pizarra: vi.fn(), go: vi.fn() },
     ...rest,
   };
 }

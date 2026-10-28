@@ -53,3 +53,9 @@ export function addManyRequest(matchId: string, requestId: string, subs: readonl
 
 /** Writes a wave of changes (and swaps) in one operation. */
 export const addSubs = (matchId: string, requestId: string, subs: readonly WaveSub[]) => call(addManyRequest(matchId, requestId, subs));
+
+// ---------- r12 (D/src/admin/impl/API.md): the new callables are clubApi's (addMatchGuest, setMatchDuration,
+// saveMatchReport); la mesa keeps only the time it shows for the rival's goal push.
+/** The rival's goal push leaves this long after the play (the server holds it 10 s; 2 s are left for the network):
+ *  «Deshacer» inside it and nobody hears of it (M-33). */
+export const RIVAL_GOAL_HOLD_MS = 8_000;

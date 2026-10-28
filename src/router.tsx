@@ -259,6 +259,9 @@ const matchVestuarioRoute = createRoute({ getParentRoute: () => matchDetailRoute
 // ?vista=cronica opens «Lo que va pasando».
 export const mesaSearchSchema = z.object({
   vista: z.enum(["cronica"]).optional().catch(undefined),
+  // ?hoja= the open sheet (Atrás closes it, Adelante opens it again), ?j= whose: the player or the play
+  hoja: z.enum(["jugador", "mas", "rival", "reloj", "revisar", "editar", "anotador", "invitado"]).optional().catch(undefined),
+  j: z.string().min(1).max(200).optional().catch(undefined),
 });
 const mesaRoute = createRoute({
   getParentRoute: () => rootRoute,

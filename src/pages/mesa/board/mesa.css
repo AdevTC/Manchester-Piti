@@ -1,0 +1,606 @@
+/* ===== La mesa (r12 «el campo como teclado»): the boards SC-Mesa390…1920 (D/src/admin/src/mesa), ported. Its own
+   copy of the shared ledger pieces (rows, tags, chips, fields, the printed shirt, sheets, the pinned action) under
+   the me- prefix, so the sala's sc-* pieces never reach it. The frame is a named container (me): its breakpoints are
+   the width la mesa has, 700 (tablet: three regions) and 1100 (desktop) and 1800 (big screens). ===== */
+.me-host{container:me / inline-size;min-height:100vh;min-height:100dvh;background:var(--vd-noche)}
+:root[data-theme="light"] .me-host{background:#e8f0f8}
+.me{--me-line-h:52px;position:relative;isolation:isolate;height:100vh;height:100dvh;min-height:520px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;overflow:hidden;color:var(--vd-ink);font-family:var(--vd-sans,var(--font-sans))}
+.me>.vd-sky{position:absolute;inset:0;z-index:0;height:auto}
+.me>*:not(.vd-sky){position:relative;z-index:2}
+.me :where(h1,h2,h3,h4,p,ol,ul){margin-block:0}
+.me .me-i{width:20px;height:20px;flex:none}
+.me button{font-family:inherit}
+.me :focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
+.me .me-sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+.me .me-k{margin:0 0 4px;font-size:13.5px;font-weight:650;color:var(--vd-celeste-ink)}
+.me .me-h1{margin:0;font-size:30px;line-height:1.04;font-weight:720;font-variation-settings:'wdth' 94;letter-spacing:-.022em;color:var(--vd-ink-strong);text-wrap:balance}
+.me .me-h3{margin:0;font-size:17px;line-height:1.2;font-weight:680;letter-spacing:-.01em;color:var(--vd-ink-strong)}
+.me .me-lede{margin:6px 0 0;font-size:15.5px;line-height:1.45;color:var(--vd-ink2);max-width:72ch}
+.me .me-small{margin:0;font-size:13.5px;line-height:1.4;color:var(--vd-ink2)}
+.me .me-num{font-weight:780;font-variation-settings:'wdth' 110;font-feature-settings:'tnum' 1,'lnum' 1;letter-spacing:-.03em;color:var(--vd-ink-strong)}
+
+.me .me-sec__h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.me .me-sec__h .me-h3{flex:1 1 auto}
+.me .me-sec__n{font-size:14px;font-weight:700;color:var(--vd-ink2);font-feature-settings:'tnum' 1}
+
+.me .me-rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--vd-rule)}
+.me .me-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;min-height:56px;padding:9px 2px;border-bottom:1px solid var(--vd-rule);box-sizing:border-box}
+.me .me-row__t{min-width:0;display:grid;gap:2px}
+.me .me-row__t b{font-size:15.5px;font-weight:650;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.me .me-row__t span{font-size:13.5px;line-height:1.35;color:var(--vd-ink2)}
+.me .me-row--btn{width:100%;border:0;border-bottom:1px solid var(--vd-rule);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:0}
+.me .me-row--btn:hover{background:rgba(108,171,221,.07)}
+
+.me .me-tag{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12.5px;font-weight:700;white-space:nowrap;box-sizing:border-box;background:rgba(108,171,221,.14);color:var(--vd-celeste-ink);box-shadow:inset 0 0 0 1px rgba(108,171,221,.35)}
+.me .me-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.me .me-tag--toca{background:rgba(108,171,221,.2);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+.me .me-tag--toca::before{background:var(--vd-celeste);box-shadow:0 0 0 3px rgba(108,171,221,.3)}
+.me .me-tag--hecho{background:none;box-shadow:none;color:var(--vd-ink2);padding:0}
+.me .me-tag--hecho::before{content:"✓";width:auto;height:auto;background:none;font-size:12px}
+.me .me-tag--quiet{background:none;box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink2)}
+.me .me-tag--quiet::before{display:none}
+.me .me-res{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;font-size:13.5px;font-weight:800;box-shadow:inset 0 0 0 1.5px var(--vd-rule2);color:var(--vd-ink-strong)}
+.me .me-res--G{box-shadow:inset 0 0 0 1.5px var(--vd-celeste);color:var(--vd-celeste-ink)}
+.me .me-res--P{box-shadow:inset 0 0 0 1.5px var(--vd-rival);color:var(--vd-rival)}
+.me .me-rc{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--vd-rival)}
+.me .me-rc i{font-style:normal;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:10.5px;font-weight:800;color:var(--vd-rival);box-shadow:inset 0 0 0 1.5px var(--vd-rival)}
+
+.me .me-chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:0;border-radius:var(--vd-r-ctl);font-size:14.5px;font-weight:620;color:var(--vd-g-ink);cursor:pointer;--vd-r:var(--vd-r-ctl)}
+.me .me-chip[aria-pressed="true"]{--vd-g-tint:rgba(108,171,221,.34);color:var(--vd-g-ink)}
+.me .me-chips{display:flex;flex-wrap:wrap;gap:8px}
+.me .me-chips--scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.me .me-chips--scroll::-webkit-scrollbar{display:none}
+.me .me-btnrow{display:flex;flex-wrap:wrap;gap:10px}
+
+.me .me-field{display:grid;gap:6px;min-width:0}
+.me .me-field>span:first-child,.me .me-field>label:first-child{font-size:13.5px;font-weight:650;color:var(--vd-ink)}
+.me .me-field .vd-input,.me .me-field select,.me .me-field textarea{width:100%;box-sizing:border-box}
+.me .me-field small{font-size:13px;line-height:1.35;color:var(--vd-ink2)}/* the printed shirt still (540×600): always whole, never cut; before it is rendered, the drawn blank kit */
+
+
+.me .me-shirt{display:block;width:var(--sw,64px);height:calc(var(--sw,64px) * 1.1);object-fit:contain;object-position:50% 50%;flex:none;filter:drop-shadow(0 8px 14px rgba(2,8,26,.35))}
+:root[data-theme="light"] .me .me-shirt{filter:drop-shadow(0 8px 14px rgba(30,60,110,.22))}
+.me .me-shirt--xs{--sw:34px}.me .me-shirt--s{--sw:46px}.me .me-shirt--m{--sw:64px}
+svg.me-shirt{padding:4% 8%;box-sizing:border-box}/* sheets: phone = from the bottom over a scrim; desktop = the panel at the side (no scrim) */
+
+
+.me .me-scrim{position:fixed!important;inset:0;z-index:24!important;background:rgba(2,8,26,.42);border:0;padding:0;cursor:default}
+:root[data-theme="light"] .me .me-scrim{background:rgba(12,23,51,.22)}
+.me .me-sheet{position:fixed!important;z-index:25!important;left:0;right:0;bottom:0;max-height:86%;display:flex;flex-direction:column;border-radius:28px 28px 0 0;overflow:hidden;--vd-r:28px}
+.me .me-sheet__h{display:flex;align-items:center;gap:10px;padding:16px 18px 10px;border-bottom:1px solid var(--vd-rule)}
+.me .me-sheet__h .me-h3{flex:1;color:var(--vd-g-ink)}
+.me .me-sheet__b{padding:14px 18px 18px;overflow:auto;color:var(--vd-g-ink)}
+.me .me-sheet__f{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding:12px 18px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--vd-rule)}
+.me .me-sheet__grab{width:44px;height:5px;border-radius:3px;background:var(--vd-rule2);margin:8px auto 0}
+@container me (min-width:1100px){
+  .me .me-sheet{left:auto;right:24px;top:24px;bottom:calc(var(--me-line-h) + 16px);width:min(520px,40%);max-height:none;border-radius:28px}
+  .me .me-scrim{display:none}
+}
+.me .me-primary{display:flex;gap:10px;align-items:center;flex-wrap:wrap}/* ===== r12 · la mesa · «el campo como teclado». Vidrio: the light field behind, the type on it, glass only on what is
+   touched. Phone = one hand at the touchline (read at the top, the field in the middle, everything touched at the bottom);
+   tablet and desktop = three regions on one screen (head · field with its bench · the live chronicle) and the action row
+   with its keys. Prefix me-. ===== */
+
+
+
+.me{grid-template-rows:auto auto minmax(0,1fr) auto;--me-gut:14px;--me-gold:color-mix(in srgb,var(--vd-oro) 22%,transparent)}
+.me>.me-goldwash{position:absolute!important;inset:0;z-index:1!important;pointer-events:none;opacity:0;transition:opacity .5s var(--vd-ease);
+  background:radial-gradient(80% 55% at 50% 52%,color-mix(in srgb,var(--vd-oro) 34%,transparent),color-mix(in srgb,var(--vd-oro) 8%,transparent) 60%,transparent 80%)}
+.me.is-gold>.me-goldwash{opacity:1}
+.me .me-kbd{font-family:var(--font-sans);font-size:11.5px;font-weight:700;padding:2px 6px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-g-ink2);margin-left:4px;font-style:normal}/* ---------- the head: the score in wide tabular type, the clock in Geist Mono, who is scoring ---------- */
+
+
+.me .me-top{grid-row:1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px 10px;padding:10px var(--me-gut) 6px}
+.me .me-back{width:44px;height:44px}
+.me .me-board-t{min-width:0;display:grid;gap:3px}
+.me .me-score{margin:0;display:flex;align-items:baseline;gap:8px;min-width:0;color:var(--vd-ink-strong)}
+.me .me-score__us,.me .me-score__them{font-weight:800;font-variation-settings:'wdth' 112;font-size:15px;letter-spacing:.02em}
+.me .me-score__them{color:var(--vd-rival)}
+.me .me-score__n{font-size:40px;line-height:.86;color:var(--vd-ink-strong)}
+.is-gold .me-score__n{color:var(--vd-oro)}
+.me .me-clock{margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:13.5px;color:var(--vd-ink2)}
+.me .me-clock__t{font-size:16px;color:var(--vd-ink-strong)}
+.me .me-clock__p{font-weight:650;color:var(--vd-ink)}
+.me .me-clock__a{font-family:var(--font-mono);font-weight:600;color:var(--vd-ink)}
+.me .me-clock__pause{height:22px}
+.me .me-top__r{display:grid;justify-items:end;gap:6px}
+.me .me-who{margin:0;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:620;color:var(--vd-ink2);white-space:nowrap;max-width:44vw;overflow:hidden;text-overflow:ellipsis}
+.me .me-who::before{content:"";width:8px;height:8px;border-radius:50%;flex:none;background:var(--vd-celeste)}
+.me .me-who.is-wait::before{background:var(--vd-oro)}
+.me .me-who.is-off::before{display:none}
+.me .me-who.is-off{color:var(--vd-ink-strong)}
+.me .me-who .me-i{width:16px;height:16px}
+.me .me-relojbtn{height:44px}
+.me .me-relojbtn .me-kbd{display:none}
+.me .me-top__match{display:none;margin:0;grid-column:1/-1;font-size:13px;color:var(--vd-ink2)}
+.me .me-band{grid-row:2;display:grid;gap:6px;margin:0 var(--me-gut) 6px;padding:8px 10px 8px 12px;border-radius:14px;
+  background:color-mix(in srgb,var(--vd-oro) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vd-oro) 50%,transparent)}/* ---------- the screen ---------- */
+
+
+.me .me-main{grid-row:3;min-height:0;min-width:0;position:relative;display:flex;flex-direction:column}
+.me .me-main>*{min-height:0}
+.me .me-scroll{flex:1;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:0 var(--me-gut)}
+.me .me-sh{padding:6px 0 12px}
+.me .me-sh .me-h1{font-size:28px}
+.me .me-note{margin:0 0 10px}/* ---------- en juego (phone): ask row · field · plan · bench · the thumb dock ---------- */
+
+
+.me .me-juego{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"play" "dock"}
+.me .me-play{grid-area:play;min-height:0;display:flex;flex-direction:column;gap:6px;padding:0 var(--me-gut)}
+.me .me-side{display:none;grid-area:side}
+.me .me-dock{grid-area:dock;display:grid;gap:7px;padding:8px var(--me-gut) 8px}/* the field asks in its own row: it never covers a shirt */
+
+
+.me .me-ask{flex:none;min-height:46px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 2px}
+.me .me-ask p{margin:0;min-width:0;flex:1 1 180px;display:grid;gap:1px}
+.me .me-ask b{font-size:16px;font-weight:720;color:var(--vd-ink-strong);letter-spacing:-.01em}
+.me .me-ask span{font-size:12.5px;color:var(--vd-ink2)}
+.me .me-ask__idle b{font-size:13.5px;font-weight:650;color:var(--vd-ink)}
+.me .me-ask__left{font-style:normal;font-family:var(--font-mono);font-size:12px;color:var(--vd-ink2)}
+.me .me-ask.is-gold b{color:var(--vd-oro)}
+:root[data-theme="light"] .me .me-ask.is-gold b{color:var(--vd-ink-strong)}
+.me .me-ask__b{display:flex;gap:6px;flex-wrap:wrap}
+.me .me-askbtn.is-pri{--vd-g-tint:var(--vd-pri);color:var(--vd-hielo)}
+
+
+.me .me-pitch{flex:1 1 0;min-height:200px;position:relative;width:100%;border-radius:20px}
+.me .me-pitch .vd-pitch__lines{pointer-events:none}
+.is-gold .me-pitch{box-shadow:inset 0 0 0 2px var(--vd-oro),0 0 40px -8px var(--vd-oro);transition:box-shadow .4s var(--vd-ease)}
+.me .me-man{position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:0;min-width:60px;min-height:56px;padding:2px 2px 3px;border:0;border-radius:14px;background:none;color:inherit;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.me .me-man__shirt{--sw:38px}
+.me .me-man__n{font-size:11.5px;font-weight:760;letter-spacing:.01em;color:var(--vd-ink-strong);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px color-mix(in srgb,var(--vd-noche) 70%,transparent)}
+:root[data-theme="light"] .me .me-man__n{text-shadow:0 1px 4px rgba(255,255,255,.9)}
+.me .me-man__m{font-family:var(--font-mono);font-size:11.5px;color:var(--vd-ink);line-height:1.1}
+.me .me-man__tags{position:absolute;top:-2px;right:2px;display:flex;gap:2px}
+.me .me-man:hover{background:color-mix(in srgb,var(--vd-celeste) 12%,transparent)}
+.me .me-man.is-target{background:color-mix(in srgb,var(--vd-celeste) 16%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--vd-celeste) 70%,transparent)}
+.is-asking .me-ask.is-gold~.me-pitch .me-man.is-target{box-shadow:inset 0 0 0 1.5px var(--vd-oro);background:color-mix(in srgb,var(--vd-oro) 14%,transparent)}
+.me .me-man.is-picked,.me .me-sub.is-picked{background:color-mix(in srgb,var(--vd-celeste) 30%,transparent);box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+.me .me-man.is-scorer{box-shadow:inset 0 0 0 2px var(--vd-oro)}
+.me .me-man[aria-disabled="true"]{opacity:.55;cursor:default}
+.me .me-man.is-scorer[aria-disabled="true"]{opacity:1}
+.me .me-man--still{cursor:default;min-height:0}
+.me .me-man--still .me-man__m{font-family:var(--font-sans);font-weight:700;font-size:11.5px;color:var(--vd-ink2)}
+.me .me-stk{font-style:normal;display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;border-radius:6px;font-size:11.5px;font-weight:800;line-height:1;
+  background:var(--vd-g-tint-deep);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.me .me-stk.is-gol{background:var(--vd-oro);color:var(--vd-marino);box-shadow:none}
+.me .me-stk.is-am{background:var(--vd-amarilla);color:var(--vd-marino);box-shadow:none}
+.me .me-stk.is-roja{background:var(--vd-roja);color:var(--vd-hielo);box-shadow:none}
+.me .me-stk.is-loc{background:color-mix(in srgb,var(--vd-oro) 22%,transparent);box-shadow:inset 0 0 0 1px var(--vd-oro)}
+.me .me-hole{position:absolute;transform:translate(-50%,-50%);width:66px;min-height:56px;display:grid;justify-items:center;align-content:center;gap:1px;border:1.5px dashed var(--vd-rule2);border-radius:14px;background:color-mix(in srgb,var(--vd-roja) 8%,transparent);color:var(--vd-ink);font:inherit;cursor:pointer}
+.me .me-hole.is-target{border-color:var(--vd-celeste);background:color-mix(in srgb,var(--vd-celeste) 14%,transparent)}
+.me .me-hole__c{font-size:11px;font-weight:800;color:var(--vd-ink2)}
+.me .me-hole__t{font-size:12.5px;font-weight:720;color:var(--vd-ink-strong)}
+.me .me-hole__n{font-size:10.5px;color:var(--vd-ink2);white-space:nowrap}
+
+.me .me-plan{flex:none;display:flex;gap:6px;align-items:center}
+.me .me-plan__go{flex:1;min-width:0;justify-content:flex-start;height:50px;padding:0 14px}
+.me .me-plan__go span{display:grid;text-align:left;min-width:0}
+.me .me-plan__go b{font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me .me-plan__go small{font-size:12px;color:var(--vd-g-ink2);font-weight:560}
+
+.me .me-bench{flex:none;display:grid;gap:2px}
+.me .me-bench__h{margin:0;display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--vd-ink2)}
+.me .me-bench__h b{font-weight:720;color:var(--vd-ink)}
+.me .me-bench__row{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.me .me-bench__row::-webkit-scrollbar{display:none}
+.me .me-sub{position:relative;flex:none;width:74px;min-height:64px;display:grid;justify-items:center;align-content:start;gap:0;padding:3px 2px;border:0;border-radius:14px;background:none;color:inherit;font:inherit;cursor:pointer}
+.me .me-sub:hover{background:color-mix(in srgb,var(--vd-celeste) 10%,transparent)}
+.me .me-sub__shirt{--sw:30px}
+.me .me-sub__n{font-size:11.5px;font-weight:740;color:var(--vd-ink-strong);max-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me .me-sub__l{font-size:11px;color:var(--vd-ink2);text-align:center;line-height:1.15;max-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me .me-sub .me-stk{position:absolute;top:0;right:6px}
+.me .me-sub.is-target{background:color-mix(in srgb,var(--vd-celeste) 16%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--vd-celeste) 70%,transparent)}
+.me .me-sub[aria-disabled="true"]{opacity:.5;cursor:default}
+.me .me-sub.is-gone .me-sub__l{color:var(--vd-ink-strong);font-weight:700}/* the thumb zone: the rival's row (with its code), our gol (gold: our goal), the verbs */
+
+
+.me .me-rival{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr)) 44px;gap:5px;align-items:center}
+.me .me-rival__c{display:none}
+.me .me-rbtn{height:44px;padding:0 6px;font-size:13.5px;font-weight:650;min-width:0}
+.me .me-rbtn--gol{color:var(--vd-ink-strong);--vd-g-tint:color-mix(in srgb,var(--vd-rival) 22%,transparent);--vd-glow:color-mix(in srgb,var(--vd-rival) 40%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vd-rival) 65%,transparent)}
+.me .me-rbtn--more{width:44px;height:44px}
+.me .me-golbtn{width:100%;height:62px;font-size:20px;font-weight:760;letter-spacing:-.01em}
+.me .me-golbtn .me-i{width:24px;height:24px}
+.me .me-verbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.me .me-verb{height:50px;padding:0 4px;gap:6px;font-size:14px;min-width:0}
+.me .me-verb .me-i{width:18px;height:18px}
+.me .vd-btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed}/* the chronicle beside the field (tablet and desktop) and the full screen */
+
+
+.me .me-side__h{display:flex;align-items:baseline;gap:10px;padding:2px 0 8px;border-bottom:1px solid var(--vd-rule)}
+.me .me-side__h .me-h3{flex:1}
+.me .me-side__all{min-height:44px;border:0;background:none;color:var(--vd-celeste-ink);font:inherit;font-size:14px;font-weight:650;cursor:pointer}
+.me .me-side__empty{margin:14px 0}
+.me .me-feed,.me .me-rail{list-style:none;margin:0;padding:0}
+.me .me-feed__r,.me .me-rail__r{display:grid;grid-template-columns:42px 12px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:54px;padding:6px 0;border-bottom:1px solid var(--vd-rule)}
+.me .me-feed__m{font-family:var(--font-mono);font-size:13px;color:var(--vd-ink2);text-align:right}
+.me .me-feed__g{width:10px;height:10px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--vd-rule2)}
+.is-gol .me-feed__g{background:var(--vd-oro);box-shadow:none}
+.is-them .me-feed__g{background:var(--vd-rival);box-shadow:none}
+.is-amarilla .me-feed__g{background:var(--vd-amarilla);border-radius:2px;box-shadow:none}
+.is-roja .me-feed__g{background:var(--vd-roja);border-radius:2px;box-shadow:none}
+.is-cambio .me-feed__g{background:var(--vd-celeste);box-shadow:none}
+.me .me-feed__t{display:grid;gap:1px;min-width:0}
+.me .me-feed__t b{font-size:14.5px;font-weight:640;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.me .me-feed__t small{font-size:12.5px;color:var(--vd-ink2)}
+.me .me-feed__e{width:44px;height:44px}
+.me .me-feed__e .me-i{width:18px;height:18px}
+.me .me-rail__a{display:flex;gap:6px;align-items:center}
+.me .me-rail__div{padding:14px 0 6px;font-size:12.5px;font-weight:700;color:var(--vd-ink2);border-bottom:1px solid var(--vd-rule2)}
+.me .me-rail .me-rc i{width:24px;height:24px;font-size:9.5px}
+.me .me-dupe{margin:10px 0;padding:10px 12px;border-radius:16px;box-shadow:inset 0 0 0 1.5px var(--vd-oro);background:color-mix(in srgb,var(--vd-oro) 8%,transparent);display:grid;gap:6px}
+.me .me-dupe p{margin:0}
+.me .me-dupe__t{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.me .me-dupe__t b{font-size:15.5px;color:var(--vd-ink-strong)}
+.me .me-dupe__t span{font-size:12.5px;color:var(--vd-ink2)}
+.me .me-cro__f{padding:2px 0 8px}
+.me .me-cro__f .me-chip .me-sec__n{font-size:12.5px;margin-left:2px}
+.me .me-cro__empty{margin:18px 0}/* ---------- the status line: the last word and «Deshacer», on every screen, never over a control ---------- */
+
+
+.me .me-line{grid-row:4;display:flex;align-items:center;gap:8px;min-height:52px;box-sizing:border-box;padding:4px var(--me-gut) calc(4px + env(safe-area-inset-bottom,0px));font-size:13.5px;color:var(--vd-ink2);border-top:1px solid var(--vd-rule);
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--vd-noche) 22%,transparent))}
+:root[data-theme="light"] .me .me-line{background:linear-gradient(180deg,transparent,rgba(255,255,255,.45))}
+.me .me-line__tag{flex:none;font-weight:760;font-size:12.5px;padding:3px 9px;border-radius:999px;background:var(--vd-celeste);color:var(--vd-marino);white-space:nowrap}
+.me .me-line.is-gold .me-line__tag{background:var(--vd-oro)}
+.me .me-line.is-them .me-line__tag{background:var(--vd-rival);color:var(--vd-marino)}
+:root[data-theme="light"] .me .me-line.is-them .me-line__tag{color:var(--vd-hielo)}
+.me .me-line.is-error .me-line__tag{background:var(--vd-roja);color:var(--vd-hielo)}
+.me .me-line.is-error .me-line__tag::before{content:"! "}
+.me .me-line.is-warn .me-line__tag{background:color-mix(in srgb,var(--vd-oro) 60%,transparent);color:var(--vd-ink-strong)}
+.me .me-line__msg,.me .me-line__rest{flex:1;min-width:0;color:var(--vd-ink);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.me .me-line__rest{color:var(--vd-ink2)}
+.me .me-line__prop{display:none}
+.me .me-line__btn{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:0;border-radius:999px;background:color-mix(in srgb,var(--vd-celeste) 22%,transparent);color:var(--vd-ink-strong);font:inherit;font-weight:720;font-size:14px;cursor:pointer}
+.me .me-line__btn .me-i{width:17px;height:17px}
+.me .me-line.is-them.is-hold .me-line__undo{background:color-mix(in srgb,var(--vd-rival) 30%,transparent);box-shadow:inset 0 0 0 1.5px var(--vd-rival)}
+.me .me-line__undo .me-kbd{display:none}/* ---------- sheets ---------- */
+
+
+.me .me-sheet{max-height:82%}
+.me .me-psh{gap:12px}
+.me .me-psh__t{flex:1;min-width:0}
+.me .me-psh__t .me-h3{color:var(--vd-g-ink)}
+.me .me-psh__t .me-k{margin:0 0 2px}
+.me .me-psh .me-small{color:var(--vd-g-ink2)}
+.me .me-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.me .me-grid--3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.me .me-gbtn{height:50px;padding:0 10px;font-size:14.5px;white-space:normal;line-height:1.15;text-align:center}
+.me .me-gbtn.is-gold{--vd-g-tint:color-mix(in srgb,var(--vd-oro) 32%,transparent);--vd-glow:color-mix(in srgb,var(--vd-oro) 50%,transparent);font-weight:760}
+.me .me-gbtn.is-them{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vd-rival) 60%,transparent)}
+.me .me-gbtn.is-am{--vd-g-tint:color-mix(in srgb,var(--vd-amarilla) 36%,transparent)}
+.me .me-gbtn.is-roja{--vd-g-tint:color-mix(in srgb,var(--vd-roja) 40%,transparent)}
+.me .me-reloj{display:grid;gap:12px}
+.me .me-wide{width:100%}
+.me .me-end.is-sure{box-shadow:inset 0 0 0 2px var(--vd-oro)}
+.me .me-step{display:flex;align-items:center;gap:10px}
+.me .me-step__l{flex:1;font-size:14.5px;font-weight:650;color:var(--vd-g-ink)}
+.me .me-step__v{min-width:48px;text-align:center;font-family:var(--font-mono);font-size:17px;color:var(--vd-g-ink)}
+.me .me-prop{display:grid;gap:8px}
+.me .me-prop .me-small{color:var(--vd-g-ink2)}
+.me .me-rv{display:grid;gap:8px;padding:12px 0;border-bottom:1px solid var(--vd-rule)}
+.me .me-rv__t{margin:0;display:grid;gap:2px}
+.me .me-rv__t b{font-size:15px;color:var(--vd-g-ink)}
+.me .me-rv__t span{font-size:13px;color:var(--vd-g-ink2)}
+.me .me-edit{display:grid;gap:14px}
+.me .me-edit__f{display:grid;gap:6px}
+.me .me-edit__l{font-size:13.5px;font-weight:650;color:var(--vd-g-ink)}
+.me .me-edit .me-field>span:first-child,.me .me-field>label:first-child{color:var(--vd-g-ink)}
+.me .me-err{margin:0;padding:8px 12px;border-radius:12px;font-size:14px;color:var(--vd-g-ink);box-shadow:inset 0 0 0 1.5px var(--vd-roja);background:color-mix(in srgb,var(--vd-roja) 12%,transparent)}
+.me .me-err::before{content:"! ";font-weight:900;color:var(--vd-roja)}
+.me .me-del{margin-right:auto}/* ---------- antes, la lista ---------- */
+
+
+.me .me-antes,.me .me-lista,.me .me-des,.me .me-fin,.me .me-pub,.me .me-cro{display:flex;flex-direction:column}
+.me .me-antes__a{display:grid;gap:10px}
+.me .me-pitch--still{flex:none;height:300px;min-height:0}
+.me .me-checks{margin-top:14px}
+.me .me-check{min-height:58px}
+.me .me-antes__btns{padding:12px 0}
+.me .me-info .me-row{min-height:58px}
+.me .me-kick{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;padding:10px 0 6px;margin-top:auto}
+.me .me-primary--pin{position:sticky;bottom:0;z-index:5;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--vd-noche) 55%,transparent) 40%)}
+:root[data-theme="light"] .me .me-primary--pin{background:linear-gradient(180deg,rgba(232,240,248,0),rgba(232,240,248,.88) 40%)}
+.me .me-kick__b{flex:1 1 220px;height:56px;font-size:17px}
+.me .me-kick__why,.me .me-kick__note{flex:1 1 100%;margin:0;order:-1}
+.me .me-kick__note{font-size:14px;font-weight:650;color:var(--vd-ink)}
+.me .me-kick__note.is-bad::before{content:"! ";color:var(--vd-roja);font-weight:900}
+.me .me-saving{margin:6px 0 0}
+.me .me-li{min-height:64px;grid-template-columns:minmax(0,1fr) auto}
+.me .me-li__l{display:flex;align-items:center;gap:10px;min-width:0}
+.me .me-li__chk{width:24px;height:24px;flex:none;border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--vd-rule2);display:grid;place-items:center;font-size:14px;font-weight:900;color:var(--vd-marino)}
+.me [aria-pressed="true"]>.me-li__l>.me-li__chk,.me [aria-pressed="true"]>.me-li__chk{background:var(--vd-celeste);box-shadow:none}
+.me [aria-pressed="true"]>.me-li__l>.me-li__chk::after,.me [aria-pressed="true"]>.me-li__chk::after{content:"✓"}
+.me .me-li__r{display:grid;justify-items:end;gap:3px}
+.me .me-li__r small{font-size:12px;color:var(--vd-ink2)}
+.me .me-code{font-style:normal;font-size:11.5px;font-weight:800;color:var(--vd-ink2);letter-spacing:.02em}
+.me .me-form{display:flex;gap:2px;align-items:flex-end;height:14px}
+.me .me-form i{width:5px;border-radius:2px;background:var(--vd-rule2)}
+.me .me-form i:nth-child(1){height:5px}.me .me-form i:nth-child(2){height:7px}.me .me-form i:nth-child(3){height:9px}.me .me-form i:nth-child(4){height:11px}.me .me-form i:nth-child(5){height:14px}
+.me .me-form i.is-on{background:var(--vd-celeste)}
+.me .me-lista__sep{margin:20px 0 8px}
+.me .me-lista__guest{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0}/* ---------- descanso ---------- */
+
+
+.me .me-des__goals{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.me .me-gl{font-size:13px;font-weight:700;padding:3px 9px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.me .me-gl.is-us{box-shadow:inset 0 0 0 1.5px var(--vd-oro)}
+.me .me-gl.is-them{color:var(--vd-rival);box-shadow:inset 0 0 0 1.5px var(--vd-rival)}
+.me .me-des__grid,.me .me-fin__grid{display:grid;gap:18px}
+.me .me-des__grid>section,.me .me-fin__grid>section{min-width:0}
+.me .me-duel{width:100%;border-collapse:collapse;margin:8px 0 12px;font-size:14px}
+.me .me-duel th,.me .me-duel td{padding:8px 4px;border-bottom:1px solid var(--vd-rule)}
+.me .me-duel thead th{font-size:12.5px;color:var(--vd-ink2);font-weight:760}
+.me .me-duel thead th:last-child{color:var(--vd-rival)}
+.me .me-duel tbody th{font-weight:600;color:var(--vd-ink);text-align:center;width:40%}
+.me .me-duel__a,.me .me-duel__b{width:30%}
+.me .me-duel__a{text-align:right}
+.me .me-duel td b{font-feature-settings:'tnum' 1;font-weight:760;color:var(--vd-ink-strong);margin:0 6px}
+.me .me-duel__bar{display:inline-block;height:6px;border-radius:3px;vertical-align:middle;max-width:70%}
+.me .me-duel__bar.is-us{background:var(--vd-celeste)}
+.me .me-duel__bar.is-them{background:var(--vd-rival)}
+.me .me-dr{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--vd-rule)}
+.me .me-dr__b{flex:1;min-width:0;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:58px;padding:6px 2px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.me .me-dr__b .me-row__t b{font-size:15px}
+.me .me-dr__p{font-size:15px;white-space:nowrap}
+.me .me-dr.is-gone .me-dr__b{opacity:.55;cursor:default}
+.me .me-dr__k{flex:none;width:52px;height:44px;border:0;border-radius:12px;font:inherit;font-weight:800;font-size:12.5px;cursor:pointer;background:none;color:var(--vd-ink2);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.me .me-dr__k[aria-pressed="true"]{background:var(--vd-celeste);color:var(--vd-marino);box-shadow:none}
+.me .me-des__spread{margin:10px 0 0}/* ---------- final ---------- */
+
+
+.me .me-fin__res{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 0;font-size:15px;color:var(--vd-ink)}
+.me .me-fin__res b{font-size:18px;color:var(--vd-ink-strong)}
+.me .me-fg{padding:10px 0;border-bottom:1px solid var(--vd-rule);display:grid;gap:8px}
+.me .me-fg__t{margin:0;display:flex;align-items:center;gap:10px}
+.me .me-fg__m{font-family:var(--font-mono);font-size:13px;color:var(--vd-ink2);min-width:34px}
+.me .me-fg__t b{font-size:15.5px;color:var(--vd-ink-strong)}
+.me .me-fg.is-need .me-fg__t b{color:var(--vd-oro)}
+:root[data-theme="light"] .me .me-fg.is-need .me-fg__t b{color:var(--vd-ink-strong)}
+.me .me-fg.is-need .me-fg__t b::after{content:" · falta";font-size:13px;font-weight:650;color:var(--vd-ink2)}
+.me .me-fg__ask{display:grid;gap:6px;padding-left:44px}
+.me .me-fg__ask p{margin:0}
+.me .me-fin__after{margin:12px 0}
+.me .me-hold{position:relative;overflow:hidden}
+.me .me-hold__fill{position:absolute;inset:0;transform-origin:0 50%;transform:scaleX(0);background:color-mix(in srgb,var(--vd-celeste) 45%,transparent);z-index:0!important;pointer-events:none}
+.me .me-hold.is-holding .me-hold__fill{transform:scaleX(1);transition:transform 1s linear}
+.me .me-hold__t{position:relative;z-index:1}/* ---------- publicado, puertas, cargando ---------- */
+
+
+.me .me-pub__next{margin:6px 0 18px}
+.me .me-pub__report{display:grid;gap:10px;max-width:640px;padding-bottom:20px}
+.me .me-propline{margin:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.me .me-ta{height:auto;min-height:96px;padding:10px 12px;resize:vertical;font-size:15px;line-height:1.45}
+.me .me-door{grid-row:1/-1;max-width:560px;margin:8vh auto 0;padding:0 var(--me-gut);display:grid;justify-items:start;gap:12px}
+.me .me-door__crest{width:72px;height:72px;border-radius:50%}
+.me .me-door__t{margin:0;font-size:32px;line-height:1.04;font-weight:720;font-variation-settings:'wdth' 94;letter-spacing:-.02em;color:var(--vd-ink-strong);text-wrap:balance}
+.me .me-door__p{margin:0;font-size:16px;line-height:1.5;color:var(--vd-ink)}
+.me .me-door__a{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.me .me-loading{padding:28px var(--me-gut);display:grid;gap:14px;max-width:760px}
+.me .me-loading i{display:block;height:18px;border-radius:9px;background:linear-gradient(90deg,var(--vd-rule),var(--vd-rule2),var(--vd-rule));background-size:200% 100%;animation:me-skel 1.4s linear infinite}
+.me .me-loading i:nth-child(1){width:44%;height:40px}.me .me-loading i:nth-child(2){width:70%}.me .me-loading i:nth-child(3){width:58%;height:220px}.me .me-loading i:nth-child(4){width:80%}
+.me .me-loading span{font-size:14px;color:var(--vd-ink2)}
+@keyframes me-skel{to{background-position:-200% 0}}/* ---------- phone tweaks (≤ 380: 360 wide) ---------- */
+
+
+@container me (max-width:380px){
+  .me{--me-gut:10px}
+  .me .me-score__n{font-size:34px}
+  .me .me-rbtn{font-size:12.5px;padding:0 4px}
+  .me .me-verb{font-size:13px;gap:4px}
+  .me .me-verb .me-i{display:none}
+  .me .me-man{min-width:56px}
+}/* ---------- tablet and desktop (≥ 700): three regions on one screen, the action row with its keys ---------- */
+
+
+@container me (min-width:700px){
+  .me{--me-gut:22px}
+  .me .me-top{grid-template-columns:auto minmax(0,1fr) auto;padding:16px var(--me-gut) 10px;gap:6px 18px}
+  .me .me-score__n{font-size:64px}
+  .me .me-score__us,.me .me-score__them{font-size:20px}
+  .me .me-clock__t{font-size:22px}
+  .me .me-clock{font-size:15px}
+  .me .me-who{font-size:14px;max-width:none}
+  .me .me-top__match{display:block;grid-column:2/-1}
+  .me .me-relojbtn .me-kbd{display:inline}
+  .me .me-juego{grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"play side" "dock side";column-gap:20px;padding-right:var(--me-gut)}
+  .me .me-play{padding-right:0}
+  .me .me-side{display:flex;flex-direction:column;min-height:0;overflow:auto;scrollbar-width:thin;padding-bottom:12px}
+  .me .me-man__shirt{--sw:50px}
+  .me .me-man__n{font-size:13px;max-width:110px}
+  .me .me-man__m{font-size:12px}
+  .me .me-man{min-width:76px;min-height:72px}
+  .me .me-hole{width:80px;min-height:72px}
+  .me .me-sub{width:86px}
+  .me .me-sub__shirt{--sw:38px}
+  .me .me-rival__c{display:inline-flex}
+  .me .me-line{padding:4px var(--me-gut);min-height:52px}
+  .me .me-line__prop{display:inline-flex}
+  .me .me-line__undo .me-kbd{display:inline}
+  .me .me-scroll{padding:0 var(--me-gut)}
+  .me .me-sh .me-h1{font-size:34px}
+  .me .me-antes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto 1fr auto;column-gap:28px;align-content:start}
+  .me .me-antes__a{grid-column:1;grid-row:1/3}
+  .me .me-antes__b{grid-column:2;grid-row:1/3}
+  .me .me-antes .me-kick{grid-column:1/-1;grid-row:3}
+  .me .me-pitch--still{height:auto;aspect-ratio:.82;width:100%;max-width:520px}
+  .me .me-des__grid{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}
+  .me .me-des__ch{grid-column:1}
+  .me .me-des__who{grid-row:1/3;grid-column:2}
+  .me .me-fin__grid{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+  .me .me-lista__b{max-width:780px}
+  .me .me-cro .me-rail,.me .me-cro .me-dupe,.me .me-cro .me-cro__f{max-width:880px}
+}/* desktop (≥ 1100): wider chronicle, bigger head; sheets sit at the side (base) */
+
+@container me (min-width:1100px){
+  .me{--me-gut:32px}
+  .me .me-top{padding:18px var(--me-gut) 12px}
+  .me .me-score__n{font-size:76px}
+  .me .me-juego{grid-template-columns:minmax(0,1.6fr) minmax(360px,1fr);column-gap:28px}
+  .me .me-man__shirt{--sw:58px}
+  .me .me-sheet{max-height:none}
+  .me .me-antes{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+  .me .me-des__grid{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr)}
+  .me .me-des__ch{grid-column:3}
+  .me .me-des__who{grid-row:auto;grid-column:2}
+}/* big screens (≥ 1800): one screen at 1920; at 2560 it breathes with caps */
+
+@container me (min-width:1800px){
+  .me{--me-gut:44px}
+  .me .me-score__n{font-size:88px}
+  .me .me-juego{grid-template-columns:minmax(0,1.7fr) minmax(420px,560px);max-width:2200px;margin:0 auto;width:100%}
+  .me .me-man__shirt{--sw:68px}
+  .me .me-man__n{font-size:14px}
+  .me .me-scroll>*{max-width:1640px}
+  .me .me-feed__t b{font-size:15.5px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .me>.me-goldwash,.is-gold .me-pitch{transition:none}
+  .me .me-hold.is-holding .me-hold__fill{transition:none}
+  .me .me-loading i{animation:none}
+}/* the pizarra's plan beside the field (H-MESA-11: the next ones; «Toca» skips the current) */
+
+
+.me .me-planlist{padding:10px 0;border-bottom:1px solid var(--vd-rule)}
+.me .me-planlist__h{margin:0 0 4px;display:grid;gap:1px}
+.me .me-planlist__h b{font-size:14px;color:var(--vd-ink-strong)}
+.me .me-planlist__h span{font-size:12.5px;color:var(--vd-ink2)}
+.me .me-planlist ul{list-style:none;margin:0;padding:0;display:grid;gap:2px;font-size:13.5px;color:var(--vd-ink)}/* ===================== ronda 2 (capturas y detector) ===================== *//* 1 · the field: the seven are placed from their normalised slot (--nx across, --ny from the attack to our goal) with a
+   margin on every side, upright on the phone and lying down on the desktop, so no shirt touches another or the edge */
+
+
+
+.me .me-man__l{display:flex;align-items:baseline;gap:4px;max-width:96px}
+.me .me-man__l .me-man__n{min-width:0}
+.me .me-man__shirt{--sw:34px}
+.me .me-lines--side{display:none}/* 2 · every label lives inside its button and keeps to it; the key is a part of the button, in the flow */
+
+.me .me-btn__t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me .me-rbtn,.me .me-verb,.me .me-golbtn{overflow:hidden}
+.me .me-kbd{flex:none;position:static}/* 3 · the bench: two short lines («fuera 18′» / «jugó 18′») */
+
+.me .me-sub{width:78px}
+.me .me-sub__l{max-width:76px}/* 4 · the plan button grows with its text, which wraps */
+
+.me .me-plan{align-items:stretch}
+.me .me-plan__go{height:auto;min-height:52px;padding:8px 14px;white-space:normal}
+.me .me-plan__go b{white-space:normal;overflow:visible;line-height:1.2}
+.me .me-plan__t{display:grid;gap:2px;text-align:left;min-width:0}
+.me .me-plan .vd-btn--sm{align-self:center}/* 5 · the band: icon, one wrapping text, its button */
+
+.me .me-band__r{display:flex;align-items:center;gap:10px}
+.me .me-band__r>.me-i{width:18px;height:18px;flex:none}
+.me .me-band__t{flex:1;min-width:0;margin:0;font-size:13px;line-height:1.35;color:var(--vd-ink-strong)}
+.me .me-band__r .vd-btn{flex:none}/* 6 · a row of the chronicle: its title, then one line of who and what */
+
+.me .me-feed__t small{display:block;line-height:1.35}
+.me .me-feed__code{justify-self:start;margin-bottom:2px}/* 7 · the pinned bar is solid enough to read over what scrolls under it, and the content ends with room for it */
+
+.me .me-primary--pin{background:linear-gradient(180deg,transparent 0,color-mix(in srgb,var(--vd-noche) 94%,transparent) 18px);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding-top:16px}
+:root[data-theme="light"] .me .me-primary--pin{background:linear-gradient(180deg,rgba(232,240,248,0) 0,rgba(232,240,248,.97) 18px)}
+.me .me-fin__grid,.me .me-des__grid,.me .me-antes__b,.me .me-lista__b{padding-bottom:24px}
+
+@container me (min-width:700px){
+  .me .me-dock{grid-template-columns:minmax(0,1fr);grid-template-areas:"gol" "verbs" "rival";padding-right:0;gap:8px}
+  .me .me-golbtn{grid-area:gol;height:56px}
+  .me .me-verbs{grid-area:verbs}
+  .me .me-rival{grid-area:rival;grid-template-columns:auto minmax(0,1.5fr) repeat(3,minmax(0,1fr)) 44px}
+  .me .me-kbd{display:none}
+  .me .me-man__shirt{--sw:46px}
+  .me .me-pitch{align-self:center;width:auto;max-width:100%;aspect-ratio:.8;height:auto}
+}
+@container me (min-width:1100px){/* the field fills its region and lies down: our goal on the left, the attack to the right */
+  
+  .me .me-pitch{align-self:stretch;width:100%;aspect-ratio:auto;flex:1 1 0;min-height:240px}
+  .me .me-play>.me-pitch .me-lines--up{display:none}
+  .me .me-play>.me-pitch .me-lines--side{display:block}
+  .me .me-man__shirt{--sw:50px}
+  .me .me-man__l{max-width:130px}
+  .me .me-man{min-height:70px}
+  .me .me-dock{grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);grid-template-areas:"gol verbs" "rival rival"}
+  .me .me-rival{grid-template-columns:auto minmax(0,1.5fr) repeat(3,minmax(0,1fr)) 44px}
+  .me .me-rival__c{display:inline-flex}
+  .me .me-kbd{display:inline}
+  .me .me-verb{gap:6px;padding:0 8px}
+  .me .me-verb .me-i{width:17px;height:17px}/* 8 · the regions that scroll inside fade at the edge where more waits (as in Números and the sala); a scroller that
+     cannot scroll has an inactive timeline, so no mask */
+  
+  .me :is(.me-side,.me .me-cro,.me .me-pub){overscroll-behavior:contain;
+    -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--me-ft),#000 calc(100% - var(--me-fb)),transparent);
+    mask-image:linear-gradient(to bottom,transparent 0,#000 var(--me-ft),#000 calc(100% - var(--me-fb)),transparent);
+    animation:me-edges linear both;animation-timeline:scroll(self)}
+}
+@container me (min-width:1800px){
+  .me .me-man__shirt{--sw:62px}
+}
+@property --me-ft{syntax:'<length>';inherits:false;initial-value:0px}
+@property --me-fb{syntax:'<length>';inherits:false;initial-value:0px}
+@keyframes me-edges{0%{--me-ft:0px;--me-fb:30px}6%{--me-ft:22px}94%{--me-fb:30px}100%{--me-ft:22px;--me-fb:0px}}
+@media (prefers-reduced-motion:reduce){.me :is(.me-side,.me .me-cro,.me .me-pub){animation:none;-webkit-mask-image:none;mask-image:none}}/* ===================== ronda 3 · bordes del campo ===================== *//* every shirt is a box of a known size (--mw × --mh: the shirt, its name and, below it when it does not fit beside, the
+   minutes or the position), so its centre can be kept --mw/2 + --pad and --mh/2 + --pad from every edge of the pitch,
+   whatever the width. The stickers sit inside the box. */
+
+
+
+.me .me-pitch{--pad:8px;--mw:84px;--mh:72px}
+.me .me-pitch .me-man,.me .me-pitch .me-hole{width:var(--mw);height:var(--mh);min-width:0;min-height:0;box-sizing:border-box;align-content:center;
+  left:calc(var(--mw) / 2 + var(--pad) + (100% - var(--mw) - 2 * var(--pad)) * var(--nx) / 100);
+  top:calc(var(--mh) / 2 + var(--pad) + (100% - var(--mh) - 2 * var(--pad)) * var(--ny) / 100)}
+.me .me-pitch .me-man__l{max-width:100%;flex-wrap:wrap;justify-content:center;column-gap:4px;row-gap:0}
+.me .me-pitch .me-man__n{max-width:100%;overflow:visible;text-overflow:clip;line-height:1.2}
+.me .me-pitch .me-man__m{line-height:1.15}
+.me .me-pitch .me-man__n.is-long{font-size:10.5px;letter-spacing:0}
+.me .me-pitch .me-man__n.is-xlong{font-size:9.5px;letter-spacing:-.01em}
+.me .me-pitch .me-man__tags{top:1px;right:3px}
+@container me (min-width:700px){
+  .me .me-pitch{--mw:100px;--mh:90px}
+  .me .me-pitch .me-man__n.is-long{font-size:12px}
+  .me .me-pitch .me-man__n.is-xlong{font-size:11px}
+}
+@container me (min-width:1100px){
+  .me .me-pitch{--mw:132px;--mh:94px}/* lying down: the attack to the right, our goal on the left; across the pitch is its height */
+  
+  .me .me-play>.me-pitch .me-man,.me .me-play>.me-pitch .me-hole{
+    left:calc(var(--mw) / 2 + var(--pad) + (100% - var(--mw) - 2 * var(--pad)) * (100 - var(--ny)) / 100);
+    top:calc(var(--mh) / 2 + var(--pad) + (100% - var(--mh) - 2 * var(--pad)) * var(--nx) / 100)}
+}
+@container me (min-width:1800px){
+  .me .me-pitch{--mw:144px;--mh:110px}
+  .me .me-pitch .me-man__n.is-long{font-size:13px}
+}/* the verbs keep their whole word: a smaller type and gap on the tablet, and their key hints only from 1440 */
+
+
+@container me (min-width:700px) and (max-width:1099px){.me .me-verb{font-size:13px;gap:4px}}
+@container me (min-width:1100px) and (max-width:1439px){.me .me-verb .me-kbd{display:none}}/* ===================== the app (beyond the boards) ===================== *//* the web's own heading font and margins never reach la mesa */
+
+
+
+.me :is(h1,h2,h3,h4){font-family:var(--vd-sans,var(--font-sans))}/* the keys only from the tablet (the clock's) and the desktop (all) */
+
+@container me (max-width:699px){.me .me-kbd{display:none}}/* no «…» anywhere: the status line, who is scoring, the bench and the buttons wrap or keep a size that fits */
+
+.me .me-line__msg,.me .me-line__rest{display:block;-webkit-line-clamp:unset;overflow:visible}
+.me .me-who{white-space:normal;overflow:visible;text-overflow:clip;text-align:right;max-width:52cqi}
+.me .me-sub__n,.me .me-sub__l{overflow:visible;text-overflow:clip}
+.me .me-sub__n.is-long{font-size:10.5px;letter-spacing:-.01em}
+.me .me-sub__n.is-xlong{font-size:9.5px;letter-spacing:-.02em}
+.me .me-btn__t{overflow:visible;text-overflow:clip}
+.me .me-plan__go b{overflow:visible;text-overflow:clip}/* the armband of the official board (B-PAR-01) */
+
+.me .me-stk.is-cap{background:var(--vd-celeste);color:var(--vd-marino);box-shadow:none}
+.me .me-des__board{margin:10px 0 4px}
+.me .me-psh__sub{margin:-4px 0 12px;color:var(--vd-g-ink2)}
+.me .me-step__l small{display:block;font-size:12px;font-weight:560;color:var(--vd-g-ink2)}
+.me .me-saving.is-bad::before{content:"! ";color:var(--vd-roja);font-weight:900}/* the titles keep their line (no glyph over the line under it) */
+
+.me .me-sh .me-h1,.me .me-door__t{line-height:1.12}/* the seven before the whistle: room for the shirt, the name and the position under it */
+
+.me .me-pitch--still{--mh:86px;height:360px}
+.me .me-pitch--still .me-man--still{align-content:center;row-gap:1px}
+@container me (min-width:700px){.me .me-pitch--still{--mh:96px;height:auto}}/* a door fills the frame */
+
+.me.is-door{grid-template-rows:minmax(0,1fr)}
+.me .me-door{grid-row:1;align-self:start}

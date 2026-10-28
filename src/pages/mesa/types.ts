@@ -72,6 +72,18 @@ export interface MesaMatch {
   published: boolean;
   /** Some duplicate is still waiting for «Es el mismo» / «Son dos» (publishing is blocked). */
   pendingDuplicates: number;
+  /** Where it is played («Campo de pruebas»), "" when unknown. */
+  venue: string;
+  /** The match's length in minutes (its two halves). */
+  duration: number;
+  /** The kit it is played in: the shirts' printed stills. */
+  kit: "home" | "away";
+  /** When the MVP vote closes (ms), null before the acta is published. */
+  voteClosesAt: number | null;
+  /** The short chronicle under the score on the web («report»), "" when none. */
+  report: string;
+  /** How many guests the match has (the server takes up to four). */
+  guests: number;
 }
 
 export interface MesaStickers {
@@ -250,6 +262,14 @@ export interface MesaActions {
   discard(requestId: string): void;
   /** «Sin red» chip: try the upload now. */
   retryNow(): void;
+  /** «+ Invitado» from the touchline: his id on the match (`guest:gN`). */
+  addGuest(name: string): Promise<string>;
+  /** «Duración» from the clock sheet (whole minutes, 10–150). */
+  setDuration(minutes: number): Promise<void>;
+  /** «Guardar la crónica» once the acta is out (≤ 220 letters for an anotador). */
+  saveReport(report: string): Promise<void>;
+  /** «Añadir anotador» (an admin): the match's scorers become these uids. */
+  setScorers(uids: string[]): Promise<void>;
 }
 
 /** Where la mesa can take you (router navigation, kept out of the screens). */
@@ -262,6 +282,8 @@ export interface MesaNav {
   exit(): void;
   /** The published acta on the web (`/matches/$matchId`): Final's «Ver el acta en la web». */
   acta(): void;
+  /** Any other address of the app (the MVP, the sala's acta). */
+  go(href: string): void;
   /** The pizarra «desde la mesa» for this match (`/pizarra?desde=mesa&partido=…`), on its official board
    *  (`&tablero=…`) when la mesa knows it. */
   pizarra(boardId?: string | null): void;
@@ -283,6 +305,19 @@ export interface MesaView {
   lastOwn: MesaEvent | null;
   /** The pizarra's next planned sub («Toca: entra Hugo por Pablo»), null when none. */
   nextSub: { inId: string; outId: string; inName: string; outName: string } | null;
+  /** Every planned sub of the pizarra that can still be made, by minute (its out on the pitch, its in on the bench). */
+  plan: { min: number | null; inId: string; outId: string; inName: string; outName: string }[];
+  /** Everyone called up, in the convocatoria's order (the starters, then the bench). */
+  order: string[];
+  /** Who scores this match (the admins always may): uid and name, me included. */
+  scorers: { uid: string; name: string }[];
+  /** «Añadir anotador» (an admin only): the club's members who could score it and don't yet. */
+  scorerOptions: { uid: string; name: string }[];
+  /** The official board's galones: the captain (the vice wears it while he is off) and the dead-ball takers in
+   *  order (the first of each list on the pitch takes it). Empty when the board has none. */
+  galones: { captainId: string | null; viceId: string | null; takers: { penalties: string[]; freekicks: string[]; corners: string[] } };
+  /** The board's «2ª parte» seven (Descanso offers it), null when it has none. */
+  secondHalf: { seven: string[]; keeper: string | null; codes: Record<string, string> } | null;
   nameOf(id: string): string;
   /** A short message to show (a refused clock action, a failed publish); "" when none. */
   notice: string;
