@@ -188,6 +188,8 @@ export function useSheetSession(): SheetSession {
 
   // ── saving ──
   const busyRef = useRef(false);
+  // (the retries of the status strip call the latest version)
+  const again = useRef<{ write: (draft: boolean) => Promise<boolean>; discard: () => Promise<void> } | null>(null);
   const write = useCallback(
     async (draft: boolean, o: { fromGuard?: boolean } = {}): Promise<boolean> => {
       if (busyRef.current) return false;
@@ -212,7 +214,7 @@ export function useSheetSession(): SheetSession {
         status.show({
           tone: "error",
           message: `${draft ? "No se ha podido guardar el borrador" : "No se ha podido publicar"}: ${why}${o.fromGuard ? " Los cambios siguen en este dispositivo: al volver podrás recuperarlos." : ""}`,
-          retry: o.fromGuard ? undefined : () => void write(draft),
+          retry: o.fromGuard ? undefined : () => void again.current?.write(draft),
         });
         return false;
       } finally {
@@ -282,7 +284,7 @@ export function useSheetSession(): SheetSession {
         store.reset();
         status.show({ tag: "Borrador", message: "Borrador descartado · vuelve a lo publicado" });
       } catch (e) {
-        status.show({ tone: "error", message: `No se ha podido descartar el borrador: ${apiError(e)}`, retry: () => void discardDraft() });
+        status.show({ tone: "error", message: `No se ha podido descartar el borrador: ${apiError(e)}`, retry: () => void again.current?.discard() });
       } finally {
         store.patch({ busy: null });
       }
@@ -292,6 +294,10 @@ export function useSheetSession(): SheetSession {
     store.reset();
     status.show({ tag: "Descartado", message: "Cambios descartados · vuelve a lo guardado", undo: () => store.set(() => before) });
   }, [store, match.draft, match.published, match.id, status]);
+
+  useEffect(() => {
+    again.current = { write, discard: discardDraft };
+  });
 
   // ── the guard: only leaving these stations of this match asks ──
   useUnsavedGuard(dirty, {

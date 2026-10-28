@@ -309,4 +309,22 @@ export function goalsWord(sheet: Pick<MatchSheet, "events">): string {
   const n = sheet.events.filter((e) => isOurGoal(e) || isRivalGoal(e)).length;
   return plural(n, "gol", "goles");
 }
+// ───────────────────────── the video marks (M-43) ─────────────────────────
+/** 754 → «12:34». */
+export function clockOf(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+}
+/** «12:34», «1:02:03» or «754» → seconds (null when it is not a time). */
+export function secondsOf(v: string): number | null {
+  const parts = v.trim().split(":");
+  if (!parts.length || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) return null;
+  const n = parts.map(Number);
+  if (n.slice(1).some((x) => x > 59)) return null;
+  const sec = n.reduce((a, x) => a * 60 + x, 0);
+  return sec <= 18_000 ? sec : null;
+}
+
 export { lower };
