@@ -41,7 +41,7 @@ test("la mesa de principio a fin: pitar, gol sin autor, descanso, final, complet
     await expect(page.getByRole("heading", { name: /listo para pitar/ })).toBeVisible();
     await page.getByRole("button", { name: /Pitar el inicio/ }).click();
 
-    const gol = page.getByRole("button", { name: /Gol del Piti/ });
+    const gol = page.getByRole("button", { name: /^Gol del Piti/ });
     await expect(gol).toBeVisible();
     await gol.click();
     await expect(page.getByText("¿Quién marcó?")).toBeVisible();
