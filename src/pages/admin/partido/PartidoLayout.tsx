@@ -27,6 +27,7 @@ import { useSalaGo } from "../shell/salaHref";
 import { isTypingTarget } from "../shell/shortcuts";
 import { useStatus } from "../shell/statusContext";
 import { useLayerStack, useLayer } from "../ui/layerCore";
+import { useFrame } from "../ui/frame";
 import { resultLetter } from "../kit/result";
 import { carrilPhase, phaseWord, stationOf, stationsOf, stepStation } from "./carril";
 import { Carril } from "./CarrilNav";
@@ -80,6 +81,7 @@ function MatchFrame({ matchId, station: inAddress, sub }: { matchId: string; sta
   const go = useSalaGo();
   const whistled = useWhistled();
   const { modalOpen } = useLayerStack();
+  const { desktop } = useFrame();
   const match = data.matches.find((m) => m.id === matchId)!;
   const review = data.reviewOf(match);
   const publishedFinal = data.published.some((p) => p.id === match.id && p.status === "finished");
@@ -138,19 +140,24 @@ function MatchFrame({ matchId, station: inAddress, sub }: { matchId: string; sta
           <div className="sc-screen sc-match">
             <header className="sc-mhead">
               <div className="sc-mhead__t">
-                <p className="sc-k sc-mhead__k">
+                {/* (below 1100 the frame's header says the match: the kicker and the h1 stay for the readers) */}
+                <p className={`sc-k sc-mhead__k${desktop ? "" : " vd-vh"}`}>
                   <SalaLink className="sc-mhead__up" to="/admin/partidos">
                     ‹ Partidos
                   </SalaLink>
                   <span>{kicker}</span>
                 </p>
-                <h1 className="sc-h1 sc-mhead__h">
+                <h1 className={`sc-h1 sc-mhead__h${desktop ? "" : " vd-vh"}`}>
                   <span className="sc-morph" style={{ viewTransitionName: `sc-m-${match.id.replace(/[^a-zA-Z0-9_-]/g, "_")}` }}>
-                    Manchester Piti {played ? `${gf}–${ga}` : "–"} <span className="sc-rival"><i aria-hidden="true">{rivalCode(rival, match.rivalShort)}</i>{rival}</span>
+                    Manchester Piti {played ? `${gf}–${ga}` : "–"} {rival}
                   </span>
-                  {played && <span className={`sc-res sc-res--${resultLetter(gf, ga)}`}>{resultLetter(gf, ga)}<span className="sc-vh"> · {resultLetter(gf, ga) === "G" ? "ganado" : resultLetter(gf, ga) === "P" ? "perdido" : "empate"}</span></span>}
+                  {played && <span className={`sc-res sc-res--${resultLetter(gf, ga)}`}>{resultLetter(gf, ga)}<span className="vd-vh"> · {resultLetter(gf, ga) === "G" ? "ganado" : resultLetter(gf, ga) === "P" ? "perdido" : "empate"}</span></span>}
                 </h1>
                 <p className="sc-mhead__s">
+                  <span className="sc-rival" title={rival}>
+                    <i aria-hidden="true">{rivalCode(rival, match.rivalShort)}</i>
+                    <span className="vd-vh">Código del rival: {rivalCode(rival, match.rivalShort)}</span>
+                  </span>
                   <span className={`sc-tag ${phase === "juego" || phase === "descanso" ? "sc-tag--live" : phase === "final" || phase === "pendiente" || !match.published ? "sc-tag--toca" : phase === "aplazado" || phase === "cancelado" ? "sc-tag--mal" : "sc-tag--quiet"}`}>{phaseWord(phase, match)}</span>
                   <span className="sc-mhead__kp">{kicker}</span>
                 </p>
@@ -160,7 +167,7 @@ function MatchFrame({ matchId, station: inAddress, sub }: { matchId: string; sta
                   <a className="vd-btn vd-glass vd-press vd-btn--sm" href={`/partidos/${match.id}`} target="_blank" rel="noopener">
                     Ver en la web
                     <VIcon name="expand" size={16} />
-                    <span className="sc-vh"> (se abre en otra pestaña)</span>
+                    <span className="vd-vh"> (se abre en otra pestaña)</span>
                   </a>
                 )}
                 <Manage rival={rival} onArchive={() => setLifecycle({ action: "archive", match })} onDelete={() => setLifecycle({ action: "delete", match })} />

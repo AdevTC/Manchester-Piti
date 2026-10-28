@@ -168,7 +168,6 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 /* the tablet and the phone: the frame's header already says the title and its line; the screen's head keeps its
    actions (its h1 stays for the screen readers: one h1 per screen, B-SH-09) */
 @container (max-width:1099px){
-  .sc-shead--framed .sc-shead__t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
   .sc-shead--framed{padding:4px 0 12px}
   .sc-shead--framed:not(:has(.sc-shead__a)){padding:0}
 }
@@ -215,7 +214,7 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 .sc-res--G{box-shadow:inset 0 0 0 1.5px var(--vd-celeste);color:var(--vd-celeste-ink)}
 .sc-res--P{box-shadow:inset 0 0 0 1.5px var(--vd-rival);color:var(--vd-rival)}
 .sc-rival{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--vd-rival)}
-.sc-rival i{font-style:normal;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:11.5px;font-weight:800;color:var(--vd-rival);box-shadow:inset 0 0 0 1.5px var(--vd-rival)}
+.sc-rival i{font-style:normal;display:inline-grid;place-items:center;min-width:28px;height:28px;padding:0 6px;box-sizing:border-box;border-radius:999px;font-size:11.5px;font-weight:800;color:var(--vd-rival);box-shadow:inset 0 0 0 1.5px var(--vd-rival)}
 
 /* a proposal (changes the server or the data model): visible and labelled */
 .sc-prop{position:relative;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px rgba(108,171,221,.5);background:rgba(108,171,221,.06)}
@@ -302,7 +301,6 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
   .sc-carril-wrap .sc-carril{grid-template-columns:repeat(6,minmax(100px,1fr));min-width:640px}
   .sc-mhead .sc-mhead__up{display:none}
   .sc-mhead{padding-top:4px}
-  .sc-mhead__t .sc-k,.sc-mhead__h{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
   .sc-mhead__s{margin-top:0}
   .sc-mhead__kp{display:inline}
   .sc-mhead__a{margin-left:auto}
@@ -368,7 +366,9 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 /* today's views inside the new frame, until wave 2 replaces each one (their own `.adm` styles still apply) */
 .sc-interim{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 .sc-main>.sc-interim{height:100%}
-.sc-match .sc-interim .det>.dh{display:none}
+/* (inside the new match its head says the match: of today's workspace head only its tabs stay, the stations it draws) */
+.sc-match .sc-interim .det>.dh>:not(.tabs4){display:none}
+.sc-match .sc-interim .det>.dh{padding-top:0}
 .sc-interim .det{border:0}
 
 /* View Transitions (law 4: the screen leaves → what is shared morphs → the next one comes in; never both at once):
@@ -389,6 +389,8 @@ html[data-vd-page]::view-transition-group(sc-station){animation-duration:var(--v
   .sc *,.sc *::before,.sc *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
 
+/* (the sala's words are Mona Sans whatever today's views set around them; never Anybody: law 2) */
+.vx.adm.sc :is(.sc-h1,.sc-h2,.sc-h3,.sc-k,.sc-lede,.sc-door__t,.sc-failed,.sc-phead__h,.sc-brand__name,.sc-station,.sc-mhead){font-family:var(--vd-sans)}
 /* (today's admin.css zeroes every h1–h3 and p inside .vx.adm: the sala's own margins win back, until it goes) */
 .vx.adm.sc .sc-k{margin:0 0 4px}
 .vx.adm.sc .sc-lede{margin:6px 0 0}

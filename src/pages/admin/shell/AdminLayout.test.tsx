@@ -169,8 +169,10 @@ describe("the match: its head and the carril", () => {
     wide(1440);
     mountAdmin("/admin/partidos/m8");
     const h1 = await screen.findByRole("heading", { level: 1 });
-    expect(h1).toHaveTextContent(/^Manchester Piti – MAD\s?MAD SKY$/);
-    expect(h1.querySelector(".sc-rival i")).toHaveTextContent("MAD");
+    expect(h1).toHaveTextContent(/^Manchester Piti – MAD SKY$/);
+    expect(screen.getByText("Código del rival: MAD")).toBeInTheDocument();
+    expect(screen.getAllByText("J3 · Liga · dom 8 nov · 12:00 · fuera").length).toBeGreaterThan(0);
+    expect(screen.getByText("En el calendario")).toHaveClass("sc-tag");
     const carril = screen.getByRole("navigation", { name: "Las estaciones del partido" });
     const stations = within(carril).getAllByRole("link");
     expect(stations).toHaveLength(6);

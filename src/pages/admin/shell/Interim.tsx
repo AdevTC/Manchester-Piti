@@ -19,7 +19,7 @@ export function Interim({ search, head, h1 = true, children }: { search?: ViewSe
   return (
     <InterimSearchContext.Provider value={given}>
       <div className={`sc-interim ${desktop ? "ws" : "mws"}`}>
-        {h1 && !desktop && <h1 className="sc-vh">{head?.title ?? screenOf(pathname).title}</h1>}
+        {h1 && !desktop && <h1 className="vd-vh">{head?.title ?? screenOf(pathname).title}</h1>}
         {children}
       </div>
     </InterimSearchContext.Provider>

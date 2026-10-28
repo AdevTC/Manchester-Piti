@@ -12,7 +12,6 @@ import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../hooks/useTheme";
 import { useClock } from "../../../hooks/useClock";
 import { setAppTravel } from "../../../components/celeste/pageTransition";
-import { initials } from "../../../lib/vestuario";
 import { useAdminData, type AdminData } from "../data/useAdminData";
 import { clockTime } from "../data/adminLogic";
 import { CommandPalette } from "../palette/CommandPalette";
@@ -78,7 +77,7 @@ export function AdminLayout() {
   const viewer: Viewer = {
     name: nick,
     role: ROLE[profile?.role ?? ""] ?? (profile?.playerId ? "Jugador" : "Socio"),
-    initials: initials(nick),
+    initials: nick.charAt(0).toLocaleUpperCase("es"),
     captain,
     general: profile?.role === "superadmin",
   };

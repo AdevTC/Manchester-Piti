@@ -45,7 +45,7 @@ export function MiniCarril({ stations, current, className = "" }: { stations: St
       </span>
       <span className={`sc-mini__w${cur.state === "toca" ? " is-toca" : ""}`}>
         <b>{cur.name}</b> · {cur.word}
-        {cur.state === "toca" && <span className="sc-vh"> · te toca</span>}
+        {cur.state === "toca" && <span className="vd-vh"> · te toca</span>}
       </span>
     </span>
   );

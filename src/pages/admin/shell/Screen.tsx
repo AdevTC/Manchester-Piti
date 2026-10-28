@@ -8,6 +8,7 @@ import { VIcon, type VIconName } from "../../../components/vidrio/VIcon";
 import { useNoIndex } from "../../../hooks/useNoIndex";
 import { useSalaHead, type SalaHead } from "./head";
 import { SalaLink } from "./SalaLink";
+import { useFrame } from "../ui/frame";
 
 export interface PrimarySpec {
   label: string;
@@ -66,13 +67,15 @@ export interface SalaScreenProps {
 
 export function SalaScreen({ title, headTitle, kicker, lede, headSub, back, actions, primary, fit, className = "", children }: SalaScreenProps) {
   const id = useId();
+  // (below 1100 the frame's header says the title and its line: they stay here for the readers, one h1)
+  const { desktop } = useFrame();
   const whyId = `${id}-why`;
   const plain = headTitle ?? (typeof title === "string" ? title : "");
   useSalaHead(plain ? { title: plain, sub: headSub ?? (typeof lede === "string" ? lede : undefined), back } : null);
   return (
     <section className={`sc-screen${fit ? " sc-screen--fit" : ""} ${className}`.trim()} aria-labelledby={`${id}-t`}>
       <header className="sc-shead sc-shead--framed">
-        <div className="sc-shead__t">
+        <div className={`sc-shead__t${desktop ? "" : " vd-vh"}`}>
           {kicker && <p className="sc-k">{kicker}</p>}
           <h1 className="sc-h1" id={`${id}-t`}>
             {title}
@@ -90,7 +93,7 @@ export function SalaScreen({ title, headTitle, kicker, lede, headSub, back, acti
       {primary && (
         <>
           {primary.why && (
-            <p className="sc-why sc-vh" id={whyId}>
+            <p className="sc-why vd-vh" id={whyId}>
               {primary.why}
             </p>
           )}
