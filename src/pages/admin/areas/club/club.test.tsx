@@ -53,7 +53,8 @@ vi.mock("../../../vestuario/live", async (orig) => ({
 }));
 vi.mock("../../../../lib/clubApi", async (orig) => ({ ...(await orig<typeof import("../../../../lib/clubApi")>()), apiError: (e: unknown) => (e instanceof Error ? e.message : String(e)), deleteSeason: h.deleteSeason }));
 
-const ON = { temporadas: () => null, clasificacion: () => null, turnos: () => null, contenido: () => null };
+const none = () => <></>;
+const ON = { temporadas: none, clasificacion: none, turnos: none, contenido: none };
 const row = (team: string, pj: number, isUs = false) => ({ team, pj, g: pj, e: 0, p: 0, gf: pj, gc: 0, pts: 3 * pj, isUs });
 const table = (): Standings => ({ id: "t1", competition: "Liga F7", jornada: 0, updatedAt: 1, updatedBy: "a1", rows: [row("Rayo Norte", 1), row("Manchester Piti", 1, true), row("Atlético Demo", 1)] });
 
