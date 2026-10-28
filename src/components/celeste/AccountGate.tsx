@@ -11,6 +11,7 @@ import { usePublishedViewer } from "../../hooks/viewerSignal";
 import { readTuMaqueta } from "../vidrio/tu/maqueta";
 import { tuSurface } from "../vidrio/tu/surface";
 import { firstName, initialOf, usePublishedAccount } from "./accountSignal";
+import type { AccountSala } from "../vidrio/account/AccountSheet";
 // (the bar's magnifier, bell and avatar from the first paint, on every page: tu.css comes later, with the sheets)
 import "../../styles/tu-chrome.css";
 
@@ -20,13 +21,14 @@ const FanAccountLayer = lazy(() => import("../vidrio/account/AccountSheet").then
 const noop = () => () => undefined;
 const useHydrated = () => useSyncExternalStore(noop, () => true, () => false);
 
-export function AccountGate({ here }: { here?: boolean }) {
+/** `sala`: the Sala de control's avatar (someone signed in, always: «Tú» with the sala's things, AccountSheet). */
+export function AccountGate({ here, sala }: { here?: boolean; sala?: AccountSala & { name: string } }) {
   const hydrated = useHydrated();
   const viewer = usePublishedViewer();
   const account = usePublishedAccount();
   const maqFan = hydrated && readTuMaqueta()?.quien === "fan";
-  const member = hydrated && viewer.member && !maqFan;
-  const name = account?.name ? firstName(account.name) : "";
+  const member = !!sala || (hydrated && viewer.member && !maqFan);
+  const name = account?.name ? firstName(account.name) : sala ? firstName(sala.name) : "";
   if (!member) return <FanEntrar here={here} hydrated={hydrated} />;
   return (
     <Suspense
@@ -37,7 +39,7 @@ export function AccountGate({ here }: { here?: boolean }) {
         </button>
       }
     >
-      <MemberAccount name={name} here={here} />
+      <MemberAccount name={name} here={here} sala={sala} />
     </Suspense>
   );
 }
