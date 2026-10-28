@@ -18,8 +18,9 @@ export const setMatchArchived = onCall({ timeoutSeconds: 540 }, async req => {
     const seasonIds = matchSeasonIds([match, draft]);
     const seasons = seasonIds.length ? await tx.getAll(...seasonIds.map(id => db.doc(`seasons/${id}`))) : [];
     if (!archived && seasons.some(season => season.get('archived') === true)) throw new HttpsError('failed-precondition', 'Restaura primero la temporada para reactivar este partido.');
-    // (its season was deleted: it stays archived, without a season — B-CLUB-01)
-    if (!archived && seasons.some(season => !season.exists)) throw new HttpsError('failed-precondition', 'La temporada de este partido se eliminó: no se puede reactivar.');
+    // (archived with its season, and the season was deleted: it stays archived, without a season — B-CLUB-01. One
+    // archived on its own keeps its way back, whatever its season metadata: old published results)
+    if (!archived && source.get('individuallyArchived') !== true && source.get('archived') === true && seasons.some(season => !season.exists)) throw new HttpsError('failed-precondition', 'La temporada de este partido se eliminó: no se puede reactivar.');
     const effective = archived;
     const mvp = await prepareMvpTallies(tx, !effective && match.exists ? [match] : []);
     const metrics = [];

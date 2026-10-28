@@ -417,7 +417,7 @@ try {
   await db.doc(`players/${only}`).set({ firstName: "Solo", seasons: [oldSeason], archived: true, seasonDetails: { [oldSeason]: { number: 9 }, keep: { number: 4 } } });
   const oldMatch = m("old-match");
   created.matches.push(oldMatch);
-  await db.doc(`matches/${oldMatch}`).set({ seasonId: oldSeason, rival: "Antiguo", status: "finished", archived: true, individuallyArchived: true, date: Timestamp.fromMillis(Date.now() - 400 * 86_400_000), revision: 1 });
+  await db.doc(`matches/${oldMatch}`).set({ seasonId: oldSeason, rival: "Antiguo", status: "finished", archived: true, date: Timestamp.fromMillis(Date.now() - 400 * 86_400_000), revision: 1 });
   await db.doc(`players/${both}`).set({ firstName: "Dos", seasons: [oldSeason, seasonId] });
   await denied("deleteSeason", member, { seasonId: oldSeason }, "PERMISSION_DENIED");
   await denied("deleteSeason", admin, { seasonId }, "FAILED_PRECONDITION", /Archiva/);
