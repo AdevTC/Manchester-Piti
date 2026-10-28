@@ -311,6 +311,8 @@ async function keepNotice(notice: Notice, uid?: string, who?: { audience: Notice
   }
 }
 
+/** M-33 in the emulator (tests and local runs): the rival's goal waits this long instead of THEIR_GOAL_HOLD_MS. */
+export const EMULATOR_HOLD_MS = 2_000;
 const asMatch = (d: DocumentData | undefined): MatchLike | undefined =>
   d && {
     ...d,
@@ -357,7 +359,8 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   }
   // M-33: the rival's goal goes after its wait, from the match as it is then — undone meanwhile, nothing goes.
   for (const n of held) {
-    await new Promise((ok) => setTimeout(ok, n.holdFor!.ms));
+    // (the emulator runs one trigger at a time: there the wait is 2 s, so it never holds every other trigger 10 s)
+    await new Promise((ok) => setTimeout(ok, process.env.FUNCTIONS_EMULATOR === "true" ? EMULATOR_HOLD_MS : n.holdFor!.ms));
     try {
       if (!(await matchActive(event.params.matchId))) continue;
       const fresh = asMatch((await db.doc(`matches/${event.params.matchId}`).get()).data());

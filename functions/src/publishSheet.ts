@@ -392,6 +392,8 @@ export async function publishSheet(input: PublishRequest) {
       meetingNote: meetingNote ?? "",
       updatedBy: uid,
       notasError: notasProblem ? { at: Date.now(), message: notasProblem } : FieldValue.delete(),
+      // (M-38: a crónica written here is whoever published it — a scorer's saveMatchReport no longer owns it)
+      ...((old.get("report") ?? "") !== sheet.report ? { reportBy: uid, reportText: FieldValue.delete() } : {}),
     }, { merge: true });
     tx.delete(db.doc(`matchDrafts/${input.id}`));
     tx.set(db.collection("matchAudit").doc(), {

@@ -72,10 +72,21 @@ export const saveMatchReport = onCall(async (req) => {
     if (match.get("status") !== "finished") throw new HttpsError("failed-precondition", NOT_PUBLISHED);
     const privRef = db.doc(`matchPrivate/${data.matchId}`);
     const priv = await tx.get(privRef);
-    const problem = reportProblem({ isAdmin: actor.isAdmin, report, current: match.get("report"), currentBy: priv.get("reportBy"), uid: actor.uid });
-    if (problem) throw new HttpsError(problem.startsWith("La crónica ya") ? "failed-precondition" : "invalid-argument", problem);
+    const now = Date.now();
+    const problem = reportProblem({
+      isAdmin: actor.isAdmin,
+      report,
+      current: match.get("report"),
+      currentBy: priv.get("reportBy"),
+      // (the exact text he saved: a captain who rewrites it in the acta takes it from him)
+      mine: priv.get("reportText"),
+      uid: actor.uid,
+      publishedAt: actaPublishedAt({ actaPublishedAt: match.get("actaPublishedAt"), voteClosesAt: match.get("voteClosesAt") }, now),
+      now,
+    });
+    if (problem) throw new HttpsError(problem.startsWith("La crónica corta cabe") ? "invalid-argument" : "failed-precondition", problem);
     const revision = writeBoth(tx, match, draft, { report });
-    tx.set(privRef, { reportBy: actor.uid, reportAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(privRef, { reportBy: actor.uid, reportText: report, reportAt: FieldValue.serverTimestamp() }, { merge: true });
     audit(tx, data.matchId, actor.uid, { revision, report: "mesa" });
     return { ok: true as const, revision };
   });

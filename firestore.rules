@@ -99,7 +99,8 @@ service cloud.firestore {
       allow read: if true;
       allow create: if admin() && sanctionOk() && positionsOk();
       allow update: if (admin() && sanctionOk() && positionsOk()) || ownProposal(id);
-      allow delete: if admin();
+      // B-CLUB-05: a ficha is deleted only by the backend (deletePlayer: when no acta cites it), never directly.
+      allow delete: if false;
     }
     match /seasons/{id} {
       allow read: if true;
@@ -155,10 +156,12 @@ service cloud.firestore {
       let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
       return activeMatch(matchId) && m.get('status', null) == 'finished' && m.get('voteClosesAt', null) is number;
     }
-    // 7 days from the publication = voteClosesAt (publication + 48 h) + 5 days.
+    // 7 days from the publication: actaPublishedAt (r12), else voteClosesAt − 48 h (older actas), so closing or
+    // reopening the MVP by hand (setMvpVote) never moves it.
     function ratingOpen(matchId) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
       return actaPublished(matchId)
-        && request.time.toMillis() < get(/databases/$(database)/documents/matches/$(matchId)).data.voteClosesAt + 432000000;
+        && request.time.toMillis() < m.get('actaPublishedAt', m.voteClosesAt - 172800000) + 604800000;
     }
     // A moment is an event id of the acta (its format: lib event ids, eventSchema's `ref`) or «final». At most
     // 30 per member; no loops in the rules, so each of the 30 slots is checked on its own.
@@ -307,11 +310,51 @@ service cloud.firestore {
         && venueOk(vs, 0) && venueOk(vs, 1) && venueOk(vs, 2) && venueOk(vs, 3) && venueOk(vs, 4)
         && venueOk(vs, 5) && venueOk(vs, 6) && venueOk(vs, 7) && venueOk(vs, 8) && venueOk(vs, 9);
     }
+    // r12 · M-19 las equipaciones (clubContent.kits: { home?, away? }, each { name?, note, colors: 1–4 }; the colours'
+    // content — names and #rrggbb — is the app's Zod on read) and M-45 las redes (clubContent.socials: ≤ 8 of
+    // { net, url https ≤ 300 }). Absent: the web keeps what is in its code today.
+    function kitOk(k) {
+      return k is map && k.keys().hasOnly(['name','note','colors'])
+        && k.get('note', '') is string && k.get('note', '').size() <= 200
+        && k.get('name', '') is string && k.get('name', '').size() <= 30
+        && k.get('colors', []) is list && k.get('colors', []).size() >= 1 && k.get('colors', []).size() <= 4;
+    }
+    function kitsOk(ks) {
+      return ks is map && ks.keys().hasOnly(['home','away'])
+        && (!('home' in ks) || kitOk(ks.home)) && (!('away' in ks) || kitOk(ks.away));
+    }
+    function socialOk(ss, i) {
+      return i >= ss.size() || (ss[i] is map && ss[i].keys().hasOnly(['net','url'])
+        && ss[i].get('net', '') in ['instagram','youtube','tiktok','whatsapp','x','facebook','twitch','web']
+        && ss[i].get('url', '') is string && ss[i].url.size() <= 300 && ss[i].url.matches('https://.+'));
+    }
+    function socialsOk(ss) {
+      return ss is list && ss.size() <= 8
+        && socialOk(ss, 0) && socialOk(ss, 1) && socialOk(ss, 2) && socialOk(ss, 3)
+        && socialOk(ss, 4) && socialOk(ss, 5) && socialOk(ss, 6) && socialOk(ss, 7);
+    }
+    // M-20: the content's drafts on the server (one shared draft, the same shape the device kept), captains only.
+    match /clubDrafts/{id} {
+      allow read, delete: if admin() && id == 'content';
+      allow create, update: if admin() && id == 'content'
+        && request.resource.data.keys().hasOnly(['club','stories','by','byName','at'])
+        && request.resource.data.keys().hasAll(['club','stories','by','at'])
+        && request.resource.data.club is map && request.resource.data.club.size() <= 12
+        && request.resource.data.stories is map && request.resource.data.stories.size() <= 60
+        && request.resource.data.by == request.auth.uid
+        && (!('byName' in request.resource.data) || (request.resource.data.byName is string && request.resource.data.byName.size() <= 40))
+        && request.resource.data.at == request.time;
+    }
+    // M-18 «Lo que se ha mandado»: every notice sent and to how many (functions/src/push.ts logSent). Captains read.
+    match /pushSent/{id} { allow read: if admin(); allow write: if false; }
     match /clubContent/{id} {
       allow read: if true;
       allow create, update: if admin() && id == 'main'
-        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','youtube','photoUrl','milestones','sponsors','gallery','faq','crestStory','venues'])
+        && request.resource.data.keys().hasOnly(['intro','story','location','founded','venue','email','instagram','youtube','photoUrl','milestones','sponsors','gallery','faq','crestStory','venues','kits','trophies','socials'])
         && (!('venues' in request.resource.data) || venuesOk(request.resource.data.venues))
+        && (!('kits' in request.resource.data) || kitsOk(request.resource.data.kits))
+        && (!('trophies' in request.resource.data) || (request.resource.data.trophies is list && request.resource.data.trophies.size() <= 30))
+        && (!('socials' in request.resource.data) || socialsOk(request.resource.data.socials))
         && request.resource.data.intro is string && request.resource.data.intro.size() < 1000
         && request.resource.data.story is string && request.resource.data.story.size() < 20000
         && request.resource.data.gallery is list && request.resource.data.gallery.size() <= 100
@@ -326,9 +369,13 @@ service cloud.firestore {
       allow list: if teamMember();
       // Profiles and unique nicknames are reserved transactionally by the backend.
       allow create: if false;
+      // M-40: any captain gives the brazalete; taking it from another captain is the capitán general's (each
+      // captain may take off his own).
       allow update: if (admin() && resource.data.role != 'superadmin'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
-          && request.resource.data.role in ['admin','user'])
+          && request.resource.data.role in ['admin','user']
+          && (request.resource.data.role == 'admin' || resource.data.get('role', 'user') != 'admin'
+            || request.auth.uid == uid || me().get('role', 'user') == 'superadmin'))
         || (superadminEmail() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
           && request.resource.data.role == 'superadmin')
@@ -544,8 +591,9 @@ service cloud.firestore {
     // answered, functions/src/reminders.ts): on unless a captain turns them off. Captains write it.
     match /convocatoriaReminders/{matchId} {
       allow read: if teamMember();
+      // (a match that is only a draft too: Convocar offers it — B-CNV-01; boardMatchActive covers both)
       allow create, update: if admin()
-        && activeMatch(matchId)
+        && boardMatchActive(matchId)
         && request.resource.data.keys().hasOnly(['auto','by','at'])
         && request.resource.data.auto is bool
         && request.resource.data.by == request.auth.uid
@@ -574,10 +622,21 @@ service cloud.firestore {
         && (!('note' in d) || (d.note is string && d.note.size() <= 140))
         && d.createdAt == request.time;
     }
+    // M-17: a captain corrects someone's dates or note from la Sala (the same checks), signing the edit.
+    function absenceEditOk(d) {
+      return d.diff(resource.data).affectedKeys().hasOnly(['from','to','note','editedBy','editedAt'])
+        && d.keys().hasOnly(['uid','playerId','name','from','to','note','createdAt','editedBy','editedAt'])
+        && absenceDay(d.from) && absenceDay(d.to)
+        && dayStamp(d.from) <= dayStamp(d.to)
+        && dayStamp(d.to) <= dayStamp(d.from) + duration.value(119, 'd')
+        && (!('note' in d) || (d.note is string && d.note.size() <= 140))
+        && d.editedBy == request.auth.uid
+        && d.editedAt == request.time;
+    }
     match /absences/{id} {
       allow read: if teamMember();
       allow create: if teamMember() && absenceOk(request.resource.data);
-      allow update: if false;
+      allow update: if admin() && absenceEditOk(request.resource.data);
       allow delete: if teamMember() && (resource.data.uid == request.auth.uid || admin());
     }
     // ---- La caja: the team's money as a shared ledger (no real payments, no fines). Every member sees
@@ -651,11 +710,13 @@ service cloud.firestore {
       allow read: if teamMember() && (resource.data.uid == request.auth.uid || admin());
       allow create: if teamMember() && cajaClaimOk(request.resource.data);
       allow update: if admin() && resource.data.status == 'pendiente'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','resolvedBy','resolvedAt','movId'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','resolvedBy','resolvedAt','movId','reason'])
         && request.resource.data.resolvedBy == request.auth.uid
         && request.resource.data.resolvedAt == request.time
-        && ((request.resource.data.status == 'rechazado' && !('movId' in request.resource.data))
-          || (request.resource.data.status == 'confirmado' && cajaClaimPago(request.resource.data, resource.data)));
+        // M-20: a rejection may say why (≤ 130); a confirmation carries none
+        && ((request.resource.data.status == 'rechazado' && !('movId' in request.resource.data)
+            && (!('reason' in request.resource.data) || (request.resource.data.reason is string && request.resource.data.reason.size() <= 130)))
+          || (request.resource.data.status == 'confirmado' && !('reason' in request.resource.data) && cajaClaimPago(request.resource.data, resource.data)));
       allow delete: if teamMember() && resource.data.uid == request.auth.uid && resource.data.status == 'pendiente';
     }
     // ---- La clasificación de la liga (docs/superpowers/specs/2026-10-16-clasificacion-design.md): the

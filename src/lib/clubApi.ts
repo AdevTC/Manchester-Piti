@@ -19,7 +19,7 @@ export const cancelAccessRequest = lazyCallable<void, { ok: boolean }>("cancelAc
 export const createInvite = lazyCallable<{ playerId?: string; maxUses?: 0 | 1; days?: number }, { code: string; expiresAt: number }>("createInvite");
 export const revokeInvite = lazyCallable<{ code: string }, { ok: boolean }>("revokeInvite");
 export const resolveAccess = lazyCallable<{ uid: string; approve: boolean; playerId?: string }, { ok: boolean }>("resolveAccess");
-export const revokeMember = lazyCallable<{ uid: string }, { ok: boolean }>("revokeMember");
+export const revokeMember = lazyCallable<{ uid: string }, RevokeMemberResult>("revokeMember");
 export const doorShirts = lazyCallable<void, { taken: string[]; inside: number }>("doorShirts");
 // Match/season cascades may use the backend's full nine-minute execution window.
 const lifecycleOptions = { timeout: 540_000 };
@@ -151,3 +151,43 @@ export const setMatchScorers = lazyCallable<{ matchId: string; uids: string[] },
 export const setMatchLineup = lazyCallable<import("../../functions/src/matchLineup").SetMatchLineupInput, import("../../functions/src/matchLineup").SetMatchLineupResult>("setMatchLineup");
 /** La mesa's «¿Quién ha venido?» (admin or scorer, until kick-off). */
 export const setMatchPresent = lazyCallable<import("../../functions/src/matchLineup").SetMatchPresentInput, { ok: boolean }>("setMatchPresent");
+
+// r12 · la Sala de control y la mesa (piti-diseno/src/admin/impl/API.md: who may call each one and its errors)
+/** M-07 «Recordar ahora a los que faltan»: the reminder now to each convocado without an answer (captains). */
+export const remindNow = lazyCallable<{ matchId: string }, { sent: number; missing: number }>("remindNow");
+/** M-11 «Cerrar ya» / «Reabrir 24 h» the MVP vote (captains). */
+export const setMvpVote = lazyCallable<{ matchId: string; action: "close" | "reopen" }, { voteClosesAt: number }>("setMvpVote");
+/** M-38 the crónica corta of a published acta (a captain, or the match's scorer within 48 h over his own text). */
+export const saveMatchReport = lazyCallable<{ matchId: string; report: string }, { ok: true; revision: number }>("saveMatchReport");
+/** M-42 the acta's notas rated again (captains). */
+export const recalcMatchNotas = lazyCallable<{ matchId: string }, { players: number; mean: number | null }>("recalcMatchNotas", { timeout: 120_000 });
+/** M-44 the draft over a published acta thrown away (captains). */
+export const discardMatchDraft = lazyCallable<{ matchId: string }, { ok: true }>("discardMatchDraft");
+/** M-43 where each goal starts in the video: event id → seconds (captains; `{}` clears them). */
+export const setVideoMarks = lazyCallable<{ matchId: string; marks: Record<string, number> }, { ok: true; revision: number; marks: Record<string, number> }>("setVideoMarks");
+/** M-48 «+ Invitado» from la mesa: on the match's guest list, the banquillo and the roll call (admin or scorer). */
+export const addMatchGuest = lazyCallable<{ matchId: string; name: string }, { guest: MatchGuest; ref: string; created: boolean }>("addMatchGuest");
+/** M-48 «Duración» from la mesa, 10–150 minutes (admin or scorer, until the final whistle). */
+export const setMatchDuration = lazyCallable<{ matchId: string; minutes: number }, { duration: number; revision: number }>("setMatchDuration");
+/** M-46 a member's porra corrected by a captain (or taken away with `remove`). */
+export type CorrectPredictionInput =
+  | { matchId: string; uid: string; remove: true }
+  | { matchId: string; uid: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] };
+export const correctPrediction = lazyCallable<CorrectPredictionInput, { ok: true }>("correctPrediction");
+/** «Recalcular» the season's porra (captains). */
+export const recomputeSeasonPorra = lazyCallable<{ seasonId: string }, { ok: true }>("recomputeSeasonPorra", { timeout: 120_000 });
+/** B-CLUB-05 a ficha deleted, only when no acta cites it (captains; the rules no longer let a client delete one). */
+export const deletePlayer = lazyCallable<{ playerId: string }, { ok: true }>("deletePlayer");
+/** B-CLUB-01 «Eliminar la temporada»: its players back to the plantilla, its matches without a season (captains). */
+export const deleteSeason = lazyCallable<{ seasonId: string }, { players: number; matches: number }>("deleteSeason", lifecycleOptions);
+/** M-41 a guest's matches passed to his new ficha (captains; create the ficha first). */
+export const promoteGuest = lazyCallable<{ playerId: string; guests: { matchId: string; guestId: string }[] }, { matches: number; seasons: string[] }>("promoteGuest", lifecycleOptions);
+/** M-18 «Mandar un aviso a mano» (captains; one a minute). */
+export type CaptainNoticeAudience = "todos" | "capitanes" | "convocados";
+export const sendCaptainNotice = lazyCallable<{ text: string; audience: CaptainNoticeAudience; matchId?: string }, { members: number; devices: number }>("sendCaptainNotice");
+/** M-13 revokeMember's answer since r12: the ficha it freed and whether he wore the brazalete (older servers: `{ ok }`). */
+export interface RevokeMemberResult {
+  ok: boolean;
+  freed?: string | null;
+  wasCaptain?: boolean;
+}

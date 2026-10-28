@@ -12,7 +12,8 @@ export interface ClubContent {
   youtube: string;
   photoUrl: string;
   milestones: { year: string; title: string; text: string }[];
-  sponsors: { name: string; url: string; logo: string }[];
+  /** r12 M-45: `featured` (one in Inicio) and its dates (YYYY-MM-DD), optional; the order is the list's. */
+  sponsors: { name: string; url: string; logo: string; featured?: boolean; from?: string; to?: string }[];
   gallery: { url: string; caption: string }[];
   /** Preguntas de vestuario (El club). */
   faq: { q: string; a: string }[];
@@ -20,6 +21,29 @@ export interface ClubContent {
   crestStory: string;
   /** Los campos: dirección y cómo llegar a cada uno (≤ 20; derived/venue venueInfo los casa con un partido). */
   venues: VenueDetail[];
+  /** r12 M-19: the kits (absent: the ones in the web's code). Read with schemas.ts clubKitsSchema. */
+  kits?: { home?: ClubKit; away?: ClubKit };
+  /** r12 M-19: trophies won outside the league (absent: none). Read with schemas.ts clubTrophiesSchema. */
+  trophies?: ClubTrophy[];
+  /** r12 M-45: the club's networks (absent: instagram / youtube). Read with schemas.ts clubSocialsSchema. */
+  socials?: ClubSocial[];
+}
+export interface ClubKit {
+  name?: string;
+  note: string;
+  colors: { name: string; hex: string }[];
+}
+export interface ClubTrophy {
+  name: string;
+  /** "YYYY-MM-DD" or "YYYY". */
+  date: string;
+  photoUrl?: string;
+  note?: string;
+}
+export const SOCIAL_NETS = ["instagram", "youtube", "tiktok", "whatsapp", "x", "facebook", "twitch", "web"] as const;
+export interface ClubSocial {
+  net: (typeof SOCIAL_NETS)[number];
+  url: string;
 }
 export const DEFAULT_CONTENT: ClubContent = {
   intro: "Resultados, calendario y estadísticas del Manchester Piti.",

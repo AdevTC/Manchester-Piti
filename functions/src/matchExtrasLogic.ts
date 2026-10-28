@@ -75,12 +75,20 @@ export function mvpWindow(action: MvpAction, m: { status?: unknown; voteClosesAt
 // ── M-38 · la crónica corta ──
 export const SCORER_REPORT_MAX = 220;
 export const REPORT_MAX = 10_000;
-/** Why this member can't write the crónica corta (null = he can). */
-export function reportProblem(o: { isAdmin: boolean; report: string; current: unknown; currentBy: unknown; uid: string }): string | null {
+/** How long after the publication a scorer may still write the crónica corta (the MVP's 48 h). */
+export const SCORER_REPORT_WINDOW_MS = MVP_WINDOW_MS;
+/**
+ * Why this member can't write the crónica corta (null = he can). A captain always can. A scorer only within the
+ * 48 h after the publication, and only over an empty crónica or the very text he saved himself (`mine`, the one
+ * kept with `currentBy`): once anyone else writes it (a captain in the acta), it is no longer his.
+ */
+export function reportProblem(o: { isAdmin: boolean; report: string; current: unknown; currentBy: unknown; mine: unknown; uid: string; publishedAt: number; now: number }): string | null {
   if (!o.isAdmin && o.report.length > SCORER_REPORT_MAX) return `La crónica corta cabe en ${SCORER_REPORT_MAX} letras.`;
   if (o.report.length > REPORT_MAX) return "La crónica es demasiado larga.";
-  const had = typeof o.current === "string" && o.current.trim().length > 0;
-  if (!o.isAdmin && had && o.currentBy !== o.uid) return "La crónica ya la ha escrito un capitán: pídele que la cambie desde la sala.";
+  if (o.isAdmin) return null;
+  if (o.now > o.publishedAt + SCORER_REPORT_WINDOW_MS) return "Ya pasó el plazo de la crónica corta: pídele a un capitán que la cambie desde la sala.";
+  const current = typeof o.current === "string" ? o.current.trim() : "";
+  if (current && (o.currentBy !== o.uid || o.mine !== current)) return "La crónica ya la ha escrito un capitán: pídele que la cambie desde la sala.";
   return null;
 }
 

@@ -59,6 +59,9 @@ export const promoteGuest = onCall({ ...PUBLICATION_RESOURCES, timeoutSeconds: 5
     plans.push({ matchId: g.matchId, guestId: g.guestId, published: match.exists, seasonId: String(doc.get("seasonId") ?? ""), rival });
   }
   const seasons = [...new Set(plans.map((p) => p.seasonId).filter(Boolean))];
+  const seasonDocs = seasons.length ? await db.getAll(...seasons.map((s) => db.doc(`seasons/${s}`))) : [];
+  const closed = seasonDocs.find((s) => !s.exists || s.get("archived") === true);
+  if (closed) throw new HttpsError("failed-precondition", `${closed.exists ? `«${closed.get("name") ?? "Esa temporada"}» está archivada` : "Uno de esos partidos no tiene temporada"}: restáurala antes de darle de alta.`);
   // His seasons first: the acta only takes players of its season.
   if (seasons.length) await player.ref.update({ seasons: FieldValue.arrayUnion(...seasons), archived: FieldValue.delete() });
   for (const p of plans) {
