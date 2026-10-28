@@ -62,7 +62,7 @@ export function makeView(over: Partial<Omit<MesaView, "match">> & { clock?: Part
     ],
     me: { uid: "u-pablo", name: "Pablo", admin: false },
     queue: { online: true, pending: 0, byPlayer: {}, items: [], review: [], lastTryAt: null },
-    lastOwn: null, nextSub: null, plan: [], scorers: [{ uid: "u-pablo", name: "Pablo" }], scorerOptions: [],
+    lastOwn: null, nextSub: null, plan: [], order: [], scorers: [{ uid: "u-pablo", name: "Pablo" }], scorerOptions: [],
     galones: { captainId: null, viceId: null, takers: { penalties: [], freekicks: [], corners: [] } }, secondHalf: null,
     nameOf: (id: string) => players.find((p) => p.id === id)?.name ?? id,
     notice: "",

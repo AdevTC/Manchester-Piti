@@ -7,7 +7,8 @@ import { KitStillContext } from "../../../components/jersey3d/kitStill";
 import { usePageKitStills } from "../../../components/jersey3d/usePageKitStills";
 import { useTheme } from "../../../hooks/useTheme";
 import { useNow } from "../screens/hooks";
-import { maquetaActions, maquetaFase } from "../maqueta";
+import { useMaqueta } from "../useMaqueta";
+import type { SheetControl } from "./useSheetUrl";
 import type { MesaView } from "../types";
 import { Antes, Lista } from "./Antes";
 import { Band, Line, Top } from "./Chrome";
@@ -69,23 +70,23 @@ export function Loading() {
   );
 }
 
-export function Board({ view: real, vista }: { view: MesaView; vista?: string }) {
+export function Board({ view: real, vista, sheet }: { view: MesaView; vista?: string; sheet?: SheetControl }) {
   const { theme } = useTheme();
   // (DEV only: under ?fase= the maqueta answers every action and writes nothing)
-  const fake = import.meta.env.DEV && !!maquetaFase();
-  const view = useMemo(() => (fake ? { ...real, actions: maquetaActions(real.actions) } : real), [fake, real]);
+  const maq = useMaqueta();
+  const view = useMemo(() => (maq?.maquetaFase() ? { ...real, actions: maq.maquetaActions(real.actions) } : real), [maq, real]);
   const printed = useMemo(() => [...view.field, ...view.bench].filter((p) => !p.guest && p.number).map((p) => ({ name: upper(p.name), num: p.number })), [view.field, view.bench]);
   const stillOf = usePageKitStills({ on: true, theme, kits: view.match.kit === "away" ? ["away", "home"] : ["home", "away"], players: printed });
   return (
     <KitStillContext.Provider value={stillOf}>
-      <BoardScreens view={view} vista={vista} />
+      <BoardScreens view={view} vista={vista} sheet={sheet} />
     </KitStillContext.Provider>
   );
 }
 
 /** The screens without the page's stills (the tests render this). */
-export function BoardScreens({ view: v, vista }: { view: MesaView; vista?: string }) {
-  const b = useBoard(v, vista);
+export function BoardScreens({ view: v, vista, sheet }: { view: MesaView; vista?: string; sheet?: SheetControl }) {
+  const b = useBoard(v, vista, sheet);
   const now = useNow(1000);
   if (b.screen === "cerrada") {
     const sc = shownScore(v);

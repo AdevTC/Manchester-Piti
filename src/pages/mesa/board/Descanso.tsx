@@ -24,7 +24,12 @@ export function Descanso({ v, b }: { v: MesaView; b: B }) {
   });
   const all = [...v.field, ...v.bench];
   const present = v.match.present ?? [];
-  const rows = all.filter((p) => !present.length || present.includes(p.id) || p.played || h.base.includes(p.id) || p.sentOff);
+  // (in the convocatoria's order, as the boards list them: the starters, then the bench)
+  const at = (id: string) => {
+    const i = v.order.indexOf(id);
+    return i < 0 ? v.order.length : i;
+  };
+  const rows = all.filter((p) => !present.length || present.includes(p.id) || p.played || h.base.includes(p.id) || p.sentOff).sort((a, b) => at(a.id) - at(b.id));
   const ins = h.sel.filter((id) => !h.base.includes(id));
   const name = (id: string) => upper(v.nameOf(id));
   const codeOf = (id: string) => v.field.find((p) => p.id === id)?.pos ?? v.bench.find((p) => p.id === id)?.vacancy?.code ?? null;

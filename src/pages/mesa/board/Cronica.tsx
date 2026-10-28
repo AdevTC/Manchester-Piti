@@ -31,7 +31,7 @@ export function Cronica({ v, b }: { v: MesaView; b: B }) {
           </button>
         ))}
       </div>
-      <div className="vd-reg-3"><Dupe v={v} b={b} /></div>
+      <Dupe v={v} b={b} />
       <ol className="me-rail vd-reg-4" aria-label="Las jugadas, de la última a la primera">
         {evs.flatMap((e, i) => {
           const out = [];

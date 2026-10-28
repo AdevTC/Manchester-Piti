@@ -106,7 +106,7 @@ function Mas({ v, b }: { v: MesaView; b: B }) {
     ["Córner nuestro", () => b.play("corner")], ["Penalti a favor", () => b.pickFor("penalty_received")], ["Penalti en contra", () => b.pickFor("penalty_committed")],
     ["Gol de penalti", () => b.pickFor("goal_penalty")], ["Gol de falta", () => b.pickFor("goal_freekick")], ["Penalti fallado", () => b.pickFor("penalty_missed")],
     ["En propia (nuestro)", () => b.pickFor("own_goal")], ["Tocado", () => b.pickFor("injury")], ["Recolocar", () => b.swapStart(null)],
-    ["Ver la crónica", () => { b.closeSheet(); v.nav.cronica(); }],
+    ["Ver la crónica", () => v.nav.cronica()],
   ];
   return (
     <Frame title="Más jugadas del Piti" onClose={b.closeSheet}>

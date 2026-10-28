@@ -307,6 +307,8 @@ export interface MesaView {
   nextSub: { inId: string; outId: string; inName: string; outName: string } | null;
   /** Every planned sub of the pizarra that can still be made, by minute (its out on the pitch, its in on the bench). */
   plan: { min: number | null; inId: string; outId: string; inName: string; outName: string }[];
+  /** Everyone called up, in the convocatoria's order (the starters, then the bench). */
+  order: string[];
   /** Who scores this match (the admins always may): uid and name, me included. */
   scorers: { uid: string; name: string }[];
   /** «Añadir anotador» (an admin only): the club's members who could score it and don't yet. */

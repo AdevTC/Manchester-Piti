@@ -51,7 +51,16 @@ test("la mesa de principio a fin: pitar, gol sin autor, descanso, final, complet
     // (it goes up: the presence says so once the server has it)
     await expect(page.getByLabel(/al día$/)).toBeVisible({ timeout: 20_000 });
 
+    // (the phone's Atrás closes the sheet and stays at la mesa; Adelante opens it again)
     await page.getByRole("button", { name: /^Reloj/ }).click();
+    await expect(page).toHaveURL(/[?&]hoja=reloj/);
+    await expect(page.getByRole("dialog", { name: /^El reloj/ })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/partidos/${id}/mesa`));
+    await expect(gol).toBeVisible();
+    await page.goForward();
+    await expect(page.getByRole("dialog", { name: /^El reloj/ })).toBeVisible();
     await page.getByRole("button", { name: "Fin de la 1ª" }).click();
     await page.getByRole("button", { name: "¿Seguro? Toca otra vez" }).click();
     await expect(page.getByRole("heading", { name: /^Descanso · la 1ª acabó/ })).toBeVisible();

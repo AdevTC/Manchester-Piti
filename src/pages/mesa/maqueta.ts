@@ -1,4 +1,4 @@
-// DEV only (never in a build: its callers check import.meta.env.DEV): `?fase=juego|pausa|descanso|final|sinred` on
+// DEV only, never in a build (useMaqueta loads it with a dynamic import behind import.meta.env.DEV): `?fase=antes|juego|pausa|descanso|final|sinred` on
 // la mesa replays a played match up to that moment, with production-shaped data, so its screens can be looked at and
 // compared with the boards without writing anything (the actions do nothing). juego = minute 23, descanso = the end
 // of the 1ª, final = all of it. Like the boards' «Datos: reales».
@@ -16,12 +16,10 @@ export function maquetaFase(): MaquetaFase | null {
   return f && FASES.has(f) ? (f as MaquetaFase) : null;
 }
 
-const HOJAS = new Set<string>(["gol", "reloj", "jugador", "rival", "revisar", "editar", "mas", "invitado", "anotador"]);
-/** `?hoja=` (with `?fase=`): the sheet or the ask the boards open by their hash (hoja=gol starts the gol). */
-export function maquetaHoja(): string | null {
-  if (!import.meta.env.DEV || typeof window === "undefined") return null;
-  const h = new URLSearchParams(window.location.search).get("hoja");
-  return h && HOJAS.has(h) ? h : null;
+/** `?gol` (with `?fase=juego`): starts «Gol del Piti», as the boards' hoja=gol does (the sheets are in the real
+ *  address now: ?hoja=reloj, ?hoja=jugador&j=<id>…). */
+export function maquetaGol(): boolean {
+  return import.meta.env.DEV && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("gol");
 }
 
 /** The match as it stood at that moment of `fase` (`now` the page's clock). */

@@ -6,7 +6,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiError } from "../../../lib/clubApi";
 import { RIVAL_GOAL_HOLD_MS } from "../api";
-import { maquetaHoja } from "../maqueta";
+import { swap, type SwapDirection } from "../../../components/vidrio/transitions";
+import { useMaqueta } from "../useMaqueta";
+import type { SheetControl } from "./useSheetUrl";
 import { buzz } from "../screens/hooks";
 import type { MesaEvent, MesaType, MesaView } from "../types";
 import { fairHalf, finBlockers, halfPlan, listOf, NO_HALF, plural, secondHalfUi, shownScore, upper, whyNot, type HalfUi, type Kind } from "./derive";
@@ -66,6 +68,16 @@ export const SURE_MS = 4_000;
 export const HOLD_MS = 1_000;
 
 const isMesaType = (t: string): t is MesaType => !!t;
+const SHEETS = new Set<string>(["jugador", "mas", "rival", "reloj", "revisar", "editar", "anotador", "invitado"]);
+/** How the boards travel between screens (PK.swap): the whistle into the match and the views of la mesa (the
+ *  roll call, the crónica) slide; the half-time, the end and the acta change in place. */
+export function travelOf(from: Screen, to: Screen): SwapDirection | null {
+  if (from === to) return null;
+  if (from === "antes" && to === "juego") return "right";
+  if (to === "lista" || to === "cronica") return "right";
+  if (from === "lista" || from === "cronica") return "left";
+  return null;
+}
 const elapsedAt = (e: MesaEvent) => e.elapsedSeconds ?? Math.max(0, ((e.minute ?? 1) - 1) * 60 + 30);
 
 export function screenFor(v: MesaView, vista: string | undefined, local: { lista: boolean; justPublished: boolean }): Screen {
@@ -83,7 +95,7 @@ export function screenFor(v: MesaView, vista: string | undefined, local: { lista
   }
 }
 
-export function useBoard(view: MesaView, vista: string | undefined) {
+export function useBoard(view: MesaView, vista: string | undefined, sheetCtl?: SheetControl) {
   const v = view;
   const vRef = useRef(v);
   useEffect(() => {
@@ -91,8 +103,11 @@ export function useBoard(view: MesaView, vista: string | undefined) {
   });
   const [lista, setLista] = useState(false);
   const [justPublished, setJustPublished] = useState(false);
-  const [hoja, setHoja] = useState<Sheet>("");
-  const [sel, setSel] = useState<string | null>(null);
+  // the open sheet: the address's (?hoja=&j=, useSheetUrl) on the page, its own state without one (the tests)
+  const [local, setLocal] = useState<{ hoja: string; j: string | null }>({ hoja: "", j: null });
+  const ctl: SheetControl = sheetCtl ?? { hoja: local.hoja, j: local.j, open: (h, j = null) => setLocal({ hoja: h, j }), close: () => setLocal({ hoja: "", j: null }), pushedSheet: () => false };
+  const hoja = (SHEETS.has(ctl.hoja) ? ctl.hoja : "") as Sheet;
+  const sel = hoja === "jugador" ? ctl.j : null;
   const [sub, setSub] = useState<"" | "tarjeta">("");
   const [mode, setModeState] = useState<Mode | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
@@ -102,11 +117,24 @@ export function useBoard(view: MesaView, vista: string | undefined) {
   const [flash, setFlash] = useState(0);
   const [ui, setUiState] = useState<BoardUi>(FRESH_UI);
   const busyRef = useRef("");
+  const ctlRef = useRef(ctl);
+  useEffect(() => {
+    ctlRef.current = ctl;
+  });
   const timers = useRef<number[]>([]);
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
   const later = (fn: () => void, ms: number) => timers.current.push(window.setTimeout(fn, ms));
 
-  const screen = screenFor(v, vista, { lista, justPublished });
+  const target = screenFor(v, vista, { lista, justPublished });
+  // the screen shown: it follows the match, through the boards' slide where they have one (View Transitions, a
+  // crossfade with reduced motion; vidrio/transitions)
+  const [screen, setScreen] = useState<Screen>(target);
+  const travel = travelOf(screen, target);
+  // (a change the boards don't animate happens at once, in this same render)
+  if (screen !== target && !travel) setScreen(target);
+  useEffect(() => {
+    if (travel) swap(travel, () => setScreen(target));
+  }, [travel, target]);
   // (an error belongs to the screen it happened on: a new screen starts with a clean line, B-MESA-09)
   const prevScreen = useRef(screen);
   useEffect(() => {
@@ -114,7 +142,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     prevScreen.current = screen;
     setStatus((s) => (s && (s.tone === "error" || s.tone === "warn") ? null : s));
     setModeState(null);
-    setHoja("");
+    ctlRef.current.close();
   }, [screen]);
 
   const setUi = useCallback((p: Partial<BoardUi>) => setUiState((u) => ({ ...u, ...p })), []);
@@ -180,7 +208,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     buzz([40, 60, 140]);
     const id = add("goal");
     setFlash(Date.now() + 4000);
-    setHoja("");
+    closeSheet();
     say("Gol del Piti", `Minuto ${minNow()} · ya cuenta · el club recibe «¡Gol del Piti!»`, "gold", { undo: { k: "play", id } });
     setModeState({ k: "scorer", ev: id, until: Date.now() + ASK_MS });
   };
@@ -190,7 +218,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     buzz([40, 60, 140]);
     const id = add(type, { playerId: pid });
     setFlash(Date.now() + 4000);
-    setHoja("");
+    closeSheet();
     setSub("");
     const what = type === "goal" ? `Gol de ${nameOf(pid)}` : type === "goal_penalty" ? `Gol de penalti de ${nameOf(pid)}` : `Gol de falta de ${nameOf(pid)}`;
     say("Gol del Piti", `${what}, minuto ${minNow()} · el club recibe «¡Gol de ${nameOf(pid)}!»`, "gold", { undo: { k: "play", id } });
@@ -225,7 +253,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     if (type === "yellow_card" && player?.stickers.yellow) t = "double_yellow";
     buzz(type === "opponent_goal" ? [220] : [25]);
     const id = add(t, pid ? { playerId: pid } : {});
-    setHoja("");
+    closeSheet();
     setSub("");
     setModeState(null);
     const text = eventWords(t, pid ? nameOf(pid) : "", cur.match.rival);
@@ -240,7 +268,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     if (why) return fail(why);
     buzz([220]);
     const id = add("opponent_goal");
-    setHoja("");
+    closeSheet();
     setModeState(null);
     say(`Gol de ${cur.match.rivalShort}`, "", "them", { undo: { k: "play", id }, hold: Date.now() + RIVAL_GOAL_HOLD_MS });
   };
@@ -254,7 +282,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     const p = cur.field.find((x) => x.id === out) ?? cur.bench.find((x) => x.id === out);
     const word = placeWord(p?.pos ?? p?.vacancy?.code ?? null);
     setModeState(null);
-    setHoja("");
+    closeSheet();
     setSub("");
     say("Cambio", `Entra ${nameOf(inn)}, sale ${nameOf(out)} · ocupa su sitio: ${word}${fromPlan ? " · del plan de la pizarra" : ""}`, "", {
       undo: { k: "play", id },
@@ -270,26 +298,25 @@ export function useBoard(view: MesaView, vista: string | undefined) {
   };
   const assistLast = (pid: string) => {
     const g = [...vRef.current.events].reverse().find((e) => (e.type === "goal" || e.type === "goal_freekick") && e.playerId && e.playerId !== pid && !e.assistId && !e.assistReviewed && !e.dupOf);
-    setHoja("");
+    closeSheet();
     setSub("");
     if (!g?.playerId) return fail("No hay un gol nuestro sin pase al que ponérselo.");
     setAssist(g.id, g.playerId, pid);
   };
 
   // ---------- taps on the pitch and the bench, by what the pitch asks
-  const openSheet = (h: Sheet) => {
-    setHoja(h);
-  };
-  const closeSheet = () => {
-    setHoja("");
+  function openSheet(h: Sheet, j: string | null = null) {
+    ctl.open(h, j);
+  }
+  function closeSheet() {
     setSub("");
-  };
+    if (hoja) ctl.close();
+  }
   const tapField = (pid: string) => {
     const m = mode;
     if (!m) {
-      setSel(pid);
       setSub("");
-      return openSheet("jugador");
+      return openSheet("jugador", pid);
     }
     if (m.k === "scorer") return setScorer(m.ev, pid);
     if (m.k === "assist") {
@@ -306,9 +333,8 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     if (m.k === "pick") {
       setModeState(null);
       if (m.act === "tarjeta") {
-        setSel(pid);
         setSub("tarjeta");
-        return openSheet("jugador");
+        return openSheet("jugador", pid);
       }
       if (m.act === "goal_penalty" || m.act === "goal_freekick") return golTo(pid, m.act);
       return play(m.act, pid);
@@ -324,7 +350,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     const why = whyNot(vRef.current, "substitution");
     if (why) return fail(why);
     setModeState(m?.k === "in" && m.pid === pid ? null : { k: "in", pid });
-    setHoja("");
+    closeSheet();
   };
   const tapHole = (pid: string) => {
     const m = mode;
@@ -335,12 +361,12 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     const type: MesaType = act === "tarjeta" ? "yellow_card" : act;
     const why = whyNot(vRef.current, type);
     if (why) return fail(why);
-    setHoja("");
+    closeSheet();
     setModeState({ k: "pick", act });
   };
   const startSwap = (a: string | null) => {
     const c = vRef.current.match.clock;
-    setHoja("");
+    closeSheet();
     setModeState({ k: "swap", a, n: 0, at: { elapsed: c.elapsedSeconds, period: c.period } });
   };
 
@@ -353,7 +379,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     const held = !!s.hold && s.hold > Date.now();
     setModeState(null);
     setFlash(0);
-    setHoja("");
+    closeSheet();
     if (u.k === "play") {
       const goal = s.tone === "gold" || s.tone === "them";
       const after = shownScore(cur);
@@ -529,7 +555,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     if (!isMesaType(e.type)) return;
     const min = e.minute ?? 1;
     setUi({ edit: { id: e.id, type: e.type as MesaType, p: e.playerId, a: e.assistId, inP: e.inPlayerId, min, min0: min }, editErr: "" });
-    setHoja("editar");
+    openSheet("editar", e.id);
   };
   const editSave = async () => {
     const d = ui.edit;
@@ -561,7 +587,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     try {
       if (Object.keys(patch).length) await cur.actions.edit(d.id, patch);
       setUi({ edit: null, editErr: "" });
-      setHoja("");
+      closeSheet();
       say("Corregido", `${e.text} · minuto ${d.min}`);
     } catch (err) {
       stop(apiError(err));
@@ -571,7 +597,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     const cur = vRef.current;
     const e = cur.events.find((x) => x.id === id);
     if (!e) return fail("Esa jugada ya no está: alguien la ha borrado.");
-    setHoja("");
+    closeSheet();
     setUi({ edit: null, editErr: "" });
     say("Borrado", `${e.text}${e.goal ? " · el club recibe «Gol anulado»" : ""}`, "", { undo: { k: "restore", play: e } });
     cur.actions.remove(id).catch(failed);
@@ -592,7 +618,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     void run("guest", async () => {
       await vRef.current.actions.addGuest(name);
       setUi({ guest: "" });
-      setHoja("");
+      closeSheet();
       say("Invitado", `${name} entra en la lista y en la banda`);
     });
   };
@@ -600,7 +626,7 @@ export function useBoard(view: MesaView, vista: string | undefined) {
     run("scorer", async () => {
       const cur = vRef.current;
       await cur.actions.setScorers([...new Set([...cur.scorers.map((s) => s.uid).filter((u) => u !== cur.me.uid || !cur.me.admin), uid])]);
-      setHoja("");
+      closeSheet();
       say("Anotador", `${name} ya puede anotar este partido · lo ve al instante`);
     });
   const saveReport = () => {
@@ -649,33 +675,36 @@ export function useBoard(view: MesaView, vista: string | undefined) {
   }, []);
 
   const confirmK = confirm.k;
-  // (DEV only: ?hoja= opens a sheet as the boards' hash does; never in a build)
-  const opened = useRef(false);
-  const openFromAddress = () => {
-    const h = maquetaHoja();
-    if (!h) return;
-    const cur = vRef.current;
-    if (h === "gol") return golPiti();
-    if (h === "jugador") {
-      setSel(cur.field[cur.field.length - 1]?.id ?? null);
-      return setHoja("jugador");
-    }
-    if (h === "editar") {
-      const e = cur.events[cur.events.length - 1];
-      if (e) editOpen(e);
-      return;
-    }
-    setHoja(h as Sheet);
-  };
-  const openRef = useRef(openFromAddress);
+  // a sheet that came in with the address (a link, Adelante) without what it needs: «Corregir» gets its play, a
+  // player's sheet a player still on the pitch; otherwise it closes
+  const fromAddress = useRef<() => void>(() => undefined);
   useEffect(() => {
-    openRef.current = openFromAddress;
+    fromAddress.current = () => {
+      const cur = vRef.current;
+      if (hoja === "jugador" && !cur.field.some((p) => p.id === sel)) return closeSheet();
+      if (hoja === "editar" && ui.edit?.id !== ctl.j) {
+        const e = cur.events.find((x) => x.id === ctl.j);
+        if (!e || !isMesaType(e.type)) return closeSheet();
+        const min = e.minute ?? 1;
+        setUi({ edit: { id: e.id, type: e.type as MesaType, p: e.playerId, a: e.assistId, inP: e.inPlayerId, min, min0: min }, editErr: "" });
+      }
+    };
   });
   useEffect(() => {
-    if (!import.meta.env.DEV || opened.current) return;
-    opened.current = true;
-    openRef.current();
-  }, []);
+    fromAddress.current();
+  }, [hoja, ctl.j]);
+  // (DEV only: the replay's ?gol starts «Gol del Piti» once, as the boards' hoja=gol)
+  const maq = useMaqueta();
+  const golOnce = useRef(false);
+  const golRef = useRef(golPiti);
+  useEffect(() => {
+    golRef.current = golPiti;
+  });
+  useEffect(() => {
+    if (!maq || golOnce.current || !maq.maquetaGol()) return;
+    golOnce.current = true;
+    golRef.current();
+  }, [maq]);
   const skip = (x: { inId: string; outId: string }) => {
     setUi({ skipped: [...ui.skipped, x.outId + x.inId] });
     say("Plan", `Saltado: ${nameOf(x.inId)} por ${nameOf(x.outId)}. El plan sigue en la pizarra.`);

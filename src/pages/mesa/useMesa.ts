@@ -16,7 +16,7 @@ import { jornadaOf } from "../../lib/derived/jornada";
 import { systemText } from "../../lib/derived/system";
 import { useStandings } from "../../lib/useStandings";
 import { lineupSeven, parseMatchLineup, parsePresent } from "../../lib/matchLineup";
-import { maquetaFase, maquetaMatch } from "./maqueta";
+import { useMaqueta } from "./useMaqueta";
 import { addSubs, MAX_WAVE } from "./api";
 import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type QueuePayload } from "./queue";
 import {
@@ -180,15 +180,18 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
   const { matches, players, loading } = useClubData();
   const found = matches.find((m) => m.id === matchId);
   // (DEV only: ?fase= replays the match up to that moment and writes nothing, ./maqueta)
-  const maq = import.meta.env.DEV ? maquetaFase() : null;
+  const maqMod = useMaqueta();
+  const maq = maqMod ? maqMod.maquetaFase() : null;
+  // (asked for in the address: the presence never beats from a replay, even before its module is in)
+  const maqWanted = import.meta.env.DEV && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("fase");
   const [maqAt] = useState(() => Date.now());
-  const match = useMemo(() => (maq && found ? maquetaMatch(found, maq, maqAt) : found), [maq, found, maqAt]);
+  const match = useMemo(() => (maqMod && maq && found ? maqMod.maquetaMatch(found, maq, maqAt) : found), [maqMod, maq, found, maqAt]);
   const scorers = useMatchScorers(me ? matchId : undefined);
   const canScore = !!me && (me.admin || scorers.data.includes(me.uid));
   const now = useClock(1000);
   const phase = match?.clock?.phase ?? "ready";
   useWakeLock(canScore && !!match && phase !== "ended");
-  const presenceRows = usePresence(canScore ? matchId : undefined, me, canScore && phase !== "ended" && !maq);
+  const presenceRows = usePresence(canScore ? matchId : undefined, me, canScore && phase !== "ended" && !maqWanted);
   const upcoming = !!match && phase === "ready";
   const boardId = useMatchBoard(match?.seasonId, matchId, upcoming, canScore);
   const board = useBoardView(boardId);
@@ -455,6 +458,8 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       lastOwn: lastId ? events.find((e) => e.id === lastId) ?? null : null,
       nextSub: plan ? { ...plan, inName: nameOf(plan.inId), outName: nameOf(plan.outId) } : null,
       plan: planList,
+      // (the convocatoria's own order: the starters, then the bench; Descanso lists them so, as the boards do)
+      order: [...new Set([...(match.starters ?? []), ...(match.bench ?? []), ...field.map((p) => p.id), ...bench.map((p) => p.id)])],
       scorers: scorerList,
       scorerOptions,
       galones: { captainId: extras.captainId, viceId: extras.viceId, takers: extras.takers },
