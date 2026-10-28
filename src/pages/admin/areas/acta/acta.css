@@ -393,3 +393,6 @@
 .ac-narr .ae-history{display:block}
 .ac-narr .ae-coverage-row{border:0;border-top:1px solid var(--vd-rule);border-radius:0;padding:10px 0}
 .ac-narr .ae-message{white-space:pre-line}
+/* Narración carries the acta's foot too (the same buffer: saved from here) */
+@container (min-width:1100px){.ac-sheet-body:has(>.ac-narr){grid-template-rows:minmax(0,1fr) auto}}
+@container (max-width:1099px){.ac-sheet-body>.ac-narr{padding-bottom:var(--ac-foot-h)}}

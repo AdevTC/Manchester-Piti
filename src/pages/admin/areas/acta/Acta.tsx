@@ -23,8 +23,8 @@ import { ScreenLoading } from "../../shell/Screen";
 import { useSalaGo } from "../../shell/salaHref";
 import { useStatus } from "../../shell/statusContext";
 import { VIcon } from "../../../../components/vidrio/VIcon";
-import { checkRows, footReason, minutesBars, playLines, type CheckRow } from "./actaModel";
-import { AcIcon, ActaBars, ActaEmpty, ActaNav, ActaStills, MinuteBox, Shirt } from "./parts";
+import { checkRows, minutesBars, playLines, type CheckRow } from "./actaModel";
+import { AcIcon, ActaBars, ActaEmpty, ActaFoot, ActaNav, ActaStills, MinuteBox, Shirt } from "./parts";
 import { useSheetSession, type SheetSession } from "./sheetSession";
 import "./acta.css";
 
@@ -635,32 +635,6 @@ function ActaEditor({ s }: { s: SheetSession }) {
 
       <ActaFoot s={s} onPublishTo={() => go(`${base}/publicar`)} />
     </div>
-  );
-}
-
-/** The acta's foot: where it stands, «Guardar borrador» and the one primary action. */
-function ActaFoot({ s, onPublishTo }: { s: SheetSession; onPublishTo: () => void }) {
-  const reason = footReason(s.review, s.published, s.dirty);
-  const priOff = s.published ? !s.dirty && !s.serverDraft : false;
-  return (
-    <footer className="ac-foot sc-primary sc-primary--pin" role="status" aria-live="polite">
-      <p className="ac-foot__s">
-        <b className="ac-foot__line">{s.saveLine}</b>
-        <span>{reason}</span>
-      </p>
-      <button type="button" className="vd-btn vd-glass vd-press" onClick={() => void s.saveDraft()} aria-disabled={!!s.busy || undefined}>
-        {s.busy === "draft" ? "Guardando…" : "Guardar borrador"}
-      </button>
-      {s.published ? (
-        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" aria-disabled={priOff || !!s.busy || undefined} onClick={() => (priOff ? s.saveDraft() : void s.publish())}>
-          {s.busy === "publish" ? "Guardando…" : "Guardar cambios"}
-        </button>
-      ) : (
-        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" onClick={onPublishTo}>
-          Ir a publicar
-        </button>
-      )}
-    </footer>
   );
 }
 

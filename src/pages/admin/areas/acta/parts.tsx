@@ -8,6 +8,7 @@ import { clockTime } from "../../data/adminLogic";
 import { useShell } from "../../shell/context";
 import { SalaLink } from "../../shell/SalaLink";
 import { usePartido } from "../../partido/partidoContext";
+import { footReason } from "./actaModel";
 import type { SheetSession } from "./sheetSession";
 
 const kitOf = (k: string | undefined): Kit => (k === "away" ? "away" : "home");
@@ -183,5 +184,31 @@ export function ActaEmpty({ title, body, kicker, children }: { title: string; bo
       <p className="sc-p">{body}</p>
       {children && <div className="sc-btnrow">{children}</div>}
     </div>
+  );
+}
+
+/** The acta's foot: where it stands, «Guardar borrador» and the one primary action. */
+export function ActaFoot({ s, onPublishTo }: { s: SheetSession; onPublishTo: () => void }) {
+  const reason = footReason(s.review, s.published, s.dirty);
+  const priOff = s.published ? !s.dirty && !s.serverDraft : false;
+  return (
+    <footer className="ac-foot sc-primary sc-primary--pin" role="status" aria-live="polite">
+      <p className="ac-foot__s">
+        <b className="ac-foot__line">{s.saveLine}</b>
+        <span>{reason}</span>
+      </p>
+      <button type="button" className="vd-btn vd-glass vd-press" onClick={() => void s.saveDraft()} aria-disabled={!!s.busy || undefined}>
+        {s.busy === "draft" ? "Guardando…" : "Guardar borrador"}
+      </button>
+      {s.published ? (
+        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" aria-disabled={priOff || !!s.busy || undefined} onClick={() => (priOff ? s.saveDraft() : void s.publish())}>
+          {s.busy === "publish" ? "Guardando…" : "Guardar cambios"}
+        </button>
+      ) : (
+        <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" onClick={onPublishTo}>
+          Ir a publicar
+        </button>
+      )}
+    </footer>
   );
 }

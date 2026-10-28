@@ -24,19 +24,25 @@ import { useMatchShortcuts } from "../../palette/matchShortcuts";
 import { usePartido } from "../../partido/partidoContext";
 import { ScreenLoading } from "../../shell/Screen";
 import { useStatus } from "../../shell/statusContext";
-import { ActaNav } from "./parts";
+import { ActaFoot, ActaNav } from "./parts";
+import { useSalaGo } from "../../shell/salaHref";
 import { useSheetSession, type SheetSession } from "./sheetSession";
 import "../../partidos/analysis-editor.css";
 import "./acta.css";
 
 export function NarracionScreen() {
   const s = useSheetSession();
+  const go = useSalaGo();
   useMatchShortcuts(s.match);
   if (s.loading) return <ScreenLoading label="Cargando el análisis" />;
   return (
     <section className="ac ac-acta" aria-label="El análisis narrado">
       <ActaNav on="narracion" />
-      <Narration s={s} />
+      <div className="ac-sheet-body">
+        <Narration s={s} />
+        {/* (the same acta as «Lo apuntado»: saved from here too) */}
+        <ActaFoot s={s} onPublishTo={() => go(`/admin/partidos/${s.match.id}/publicar`)} />
+      </div>
     </section>
   );
 }

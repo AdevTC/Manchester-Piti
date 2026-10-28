@@ -35,19 +35,23 @@ for (const mobile of [false, true]) test(`un partido terminado se archiva, consu
   } });
   try {
     await enterVestuario(page);
-    // Finished and published matches open directly in Acta; management must not require Encuentro.
+    // A finished, published match opens on «Después» (r12); managing it is the match head's «Gestionar», on every
+    // station (no need to find Datos first).
     await page.goto(`/admin/partidos/${id}`);
-    await expect(page.getByRole("tab", { name: /^Acta/ })).toHaveAttribute("aria-selected", "true");
-    const management = page.getByRole("group", { name: "Gestionar partido" });
-    await expect(management.getByRole("button", { name: "Archivar partido", exact: true })).toBeInViewport();
-    await expect(management.getByRole("button", { name: "Borrar partido", exact: true })).toBeInViewport();
+    // (its address stays the match's: the station of its moment draws under it)
+    await expect(page.getByRole("region", { name: "Después del partido", exact: true })).toBeVisible();
+    const manage = page.getByRole("button", { name: "Gestionar el partido" });
+    await expect(manage).toBeInViewport();
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", await page.locator("body").evaluate((el) => el.clientWidth));
     await page.screenshot({ path: `.emulator-data/management-acta-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
-    await management.getByRole("button", { name: "Archivar partido", exact: true }).click();
+    await manage.click();
+    await page.getByRole("menuitem", { name: "Archivar…" }).click();
     const archive = page.getByRole("dialog", { name: `¿Archivar el partido contra ${rival}?` });
     await expect(archive).toContainText("Conserva el acta");
     await archive.getByRole("button", { name: "Archivar partido", exact: true }).click();
-    await expect(page.getByText(`${rival} · partido archivado`, { exact: true })).toBeVisible();
+    await expect(page.getByText(new RegExp(`${rival} · fuera del calendario`))).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/admin/partidos/archivados/${id}$`));
+    await page.goto("/admin/partidos/archivados");
     await page.getByRole("searchbox", { name: "Buscar partido archivado" }).fill(rival);
     await page.getByRole("button", { name: new RegExp(`^Archivado, Manchester Piti · ${rival}`) }).click();
     const pane = page.getByRole("region", { name: "Partido archivado", exact: true });
@@ -63,13 +67,12 @@ for (const mobile of [false, true]) test(`un partido terminado se archiva, consu
     await expect(page.getByText(`${rival} · partido reactivado`, { exact: true })).toBeVisible();
     await page.getByRole("searchbox", { name: "Buscar partido", exact: true }).fill(rival);
     await page.getByRole("button", { name: new RegExp(`^J\\d+, ${rival}`) }).click();
-    await expect(page.getByRole("tab", { name: /^Acta/ })).toHaveAttribute("aria-selected", "true");
-    await page.goto(`/admin/partidos/${id}?vitrina=true`);
-    const published = page.getByRole("region", { name: "Acta publicada", exact: true });
-    await expect(published.getByRole("button", { name: "Archivar partido", exact: true })).toBeInViewport();
-    await expect(published.getByRole("button", { name: "Borrar partido", exact: true })).toBeInViewport();
+    await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}`));
+    await page.goto(`/admin/partidos/${id}/acta`);
+    await expect(page.getByRole("region", { name: "El acta del partido" })).toBeVisible();
     await page.screenshot({ path: `.emulator-data/management-published-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
-    await published.getByRole("button", { name: "Borrar partido", exact: true }).click();
+    await page.getByRole("button", { name: "Gestionar el partido" }).click();
+    await page.getByRole("menuitem", { name: "Borrar…" }).click();
     const remove = page.getByRole("alertdialog", { name: `¿Borrar el partido contra ${rival}?` });
     await expect(remove).toContainText("No se puede deshacer");
     await expect(remove).toContainText("votos, porras");
