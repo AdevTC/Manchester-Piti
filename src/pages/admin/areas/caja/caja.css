@@ -117,8 +117,10 @@
   .cj .cj-mov{grid-template-columns:96px minmax(0,1fr) auto auto}
   .cj .cj-libro .sc-row__t,.cj .cj-bal .sc-row__t{max-width:80ch}
 }
-/* a 2560 screen: the book gets its own column beside the notices (more columns, never a strip of nothing) */
+/* a 2560 screen: the screen takes the width and the book gets its own column beside the notices (more columns, never
+   a strip of nothing at the sides) */
 @container (min-width:2300px){
+  .cj.sc-screen{max-width:2440px}
   .cj .cj-grid{grid-template-columns:minmax(380px,.75fr) minmax(400px,.85fr) minmax(0,1fr) minmax(0,1.35fr);gap:56px}
   .cj .cj-col3{display:contents}
   .cj .cj-avisos,.cj .cj-libro{height:100%;min-height:0;overflow:auto;scrollbar-width:thin;box-sizing:border-box;padding-right:6px}
