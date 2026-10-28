@@ -626,10 +626,30 @@ service cloud.firestore {
         && (!('note' in d) || (d.note is string && d.note.size() <= 140))
         && d.createdAt == request.time;
     }
-    // M-17: a captain corrects someone's dates or note from la Sala (the same checks), signing the edit.
+    // r12 (Plantilla · la ficha): a captain writes one for a member from la Sala, signed `by` himself, with the
+    // member's own uid, linked ficha and nickname (the same checks of days and note). The backend applies it the
+    // same way and tells no captain (functions/src/absencesLogic.ts absenceNoticeDue).
+    function absenceByCaptainOk(d) {
+      let who = /databases/$(database)/documents/users/$(d.uid);
+      return d.keys().hasOnly(['uid','playerId','name','from','to','note','createdAt','by'])
+        && d.keys().hasAll(['uid','playerId','name','from','to','createdAt','by'])
+        && d.by == request.auth.uid
+        && d.uid is string && exists(who)
+        && exists(/databases/$(database)/documents/teamMembers/$(d.uid))
+        && d.playerId is string && d.playerId.size() > 0
+        && get(who).data.get('playerId', null) == d.playerId
+        && get(who).data.get('nickname', null) == d.name
+        && absenceDay(d.from) && absenceDay(d.to)
+        && dayStamp(d.from) <= dayStamp(d.to)
+        && dayStamp(d.to) <= dayStamp(d.from) + duration.value(119, 'd')
+        && (!('note' in d) || (d.note is string && d.note.size() <= 140))
+        && d.createdAt == request.time;
+    }
+    // M-17: a captain corrects someone's dates or note from la Sala (the same checks), signing the edit
+    // (`by`, when a captain wrote it, stays as it was).
     function absenceEditOk(d) {
       return d.diff(resource.data).affectedKeys().hasOnly(['from','to','note','editedBy','editedAt'])
-        && d.keys().hasOnly(['uid','playerId','name','from','to','note','createdAt','editedBy','editedAt'])
+        && d.keys().hasOnly(['uid','playerId','name','from','to','note','createdAt','by','editedBy','editedAt'])
         && absenceDay(d.from) && absenceDay(d.to)
         && dayStamp(d.from) <= dayStamp(d.to)
         && dayStamp(d.to) <= dayStamp(d.from) + duration.value(119, 'd')
@@ -639,7 +659,7 @@ service cloud.firestore {
     }
     match /absences/{id} {
       allow read: if teamMember();
-      allow create: if teamMember() && absenceOk(request.resource.data);
+      allow create: if teamMember() && (absenceOk(request.resource.data) || (admin() && absenceByCaptainOk(request.resource.data)));
       allow update: if admin() && absenceEditOk(request.resource.data);
       allow delete: if teamMember() && (resource.data.uid == request.auth.uid || admin());
     }
