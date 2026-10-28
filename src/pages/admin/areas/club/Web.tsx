@@ -6,7 +6,7 @@
 // Publishing a player's story writes only what changed here: a photo put in his ficha is never written back over
 // (B-CLUB-06).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { VIcon } from "../../../../components/vidrio/VIcon";
 import { useAuth } from "../../../../context/AuthContext";
 
@@ -18,7 +18,7 @@ import { nameFor } from "../../../../lib/clubData";
 import { venueKey, venueName, VENUE_LIMITS } from "../../../../lib/derived/venue";
 import { plural } from "../../../../lib/derived/words";
 import { WEB_SECTIONS } from "../../../../lib/adminUrls";
-import { applyClub, CLUB_FIELDS, contentIssues, emailOk, LIMITS, monthLabel, pendingKeys, publishPlan, putClubDraft, putStoryDrafts, removePublished, sliceOf, staleKeys, storyIssues, storyOf, storyWith, type ClubKey, type ContentKey, type Drafts, type PlayerStory } from "../../club/contentModel";
+import { applyClub, CLUB_FIELDS, contentIssues, emailOk, LIMITS, monthLabel, pendingKeys, publishPlan, putClubDraft, putStoryDrafts, removePublished, sliceOf, staleKeys, storyOf, storyWith, type ClubKey, type ContentKey, type Drafts, type PlayerStory } from "../../club/contentModel";
 import { useContentDraftState } from "../../club/contentDraftStore";
 import { linkState } from "../../club/plantillaLogic";
 import { useClubWrites } from "../../club/useClubWrites";
@@ -101,11 +101,16 @@ function WebRoom({ section }: { section: WebSection | null }) {
   const pending = pendingKeys(drafts, content, liveStory);
   const stale = staleKeys(drafts, content, liveStory);
   const stories = squad.map((p) => ({ id: p.id, name: shirtOf(p, sid).name, story: storyWith(drafts, p.id, liveStory(p.id)) }));
-  const issues = [...contentIssues(cur), ...storyIssues(stories)];
+  // (the stories' photos are the fichas': never checked nor written here, B-CLUB-06)
+  const issues = contentIssues(cur);
   const withStory = stories.filter((s) => s.story.bio.trim()).length;
   const sec = section ? (SECTIONS.find((s) => s.id === section) ?? null) : null;
   const [publishing, setPublishing] = useState(false);
-  const [jugador, setJugador] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("jugador")));
+  // `?jugador=<id>` (the ficha's «Escribir su historia») opens his story; a tap on another player picks him
+  const param = useRouterState({ select: (s) => new URLSearchParams(s.location.searchStr).get("jugador") });
+  const [picked, setPicked] = useState<{ param: string | null; id: string } | null>(null);
+  const jugador = picked && picked.param === param ? picked.id : param;
+  const setJugador = (id: string) => setPicked({ param, id });
 
   const index = SECTIONS.map((s) => {
     const miss = sectionMiss(s.id, cur, withStory, squad.length);
@@ -521,11 +526,6 @@ function Historias({ stories, sid, jugador, pick, setStory, squadIds }: { storie
           <Shirt shirt={jpShirt} src={src(jpShirt)} size="m" alt={jp.name} />
           <div className="sc-form sc-form--1">
             <label className="sc-field">
-              <span>Foto de {jp.name} (HTTPS)</span>
-              <input className="vd-input" type="url" placeholder="https://" value={jp.story.photoUrl} onChange={(e) => setStory(jp.id, { photoUrl: e.target.value })} />
-              <LinkHint v={jp.story.photoUrl} okText="Enlace seguro · se ve en su página" />
-            </label>
-            <label className="sc-field">
               <span>Su frase</span>
               <input className="vd-input" type="text" maxLength={160} value={jp.story.quote} onChange={(e) => setStory(jp.id, { quote: e.target.value })} />
               <Count v={jp.story.quote} max={160} />
@@ -537,7 +537,7 @@ function Historias({ stories, sid, jugador, pick, setStory, squadIds }: { storie
             </label>
           </div>
           <p className="sc-small">
-            Al publicar solo se escribe lo que cambies aquí: la foto que se puso en su ficha no se pisa.{" "}
+            Aquí van su frase y su presentación. Su foto ({jp.story.photoUrl ? "ya tiene" : "todavía sin foto"}) se cambia en su ficha: publicar la web nunca la toca.{" "}
             <SalaLink className="vd-link" to={`/admin/plantilla/${jp.id}`}>
               Abrir su ficha
             </SalaLink>

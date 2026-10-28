@@ -96,14 +96,14 @@ export interface PlayerStory {
 }
 export const storyOf = (p: { bio?: string; quote?: string; photoUrl?: string } | undefined): PlayerStory => ({ bio: p?.bio ?? "", quote: p?.quote ?? "", photoUrl: p?.photoUrl ?? "" });
 
-/** `v` without its undefined values, at any depth (arrays and plain objects). */
-export function withoutUndefined<T>(v: T): T {
-  if (Array.isArray(v)) return v.map(withoutUndefined) as T;
-  if (v && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype)
-    return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, withoutUndefined(x)])) as T;
-  return v;
-}
-
+/** `v` without its undefined values, at any depth (arrays and plain objects). */
+export function withoutUndefined<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(withoutUndefined) as T;
+  if (v && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype)
+    return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, withoutUndefined(x)])) as T;
+  return v;
+}
+
 /** JSON with sorted keys and trimmed strings: «the same content» regardless of key order or stray spaces. */
 export function canonical(v: unknown): string {
   const norm = (x: unknown): unknown => {
@@ -244,8 +244,8 @@ export function storyIssues(stories: readonly { name: string; story: PlayerStory
 export interface PublishPlan {
   /** The whole clubContent/main document to write, or null when no club section changed. */
   content: ClubContent | null;
-  /** players/{id} merges: only the fields this draft changed (B-CLUB-06: a photo put in the ficha meanwhile is
-   *  never written back over). */
+  /** players/{id} merges: only the bio and the quote this draft changed (B-CLUB-06: the photo is the ficha's, never
+   *  written from here). */
   stories: { id: string; data: Partial<PlayerStory> }[];
   sections: ContentKey[];
 }
@@ -260,7 +260,8 @@ export function publishPlan(d: Drafts, live: ClubContent, liveStory: (id: string
       .filter(([id, e]) => !same(e.value, liveStory(id)))
       .map(([id, e]) => {
         const data: Partial<PlayerStory> = {};
-        for (const k of ["bio", "quote", "photoUrl"] as const) if (e.value[k].trim() !== e.base[k].trim()) data[k] = e.value[k].trim();
+        // (never the photo: it is the ficha's, changed in the plantilla; an old draft that carried one leaves it be)
+        for (const k of ["bio", "quote"] as const) if (e.value[k].trim() !== e.base[k].trim()) data[k] = e.value[k].trim();
         return { id, data };
       })
       .filter((s) => Object.keys(s.data).length > 0),

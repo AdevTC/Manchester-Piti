@@ -150,6 +150,9 @@ describe("publishPlan", () => {
     const plan = publishPlan(d, live, later);
     expect(plan.stories).toEqual([{ id: "kevin", data: { quote: "A por ellos" } }]);
     expect(plan.stories[0].data).not.toHaveProperty("photoUrl");
+    // even a draft (from before) that carried another photo never writes it: the photo is the ficha's
+    const old = putStoryDrafts(NO_DRAFTS, { kevin: { ...liveStory("kevin"), photoUrl: "https://x.es/vieja.jpg" } }, liveStory, 1);
+    expect(publishPlan(old, live, liveStory).stories).toEqual([]);
   });
 
   it("withoutUndefined: what Firestore refuses (an empty sponsor date, a field never set) is left out, at any depth", () => {

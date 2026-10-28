@@ -132,6 +132,14 @@ describe("Club · la oficina y sus salas", () => {
     expect(h.writes.deleteSeason).not.toHaveBeenCalled();
   });
 
+  it("B-CLUB-06: /web/historias?jugador=<id> opens his story; his photo is the ficha's (no field here)", async () => {
+    mountAdmin("/admin/club/web/historias?jugador=kevin", ON);
+    expect(await screen.findByRole("textbox", { name: /^Su frase/ })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Jugadores" }).querySelector('[aria-current="true"]')).toHaveTextContent("KEVIN");
+    expect(screen.queryByRole("textbox", { name: /^Foto de/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Abrir su ficha" })).toHaveAttribute("href", "/admin/plantilla/kevin");
+  });
+
   it("Temporadas: the vitrina of the season in course and «Nueva temporada» as the primary action", async () => {
     mountAdmin("/admin/club/temporadas", ON);
     expect(await screen.findByRole("heading", { level: 1, name: "Temporadas" })).toBeInTheDocument();
