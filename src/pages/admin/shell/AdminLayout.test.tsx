@@ -88,7 +88,7 @@ describe("the desktop (≥ 1100): the web's bar with the capsule", () => {
     mountAdmin("/admin");
     await user.click(await screen.findByRole("button", { name: /abrir el menú/ }));
     await user.click(screen.getByRole("menuitem", { name: "Salir en este dispositivo" }));
-    const dialog = screen.getByRole("dialog", { name: "¿Salir en este dispositivo?" });
+    const dialog = screen.getByRole("alertdialog", { name: "¿Salir en este dispositivo?" });
     await user.click(within(dialog).getByRole("button", { name: "Salir" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("No se ha podido cerrar la sesión: sin red");
     expect(sessionStorage.getItem("mp_door_notice")).toBeNull();
@@ -100,7 +100,7 @@ describe("the desktop (≥ 1100): the web's bar with the capsule", () => {
     mountAdmin("/admin");
     await user.click(await screen.findByRole("button", { name: /abrir el menú/ }));
     await user.click(screen.getByRole("menuitem", { name: "Salir en este dispositivo" }));
-    await user.click(within(screen.getByRole("dialog", { name: "¿Salir en este dispositivo?" })).getByRole("button", { name: "Salir" }));
+    await user.click(within(screen.getByRole("alertdialog", { name: "¿Salir en este dispositivo?" })).getByRole("button", { name: "Salir" }));
     await waitFor(() => expect(sessionStorage.getItem("mp_door_notice")).toBe("Has salido en este dispositivo"));
   });
 });

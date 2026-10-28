@@ -48,7 +48,7 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
     await page.screenshot({ path: testInfo.outputPath('narrated-admin-desktop.png') });
     // The form is still unapplied: rotating must preserve its local values and the acta buffer.
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.locator('.vx.adm')).toHaveClass(/\bm\b/);
+    await expect(page.locator('.vx.sc')).toHaveClass(/\bm\b/);
     await expect(page.getByRole('group', { name: 'Editar observación' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Autor del detalle', exact: true })).toHaveValue(ids[1]);
     await expect(page.getByRole('combobox', { name: 'Receptor del detalle', exact: true })).toHaveValue(ids[2]);
@@ -56,7 +56,7 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
     await page.getByRole('group', { name: 'Editar observación' }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath('narrated-admin-rotation-mobile.png') });
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await expect(page.locator('.vx.adm')).toHaveClass(/\bd\b/);
+    await expect(page.locator('.vx.sc')).toHaveClass(/\bd\b/);
     await expect(page.getByRole('group', { name: 'Editar observación' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Autor del detalle', exact: true })).toHaveValue(ids[1]);
     await expect(page.getByRole('combobox', { name: 'Receptor del detalle', exact: true })).toHaveValue(ids[2]);

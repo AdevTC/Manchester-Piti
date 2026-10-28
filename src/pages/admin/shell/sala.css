@@ -1,12 +1,21 @@
 /* ===== r12 · Sala de control · the frame and the shared pieces every area builds with (sc-*). Ported from the
    boards' base.css (piti-diseno/src/admin/src/admin/base.css) without the maqueta strip. Vidrio: the light field
    behind, reading on it in rows with hairlines, glass only on what is touched. Every text ≥ 11.5 px (B-SH-17).
-   The root is `.vx.adm.sc` (the `.vx` size container; `.adm` keeps today's views styled until wave 2 replaces
-   them); `.sc-app` is the app (inert while a modal is open) and the element the container queries style. ===== */
+   The root is `.vx.sc` (the `.vx` size container); `.sc-app` is the app (inert while a modal is open) and the
+   element the container queries style. ===== */
 
-.vx.adm.sc{--sc-top-h:84px;--sc-status-h:40px;--sc-dock-h:72px;position:relative;isolation:isolate;height:100dvh;min-height:480px;overflow:hidden;
+.vx.sc{--sc-top-h:84px;--sc-status-h:40px;--sc-dock-h:72px;position:relative;isolation:isolate;height:100dvh;min-height:480px;overflow:hidden;
   background:var(--vd-noche);color:var(--vd-ink);font-family:var(--vd-sans);font-size:15px;line-height:1.4}
-:root[data-theme="light"] .vx.adm.sc{background:#e8f0f8}
+:root[data-theme="light"] .vx.sc{background:#e8f0f8}
+/* The frame IS the viewport: the page never scrolls (each region scrolls inside). In the site's main it asks for no
+   height of its own, and under the dev strip (RootLayout's yellow «Entorno local» banner, 30 px) it is that much
+   shorter. The resets below came with the admin v2's CSS, with the same weight, so nothing of the areas moves. */
+.club-main:has(> .vx.sc){min-height:0}
+.club-app:has(> .club-demo-banner) .vx.sc{height:calc(100dvh - 30px)}
+.vx.sc h1,.vx.sc h2,.vx.sc h3,.vx.sc p{margin:0}
+:where(.vx.sc) button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+.vx.sc input,.vx.sc textarea{font:inherit;color:var(--ink)}
+.sc :where(h2,h3,h4){font-family:inherit;font-weight:700;letter-spacing:0}
 .sc>.vd-sky{position:absolute;inset:0;z-index:0;height:auto}
 .sc-app{--sc-gut:18px;position:relative;z-index:2;height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;min-height:0}
 .sc-i{width:20px;height:20px;flex:none}
@@ -247,6 +256,15 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 .sc-shirt{display:block;width:var(--sw,64px);height:calc(var(--sw,64px) * 1.1);object-fit:contain;object-position:50% 50%;flex:none;filter:drop-shadow(0 8px 14px rgba(2,8,26,.35))}
 :root[data-theme="light"] .sc-shirt{filter:drop-shadow(0 8px 14px rgba(30,60,110,.22))}
 .sc-shirt--xs{--sw:34px}.sc-shirt--s{--sw:46px}.sc-shirt--m{--sw:64px}.sc-shirt--l{--sw:110px}.sc-shirt--xl{--sw:180px}
+/* …and the drawn back while that still renders (kit/ShirtBack `.sh`: the Club's rooms) */
+.sc .sh{position:relative;display:inline-block;width:var(--w,64px);height:var(--w,64px);flex:0 0 auto}
+.sc .sh svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 8px 12px rgba(0,0,0,.35))}
+.sc .sh .sf{fill:#a9d6f5;stroke:rgba(255,255,255,.4);stroke-width:1.5}
+:root[data-theme="light"] .vx.sc .sh .sf{stroke:rgba(12,23,51,.25)}
+.sc .sh .cl{fill:none;stroke:rgba(12,23,51,.35);stroke-width:3}
+.sc .sh b{position:absolute;left:0;right:0;top:36%;text-align:center;font-family:'Anybody';font-weight:900;font-variation-settings:'wdth' 75;font-size:calc(var(--w,64px)*.36);line-height:1;color:#0c1733}
+.sc .sh i{position:absolute;left:12%;right:12%;top:20%;text-align:center;font-style:normal;font-family:'Anybody';font-weight:800;font-size:calc(var(--w,64px)*.12);letter-spacing:.03em;color:#0c1733;font-variation-settings:'wdth' 78;white-space:nowrap;overflow:hidden;line-height:1.2}
+.sc .sh.big b{top:40%}
 
 /* ---------- the carril: the jornada's stations as touchable glass nodes joined by a line ---------- */
 .sc-carril{position:relative;display:grid;grid-template-columns:repeat(var(--n,6),minmax(0,1fr));gap:0;list-style:none;margin:0;padding:0}
@@ -349,6 +367,20 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
   .sc-sheet--center{right:auto;left:50%;top:12%;bottom:auto;transform:translateX(-50%);width:min(560px,92%);max-height:76%}
   .sc-sheet .sc-sheet__grab{display:none}
 }
+/* the confirmation on the sheet (ui/layers ConfirmModal): its line, what will happen (✓, or the warning mark when it
+   destroys), the error, and a destructive confirmation that says so in a word, an icon and its colour */
+.vx.sc .sc-confirm__lede{margin:0 0 12px;font-size:15px;line-height:1.45;color:var(--vd-g-ink2)}
+.sc-confirm__cs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sc-confirm__cs li{display:flex;align-items:flex-start;gap:10px;font-size:14.5px;line-height:1.4;color:var(--vd-g-ink)}
+.sc-confirm__cs svg{flex:none;margin-top:1px;color:var(--vd-celeste)}
+:root[data-theme="light"] .sc-confirm__cs svg{color:var(--vd-celeste-ink)}
+.sc-confirm.is-danger .sc-confirm__cs svg{color:var(--vd-roja)}
+.vx.sc .sc-confirm__err{display:flex;align-items:flex-start;gap:8px;margin:12px 0 0;font-size:14.5px;font-weight:650;line-height:1.4;color:var(--vd-g-ink)}
+.sc-confirm__err svg{flex:none;color:var(--vd-roja)}
+.vx.sc .sc-confirm .sc-sheet__f .vd-btn{flex:0 1 auto}
+.vx.sc .vd-btn.sc-danger{--vd-g-tint:rgba(229,72,77,.34);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-roja)}
+.vx.sc .vd-btn.sc-danger svg{flex:none;width:18px;height:18px}
+@container (max-width:699px){.vx.sc .sc-confirm .sc-sheet__f .vd-btn{flex:1 1 auto}}
 
 /* ---------- the one primary action: on the phone and the tablet, pinned above the dock in the thumb zone, on a
    tray of its own (blurred and nearly opaque, fading in at the top) so what scrolls under it never reads through ---------- */
@@ -366,14 +398,6 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 }
 .sc-why{margin:0;font-size:13.5px;line-height:1.35;color:var(--vd-ink2)}
 
-/* today's views inside the new frame, until wave 2 replaces each one (their own `.adm` styles still apply) */
-.sc-interim{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.sc-main>.sc-interim{height:100%}
-/* (inside the new match its head says the match: of today's workspace head only its tabs stay, the stations it draws) */
-.sc-match .sc-interim .det>.dh>:not(.tabs4){display:none}
-.sc-match .sc-interim .det>.dh{padding-top:0}
-.sc-interim .det{border:0}
-
 /* View Transitions (law 4: the screen leaves → what is shared morphs → the next one comes in; never both at once):
    the change of screen is the web's change of page (components/celeste/pageTransition), on the sala's <main>; the
    top bar and the dock stay, the bead slides, and these names travel (rows → their detail heads) */
@@ -390,19 +414,20 @@ html[data-vd-page]::view-transition-group(sc-station){animation-duration:var(--v
 
 @media (prefers-reduced-motion:reduce){
   .sc *,.sc *::before,.sc *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  .vx.sc *,.vx.sc *::before{animation:none!important;transition:none!important}
 }
 
-/* (the sala's words are Mona Sans whatever today's views set around them; never Anybody: law 2) */
-.vx.adm.sc :is(.sc-h1,.sc-h2,.sc-h3,.sc-k,.sc-lede,.sc-door__t,.sc-failed,.sc-phead__h,.sc-brand__name,.sc-station,.sc-mhead){font-family:var(--vd-sans)}
-/* (today's admin.css zeroes every h1–h3 and p inside .vx.adm: the sala's own margins win back, until it goes) */
-.vx.adm.sc .sc-k{margin:0 0 4px}
-.vx.adm.sc .sc-lede{margin:6px 0 0}
-.vx.adm.sc .sc-mhead__s{margin:8px 0 0}
-.vx.adm.sc .sc-phead__t p+p{margin:2px 0 0}
-.vx.adm.sc .sc-menu__g{margin:8px 12px 2px}
-.vx.adm.sc .sc-pal__gt{margin:10px 10px 4px}
-.vx.adm.sc .sc-pal__none{margin:18px 12px}
-.vx.adm.sc .sc-prop__l{margin:0 0 6px}
-.vx.adm.sc .sc-offline{margin:0 var(--sc-gut) 6px}
-@container (min-width:1100px){.vx.adm.sc .sc-offline{margin:12px var(--sc-gut) 0}}
-@container (max-width:1099px){.vx.adm.sc .sc-mhead__s{margin-top:0}}
+/* (the sala's words are Mona Sans whatever the pieces they sit in set; never Anybody: law 2) */
+.vx.sc :is(.sc-h1,.sc-h2,.sc-h3,.sc-k,.sc-lede,.sc-door__t,.sc-failed,.sc-phead__h,.sc-brand__name,.sc-station,.sc-mhead){font-family:var(--vd-sans)}
+/* (the frame's reset zeroes every h1–h3 and p: the sala's own margins win back) */
+.vx.sc .sc-k{margin:0 0 4px}
+.vx.sc .sc-lede{margin:6px 0 0}
+.vx.sc .sc-mhead__s{margin:8px 0 0}
+.vx.sc .sc-phead__t p+p{margin:2px 0 0}
+.vx.sc .sc-menu__g{margin:8px 12px 2px}
+.vx.sc .sc-pal__gt{margin:10px 10px 4px}
+.vx.sc .sc-pal__none{margin:18px 12px}
+.vx.sc .sc-prop__l{margin:0 0 6px}
+.vx.sc .sc-offline{margin:0 var(--sc-gut) 6px}
+@container (min-width:1100px){.vx.sc .sc-offline{margin:12px var(--sc-gut) 0}}
+@container (max-width:1099px){.vx.sc .sc-mhead__s{margin-top:0}}

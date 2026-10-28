@@ -477,7 +477,7 @@ describe("Después", () => {
     await screen.findByRole("heading", { name: "El MVP" });
     await user.click(screen.getByRole("button", { name: "Gestionar el partido" }));
     await user.click(screen.getByRole("menuitem", { name: "Archivar…" }));
-    const dialog = screen.getByRole("dialog", { name: /^¿Archivar el partido contra Emirates\?/ });
+    const dialog = screen.getByRole("alertdialog", { name: /^¿Archivar el partido contra Emirates\?/ });
     expect(archive).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "Archivar partido" }));
     await waitFor(() => expect(archive).toHaveBeenCalledExactlyOnceWith({ id: "m6", archived: true }));
@@ -556,7 +556,7 @@ describe("Narración", () => {
           this.callback = callback;
         }
         observe(target: Element) {
-          if (target.matches(".vx.adm")) resizeFrame = (width) => this.callback([{ target, contentRect: { width } as DOMRectReadOnly, borderBoxSize: [], contentBoxSize: [], devicePixelContentBoxSize: [] }], this);
+          if (target.matches(".vx.sc")) resizeFrame = (width) => this.callback([{ target, contentRect: { width } as DOMRectReadOnly, borderBoxSize: [], contentBoxSize: [], devicePixelContentBoxSize: [] }], this);
         }
         unobserve() {}
         disconnect() {}

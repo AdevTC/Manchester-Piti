@@ -1,13 +1,12 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { SalaSheet } from "../shell/Sheet";
 import { FrameContext, frameOf } from "./frame";
-import { ConfirmModal, Drawer, LayerProvider, Modal, Popover } from "./layers";
+import { ConfirmModal, LayerProvider } from "./layers";
 
-vi.mock("../../../lib/clubApi", () => ({ apiError: (e: unknown) => String(e) }));
-
-/** A fake admin frame: the app (made inert by modal layers) + the layer host. */
+/** A fake sala: the app (made inert by modal layers) + the layer host. */
 function Harness({ children, width = 1440 }: { children: React.ReactNode; width?: number }) {
   const app = useRef<HTMLDivElement>(null);
   return (
@@ -21,185 +20,169 @@ function Harness({ children, width = 1440 }: { children: React.ReactNode; width?
   );
 }
 
-function DrawerWithModal() {
-  const [drawer, setDrawer] = useState(false);
-  const [modal, setModal] = useState(false);
+function Opener({ danger = false, alt = false, error }: { danger?: boolean; alt?: boolean; error?: string }) {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState("");
   return (
     <>
-      <button type="button" onClick={() => setDrawer(true)}>
-        Abrir cajón
+      <button type="button" onClick={() => setOpen(true)}>
+        Abrir
       </button>
-      <Drawer open={drawer} onClose={() => setDrawer(false)} title="ERIK" status={{ text: "● Cambios sin guardar", tone: "warn" }} footer={<button type="button">Guardar</button>}>
-        <input aria-label="Nombre" />
-        <button type="button" onClick={() => setModal(true)}>
-          Dar de baja
-        </button>
-      </Drawer>
+      <p>{done}</p>
       <ConfirmModal
-        open={modal}
-        onClose={() => setModal(false)}
-        title="¿Dar de baja a ERIK?"
-        lede="Deja la plantilla."
-        consequences={["Su camiseta deja la percha", "Sus actas y su carta se quedan"]}
-        confirmLabel="Dar de baja"
-        confirmTone="redf"
-        onConfirm={() => setModal(false)}
+        open={open}
+        onClose={() => setOpen(false)}
+        title={danger ? "¿Borrar el partido contra Red Demons?" : "¿Salir en este dispositivo?"}
+        lede="Lo que pasa, en una línea."
+        consequences={["La primera cosa", "La segunda cosa"]}
+        confirmLabel={danger ? "Borrar partido" : "Salir"}
+        confirmTone={danger ? "redf" : "sky"}
+        alt={alt ? { label: "Guardar y salir", onClick: () => setDone("alt") } : undefined}
+        error={error}
+        onConfirm={() => {
+          setDone("confirmado");
+          setOpen(false);
+        }}
       />
     </>
   );
 }
 
-describe("layers", () => {
-  it("a modal focuses itself, traps Tab, closes on Esc and gives the focus back", async () => {
+describe("ConfirmModal (the sala's sheet)", () => {
+  it("is a centred alertdialog on the sheet: described by its line, focus inside, Tab trapped, Esc closes and the focus goes back", async () => {
     const user = userEvent.setup();
-    function One() {
-      const [open, setOpen] = useState(false);
+    render(
+      <Harness>
+        <Opener />
+      </Harness>,
+    );
+    const trigger = screen.getByRole("button", { name: "Abrir" });
+    await user.click(trigger);
+    const dialog = screen.getByRole("alertdialog", { name: "¿Salir en este dispositivo?" });
+    expect(dialog).toHaveClass("sc-sheet", "sc-sheet--center", "sc-confirm");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveAccessibleDescription("Lo que pasa, en una línea.");
+    expect(dialog).toHaveFocus();
+    expect(screen.getByTestId("app")).toHaveAttribute("inert");
+    expect(dialog.querySelectorAll(".sc-confirm__cs li")).toHaveLength(2);
+    // Tab cycles inside: Cerrar → Cancelar → Salir → back to Cerrar.
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Cerrar" })).toHaveFocus();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Salir" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Cerrar" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByTestId("app")).not.toHaveAttribute("inert");
+    expect(trigger).toHaveFocus();
+  });
+
+  it("Vidrio buttons at its foot: the alternative, «Cancelar», then the confirmation (the one primary)", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Opener alt />
+      </Harness>,
+    );
+    await user.click(screen.getByRole("button", { name: "Abrir" }));
+    const foot = screen.getByRole("alertdialog").querySelector(".sc-sheet__f")!;
+    const buttons = within(foot as HTMLElement).getAllByRole("button");
+    expect(buttons.map((b) => b.textContent)).toEqual(["Guardar y salir", "Cancelar", "Salir"]);
+    for (const b of buttons) expect(b).toHaveClass("vd-btn", "vd-glass", "vd-press");
+    expect(buttons[2]).toHaveClass("vd-btn--pri");
+    expect(buttons.filter((b) => b.classList.contains("vd-btn--pri"))).toHaveLength(1);
+    expect(document.querySelector(".btn")).toBeNull();
+    await user.click(buttons[0]);
+    expect(screen.getByText("alt")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Salir" }));
+    expect(screen.getByText("confirmado")).toBeInTheDocument();
+  });
+
+  it("a destructive one says so in a word and an icon, not only in its colour", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Opener danger />
+      </Harness>,
+    );
+    await user.click(screen.getByRole("button", { name: "Abrir" }));
+    const dialog = screen.getByRole("alertdialog", { name: "¿Borrar el partido contra Red Demons?" });
+    expect(dialog).toHaveClass("is-danger");
+    const go = screen.getByRole("button", { name: "Borrar partido" });
+    expect(go).toHaveClass("sc-danger");
+    expect(go).not.toHaveClass("vd-btn--pri");
+    expect(go.querySelector("svg.sc-confirm__warn")).not.toBeNull();
+    // every consequence carries the warning mark
+    expect(dialog.querySelectorAll(".sc-confirm__cs svg.sc-confirm__warn")).toHaveLength(2);
+  });
+
+  it("an error is an alert above the buttons; busy and disabled keep the confirmation focusable and inert", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    function C({ busy = false }: { busy?: boolean }) {
+      const [open, setOpen] = useState(true);
+      return <ConfirmModal open={open} onClose={() => setOpen(false)} title="Crear temporada" confirmLabel="Crear" confirmDisabled={!busy} busy={busy} error="No se ha podido: sin conexión" onConfirm={onConfirm} />;
+    }
+    const { unmount } = render(
+      <Harness>
+        <C />
+      </Harness>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("No se ha podido: sin conexión");
+    await user.click(screen.getByRole("button", { name: "Crear" }));
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Crear" })).toHaveAttribute("aria-disabled", "true");
+    // the scrim closes it
+    fireEvent.click(document.querySelector(".sc-scrim")!);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    unmount();
+    render(
+      <Harness>
+        <C busy />
+      </Harness>,
+    );
+    const wait = screen.getByRole("button", { name: "Un momento…" });
+    expect(wait).toHaveAttribute("aria-disabled", "true");
+    await user.click(wait);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("over another sheet: the sheet below goes inert and Esc closes only the top one", async () => {
+    const user = userEvent.setup();
+    function Two() {
+      const [sheet, setSheet] = useState(false);
+      const [ask, setAsk] = useState(false);
       return (
         <>
-          <button type="button" onClick={() => setOpen(true)}>
-            Abrir
+          <button type="button" onClick={() => setSheet(true)}>
+            Abrir ficha
           </button>
-          <Modal open={open} onClose={() => setOpen(false)} title="Nuevo partido" lede="Lo mínimo." footer={<button type="button">Crear partido</button>}>
-            <input aria-label="Rival" />
-          </Modal>
+          <SalaSheet open={sheet} onClose={() => setSheet(false)} title="ERIK">
+            <button type="button" onClick={() => setAsk(true)}>
+              Dar de baja
+            </button>
+          </SalaSheet>
+          <ConfirmModal open={ask} onClose={() => setAsk(false)} title="¿Dar de baja a ERIK?" confirmLabel="Dar de baja a ERIK" confirmTone="redf" onConfirm={() => setAsk(false)} />
         </>
       );
     }
     render(
       <Harness>
-        <One />
+        <Two />
       </Harness>,
     );
-    const trigger = screen.getByRole("button", { name: "Abrir" });
-    await user.click(trigger);
-    const dialog = screen.getByRole("dialog", { name: "Nuevo partido" });
-    expect(dialog).toHaveAttribute("aria-modal", "true");
-    expect(dialog).toHaveAccessibleDescription("Lo mínimo.");
-    expect(dialog).toHaveFocus();
-    expect(screen.getByTestId("app")).toHaveAttribute("inert");
-    expect(screen.getByTestId("app")).toHaveAttribute("aria-hidden", "true");
-    expect(dialog).toHaveClass("md");
-    // Tab cycles: Rival → Crear partido → back to Rival.
-    await user.tab();
-    expect(screen.getByRole("textbox", { name: "Rival" })).toHaveFocus();
-    await user.tab();
-    expect(screen.getByRole("button", { name: "Crear partido" })).toHaveFocus();
-    await user.tab();
-    expect(screen.getByRole("textbox", { name: "Rival" })).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(screen.getByRole("button", { name: "Crear partido" })).toHaveFocus();
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByTestId("app")).not.toHaveAttribute("inert");
-    expect(trigger).toHaveFocus();
-  });
-
-  it("stacks: a modal over a drawer makes the drawer inert, Esc closes only the top", async () => {
-    const user = userEvent.setup();
-    render(
-      <Harness>
-        <DrawerWithModal />
-      </Harness>,
-    );
-    await user.click(screen.getByRole("button", { name: "Abrir cajón" }));
-    const drawer = screen.getByRole("dialog", { name: "ERIK" });
-    expect(screen.getByRole("status")).toHaveTextContent("Cambios sin guardar");
-    const baja = screen.getByRole("button", { name: "Dar de baja" });
-    await user.click(baja);
-    const confirm = screen.getByRole("alertdialog", { name: "¿Dar de baja a ERIK?" });
-    expect(confirm).toHaveFocus();
-    expect(drawer).toHaveAttribute("inert");
-    expect(confirm).toHaveClass("md", "dz");
-    expect(confirm.querySelectorAll(".cs li")).toHaveLength(2);
-    expect(drawer).toHaveClass("drw", "ovl");
-    // Two scrims: the second one dims the drawer.
-    expect(document.querySelectorAll(".scrim")).toHaveLength(2);
-    expect(document.querySelector(".scrim.hi")).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Abrir ficha" }));
+    await user.click(screen.getByRole("button", { name: "Dar de baja" }));
+    // (covered, it is aria-hidden too: no accessible name to find it by)
+    const sheet = document.querySelector(".sc-sheet:not(.sc-confirm)")!;
+    expect(sheet).toHaveAttribute("inert");
+    expect(sheet).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("alertdialog", { name: "¿Dar de baja a ERIK?" })).toHaveFocus();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(screen.getByRole("dialog", { name: "ERIK" })).not.toHaveAttribute("inert");
     expect(screen.getByRole("button", { name: "Dar de baja" })).toHaveFocus();
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("button", { name: "Abrir cajón" })).toHaveFocus();
-  });
-
-  it("the scrim closes the top layer; aria-disabled confirm does nothing", async () => {
-    const user = userEvent.setup();
-    const onConfirm = vi.fn();
-    function C() {
-      const [open, setOpen] = useState(true);
-      return <ConfirmModal open={open} onClose={() => setOpen(false)} title="Crear temporada" confirmLabel="Crear" confirmDisabled onConfirm={onConfirm} />;
-    }
-    render(
-      <Harness>
-        <C />
-      </Harness>,
-    );
-    await user.click(screen.getByRole("button", { name: "Crear" }));
-    expect(onConfirm).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Crear" })).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(document.querySelector(".scrim")!);
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  function PopoverHost() {
-    const [open, setOpen] = useState(false);
-    const anchor = useRef<HTMLButtonElement>(null);
-    return (
-      <div className="scr">
-        <div style={{ position: "relative" }}>
-          <button type="button" ref={anchor} onClick={() => setOpen((o) => !o)}>
-            Elegir
-          </button>
-          <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchor} title="¿Quién marcó?" subtitle="Gol 3 · paso 1 de 2" footer={<button type="button">Lo completo luego</button>}>
-            <button type="button">ERIK</button>
-          </Popover>
-          <button type="button">Fuera</button>
-        </div>
-      </div>
-    );
-  }
-
-  it("a popover opens in place, closes on Esc / outside and returns focus to its anchor", async () => {
-    const user = userEvent.setup();
-    render(
-      <Harness>
-        <PopoverHost />
-      </Harness>,
-    );
-    await user.click(screen.getByRole("button", { name: "Elegir" }));
-    const pop = screen.getByRole("dialog", { name: "¿Quién marcó?" });
-    expect(pop).toHaveClass("picker");
-    expect(pop).not.toHaveAttribute("aria-modal");
-    expect(pop).toHaveFocus();
-    expect(pop).toHaveTextContent("Gol 3 · paso 1 de 2");
-    expect(screen.getByTestId("app")).not.toHaveAttribute("inert");
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("button", { name: "Elegir" })).toHaveFocus();
-    await user.click(screen.getByRole("button", { name: "Elegir" }));
-    await user.click(screen.getByRole("button", { name: "Fuera" }));
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("on a phone-width frame the popover is a bottom sheet (modal)", async () => {
-    const user = userEvent.setup();
-    render(
-      <Harness width={390}>
-        <PopoverHost />
-      </Harness>,
-    );
-    await user.click(screen.getByRole("button", { name: "Elegir" }));
-    const sheet = screen.getByRole("dialog", { name: "¿Quién marcó?" });
-    expect(sheet).toHaveClass("sheet");
-    expect(sheet).toHaveAttribute("aria-modal", "true");
-    expect(sheet).toHaveTextContent("Gol 3 · paso 1 de 2");
-    expect(screen.getByTestId("app")).toHaveAttribute("inert");
-    act(() => {
-      fireEvent.keyDown(document, { key: "Escape" });
-    });
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("button", { name: "Elegir" })).toHaveFocus();
   });
 });

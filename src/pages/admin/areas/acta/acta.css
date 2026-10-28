@@ -386,10 +386,6 @@
 .ac-narr .ae-observations h4{font-size:17px}
 .ac-narr .ae-review-events>li,.ac-narr .ae-question{background:none;box-shadow:none;border-radius:0;padding:10px 0;border-bottom:1px solid var(--vd-rule)}
 .ac-narr .ae-observations pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}
-.ac-narr .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:rgba(108,171,221,.12);box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink-strong);font:inherit;font-size:14.5px;font-weight:650;cursor:pointer;text-decoration:none}
-.ac-narr .btn:hover{background:rgba(108,171,221,.2)}
-.ac-narr .btn.sky,.ac-narr .btn.gold{background:var(--vd-pri,rgba(108,171,221,.35));box-shadow:inset 0 0 0 1px rgba(108,171,221,.55)}
-.ac-narr .btn[disabled],.ac-narr .btn[aria-disabled="true"]{opacity:.55;cursor:default}
 .ac-narr .ae-history{display:block}
 .ac-narr .ae-coverage-row{border:0;border-top:1px solid var(--vd-rule);border-radius:0;padding:10px 0}
 .ac-narr .ae-message{white-space:pre-line}

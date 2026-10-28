@@ -1,30 +1,25 @@
-// The admin's layers (v2 «Sala de control») — Dialog, Modal, ConfirmModal, Drawer, Sheet and Popover — on
-// one stack.
+// The sala's layer stack and its one confirmation, ConfirmModal.
 //
-// Every open layer registers on the LayerProvider's stack (an external store, so registering never sets
-// React state inside an effect). The stack gives each layer its depth (z-index, scrim, `inert` when it is
-// not on top) and drives the shared keyboard: Esc closes the TOP layer only, Tab / Shift+Tab cycle inside
-// the top layer when it traps focus. A layer focuses itself (or `initialFocus`) when it opens — always
-// with `preventScroll`, so opening never scrolls a list — and gives the focus back to whatever had it
-// (the trigger) when it closes. While any modal layer is open the app behind (`appRef`) is `inert` +
-// aria-hidden, and so is every layer covered by a modal one. Those attributes are set by the provider
-// synchronously on every stack change (not on the next render), so the focus can go back to the trigger
-// the moment a layer closes.
+// Every open layer (the sala's sheet, the account and match menus, the palette…) registers on the LayerProvider's
+// stack (an external store, so registering never sets React state inside an effect). The stack gives each layer
+// its depth and drives the shared keyboard: Esc closes the TOP layer only, Tab / Shift+Tab cycle inside the top
+// layer when it traps focus. A layer focuses itself (or `initialFocus`) when it opens — always with
+// `preventScroll`, so opening never scrolls a list — and gives the focus back to whatever had it (the trigger)
+// when it closes. While any modal layer is open the app behind (`appRef`) is `inert` + aria-hidden, and so is
+// every layer covered by a modal one. Those attributes are set by the provider synchronously on every stack change
+// (not on the next render), so the focus can go back to the trigger the moment a layer closes.
 //
-// Markup = the canvas' (stats-gen/ad-v2-full.mjs): `.scrim`, `.md` (modal: h2, `.cs` consequences, `.ac`
-// buttons), `.sheet` (phones: `.gb` grab, `.hh` title row), `.drw` (drawer: `.drh`, a top slot for the
-// cromo, `.fx2` body, `.ft` footer), `.picker` (the in-flow «¿Quién marcó?» panel under its row). Modal
-// layers portal into the provider's host (inside the `.vx.adm` frame, after the app); an inline Drawer and
-// the Popover render in place; below 1000 px the Popover is a Sheet and an inline Drawer an overlay.
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { createPortal } from "react-dom";
-import { AdIcon } from "./icons";
-import { useFrame } from "./frame";
-import { focusablesIn, LayerContext, LayerStore, useLayer, useLayerHost, zLayer, zScrim } from "./layerCore";
+// ConfirmModal asks before doing something, saying what will happen: it is the sala's sheet (SalaSheet), centred
+// on the desktop, as an alertdialog («¿Salir sin guardar?», «¿Salir en este dispositivo?», archivar / borrar un
+// partido). Vidrio: the buttons are glass, the confirmation the one primary; a destructive one says so in a word
+// and an icon, not only in its colour.
+import { useEffect, useId, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
+import { SalaSheet } from "../shell/Sheet";
+import { focusablesIn, LayerContext, LayerStore } from "./layerCore";
 
 /**
- * Hosts the admin's layers: the stack, the shared Esc / focus-trap keyboard and the portal host. Wrap the
- * admin frame with it (AdminLayout does); tests wrap the component under test.
+ * Hosts the sala's layers: the stack, the shared Esc / focus-trap keyboard and the portal host. Wrap the sala's
+ * frame with it (AdminLayout does); tests wrap the component under test.
  */
 export function LayerProvider({ children, appRef }: { children: ReactNode; appRef?: RefObject<HTMLElement | null> }) {
   const [store] = useState(() => new LayerStore());
@@ -83,137 +78,82 @@ export function LayerProvider({ children, appRef }: { children: ReactNode; appRe
   return (
     <LayerContext.Provider value={{ store, host }}>
       {children}
-      <div className="adm-layers" ref={setHost} />
+      <div className="sc-layers" ref={setHost} />
     </LayerContext.Provider>
   );
 }
 
-
-function Scrim({ depth, onClick }: { depth: number; onClick?: () => void }) {
-  return <div className={depth ? "scrim hi" : "scrim"} style={{ zIndex: zScrim(depth) }} onClick={onClick} aria-hidden="true" />;
-}
-
-/** The round «×» of a layer's title row (`.ib2.x`). */
-export function CloseButton({ onClick, label = "Cerrar" }: { onClick: () => void; label?: string }) {
+/** The warning mark of a destructive confirmation and of its error line (with the word beside it, never alone). */
+function Warn() {
   return (
-    <button type="button" className="ib2 x" onClick={onClick} aria-label={label}>
-      <AdIcon name="x" />
-    </button>
+    <svg className="sc-confirm__warn" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+      <path d="M12 3.5 22 20.5H2L12 3.5Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M12 10v4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="12" cy="17.4" r="1.25" fill="currentColor" />
+    </svg>
   );
 }
-
-// ───────────────────────── Dialog (the base) ─────────────────────────
-export interface DialogProps {
-  open: boolean;
-  /** Called by Esc and the scrim (wrap it with an unsaved guard when the layer holds edits). */
-  onClose: () => void;
-  /** The layer's own class: `md` (modal), `lpk` (the live picker), `pal` (palette), `sheet`… */
-  className: string;
-  /** Names the dialog: the id of its visible title… */
-  labelledBy?: string;
-  /** …or a label when it has none. */
-  label?: string;
-  describedBy?: string;
-  role?: "dialog" | "alertdialog";
-  children?: ReactNode;
-  initialFocus?: RefObject<HTMLElement | null>;
-  returnFocus?: RefObject<HTMLElement | null>;
-}
-/**
- * A modal layer with the canvas' look given by `className`: scrim + the panel, portalled into the layer
- * host, focus trapped, Esc / scrim close it. Modal, Sheet and the live picker are built on it; use it for
- * any other centred panel.
- */
-export function Dialog(props: DialogProps) {
-  return props.open ? <DialogLayer {...props} /> : null;
-}
-function DialogLayer({ onClose, className, labelledBy, label, describedBy, role = "dialog", children, initialFocus, returnFocus }: DialogProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const host = useLayerHost();
-  const { depth, isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus, returnFocus });
-  const node = (
-    <>
-      <Scrim depth={depth} onClick={isTop ? onClose : undefined} />
-      <div ref={ref} className={className} role={role} aria-modal="true" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : label} aria-describedby={describedBy} tabIndex={-1} style={{ zIndex: zLayer(depth) }}>
-        {children}
-      </div>
-    </>
-  );
-  return host ? createPortal(node, host) : null;
-}
-
-// ───────────────────────── Modal ─────────────────────────
-export interface ModalProps {
-  open: boolean;
-  /** Called by Esc and the scrim (and usually «Cancelar» in the footer). */
-  onClose: () => void;
-  title: ReactNode;
-  /** A lead paragraph under the title; it also describes the dialog (aria-describedby). */
-  lede?: ReactNode;
-  /** `dz` = destructive (its consequences get the red ⚠). */
-  tone?: "" | "dz";
-  /** `alertdialog` for confirmations that interrupt (deletes, unsaved changes). */
-  role?: "dialog" | "alertdialog";
-  children?: ReactNode;
-  /** The `.ac` row (buttons, right-aligned). */
-  footer?: ReactNode;
-  initialFocus?: RefObject<HTMLElement | null>;
-  returnFocus?: RefObject<HTMLElement | null>;
-  className?: string;
-}
-/** `.md`: the centred modal (full width minus 16 px on phones). */
-export function Modal({ open, onClose, title, lede, tone = "", role = "dialog", children, footer, initialFocus, returnFocus, className = "" }: ModalProps) {
-  const tid = useId();
-  const did = useId();
+function Tick() {
   return (
-    <Dialog open={open} onClose={onClose} className={`md ${tone} ${className}`.replace(/\s+/g, " ").trim()} role={role} labelledBy={tid} describedBy={lede ? did : undefined} initialFocus={initialFocus} returnFocus={returnFocus}>
-      <h2 id={tid}>{title}</h2>
-      {lede && (
-        <p className="lede" id={did}>
-          {lede}
-        </p>
-      )}
-      {children}
-      {footer && <div className="ac">{footer}</div>}
-    </Dialog>
+    <svg className="sc-confirm__tick" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="m5 12.5 4.2 4.2L19 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-// ───────────────────────── ConfirmModal ─────────────────────────
-/** What will happen, one line each (`.cs`): a ✓ — or a red ⚠ when the modal is destructive (`tone="dz"`). */
+/** What will happen, one line each: a ✓ — or a warning mark when the confirmation is destructive. */
 export function ConsequenceList({ items, danger = false }: { items: ReactNode[]; danger?: boolean }) {
   if (!items.length) return null;
   return (
-    <ul className="cs">
+    <ul className="sc-confirm__cs">
       {items.map((t, i) => (
         <li key={i}>
-          <AdIcon name={danger ? "alert" : "check"} size={16} />
+          {danger ? <Warn /> : <Tick />}
           <span>{t}</span>
         </li>
       ))}
     </ul>
   );
 }
-export interface ConfirmModalProps extends Omit<ModalProps, "footer" | "role"> {
+
+export interface ConfirmModalProps {
+  open: boolean;
+  /** Called by Esc, the scrim, «Cerrar» and «Cancelar». */
+  onClose: () => void;
+  title: ReactNode;
+  /** A lead line under the title; it also describes the dialog (aria-describedby). */
+  lede?: ReactNode;
+  /** `dz` = destructive (its consequences get the warning mark). */
+  tone?: "" | "dz";
   consequences?: ReactNode[];
   confirmLabel: ReactNode;
   onConfirm: () => void;
   cancelLabel?: ReactNode;
-  /** The confirm button: `sky` (default), `gold` (THE action of the moment) or `redf` (destructive, solid). */
+  /** The confirmation: `sky` (default) and `gold` are the primary; `redf` is destructive (word + icon + colour). */
   confirmTone?: "sky" | "gold" | "redf";
   /** aria-disabled (stays focusable): clicking does nothing. */
   confirmDisabled?: boolean;
-  /** While the action runs: the confirm button reads «Un momento…» and is aria-disabled. */
+  /** While the action runs: the confirmation reads «Un momento…» and is aria-disabled. */
   busy?: boolean;
-  /** An optional third action before Cancel (e.g. «Guardar borrador y salir»). */
+  /** An optional third action before «Cancelar» (e.g. «Guardar y salir»). */
   alt?: { label: ReactNode; onClick: () => void };
   /** A failure to show above the buttons (role=alert). */
   error?: ReactNode;
-  /** Defaults to alertdialog when the confirm is red. */
+  /** `dialog` for a question that does not interrupt; an alertdialog by default. */
   role?: "dialog" | "alertdialog";
+  children?: ReactNode;
+  initialFocus?: RefObject<HTMLElement | null>;
+  returnFocus?: RefObject<HTMLElement | null>;
+  className?: string;
 }
-/** A modal that asks before doing something, listing what will happen (`.cs`). */
+
+/** Asks before doing something, listing what will happen (the sala's sheet, centred on the desktop). */
 export function ConfirmModal({
+  open,
+  onClose,
+  title,
+  lede,
+  tone = "",
   consequences = [],
   confirmLabel,
   onConfirm,
@@ -223,252 +163,56 @@ export function ConfirmModal({
   busy,
   alt,
   error,
-  role,
+  role = "alertdialog",
   children,
-  tone,
-  ...modal
+  initialFocus,
+  returnFocus,
+  className = "",
 }: ConfirmModalProps) {
+  const did = useId();
   const off = !!confirmDisabled || !!busy;
   const danger = tone === "dz" || confirmTone === "redf";
   return (
-    <Modal
-      {...modal}
-      tone={danger ? "dz" : ""}
-      role={role ?? (confirmTone === "redf" ? "alertdialog" : "dialog")}
+    <SalaSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      center
+      alert={role === "alertdialog"}
+      describedBy={lede ? did : undefined}
+      initialFocus={initialFocus}
+      returnFocus={returnFocus}
+      className={`sc-confirm${danger ? " is-danger" : ""} ${className}`.trim()}
       footer={
         <>
           {alt && (
-            <button type="button" className="btn line" onClick={alt.onClick}>
+            <button type="button" className="vd-btn vd-glass vd-press" onClick={alt.onClick}>
               {alt.label}
             </button>
           )}
-          <button type="button" className="btn line" onClick={modal.onClose}>
+          <button type="button" className="vd-btn vd-glass vd-press" onClick={onClose}>
             {cancelLabel}
           </button>
-          <button type="button" className={`btn ${confirmTone}`} aria-disabled={off} onClick={() => !off && onConfirm()}>
+          <button type="button" className={`vd-btn vd-glass vd-press ${danger ? "sc-danger" : "vd-btn--pri"}`} aria-disabled={off || undefined} onClick={() => !off && onConfirm()}>
+            {danger && !busy && <Warn />}
             {busy ? "Un momento…" : confirmLabel}
           </button>
         </>
       }
     >
+      {lede && (
+        <p className="sc-confirm__lede" id={did}>
+          {lede}
+        </p>
+      )}
       {children}
       <ConsequenceList items={consequences} danger={danger} />
       {error && (
-        <p className="ferr" role="alert">
-          <AdIcon name="alert" size={15} />
-          {error}
+        <p className="sc-confirm__err" role="alert">
+          <Warn />
+          <span>{error}</span>
         </p>
       )}
-    </Modal>
-  );
-}
-
-// ───────────────────────── Sheet ─────────────────────────
-export interface SheetProps {
-  open: boolean;
-  onClose: () => void;
-  /** The `.hh` title row (with ×). Leave it out when the children bring their own header (`labelledBy` / `label`). */
-  title?: ReactNode;
-  /** The accent line over the title (e.g. «GOL · 31′ · paso 1 de 2»). */
-  kicker?: ReactNode;
-  labelledBy?: string;
-  label?: string;
-  footer?: ReactNode;
-  children?: ReactNode;
-  className?: string;
-  initialFocus?: RefObject<HTMLElement | null>;
-  returnFocus?: RefObject<HTMLElement | null>;
-  closeLabel?: string;
-}
-/** `.sheet`: the phone's bottom sheet (grab, optional title row, body, footer). */
-export function Sheet({ open, onClose, title, kicker, labelledBy, label, footer, children, className = "", initialFocus, returnFocus, closeLabel }: SheetProps) {
-  const tid = useId();
-  return (
-    <Dialog open={open} onClose={onClose} className={`sheet ${className}`.trim()} labelledBy={title ? tid : labelledBy} label={label} initialFocus={initialFocus} returnFocus={returnFocus}>
-      <span className="gb" aria-hidden="true" />
-      {title && (
-        <div className="hh">
-          <span>
-            {kicker && <small>{kicker}</small>}
-            <b id={tid}>{title}</b>
-          </span>
-          <CloseButton onClick={onClose} label={closeLabel} />
-        </div>
-      )}
-      {children}
-      {footer && <div className="ft">{footer}</div>}
-    </Dialog>
-  );
-}
-
-// ───────────────────────── Drawer ─────────────────────────
-export type StatusTone = "" | "ok" | "warn";
-/** «● Cambios sin guardar» (warn) / «Guardado 12:04» — the line next to a drawer's title. */
-export interface LayerStatus {
-  text: ReactNode;
-  tone?: StatusTone;
-}
-export interface DrawerProps {
-  open: boolean;
-  onClose: () => void;
-  title: ReactNode;
-  status?: LayerStatus;
-  /** Between the title row and the body, not scrolling (the plantilla's cromo). */
-  top?: ReactNode;
-  /** The `.ft` row (buttons). */
-  footer?: ReactNode;
-  /** A save error shown above the footer (role=alert). */
-  error?: ReactNode;
-  children?: ReactNode;
-  /**
-   * Desktop: render in place as a column of the view (the plantilla's cajón beside the percha), not modal.
-   * Below 1000 px it is always a modal overlay from the bottom.
-   */
-  inline?: boolean;
-  initialFocus?: RefObject<HTMLElement | null>;
-  returnFocus?: RefObject<HTMLElement | null>;
-  className?: string;
-}
-/** `.drw`: a side panel (inline on desktop, or an overlay on the right) and a bottom sheet on phones. */
-export function Drawer(props: DrawerProps) {
-  const { desktop } = useFrame();
-  if (!props.open) return null;
-  return props.inline && desktop ? <InlineDrawer {...props} /> : <OverlayDrawer {...props} />;
-}
-function DrawerBody({ title, status, top, footer, error, children, onClose, tid }: DrawerProps & { tid: string }) {
-  return (
-    <>
-      <div className="drh">
-        <span>
-          <b id={tid}>{title}</b>
-          {status && (
-            <small className={`svd ${status.tone ?? ""}`.trim()} role="status">
-              {" · "}
-              {status.text}
-            </small>
-          )}
-        </span>
-        <CloseButton onClick={onClose} />
-      </div>
-      {top}
-      <div className="fx2">{children}</div>
-      {error && (
-        <p className="ferr" role="alert" style={{ padding: "0 16px" }}>
-          <AdIcon name="alert" size={15} />
-          {error}
-        </p>
-      )}
-      {footer && <div className="ft">{footer}</div>}
-    </>
-  );
-}
-function InlineDrawer(props: DrawerProps) {
-  const ref = useRef<HTMLElement>(null);
-  const tid = useId();
-  useLayer({ modal: false, trap: false, onClose: props.onClose, ref, initialFocus: props.initialFocus, returnFocus: props.returnFocus });
-  return (
-    <aside ref={ref} className={`drw ${props.className ?? ""}`.trim()} role="dialog" aria-labelledby={tid} tabIndex={-1}>
-      <DrawerBody {...props} tid={tid} />
-    </aside>
-  );
-}
-function OverlayDrawer(props: DrawerProps) {
-  const ref = useRef<HTMLElement>(null);
-  const host = useLayerHost();
-  const tid = useId();
-  const { depth, isTop } = useLayer({ modal: true, trap: true, onClose: props.onClose, ref, initialFocus: props.initialFocus, returnFocus: props.returnFocus });
-  const node = (
-    <>
-      <Scrim depth={depth} onClick={isTop ? props.onClose : undefined} />
-      <aside ref={ref} className={`drw ovl ${props.className ?? ""}`.trim()} role="dialog" aria-modal="true" aria-labelledby={tid} tabIndex={-1} style={{ zIndex: zLayer(depth) }}>
-        <DrawerBody {...props} tid={tid} />
-      </aside>
-    </>
-  );
-  return host ? createPortal(node, host) : null;
-}
-
-// ───────────────────────── Popover ─────────────────────────
-export interface PopoverProps {
-  open: boolean;
-  onClose: () => void;
-  /** The element it belongs to (and gives the focus back to): the acta's goal row button. */
-  anchorRef: RefObject<HTMLElement | null>;
-  /** The panel that scrolls (the row is brought to its top on open); by default the anchor's closest `.db` / `.scr`. */
-  containerRef?: RefObject<HTMLElement | null>;
-  /** The question (`.pkh b`), e.g. «¿Quién marcó?». Names the dialog. */
-  title: ReactNode;
-  /** The accent line over it (`.pkh small`), e.g. «Gol 3 (46′) · paso 1 de 2». */
-  subtitle?: ReactNode;
-  /** The extra buttons row (`.pkx`): «Autogol de …», «Lo completo luego». */
-  footer?: ReactNode;
-  children?: ReactNode;
-  /** Below this frame width it is a bottom sheet (default 1000; 0 = always in place). */
-  sheetBelow?: number;
-  initialFocus?: RefObject<HTMLElement | null>;
-  className?: string;
-}
-/**
- * `.picker`: a non-modal panel rendered IN PLACE, right after its anchor's row (put it there in the
- * markup); on open the row is brought to the top of its scrolling panel. Esc / a press outside close it;
- * the focus goes back to the anchor. On phones it becomes a bottom Sheet (modal).
- */
-export function Popover(props: PopoverProps) {
-  const { width } = useFrame();
-  if (!props.open) return null;
-  const sheetBelow = props.sheetBelow ?? 1000;
-  if (width < sheetBelow) return <PickerSheet {...props} />;
-  return <PopoverLayer {...props} />;
-}
-function PickerHead({ title, subtitle, onClose, tid }: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; tid: string }) {
-  return (
-    <div className="pkh">
-      <span>
-        {subtitle && <small>{subtitle}</small>}
-        <b id={tid}>{title}</b>
-      </span>
-      <CloseButton onClick={onClose} />
-    </div>
-  );
-}
-function PickerSheet({ open, onClose, anchorRef, title, subtitle, footer, children, initialFocus, className = "" }: PopoverProps) {
-  const tid = useId();
-  return (
-    <Sheet open={open} onClose={onClose} labelledBy={tid} className={className} initialFocus={initialFocus} returnFocus={anchorRef}>
-      <PickerHead title={title} subtitle={subtitle} onClose={onClose} tid={tid} />
-      {children}
-      {footer && <div className="pkx">{footer}</div>}
-    </Sheet>
-  );
-}
-function PopoverLayer({ onClose, anchorRef, containerRef, title, subtitle, footer, children, initialFocus, className = "" }: PopoverProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const tid = useId();
-  useLayer({ modal: false, trap: false, onClose, ref, initialFocus, returnFocus: anchorRef });
-  // The row goes to the top of its panel (12 px of air), so the picker below it is in view.
-  useLayoutEffect(() => {
-    const anchor = anchorRef.current;
-    if (!anchor) return;
-    const scroller = containerRef?.current ?? anchor.closest<HTMLElement>(".db, .scr");
-    if (!scroller) return;
-    const row = anchor.closest<HTMLElement>(".gr") ?? anchor;
-    scroller.scrollBy?.({ top: row.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12 });
-  }, [anchorRef, containerRef]);
-  // A press outside (and not on the anchor, which toggles it itself) closes it.
-  useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as Node | null;
-      if (!t || ref.current?.contains(t) || anchorRef.current?.contains(t)) return;
-      onClose();
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [anchorRef, onClose]);
-  return (
-    <div ref={ref} className={`picker ${className}`.trim()} role="dialog" aria-labelledby={tid} tabIndex={-1}>
-      <PickerHead title={title} subtitle={subtitle} onClose={onClose} tid={tid} />
-      {children}
-      {footer && <div className="pkx">{footer}</div>}
-    </div>
+    </SalaSheet>
   );
 }
