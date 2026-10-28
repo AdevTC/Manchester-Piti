@@ -215,6 +215,12 @@ function ArchDetail({ m }: { m: ArchivedMatch }) {
           ))}
         </ol>
       )}
+      {m.report?.trim() && (
+        <section className="pa-arch__cr" aria-label="La crónica">
+          <h3 className="sc-h3">La crónica</h3>
+          <p className="sc-p">{m.report}</p>
+        </section>
+      )}
       <div className="pa-arch__a">
         <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" aria-disabled={blocked || undefined} aria-describedby="pa-react-why" aria-haspopup="dialog" onClick={() => (blocked ? status.show({ tone: "error", message: `No se puede: reactiva primero «${seasonName}» desde Club › Temporadas.` }) : setAsk("react"))}>
           Reactivar

@@ -118,7 +118,7 @@ function Datos() {
   if (code && !/^[\p{L}\p{N}]{2,4}$/u.test(code)) err.code = "De 2 a 4 letras o números";
   const logo = sheet.rivalLogoUrl ?? "";
   if (logo && !okHttps(logo)) err.logo = "No es HTTPS: la web no lo enseña";
-  if (!Number.isFinite(sheet.duration) || sheet.duration < 10 || sheet.duration > 150) err.duration = "Entre 10 y 150 minutos";
+  if (!Number.isInteger(sheet.duration) || sheet.duration < 1 || sheet.duration > 150) err.duration = "Entre 1 y 150 minutos";
   if ((sheet.postponedReason ?? "").length > POSTPONED_REASON_MAX) err.reason = `Como mucho ${POSTPONED_REASON_MAX} letras`;
   const video = (sheet.videoUrl ?? "").trim();
   if (video && !isYouTubeUrl(video)) err.video = "No es un enlace de un vídeo de YouTube";

@@ -53,21 +53,21 @@ for (const mobile of [false, true]) test(`un partido terminado se archiva, consu
     await expect(page).toHaveURL(new RegExp(`/admin/partidos/archivados/${id}$`));
     await page.goto("/admin/partidos/archivados");
     await page.getByRole("searchbox", { name: "Buscar partido archivado" }).fill(rival);
-    await page.getByRole("button", { name: new RegExp(`^Archivado, Manchester Piti · ${rival}`) }).click();
-    const pane = page.getByRole("region", { name: "Partido archivado", exact: true });
-    await expect(pane.getByText("Acta archivada · solo lectura", { exact: true })).toBeVisible();
-    await expect(pane).toContainText("asistencia de Pablo");
+    // (r12: Archivados is its own screen; the archived match, in read only, beside the list or on its own)
+    await page.getByRole("link", { name: new RegExp(`^Archivado: Manchester Piti 1–0 ${rival}`) }).click();
+    const pane = page.getByRole("region", { name: "El partido archivado", exact: true });
+    await expect(pane.getByText("Solo lectura", { exact: true })).toBeVisible();
+    await expect(pane).toContainText("Pase de Pablo");
     await expect(pane).toContainText("Mario");
     await expect(pane.getByRole("textbox")).toHaveCount(0);
     await expect(pane.getByText("Crónica conservada al archivar.", { exact: true })).toBeVisible();
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", await page.locator("body").evaluate((el) => el.clientWidth));
     await page.screenshot({ path: `.emulator-data/archive-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
-    await pane.getByRole("button", { name: "Reactivar partido" }).click();
+    await pane.getByRole("button", { name: "Reactivar", exact: true }).click();
     await page.getByRole("dialog", { name: `¿Reactivar el partido contra ${rival}?` }).getByRole("button", { name: "Reactivar partido" }).click();
-    await expect(page.getByText(`${rival} · partido reactivado`, { exact: true })).toBeVisible();
-    await page.getByRole("searchbox", { name: "Buscar partido", exact: true }).fill(rival);
-    await page.getByRole("button", { name: new RegExp(`^J\\d+, ${rival}`) }).click();
-    await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}`));
+    await expect(page.getByText(`${rival} · vuelve al calendario y a las estadísticas`, { exact: true })).toBeVisible();
+    // (reactivated, it opens in the calendar: the match itself)
+    await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}(/|$)`));
     await page.goto(`/admin/partidos/${id}/acta`);
     await expect(page.getByRole("region", { name: "El acta del partido" })).toBeVisible();
     await page.screenshot({ path: `.emulator-data/management-published-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
@@ -80,7 +80,7 @@ for (const mobile of [false, true]) test(`un partido terminado se archiva, consu
     const toast = page.getByRole("status").filter({ hasText: `${rival} · partido eliminado definitivamente` });
     await expect(page.getByText(`${rival} · partido eliminado definitivamente`, { exact: true })).toBeVisible();
     await expect(toast.getByRole("button", { name: "Deshacer" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: new RegExp(`^J\\d+, ${rival}`) })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: new RegExp(`^J\\d+, ${rival}`) })).toHaveCount(0);
   } finally {
     await call(token, "deleteMatch", { id });
   }
