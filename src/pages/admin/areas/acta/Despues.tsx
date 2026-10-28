@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { DocumentData } from "firebase/firestore";
 import { storedNotasOf } from "../../../../../functions/src/rating/frozen";
-import { apiError, recalcMatchNotas, setMvpVote, setVideoMarks } from "../../../../lib/clubApi";
+import { apiError, markTurnDone, recalcMatchNotas, setMvpVote, setVideoMarks } from "../../../../lib/clubApi";
 import type { ClubMatch } from "../../../../lib/clubData";
 import { turnDone } from "../../../../lib/derived/rota";
 import { matchLogros } from "../../../../lib/derived/vidrio/matchLogros";
@@ -131,7 +131,23 @@ function After({ pub }: { pub: ClubMatch }) {
 
   // ── the turns, the logros ──
   const turns = useMatchTurns(pub, data.published, true);
-  const uidOf = (playerId: string | null) => data.people.find((p) => p.playerId === playerId)?.uid;
+  const uidOf = (playerId: string | null) => data.people.find((p) => p.playerId === playerId && !p.removed)?.uid;
+  // («Hecho» from here: written at once; the mark shows before the listener brings it back)
+  const [marked, setMarked] = useState<Record<string, boolean>>({});
+  const markTurn = async (jobId: string, jobName: string, playerId: string, who: string, done: boolean) => {
+    setMarked((m) => ({ ...m, [jobId]: done }));
+    try {
+      await markTurnDone({ turnId: match.id, done, playerId });
+      if (done) status.show({ tag: "Turnos", message: `Hecho: ${jobName} (${who})`, undo: () => void markTurn(jobId, jobName, playerId, who, false) });
+    } catch (e) {
+      setMarked((m) => {
+        const { [jobId]: _gone, ...rest } = m;
+        void _gone;
+        return rest;
+      });
+      status.show({ tone: "error", message: `No se ha podido ${done ? "marcar" : "desmarcar"} el turno: ${apiError(e)}`, retry: () => void markTurn(jobId, jobName, playerId, who, done) });
+    }
+  };
   const logros = useMemo(() => matchLogros(pub, data.published, nameOf, { mvpResults, now: data.now }, 6), [pub, data.published, nameOf, mvpResults, data.now]);
 
   // ── the video and its marks (M-43) ──
@@ -344,16 +360,24 @@ function After({ pub }: { pub: ClubMatch }) {
                 <ul className="sc-rows">
                   {turns.turns.map((t) => {
                     const who = t.playerId ? nameOf(t.playerId) : "nadie";
-                    const done = turnDone(turns.pins, uidOf(t.playerId));
+                    const done = marked[t.job.id] ?? turnDone(turns.pins, uidOf(t.playerId), t.playerId);
                     return (
                       <li key={t.job.id} className="sc-row">
                         <span className="sc-row__t">
                           <b>{t.job.name}</b>
                           <span>
-                            {done ? "Hecho" : "Le tocaba"}: {who}
+                            {done ? "Hecho" : "Le toca"}: {who}
                           </span>
                         </span>
-                        {done ? <span className="sc-tag sc-tag--hecho">Hecho</span> : <span className="sc-tag sc-tag--quiet">Sin marcar</span>}
+                        {done ? (
+                          <span className="sc-tag sc-tag--hecho">Hecho</span>
+                        ) : t.playerId ? (
+                          <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" aria-label={`Marcar hecho: ${t.job.name} (${who})`} onClick={() => void markTurn(t.job.id, t.job.name, t.playerId!, who, true)}>
+                            Hecho
+                          </button>
+                        ) : (
+                          <span className="sc-tag sc-tag--quiet">Sin nadie</span>
+                        )}
                       </li>
                     );
                   })}

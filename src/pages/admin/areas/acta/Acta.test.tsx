@@ -20,6 +20,8 @@ const live = vi.hoisted(() => ({
   notasError: null as { at: number; message: string } | null,
   audit: [] as { id: string; d: Record<string, unknown> }[],
   pushSent: [] as { id: string; d: Record<string, unknown> }[],
+  turns: [] as unknown[],
+  pins: { frozen: false, turns: {} } as { frozen: boolean; turns: Record<string, unknown>; done?: Record<string, number> },
 }));
 vi.mock("../../data/useAdminData", async () => ({ useAdminData: (await import("../../../../test/adminMocks")).currentAdminData }));
 vi.mock("../../../../context/AuthContext", async () => ({ useAuth: (await import("../../../../test/adminMocks")).fakeAuth }));
@@ -30,6 +32,7 @@ vi.mock("../../../../lib/clubApi", () => ({
   setMvpVote: vi.fn(() => Promise.resolve({ data: { voteClosesAt: Date.UTC(2026, 10, 4, 18, 5) } })),
   recalcMatchNotas: vi.fn(() => Promise.resolve({ data: { players: 9, mean: 6.8 } })),
   setVideoMarks: vi.fn(() => Promise.resolve({ data: { ok: true, revision: 2, marks: {} } })),
+  markTurnDone: vi.fn(() => Promise.resolve({ data: { done: true } })),
   deleteMatch: vi.fn(() => Promise.resolve({ data: { ok: true } })),
   setMatchArchived: vi.fn(() => Promise.resolve({ data: { ok: true } })),
 }));
@@ -42,7 +45,7 @@ vi.mock("../../partidos/live", () => ({
 vi.mock("../../data/useCaja", () => ({ useCajaClaims: () => ({ data: [], loading: false, error: false }) }));
 vi.mock("../../../../components/jersey3d/usePageKitStills", () => ({ usePageKitStills: () => () => undefined }));
 vi.mock("../../../../lib/useStandings", () => ({ useStandings: () => ({ standings: null, loading: false }) }));
-vi.mock("../../../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: [], rota: null, pins: { frozen: false, turns: {} }, loading: false, error: false }) }));
+vi.mock("../../../../lib/useRotaTurns", () => ({ useMatchTurns: () => ({ turns: live.turns, rota: null, pins: live.pins, loading: false, error: false }) }));
 vi.mock("../../../vestuario/live", async (orig) => {
   const real = await orig<typeof import("../../../vestuario/live")>();
   const empty = { data: [], loading: false, error: false };
@@ -103,6 +106,9 @@ beforeEach(() => {
   live.notasError = null;
   live.audit = [];
   live.pushSent = [];
+  live.turns = [];
+  live.pins = { frozen: false, turns: {} };
+  vi.mocked(api.markTurnDone).mockReset().mockResolvedValue({ data: { done: true } } as never);
   setAdminData(adminFixture());
 });
 afterEach(() => {
@@ -476,6 +482,32 @@ describe("Después", () => {
     await user.click(within(dialog).getByRole("button", { name: "Archivar partido" }));
     await waitFor(() => expect(archive).toHaveBeenCalledExactlyOnceWith({ id: "m6", archived: true }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/archivados/m6"));
+  });
+
+  it("«Hecho» marks another's turn at once, with «Deshacer»; a failure offers «Reintentar»; the done ones say so", async () => {
+    setAdminData(adminFixture({ published: fullJ1() }));
+    const job = (id: string, name: string) => ({ id, name, icon: "shirt", awayOnly: false, order: [] });
+    const turn = (j: ReturnType<typeof job>, playerId: string) => ({ job: j, playerId, computed: playerId, pinned: false, swappedFrom: null, skipped: [], frozen: true });
+    live.turns = [turn(job("lavar", "Lavar la equipación"), "erik"), turn(job("agua", "El agua"), "kevin")];
+    // (KEVIN's, marked by a captain while he has no account: p:<id>)
+    live.pins = { frozen: true, turns: {}, done: { "p:kevin": 1 } };
+    const mark = vi.mocked(api.markTurnDone);
+    const user = userEvent.setup();
+    open("/admin/partidos/m6/despues");
+    const agua = (await screen.findByText("El agua")).closest("li") as HTMLElement;
+    expect(within(agua).getByText("Hecho", { selector: ".sc-tag" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Marcar hecho: Lavar la equipación (ERIK)" }));
+    expect(mark).toHaveBeenCalledWith({ turnId: "m6", done: true, playerId: "erik" });
+    expect(await screen.findByText("Hecho: Lavar la equipación (ERIK)")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Marcar hecho: Lavar/ })).toBeNull();
+    await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(mark).toHaveBeenLastCalledWith({ turnId: "m6", done: false, playerId: "erik" }));
+    // a failure: back to «Hecho» to press, and «Reintentar»
+    mark.mockRejectedValueOnce(new Error("sin red"));
+    await user.click(await screen.findByRole("button", { name: "Marcar hecho: Lavar la equipación (ERIK)" }));
+    expect(await screen.findByText(/No se ha podido marcar el turno: sin red/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Marcar hecho: Lavar la equipación (ERIK)" })).toBeInTheDocument();
   });
 
   it("before the acta is published: what will be here, and the way to it", async () => {

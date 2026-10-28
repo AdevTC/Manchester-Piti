@@ -28,7 +28,8 @@ export const deleteMatch = lazyCallable<{ id: string }, { ok: boolean }>("delete
 /** Reversible exclusion from the calendar and statistics. Admin only. */
 export const setMatchArchived = lazyCallable<{ id: string; archived: boolean }, { ok: boolean }>("setMatchArchived", lifecycleOptions);
 /** Turnos «Hecho» (functions/src/rota.ts): the member's own turn of a match done (or taken back). */
-export const markTurnDone = lazyCallable<{ turnId: string; done: boolean }, { done: boolean }>("markTurnDone");
+// (r12: `playerId` = a captain marks that player's turn: the key is his member uid, or `p:<playerId>` without an account)
+export const markTurnDone = lazyCallable<{ turnId: string; done: boolean; playerId?: string }, { done: boolean; key?: string }>("markTurnDone");
 export const savePrediction = lazyCallable<{ matchId: string; goalsFor: number; goalsAgainst: number; goals: import("../../functions/src/predictions").GoalPick[] }, { ok: boolean }>("savePrediction");
 /** The one convocatoria (functions/src/convocatoria.ts): el siete + banquillo of a match; `notify` sends its push
  *  («Ya está la convocatoria» / once «Cambios en la convocatoria»). `at` = the `convocatoriaAt` it stamped. */
