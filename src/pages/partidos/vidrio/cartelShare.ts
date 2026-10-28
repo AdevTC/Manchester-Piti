@@ -48,6 +48,7 @@ async function drawCartel(cartel: Cartel, paint: SegmentPaint): Promise<Blob> {
       l.fillRect(0, 0, W, H);
       g.drawImage(layer, 0, 0);
     }
+    layer.width = layer.height = 0;
   }
   const shade = g.createLinearGradient(0, 0, 0, H);
   shade.addColorStop(0, "rgba(5,12,32,.35)");
@@ -113,7 +114,11 @@ async function drawCartel(cartel: Cartel, paint: SegmentPaint): Promise<Blob> {
     g.font = "700 34px 'Mona Sans', system-ui, sans-serif";
     g.fillText(`MVP ${cartel.mvp}`, W - pad, 1312);
   }
-  return new Promise<Blob>((ok, fail) => cv.toBlob((b) => (b ? ok(b) : fail(new Error("png"))), "image/png"));
+  try {
+    return await new Promise<Blob>((ok, fail) => cv.toBlob((b) => (b ? ok(b) : fail(new Error("png"))), "image/png"));
+  } finally {
+    cv.width = cv.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  }
 }
 
 function save(blob: Blob, name: string) {

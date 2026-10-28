@@ -181,6 +181,19 @@ describe("RecapStory", () => {
     expect(draw.recapCardBlob).toHaveBeenLastCalledWith(later.cards[0], CTX);
   });
 
+  it("keeps only the last few PNGs: an older cromo is drawn again when it comes back", async () => {
+    const five: SeasonRecap = { ...RECAP, cards: [RECAP.cards[0], RECAP.cards[1], { kind: "goles", goals: 0, assists: 0, best: null }, { kind: "goles", goals: 5, assists: 0, best: null }, RECAP.cards[2]] };
+    render(<RecapStory recap={five} ctx={CTX} rm={false} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Descargar todas" }));
+    await waitFor(() => expect(fx.saveBlob).toHaveBeenCalledTimes(5), { timeout: 4000 });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Compartir" })).toHaveAttribute("aria-disabled", "false"));
+    expect(draw.recapCardBlob).toHaveBeenCalledTimes(5);
+    fireEvent.click(screen.getByRole("button", { name: "Compartir" }));
+    await waitFor(() => expect(fx.saveBlob).toHaveBeenCalledTimes(6));
+    expect(draw.recapCardBlob).toHaveBeenCalledTimes(6);
+    expect(draw.recapCardBlob).toHaveBeenLastCalledWith(five.cards[0], CTX);
+  });
+
   it("«Descargar todas» stops when the story closes", async () => {
     openStory();
     fireEvent.click(screen.getByRole("button", { name: "Descargar todas" }));

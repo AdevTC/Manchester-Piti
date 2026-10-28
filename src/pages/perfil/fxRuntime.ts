@@ -5,6 +5,9 @@
 
 type AudioCtor = typeof AudioContext;
 let ctx: AudioContext | null = null;
+let closing = 0;
+/** The context is closed once the beeps are over (they last ~2.6 s): an open one keeps the audio output and its memory. */
+const CLOSE_AFTER_MS = 5000;
 
 function audioCtor(): AudioCtor | undefined {
   if (typeof window === "undefined") return undefined;
@@ -36,6 +39,11 @@ export function playBeeps(): void {
       o.start(t);
       o.stop(t + 0.04);
     }
+    window.clearTimeout(closing);
+    closing = window.setTimeout(() => {
+      if (ctx === ac) ctx = null;
+      ac.close().catch(() => undefined);
+    }, CLOSE_AFTER_MS);
   } catch {
     /* no audio on this device: the walkout plays silent */
   }

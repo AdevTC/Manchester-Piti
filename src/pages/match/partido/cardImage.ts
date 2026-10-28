@@ -115,7 +115,11 @@ export async function drawCard(spec: CardSpec, still: string | undefined): Promi
     g.font = `600 32px ${FONT}`;
     if (spec.link) g.fillText(spec.link, pad, H - pad);
   }
-  return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("no image"))), "image/png"));
+  try {
+    return await new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("no image"))), "image/png"));
+  } finally {
+    cv.width = cv.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  }
 }
 
 /** The cromo of the jornada (spec: `j` the top line, `big` his shirt name, `hero` the line, `when` the foot), 3:4.2. */
@@ -166,5 +170,9 @@ async function drawCromo(spec: CardSpec, still: string | undefined): Promise<Blo
   g.font = `500 40px ${FONT}`;
   g.fillStyle = "rgba(234,243,252,.85)";
   g.fillText(spec.when, W / 2, H - 100, W - 80);
-  return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("no image"))), "image/png"));
+  try {
+    return await new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("no image"))), "image/png"));
+  } finally {
+    cv.width = cv.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  }
 }

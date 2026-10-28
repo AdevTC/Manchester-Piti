@@ -201,6 +201,9 @@ function CardBody({ card }: { card: RecapCard }) {
   }
 }
 
+/** PNGs kept while the story is open: the cromo shown and the ones next to it. */
+const KEEP_PNGS = 3;
+
 interface Toast {
   msg: string;
   bad: boolean;
@@ -232,18 +235,20 @@ export function RecapStory({ recap, ctx, rm, onClose, returnFocusId }: RecapStor
   const prev = () => go(at - 1);
   const next = () => go(at + 1);
 
-  // ── the PNGs: recapDraw loads on demand; one blob per cromo, drawn once. Keyed by what the cromo says
+  // ── the PNGs: recapDraw loads on demand; one blob per cromo, the last few kept. Keyed by what the cromo says
   // too: the recap can rebuild while open (the porra arriving late, an acta or an MVP changing).
   const ctxKey = JSON.stringify(ctx);
   const cardKey = card ? JSON.stringify(card) : "";
   const cache = useRef(new Map<string, Promise<Blob | null>>());
   const blobFor = (k: number): Promise<Blob | null> => {
     const key = k + "|" + JSON.stringify(cards[k]) + "|" + ctxKey;
-    let p = cache.current.get(key);
-    if (!p) {
-      p = import("./recapDraw").then((m) => m.recapCardBlob(cards[k], ctx)).catch(() => null);
-      cache.current.set(key, p);
-    }
+    const kept = cache.current;
+    let p = kept.get(key);
+    if (p) kept.delete(key);
+    else p = import("./recapDraw").then((m) => m.recapCardBlob(cards[k], ctx)).catch(() => null);
+    // only the last few (each PNG is several MB on a phone): an older one is drawn again if it comes back
+    kept.set(key, p);
+    for (const old of kept.keys()) if (kept.size > KEEP_PNGS) kept.delete(old);
     return p;
   };
   const warm = useEffectEvent(() => void blobFor(at));

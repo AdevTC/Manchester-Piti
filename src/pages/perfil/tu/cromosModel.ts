@@ -112,5 +112,9 @@ export async function cromoImage(c: Cromo, shirt: string | null, crest: string):
   t(c.big, y + 200, 250, 800, c.gold ? "#ffc659" : "#eaf3fc");
   t(c.t, y + 300, 62, 650, "#eaf3fc");
   t(c.d, y + 400, 50, 500, "#c3d5ec");
-  return new Promise((res) => cv.toBlob((b) => res(b), "image/png"));
+  try {
+    return await new Promise<Blob | null>((res) => cv.toBlob((b) => res(b), "image/png"));
+  } finally {
+    cv.width = cv.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  }
 }

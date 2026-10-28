@@ -22,7 +22,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { DEFAULT_ASSETS, loadAssets, type Assets } from "./assets";
+import { DEFAULT_ASSETS, loadAssets, releaseAssets, type Assets } from "./assets";
 import { CameraRig, FLIGHT_GRACE, followOrbit, heroDistance, orbitPosition, preset, type FlightEase, type Orbit } from "./camera";
 import { GOAL_H, GOAL_W, HL_BOWL, HW_BOWL, PITCH_L, PITCH_W, RUNOFF, SHIRT_FLOAT, SHIRT_H, clamp, lerp, toPitch, toWorld } from "./constants";
 import { Ball, Column } from "./fx";
@@ -97,8 +97,10 @@ export async function mount(el: HTMLElement, opts: MountOptions): Promise<Handle
     A = await loadAssets(assets);
     if (opts.signal?.aborted) throw new DOMException("MPPitch: montaje cancelado", "AbortError");
   } catch (e) {
+    releaseAssets(assets);
     renderer.dispose();
     renderer.forceContextLoss();
+    canvas.width = canvas.height = 0;
     canvas.remove();
     vignette.remove();
     throw e instanceof Error ? e : new Error(String(e));
@@ -791,8 +793,11 @@ export async function mount(el: HTMLElement, opts: MountOptions): Promise<Handle
     renderer.renderLists.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
+    // its pixels go now, not whenever the detached canvas is collected (iOS caps a page's canvas memory)
+    canvas.width = canvas.height = 0;
     canvas.remove();
     vignette.remove();
+    releaseAssets(assets);
   }
   wake();
   return handle;

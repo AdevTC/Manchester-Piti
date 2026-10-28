@@ -100,6 +100,32 @@ export function setFaceLoader(load: () => Promise<void>) {
   loadFaces = load;
 }
 let shared: Promise<Assets> | null = null;
+/** Stages holding the kit: the last one to go closes the decoded bitmaps (~50 MB) and frees the model. */
+let holders = 0;
+/** The kit for one more stage; call releaseAssets() when that stage goes (a failed load holds nothing). */
+async function holdAssets() {
+  holders++;
+  try {
+    return await assets();
+  } catch (error) {
+    holders--;
+    throw error;
+  }
+}
+function releaseAssets() {
+  if (--holders > 0 || !shared) return;
+  const done = shared;
+  shared = null;
+  void done.then((A) => {
+    for (const b of [A.home, A.away, A.crest, A.normal]) b.close();
+    A.gltf.scene.traverse((node: Object3D) => {
+      const mesh = node as Mesh;
+      if (!mesh.isMesh) return;
+      mesh.geometry.dispose();
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) m.dispose();
+    });
+  }, () => undefined);
+}
 function assets() {
   shared ??= (async () => {
     const faces = loadFaces();
@@ -164,8 +190,11 @@ function stage(canvas: Surface, o: Required<JerseyOptions>, A: Assets, dpr: numb
   normalTex.flipY = false;
   normalTex.needsUpdate = true;
   const baseTex = {} as Record<KitName, Texture>;
+  const halves: Surface[] = [];
   for (const k of ["home", "away"] as const) {
-    const t = new Texture(half(A[k]));
+    const c = half(A[k]);
+    halves.push(c);
+    const t = new Texture(c);
     t.flipY = false;
     t.colorSpace = SRGBColorSpace;
     t.needsUpdate = true;
@@ -252,7 +281,12 @@ function stage(canvas: Surface, o: Required<JerseyOptions>, A: Assets, dpr: numb
     renderer.dispose();
     // Free the GPU memory now instead of waiting for garbage collection (browsers cap live contexts).
     // Only once the canvas has left the page: a remount on the same canvas shares its context.
-    if (!("isConnected" in canvas) || !canvas.isConnected) renderer.forceContextLoss();
+    if (!("isConnected" in canvas) || !canvas.isConnected) {
+      renderer.forceContextLoss();
+      canvas.width = canvas.height = 0;
+    }
+    // The 2D surfaces (~28 MB) too: iOS caps a page's canvas memory and a collection may come late.
+    for (const c of [kitCanvas, maskCanvas, ...halves]) c.width = c.height = 0;
   };
   return { renderer, scene, camera, pivot, paint, light, dispose };
 }
@@ -260,8 +294,15 @@ function stage(canvas: Surface, o: Required<JerseyOptions>, A: Assets, dpr: numb
 export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOptions): Promise<JerseyHandle> {
   const o: Required<JerseyOptions> = { view: "back", reveal: true, zoom: 1, lift: 0, ...initial };
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const A = await assets();
-  const { renderer, scene, camera, pivot, paint, light, dispose: disposeStage } = stage(canvas, o, A, devicePixelRatio);
+  const A = await holdAssets();
+  let built: ReturnType<typeof stage>;
+  try {
+    built = stage(canvas, o, A, devicePixelRatio);
+  } catch (error) {
+    releaseAssets();
+    throw error;
+  }
+  const { renderer, scene, camera, pivot, paint, light, dispose: disposeStage } = built;
   // Compile the shaders without blocking (KHR_parallel_shader_compile) before the first frame.
   await renderer.compileAsync(scene, camera).catch(() => undefined);
 
@@ -398,6 +439,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       poke();
     },
     dispose() {
+      if (!alive) return; // once: it gives the kit back
       alive = false;
       clearTimeout(repaintTimer);
       cancelAnimationFrame(raf);
@@ -410,6 +452,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("keydown", onKey);
       disposeStage();
+      releaseAssets();
     },
   };
 }
@@ -425,6 +468,21 @@ export interface StillRequest {
 type StillStage = { canvas: Surface; o: Required<JerseyOptions>; s: ReturnType<typeof stage> };
 let stills: Promise<StillStage> | null = null;
 let queue: Promise<unknown> = Promise.resolve();
+/** The stills stage goes after this long without a request: its GL context, its canvases and (if nothing else holds it) the kit. */
+const STILLS_IDLE_MS = 20_000;
+/** Longest side of a still, downloads included: the 3× PNG of a 2× screen (2160 × 2400), never more. */
+const STILL_MAX_PX = 2400;
+let jobs = 0;
+let idle: ReturnType<typeof setTimeout> | undefined;
+function dropStills() {
+  const done = stills;
+  if (jobs || !done) return;
+  stills = null;
+  void done.then(({ s }) => {
+    s.dispose();
+    releaseAssets();
+  }, () => undefined);
+}
 const encode = (c: Surface, type: string, quality: number): Promise<Blob> =>
   "convertToBlob" in c
     ? c.convertToBlob({ type, quality })
@@ -443,31 +501,49 @@ export async function renderStill(r: StillRequest, type: "image/webp" | "image/p
     type = "image/png";
     base = Math.min(base, 1.5);
   }
-  stills ??= assets().then((A) => {
+  clearTimeout(idle);
+  jobs++;
+  stills ??= holdAssets().then((A) => {
     const canvas = makeCanvas(STILL.w, STILL.h);
     const o: Required<JerseyOptions> = { view: "back", reveal: false, zoom: STILL.zoom, lift: STILL.lift, kit: r.kit, theme: r.theme, name: r.name, num: r.num };
     // Encoding runs right after render, in the same task: no need to preserve the drawing buffer.
-    const s = stage(canvas, o, A, base);
-    s.camera.aspect = STILL.w / STILL.h;
-    s.camera.position.set(0, 0.05 + STILL.lift, 6.4 / STILL.zoom);
-    s.camera.updateProjectionMatrix();
-    return { canvas, o, s };
+    try {
+      const s = stage(canvas, o, A, base);
+      s.camera.aspect = STILL.w / STILL.h;
+      s.camera.position.set(0, 0.05 + STILL.lift, 6.4 / STILL.zoom);
+      s.camera.updateProjectionMatrix();
+      return { canvas, o, s };
+    } catch (error) {
+      releaseAssets();
+      throw error;
+    }
   });
-  stills.catch(() => {
-    stills = null;
+  const ready = stills;
+  ready.catch(() => {
+    if (stills === ready) stills = null;
   });
+  const ratio = Math.min(base * scale, STILL_MAX_PX / Math.max(STILL.w, STILL.h));
   const job = queue.then(() =>
-    stills!.then(({ canvas, o, s }) => {
+    ready.then(async ({ canvas, o, s }) => {
       Object.assign(o, { kit: r.kit, theme: r.theme, name: r.name, num: r.num });
       s.paint();
       s.light();
       s.pivot.rotation.set(0, Math.PI + (r.yaw ?? 0), 0);
-      s.renderer.setPixelRatio(base * scale);
+      s.renderer.setPixelRatio(ratio);
       s.renderer.setSize(STILL.w, STILL.h, false);
       s.renderer.render(s.scene, s.camera);
-      return encode(canvas, type, scale !== 1 ? 0.92 : 0.9);
+      const blob = await encode(canvas, type, scale !== 1 ? 0.92 : 0.9);
+      // A download's buffer (2160 × 2400 and its multisampled copy) is not kept for the next still.
+      if (ratio > base) {
+        s.renderer.setPixelRatio(base);
+        s.renderer.setSize(STILL.w, STILL.h, false);
+      }
+      return blob;
     }),
   );
   queue = job.catch(() => null);
+  void queue.then(() => {
+    if (--jobs === 0) idle = setTimeout(dropStills, STILLS_IDLE_MS);
+  });
   return job;
 }
