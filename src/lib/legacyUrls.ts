@@ -6,6 +6,7 @@
 // the ones a new page names in Spanish are renamed (season → temporada on Estadísticas). /numeros, the
 // section's name before Estadísticas, moves screen by screen to /estadisticas.
 import { defaultParseSearch, defaultStringifySearch } from "@tanstack/react-router";
+import { adminLegacyTarget } from "./adminUrls";
 
 type Search = Record<string, unknown>;
 export interface LegacyTarget {
@@ -150,7 +151,11 @@ export function legacyTarget(rawPathname: string, search: Search, rawHash = ""):
   if (seg[0] === "matches" && seg.length === 1) return keep("/partidos");
   if (seg[0] === "matches" && isMatchId(seg[1]) && seg.length === 2) return keep(matchPath(seg[1], search.tab), without("tab"));
   if (seg[0] === "matches" && isMatchId(seg[1]) && seg[2] === "mesa" && seg.length === 3) return keep(`/partidos/${seg[1]}/mesa`);
-  if (seg[0] === "admin" && seg[1] === "en-juego" && isMatchId(seg[2]) && seg.length === 3) return keep(`/partidos/${seg[2]}/mesa`);
+  // the Sala de control's old addresses (its own table: lib/adminUrls)
+  if (seg[0] === "admin") {
+    const to = adminLegacyTarget(pathname, search);
+    return to ? keep(to.pathname, to.search) : null;
+  }
   if (seg[0] === "partidos" && isMatchId(seg[1]) && seg.length === 2 && "tab" in search) return keep(matchPath(seg[1], search.tab), without("tab"));
   // Partidos' old vistas
   if (pathname === "/partidos" && (search.view === "tabla" || search.view === "numeros")) {
