@@ -25,11 +25,12 @@ export interface CaptainInbox {
 
 const NONE: Notice[] = [];
 
-export function useCaptainInbox(): CaptainInbox {
+/** `enabled` false: nothing is read yet (the dock's counter waits for the sala to settle). */
+export function useCaptainInbox(enabled = true): CaptainInbox {
   const { user, profile } = useAuth();
   const role = profile?.role ?? "";
   const admin = role === "admin" || role === "superadmin";
-  const uid = user && admin ? user.uid : undefined;
+  const uid = enabled && user && admin ? user.uid : undefined;
   const notices = useNotices(uid, admin);
   const all = notices.data;
   const ready = !!uid && !notices.loading && !notices.error;
