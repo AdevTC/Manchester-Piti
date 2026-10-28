@@ -6,9 +6,9 @@ import { useMemo } from "react";
 import { arrayUnion, collection, doc, writeBatch } from "firebase/firestore";
 import { db } from "../../../firebase";
 import { useAuth } from "../../../context/AuthContext";
-import { resolvePlayerClaim, setSeasonArchived } from "../../../lib/clubApi";
+import { deletePlayer as deletePlayerCall, resolvePlayerClaim, setSeasonArchived } from "../../../lib/clubApi";
 import type { ClubContent } from "../../../lib/clubContent";
-import { useDeletePlayer, useDeleteSeason, useUpsertPlayer, useUpsertSeason } from "../useAdminMutations";
+import { useDeleteSeason, useUpsertPlayer, useUpsertSeason } from "../useAdminMutations";
 import type { PlayerStory } from "./contentModel";
 import type { CopyEntry } from "./seasonsLogic";
 
@@ -17,6 +17,7 @@ export interface ClubWrites {
   newPlayerId: () => string;
   /** players/{id} merge (creates it when new). */
   savePlayer: (id: string, data: Record<string, unknown>) => Promise<void>;
+  /** B-CLUB-05: only a ficha nobody cites, through the deletePlayer callable (the rules no longer let the client delete). */
   deletePlayer: (id: string) => Promise<void>;
   /** seasons/{id} merge. */
   saveSeason: (id: string, data: Record<string, unknown>) => Promise<void>;
@@ -32,7 +33,6 @@ export interface ClubWrites {
 
 export function useClubWrites(): ClubWrites {
   const upsertPlayer = useUpsertPlayer().mutateAsync;
-  const removePlayer = useDeletePlayer().mutateAsync;
   const upsertSeason = useUpsertSeason().mutateAsync;
   const removeSeason = useDeleteSeason().mutateAsync;
   const { updateUserRole } = useAuth();
@@ -40,7 +40,9 @@ export function useClubWrites(): ClubWrites {
     () => ({
       newPlayerId: () => doc(collection(db, "players")).id,
       savePlayer: (id, data) => upsertPlayer({ id, data }),
-      deletePlayer: (id) => removePlayer(id),
+      deletePlayer: async (id) => {
+        await deletePlayerCall({ playerId: id });
+      },
       saveSeason: (id, data) => upsertSeason({ id, data }),
       deleteSeason: (id) => removeSeason(id),
       createSeason: async (name, copy) => {
@@ -67,6 +69,6 @@ export function useClubWrites(): ClubWrites {
         await batch.commit();
       },
     }),
-    [upsertPlayer, removePlayer, upsertSeason, removeSeason, updateUserRole],
+    [upsertPlayer, upsertSeason, removeSeason, updateUserRole],
   );
 }
