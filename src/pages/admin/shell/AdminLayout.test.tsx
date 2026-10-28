@@ -88,13 +88,13 @@ describe("the desktop (≥ 1100): the web's bar with the capsule", () => {
     expect(document.querySelector(".sc-dock")).toBeNull();
   });
 
-  it("the avatar is the web's «Tú» with the sala's things: «Ver la web» (not «Admin»), the sala's season, the role in the pill", async () => {
+  it("the avatar is the web's «Tú» with the sala's things: «Ver la web» (not «Admin»), the sala's season, the role in its line", async () => {
     wide(1440);
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos");
     await user.click(await screen.findByRole("button", { name: /Capitán general/ }));
     const sheet = await screen.findByRole("dialog", { name: "Adrián Torres" });
-    expect(within(sheet).getByText("Capitán general")).toHaveClass("tu-pill");
+    expect(within(sheet).getByText("Capitán general · @adrian_tc")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: /^Ver la web/ })).toBeInTheDocument();
     expect(within(sheet).queryByRole("button", { name: /^Admin/ })).toBeNull();
     for (const t of [/^Tu carta/, /^Avisos/, /^Ajustes/, /^Cuenta/, /^Salir en este dispositivo/]) expect(within(sheet).getByRole("button", { name: t })).toBeInTheDocument();

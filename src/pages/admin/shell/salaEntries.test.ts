@@ -31,7 +31,7 @@ describe("salaEntries", () => {
       ["19 · KEVIN", "jugador"],
       ["Corregir un cambio", "accion"],
     ]);
-    expect(es[1]).toMatchObject({ icon: "plus", keys: "N", detail: "Rival, fecha y hora · tecla N", pv: { line: "Rival, fecha y hora · tecla N.", url: "/admin/partidos/nuevo" }, go: { to: "run", run } });
+    expect(es[1]).toMatchObject({ icon: "plus", keys: "N", detail: "Rival, fecha y hora · tecla N", pv: { line: "", url: "/admin/partidos/nuevo" }, go: { to: "run", run } });
     expect(es[2]).toMatchObject({ icon: "home", keys: "G H", pv: { url: "/admin" } });
     expect(es[5]).toMatchObject({ num: "9", jn: undefined });
     expect(es[0]).toMatchObject({ jn: "3", num: undefined, idle: true });

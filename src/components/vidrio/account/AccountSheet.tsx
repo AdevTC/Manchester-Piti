@@ -5,7 +5,7 @@
 // en el Piti? Pide entrar al vestuario», «Avisos sin cuenta» and the search. A dialog that grows out of the avatar
 // (desktop: under it; phone: over the tab bar); the focus goes back to the avatar. In the Sala de control (`sala`)
 // it is the same sheet with the sala's things: «Ver la web» where the web says «Admin», the sala's season picker and
-// the captain's role in the pill.
+// the captain's role in the line.
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
@@ -201,12 +201,15 @@ function MemberSheet({ inbox, say, close, sala }: { inbox: Inbox; say: (t: strin
   const pending = d.ficha.state === "pendiente";
   const rated = card.showNumbers && card.rating !== null;
   const title = shortName(jugador && d.shirt.fullName ? d.shirt.fullName : d.google.name || d.nickname) || "Tú";
-  const line = jugador
+  // (in the sala the role leads the line: the pill is hidden on a phone)
+  const line = sala
+    ? [sala.role, nick].filter(Boolean).join(" · ")
+    : jugador
     ? [nick, num, card.posLong].filter(Boolean).join(" · ")
     : who === "socio"
       ? [nick, "socio sin ficha"].filter(Boolean).join(" · ")
       : [nick, pending ? `ficha del ${wantedNumber(d)} pendiente` : "sin ficha todavía"].filter(Boolean).join(" · ");
-  const chip = sala ? sala.role : jugador ? (rated ? `${card.tierName} · ${card.rating}` : "Carta nueva") : who === "socio" ? "Socio" : pending ? "Pendiente" : "Por revelar";
+  const chip = jugador ? (rated ? `${card.tierName} · ${card.rating}` : "Carta nueva") : who === "socio" ? "Socio" : pending ? "Pendiente" : "Por revelar";
   const first = inbox.pends.find((p) => !p.done) ?? null;
   const doors = d.captain?.doorRequests.length ?? 0;
   const items: Item[] = [

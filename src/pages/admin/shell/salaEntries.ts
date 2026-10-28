@@ -49,7 +49,8 @@ export function salaEntries(commands: readonly PaletteCommand[]): SrEntry[] {
         icon: c.vicon ?? GLYPH[c.icon] ?? (kind === "partido" ? "fixtures" : "arrow"),
         keys: c.keys,
         idle: c.whenEmpty,
-        pv: { line: detail ? `${detail}.` : "", url: c.href ?? "" },
+        // (the preview already says `detail` under the title: no line repeating it)
+        pv: { line: "", url: c.href ?? "" },
         go: { to: "run", run: c.run },
       };
     });
