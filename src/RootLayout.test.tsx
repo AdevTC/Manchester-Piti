@@ -29,7 +29,12 @@ vi.mock("./pages/admin/shell/AdminLayout", async () => {
     ),
   };
 });
-vi.mock("./pages/admin/views/Hoy", () => ({ Hoy: () => null }));
+// (the sala's screens are the sala's business: the real ones pull its whole module graph and Firebase in, which on a
+// cold CI runner took longer than a findBy waits — the router renders nothing until a route's lazy screen is in)
+vi.mock("./pages/admin/areas/hoy-partidos/screens", () => {
+  const none = () => null;
+  return { HoyScreen: none, TemporadaScreen: none, NuevoScreen: none, ArchivadosScreen: none, ArchivadoScreen: none, ConvocatoriaScreen: none, DatosScreen: none, EnJuegoScreen: none, StationAuto: none };
+});
 vi.mock("./pages/partidos/PartidosPage", () => ({ PartidosPage: () => <h1>la página de partidos</h1> }));
 vi.mock("./pages/squad/SquadPage", () => ({ SquadPage: () => <h1>la percha</h1> }));
 
