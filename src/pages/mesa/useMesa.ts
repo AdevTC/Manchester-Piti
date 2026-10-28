@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useClubData, nameFor, dateMillis, type ClubMatch } from "../../lib/clubData";
-import { apiError, controlMatchClock, mesaEvent, publishLive, setMatchScorers } from "../../lib/clubApi";
+import { addMatchGuest, apiError, controlMatchClock, mesaEvent, publishLive, saveMatchReport, setMatchDuration, setMatchScorers } from "../../lib/clubApi";
 import { isGuestId, withGuestNames } from "../../lib/derived/guests";
 import { niceName } from "../../lib/derived/words";
 import { useClock } from "../../hooks/useClock";
@@ -16,8 +16,8 @@ import { jornadaOf } from "../../lib/derived/jornada";
 import { systemText } from "../../lib/derived/system";
 import { useStandings } from "../../lib/useStandings";
 import { lineupSeven, parseMatchLineup, parsePresent } from "../../lib/matchLineup";
-import { maquetaActions, maquetaFase, maquetaMatch } from "./maqueta";
-import { addMatchGuest, addSubs, MAX_WAVE, saveMatchReport, setMatchDuration } from "./api";
+import { maquetaFase, maquetaMatch } from "./maqueta";
+import { addSubs, MAX_WAVE } from "./api";
 import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type QueuePayload } from "./queue";
 import {
   buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
@@ -224,7 +224,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     throw e instanceof Error ? e : new Error(msg);
   }, []);
 
-  const realActions = useMemo<MesaActions>(() => {
+  const actions = useMemo<MesaActions>(() => {
     /** The queued item that writes event `id`, and which of its plays it is (a wave has several). */
     const local = (id: string): { item: QueueItem; index: number } | undefined => {
       if (!id.startsWith("live-")) return undefined;
@@ -370,7 +370,6 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     };
     // (players feed only the queued play's text; the actions read the match and the time through refs)
   }, [queue, matchId, fail, players]);
-  const actions = useMemo(() => (maq ? maquetaActions(realActions) : realActions), [maq, realActions]);
 
   const view = useMemo<MesaView | null>(() => {
     if (!match || !me) return null;
@@ -465,7 +464,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       actions,
       nav,
     };
-  }, [match, matches, me, players, now, snap, board, boardId, hasStandings, presenceRows, extras, plannedSubs, lastId, notice, actions, nav, clubPeople, scorers]);
+  }, [match, matches, me, players, now, snap, board, boardId, hasStandings, presenceRows, extras, plannedSubs, lastId, notice, actions, nav, clubPeople, scorers, maq]);
 
   return { view, state: loading ? "loading" : match ? "ready" : "missing", canScore, scorersLoading: scorers.loading };
 }

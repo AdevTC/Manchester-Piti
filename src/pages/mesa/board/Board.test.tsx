@@ -122,7 +122,9 @@ describe("en juego", () => {
   it("M-31: si no se contesta, queda «por completar»", () => {
     mount(playing());
     fireEvent.click(screen.getByRole("button", { name: /Gol del Piti/ }));
-    act(() => vi.advanceTimersByTime(15_000));
+    act(() => {
+      vi.advanceTimersByTime(15_000);
+    });
     expect(line()).toHaveTextContent("Gol sin autor");
     expect(line()).toHaveTextContent("Final te lo pedirá");
   });
@@ -245,14 +247,18 @@ describe("final y después", () => {
     fireEvent.click(within(ask).getByRole("button", { name: "MARIO" }));
     expect(v.actions.edit).toHaveBeenCalledWith("g1", { playerId: "mario" });
     fireEvent.pointerDown(screen.getByRole("button", { name: /Mantén para publicar/ }), { button: 0 });
-    act(() => vi.advanceTimersByTime(HOLD_MS + 50));
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS + 50);
+    });
     expect(v.actions.publish).not.toHaveBeenCalled();
   });
   it("se publica manteniendo un segundo y sale «Acta publicada» con la crónica corta (M-38)", async () => {
     const v = ended([ev("g1", "goal", 6, { playerId: "mario", assistReviewed: true })]);
     const { rerender } = mount(v);
     fireEvent.pointerDown(screen.getByRole("button", { name: /Mantén para publicar/ }), { button: 0 });
-    act(() => vi.advanceTimersByTime(HOLD_MS + 50));
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS + 50);
+    });
     await flush();
     expect(v.actions.publish).toHaveBeenCalled();
     rerender(<BoardScreens view={{ ...v, match: { ...v.match, published: true } }} />);

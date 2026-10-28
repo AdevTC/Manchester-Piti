@@ -7,6 +7,7 @@ import { KitStillContext } from "../../../components/jersey3d/kitStill";
 import { usePageKitStills } from "../../../components/jersey3d/usePageKitStills";
 import { useTheme } from "../../../hooks/useTheme";
 import { useNow } from "../screens/hooks";
+import { maquetaActions, maquetaFase } from "../maqueta";
 import type { MesaView } from "../types";
 import { Antes, Lista } from "./Antes";
 import { Band, Line, Top } from "./Chrome";
@@ -68,8 +69,11 @@ export function Loading() {
   );
 }
 
-export function Board({ view, vista }: { view: MesaView; vista?: string }) {
+export function Board({ view: real, vista }: { view: MesaView; vista?: string }) {
   const { theme } = useTheme();
+  // (DEV only: under ?fase= the maqueta answers every action and writes nothing)
+  const fake = import.meta.env.DEV && !!maquetaFase();
+  const view = useMemo(() => (fake ? { ...real, actions: maquetaActions(real.actions) } : real), [fake, real]);
   const printed = useMemo(() => [...view.field, ...view.bench].filter((p) => !p.guest && p.number).map((p) => ({ name: upper(p.name), num: p.number })), [view.field, view.bench]);
   const stillOf = usePageKitStills({ on: true, theme, kits: view.match.kit === "away" ? ["away", "home"] : ["home", "away"], players: printed });
   return (
