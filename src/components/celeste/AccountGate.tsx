@@ -21,24 +21,24 @@ const FanAccountLayer = lazy(() => import("../vidrio/account/AccountSheet").then
 const noop = () => () => undefined;
 const useHydrated = () => useSyncExternalStore(noop, () => true, () => false);
 
-/** `sala`: the Sala de control's avatar (someone signed in, always: «Tú» with the sala's things, AccountSheet). */
+/** `sala`: the Sala de control's avatar, «Tú» with the sala's things (AccountSheet): someone signed in, so until
+ *  RootLayout publishes him it is his bare pill, never «Entrar». */
 export function AccountGate({ here, sala }: { here?: boolean; sala?: AccountSala & { name: string } }) {
   const hydrated = useHydrated();
   const viewer = usePublishedViewer();
   const account = usePublishedAccount();
   const maqFan = hydrated && readTuMaqueta()?.quien === "fan";
-  const member = !!sala || (hydrated && viewer.member && !maqFan);
+  const member = hydrated && viewer.member && !maqFan;
   const name = account?.name ? firstName(account.name) : sala ? firstName(sala.name) : "";
-  if (!member) return <FanEntrar here={here} hydrated={hydrated} />;
+  const pill = (
+    <button type="button" className={`vd-glass vd-press tu-acct${here ? " on" : ""}`} aria-label={viewer.playerId ? `Tú, ${name || "tu cuenta"}` : `Tu cuenta${name ? `, ${name}` : ""}`} aria-haspopup="dialog" aria-expanded={false}>
+      <i aria-hidden="true">{name ? initialOf(name) : "·"}</i>
+      <span className="tu-acct__name">{name || "Tú"}</span>
+    </button>
+  );
+  if (!member) return sala ? pill : <FanEntrar here={here} hydrated={hydrated} />;
   return (
-    <Suspense
-      fallback={
-        <button type="button" className={`vd-glass vd-press tu-acct${here ? " on" : ""}`} aria-label={viewer.playerId ? `Tú, ${name || "tu cuenta"}` : `Tu cuenta${name ? `, ${name}` : ""}`} aria-haspopup="dialog" aria-expanded={false}>
-          <i aria-hidden="true">{name ? initialOf(name) : "·"}</i>
-          <span className="tu-acct__name">{name || "Tú"}</span>
-        </button>
-      }
-    >
+    <Suspense fallback={pill}>
       <MemberAccount name={name} here={here} sala={sala} />
     </Suspense>
   );

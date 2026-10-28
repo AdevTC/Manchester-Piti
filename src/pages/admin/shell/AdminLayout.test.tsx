@@ -12,6 +12,7 @@ import { useToast } from "../ui/toastContext";
 import { LayerProvider } from "../ui/layers";
 import { SalaSheet } from "./Sheet";
 import { StatusProvider, StatusStrip } from "./StatusStrip";
+import { publishViewer } from "../../../hooks/viewerSignal";
 
 const who = vi.hoisted(() => ({ role: "superadmin" as string, uid: "a1", nickname: "adrian_tc", playerId: "adrian" as string | undefined, logout: async () => undefined as void, scorers: [] as string[] }));
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
@@ -57,8 +58,13 @@ beforeEach(() => {
   who.logout = async () => undefined;
   club.matches = fixturePublished;
   setAdminData(adminFixture());
+  // (RootLayout publishes who is signed in; the avatar is «Tú» once he is)
+  publishViewer({ member: true, admin: true, playerId: "adrian" });
 });
-afterEach(() => wide(WIDTH));
+afterEach(() => {
+  wide(WIDTH);
+  publishViewer({ member: false, admin: false, playerId: null });
+});
 
 describe("the desktop (≥ 1100): the web's bar with the capsule", () => {
   it("the crest and «Sala de control», the five places with their g + letter, their counters in words, search, the web, the avatar", async () => {
