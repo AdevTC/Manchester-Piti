@@ -922,5 +922,7 @@ export async function shareBlob(spec: ShareSpec): Promise<Blob | null> {
   if (typeof document === "undefined") return null;
   const canvas = document.createElement("canvas");
   const ok = await drawShare(canvas, spec);
-  return ok ? canvasToBlob(canvas) : null;
+  const blob = ok ? await canvasToBlob(canvas) : null;
+  canvas.width = canvas.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  return blob;
 }

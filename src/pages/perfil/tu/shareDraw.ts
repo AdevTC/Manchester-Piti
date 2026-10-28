@@ -178,5 +178,9 @@ export async function shareImage(o: ShareImage): Promise<Blob | null> {
     y += 20 * k;
     text(g, p.foot, w / 2, y, 11.5 * k, 500, "center", "rgba(234,243,252,.8)");
   }
-  return new Promise((res) => cv.toBlob((b) => res(b), "image/png"));
+  try {
+    return await new Promise<Blob | null>((res) => cv.toBlob((b) => res(b), "image/png"));
+  } finally {
+    cv.width = cv.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  }
 }

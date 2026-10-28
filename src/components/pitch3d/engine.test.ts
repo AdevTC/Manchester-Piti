@@ -31,7 +31,7 @@ vi.mock("./assets", async () => {
   scene.add(shirt);
   const layout: Layouts = { home: kit(), away: kit() };
   const assets: Assets = { gltf: { scene } as unknown as GLTF, layout, home: bitmap(), away: bitmap(), normal: bitmap(), crest: null };
-  return { DEFAULT_ASSETS: { glb: "", layout: "", kitHome: "", kitAway: "", normal: "" }, loadAssets: () => Promise.resolve(assets) };
+  return { DEFAULT_ASSETS: { glb: "", layout: "", kitHome: "", kitAway: "", normal: "" }, loadAssets: () => Promise.resolve(assets), releaseAssets: () => undefined };
 });
 
 // ---------- 2D canvas + WebGL2 stubs ----------

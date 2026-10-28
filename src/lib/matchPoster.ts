@@ -513,6 +513,7 @@ export async function downloadMatchPoster(match: ClubMatch, format: PosterFormat
   const ok = await drawMatchPoster(canvas, d, await crestImage());
   if (!ok) throw new Error("El navegador no puede crear imágenes.");
   const blob = await canvasToBlob(canvas);
+  canvas.width = canvas.height = 0; // its pixels go now: iOS caps a page's canvas memory
   if (!blob) throw new Error("No se pudo generar el cartel.");
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

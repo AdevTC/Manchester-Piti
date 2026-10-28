@@ -480,7 +480,9 @@ export async function cartelBlob(d: Cartel, crest: HTMLImageElement | null): Pro
   if (typeof document === "undefined") return null;
   const canvas = document.createElement("canvas");
   const ok = await drawCartel(canvas, d, crest);
-  return ok ? canvasToBlob(canvas) : null;
+  const blob = ok ? await canvasToBlob(canvas) : null;
+  canvas.width = canvas.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  return blob;
 }
 
 /** Save a file on this device. */

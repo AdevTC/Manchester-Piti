@@ -236,7 +236,11 @@ async function posterBlob(c: CartelView, teeSrc: string | null): Promise<Blob> {
   line(c.vs, "500 42px 'Mona Sans', system-ui, sans-serif", 0.9);
   y -= 58;
   line("Manchester Piti", "720 66px 'Mona Sans', system-ui, sans-serif");
-  return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("sin imagen"))), "image/png"));
+  try {
+    return await new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error("sin imagen"))), "image/png"));
+  } finally {
+    cv.width = cv.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  }
 }
 
 export function CartelSheet({ c, teeSrc, onClose, say }: { c: CartelView; teeSrc: string | null; onClose: () => void; say: (t: string) => void }) {

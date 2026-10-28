@@ -67,6 +67,9 @@ function useWidth(): number {
 const f7 = (phrase: string): string => (phrase && !/f[úu]tbol|f-?7|f-?11/i.test(phrase) ? `${phrase} de fútbol 7` : phrase);
 const screenOf = (path: string): Screen => (/^\/partidos\/tabla\/?$/.test(path) ? "tabla" : /^\/partidos\/balance\/?$/.test(path) ? "balance" : "jornadas");
 const pathOf = (s: Screen) => (s === "jornadas" ? "/partidos" : `/partidos/${s}`);
+/** Whether an address is one of this page's screens (while a change to another page loads, the address already names
+ *  that page and this one is still mounted). */
+const ownPath = (path: string): boolean => /^\/partidos(\/(tabla|balance))?\/?$/.test(path);
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : typeof v === "number" ? String(v) : null);
 const num = (v: unknown): number | null => {
   const n = Number(str(v));
@@ -174,6 +177,7 @@ export function PartidosPage() {
 
   // ── the screen and the season (both in the address)
   const urlScreen = screenOf(location.pathname);
+  const here = ownPath(location.pathname);
   const [screen, setScreen] = useState<Screen>(urlScreen);
   const current = demo ? demo.season.id : currentSeasonId(nextFixture(matches, now), matches, seasons);
   const askedT = str(search.temporada);
@@ -300,16 +304,17 @@ export function PartidosPage() {
   const wanted = JSON.stringify(clean(searchFor(screen)));
   const lastPushed = useRef("");
   useEffect(() => {
-    if (urlScreen !== screen || demoKey) return;
+    if (!here || urlScreen !== screen || demoKey) return;
     const have = JSON.stringify(clean(Object.fromEntries(Object.entries(search).map(([k, v]) => [k, str(v) ?? undefined]))));
     if (have === wanted || lastPushed.current === wanted) return;
     lastPushed.current = wanted;
     void navigate({ to: pathOf(screen), search: JSON.parse(wanted) as Record<string, string>, replace: true, resetScroll: false } as never);
   });
 
-  // «atrás» / «adelante»: the address moved the screen; run the choreography backwards (or forwards)
+  // «atrás» / «adelante»: the address moved the screen; run the choreography backwards (or forwards). An address
+  // of another page is the change of page on its way, not a screen of this one: its own transition, not a second.
   useEffect(() => {
-    if (urlScreen === screen) return;
+    if (!here || urlScreen === screen) return;
     const dir = SCREENS.indexOf(urlScreen) > SCREENS.indexOf(screen) ? "fwd" : "back";
     const u = urlState(urlScreen, search);
     transition(dir, reduced, () => {
@@ -332,7 +337,7 @@ export function PartidosPage() {
       });
     });
     // (only the address's screen drives this)
-  }, [urlScreen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlScreen, here]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const go = (to: Screen, also?: () => void) => {
     if (to === screen) return;

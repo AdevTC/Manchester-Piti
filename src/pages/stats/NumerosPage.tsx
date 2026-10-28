@@ -261,6 +261,8 @@ export function NumerosPage() {
   // that entry takes the new address (so the filters chosen in the sheet stay)
   const afterBack = useRef<NuState | null>(null);
   useEffect(() => {
+    // (another page's address: the change of page on its way, which runs its own transition)
+    if (!/^\/estadisticas(\/|$)/.test(location.pathname)) return;
     const key = addressKey(location.pathname, raw);
     if (afterBack.current) {
       const n = afterBack.current;

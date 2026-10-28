@@ -380,5 +380,7 @@ export async function recapCardBlob(card: RecapCard, d: RecapDrawCtx): Promise<B
   if (typeof document === "undefined") return null;
   const canvas = document.createElement("canvas");
   const ok = await drawRecapCard(canvas, card, d);
-  return ok ? canvasToBlob(canvas) : null;
+  const blob = ok ? await canvasToBlob(canvas) : null;
+  canvas.width = canvas.height = 0; // its pixels go now: iOS caps a page's canvas memory
+  return blob;
 }

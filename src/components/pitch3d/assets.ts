@@ -1,6 +1,8 @@
 // Loads the real kit: the GLB shirt (Meshopt), the UV layout of the prints, the home/away kit
 // atlases, the fabric normal map, the crest and the print faces. Shared between mounts (cached by
-// URL set) and retried after a failure. Same files as the 3D shirt of the vestuario (/models/).
+// URL set) and retried after a failure; the last mount to go frees it (releaseAssets). Same files as
+// the 3D shirt of the vestuario (/models/).
+import type { Mesh } from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { FONT_NUM, FONT_TXT, type Layouts } from "../jersey3d/prints";
@@ -58,9 +60,14 @@ function faces(): Promise<void> {
 }
 
 const cache = new Map<string, Promise<Assets>>();
+/** Mounts holding each URL set: the last one to go closes its decoded bitmaps and frees the model. */
+const holders = new Map<string, number>();
+const keyOf = (urls: AssetUrls) => Object.values(urls).join("|");
 
+/** The kit for one more mount; call releaseAssets(urls) when that mount goes (whether the load worked or not). */
 export function loadAssets(urls: AssetUrls): Promise<Assets> {
-  const key = Object.values(urls).join("|");
+  const key = keyOf(urls);
+  holders.set(key, (holders.get(key) ?? 0) + 1);
   let p = cache.get(key);
   if (!p) {
     p = (async () => {
@@ -77,7 +84,30 @@ export function loadAssets(urls: AssetUrls): Promise<Assets> {
       return { gltf, layout, home, away, normal, crest };
     })();
     cache.set(key, p);
-    p.catch(() => cache.delete(key));
+    const mine = p;
+    p.catch(() => {
+      if (cache.get(key) === mine) cache.delete(key);
+    });
   }
   return p;
+}
+
+export function releaseAssets(urls: AssetUrls): void {
+  const key = keyOf(urls);
+  const n = (holders.get(key) ?? 0) - 1;
+  if (n > 0) {
+    holders.set(key, n);
+    return;
+  }
+  holders.delete(key);
+  const p = cache.get(key);
+  cache.delete(key);
+  void p?.then((A) => {
+    for (const b of [A.home, A.away, A.normal, A.crest]) b?.close();
+    A.gltf.scene.traverse((o) => {
+      const { geometry, material } = o as Partial<Mesh>;
+      geometry?.dispose();
+      for (const m of Array.isArray(material) ? material : material ? [material] : []) m.dispose();
+    });
+  }, () => undefined);
 }

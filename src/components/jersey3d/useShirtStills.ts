@@ -5,6 +5,48 @@ import { STILL_VERSION } from "./scene-constants";
 // Photos of the real kit (rendered once per name/number/kit/theme/angle). They are kept on
 // the device (Cache Storage), so later visits show them at once without loading three.js.
 const urls = new Map<string, string>();
+// Each mounted hook holds the stills it asks for. The ones nobody holds stay for a while (a page and back), oldest
+// first out past KEEP_UNHELD: their object URLs are revoked, so a long session (names typed in the shirt maker,
+// a squad in two themes) does not pile up photos. A held still is never revoked: an <img> on screen may use it.
+const held = new Map<string, number>();
+const KEEP_UNHELD = 48;
+function hold(keys: string[]) {
+  for (const k of keys) held.set(k, (held.get(k) ?? 0) + 1);
+}
+function letGo(keys: string[]) {
+  for (const k of keys) {
+    const n = (held.get(k) ?? 0) - 1;
+    if (n > 0) {
+      held.set(k, n);
+      continue;
+    }
+    held.delete(k);
+    // the newest unheld goes to the back of the line
+    const url = urls.get(k);
+    if (url === undefined) continue;
+    urls.delete(k);
+    urls.set(k, url);
+  }
+  // (after the commit's other effects: a hook whose list changed, or the next page's, holds its stills first)
+  queueMicrotask(trim);
+}
+function trim() {
+  let unheld = 0;
+  for (const k of urls.keys()) if (!held.has(k)) unheld++;
+  for (const [k, url] of urls) {
+    if (unheld <= KEEP_UNHELD) return;
+    if (held.has(k)) continue;
+    URL.revokeObjectURL(url);
+    urls.delete(k);
+    unheld--;
+  }
+}
+/** Keeps the first URL made for a still (another page or shirt may have got it meanwhile): a later one is revoked. */
+function keep(k: string, url: string) {
+  if (urls.has(k)) URL.revokeObjectURL(url);
+  else urls.set(k, url);
+  trim();
+}
 let failed = false;
 const SEP = "\u001f";
 export const stillKey = (r: StillRequest) => [r.kit, r.theme, r.name, r.num, r.yaw ?? 0].join(SEP);
@@ -93,6 +135,12 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
   useEffect(() => refresh.cancel, [refresh]);
   const keys = reqs.map(stillKey).join("\n");
   useEffect(() => {
+    if (!keys) return;
+    const list = keys.split("\n");
+    hold(list);
+    return () => letGo(list);
+  }, [keys]);
+  useEffect(() => {
     if (failed || !keys) return;
     const todo = keys.split("\n").filter((k) => !urls.has(k));
     if (!todo.length) return;
@@ -101,8 +149,8 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
       const cached = await Promise.all(todo.map(fromStore));
       const missing: string[] = [];
       cached.forEach((url, i) => {
-        if (url && !urls.has(todo[i])) urls.set(todo[i], url);
-        else if (!url) missing.push(todo[i]);
+        if (url) keep(todo[i], url);
+        else missing.push(todo[i]);
       });
       if (!cancelled && missing.length < todo.length) refresh.run();
       if (!missing.length) return;
@@ -118,7 +166,7 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
           continue;
         }
         const blob = await render(parse(k));
-        urls.set(k, URL.createObjectURL(blob));
+        keep(k, URL.createObjectURL(blob));
         void toStore(k, blob);
         if (!cancelled) refresh.run();
       }
