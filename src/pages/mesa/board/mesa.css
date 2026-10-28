@@ -7,6 +7,7 @@
 .me{--me-line-h:52px;position:relative;isolation:isolate;height:100vh;height:100dvh;min-height:520px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;overflow:hidden;color:var(--vd-ink);font-family:var(--vd-sans,var(--font-sans))}
 .me>.vd-sky{position:absolute;inset:0;z-index:0;height:auto}
 .me>*:not(.vd-sky){position:relative;z-index:2}
+.me :where(h1,h2,h3,h4,p,ol,ul){margin-block:0}
 .me-i{width:20px;height:20px;flex:none}
 .me button{font-family:inherit}
 .me :focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
@@ -64,9 +65,9 @@
 svg.me-shirt{padding:4% 8%;box-sizing:border-box}
 
 /* sheets: phone = from the bottom over a scrim; desktop = the panel at the side (no scrim) */
-.me-scrim{position:absolute!important;inset:0;z-index:24!important;background:rgba(2,8,26,.42);border:0;padding:0;cursor:default}
+.me-scrim{position:fixed!important;inset:0;z-index:24!important;background:rgba(2,8,26,.42);border:0;padding:0;cursor:default}
 :root[data-theme="light"] .me-scrim{background:rgba(12,23,51,.22)}
-.me-sheet{position:absolute!important;z-index:25!important;left:0;right:0;bottom:0;max-height:86%;display:flex;flex-direction:column;border-radius:28px 28px 0 0;overflow:hidden;--vd-r:28px}
+.me-sheet{position:fixed!important;z-index:25!important;left:0;right:0;bottom:0;max-height:86%;display:flex;flex-direction:column;border-radius:28px 28px 0 0;overflow:hidden;--vd-r:28px}
 .me-sheet__h{display:flex;align-items:center;gap:10px;padding:16px 18px 10px;border-bottom:1px solid var(--vd-rule)}
 .me-sheet__h .me-h3{flex:1;color:var(--vd-g-ink)}
 .me-sheet__b{padding:14px 18px 18px;overflow:auto;color:var(--vd-g-ink)}
@@ -574,3 +575,32 @@ svg.me-shirt{padding:4% 8%;box-sizing:border-box}
 /* the verbs keep their whole word: a smaller type and gap on the tablet, and their key hints only from 1440 */
 @container me (min-width:700px) and (max-width:1099px){.me-verb{font-size:13px;gap:4px}}
 @container me (min-width:1100px) and (max-width:1439px){.me-verb .me-kbd{display:none}}
+
+/* ===================== the app (beyond the boards) ===================== */
+/* the web's own heading font and margins never reach la mesa */
+.me :is(h1,h2,h3,h4){font-family:var(--vd-sans,var(--font-sans))}
+/* the keys only from the tablet (the clock's) and the desktop (all) */
+@container me (max-width:699px){.me-kbd{display:none}}
+/* no «…» anywhere: the status line, who is scoring, the bench and the buttons wrap or keep a size that fits */
+.me-line__msg,.me-line__rest{display:block;-webkit-line-clamp:unset;overflow:visible}
+.me-who{white-space:normal;overflow:visible;text-overflow:clip;text-align:right;max-width:52cqi}
+.me-sub__n,.me-sub__l{overflow:visible;text-overflow:clip}
+.me-sub__n.is-long{font-size:10.5px;letter-spacing:-.01em}
+.me-sub__n.is-xlong{font-size:9.5px;letter-spacing:-.02em}
+.me-btn__t{overflow:visible;text-overflow:clip}
+.me-plan__go b{overflow:visible;text-overflow:clip}
+/* the armband of the official board (B-PAR-01) */
+.me-stk.is-cap{background:var(--vd-celeste);color:var(--vd-marino);box-shadow:none}
+.me-des__board{margin:10px 0 4px}
+.me-psh__sub{margin:-4px 0 12px;color:var(--vd-g-ink2)}
+.me-step__l small{display:block;font-size:12px;font-weight:560;color:var(--vd-g-ink2)}
+.me-saving.is-bad::before{content:"! ";color:var(--vd-roja);font-weight:900}
+/* the titles keep their line (no glyph over the line under it) */
+.me-sh .me-h1,.me-door__t{line-height:1.12}
+/* the seven before the whistle: room for the shirt, the name and the position under it */
+.me-pitch--still{--mh:86px;height:360px}
+.me-pitch--still .me-man--still{align-content:center;row-gap:1px}
+@container me (min-width:700px){.me-pitch--still{--mh:96px;height:auto}}
+/* a door fills the frame */
+.me.is-door{grid-template-rows:minmax(0,1fr)}
+.me-door{grid-row:1;align-self:start}

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiError } from "../../../lib/clubApi";
 import { RIVAL_GOAL_HOLD_MS } from "../api";
+import { maquetaHoja } from "../maqueta";
 import { buzz } from "../screens/hooks";
 import type { MesaEvent, MesaType, MesaView } from "../types";
 import { fairHalf, finBlockers, halfPlan, listOf, NO_HALF, plural, secondHalfUi, shownScore, upper, whyNot, type HalfUi, type Kind } from "./derive";
@@ -648,6 +649,33 @@ export function useBoard(view: MesaView, vista: string | undefined) {
   }, []);
 
   const confirmK = confirm.k;
+  // (DEV only: ?hoja= opens a sheet as the boards' hash does; never in a build)
+  const opened = useRef(false);
+  const openFromAddress = () => {
+    const h = maquetaHoja();
+    if (!h) return;
+    const cur = vRef.current;
+    if (h === "gol") return golPiti();
+    if (h === "jugador") {
+      setSel(cur.field[cur.field.length - 1]?.id ?? null);
+      return setHoja("jugador");
+    }
+    if (h === "editar") {
+      const e = cur.events[cur.events.length - 1];
+      if (e) editOpen(e);
+      return;
+    }
+    setHoja(h as Sheet);
+  };
+  const openRef = useRef(openFromAddress);
+  useEffect(() => {
+    openRef.current = openFromAddress;
+  });
+  useEffect(() => {
+    if (!import.meta.env.DEV || opened.current) return;
+    opened.current = true;
+    openRef.current();
+  }, []);
   const skip = (x: { inId: string; outId: string }) => {
     setUi({ skipped: [...ui.skipped, x.outId + x.inId] });
     say("Plan", `Saltado: ${nameOf(x.inId)} por ${nameOf(x.outId)}. El plan sigue en la pizarra.`);

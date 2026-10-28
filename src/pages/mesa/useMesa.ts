@@ -7,6 +7,7 @@ import { db } from "../../firebase";
 import { useClubData, nameFor, dateMillis, type ClubMatch } from "../../lib/clubData";
 import { apiError, controlMatchClock, mesaEvent, publishLive, setMatchScorers } from "../../lib/clubApi";
 import { isGuestId, withGuestNames } from "../../lib/derived/guests";
+import { niceName } from "../../lib/derived/words";
 import { useClock } from "../../hooks/useClock";
 import { useClubPeople, useMatchScorers } from "../vestuario/live";
 import { useBoardView, useMatchBoard } from "../pizarra/useMatchBoard";
@@ -15,6 +16,7 @@ import { jornadaOf } from "../../lib/derived/jornada";
 import { systemText } from "../../lib/derived/system";
 import { useStandings } from "../../lib/useStandings";
 import { lineupSeven, parseMatchLineup, parsePresent } from "../../lib/matchLineup";
+import { maquetaActions, maquetaFase, maquetaMatch } from "./maqueta";
 import { addMatchGuest, addSubs, MAX_WAVE, saveMatchReport, setMatchDuration } from "./api";
 import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type QueuePayload } from "./queue";
 import {
@@ -161,7 +163,8 @@ export interface MesaInput {
 function playerInfo(match: ClubMatch | undefined, players: ReturnType<typeof useClubData>["players"]) {
   const seasonId = match?.seasonId;
   const byId = new Map(players.map((p) => [p.id, p]));
-  const base = (id: string) => nameFor(byId.get(id), seasonId);
+  // («Adrián T.C.» as la mesa writes it; the shirts print it in capitals)
+  const base = (id: string) => niceName(nameFor(byId.get(id), seasonId));
   const nameOf = withGuestNames(match ?? null, base);
   const info = (id: string): PlayerInfo => {
     const p = byId.get(id);
@@ -175,13 +178,17 @@ function playerInfo(match: ClubMatch | undefined, players: ReturnType<typeof use
 /** Everything la mesa shows and does for one match. Null until the match is known (`state` says why). */
 export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | null; state: "loading" | "missing" | "ready"; canScore: boolean; scorersLoading: boolean } {
   const { matches, players, loading } = useClubData();
-  const match = matches.find((m) => m.id === matchId);
+  const found = matches.find((m) => m.id === matchId);
+  // (DEV only: ?fase= replays the match up to that moment and writes nothing, ./maqueta)
+  const maq = import.meta.env.DEV ? maquetaFase() : null;
+  const [maqAt] = useState(() => Date.now());
+  const match = useMemo(() => (maq && found ? maquetaMatch(found, maq, maqAt) : found), [maq, found, maqAt]);
   const scorers = useMatchScorers(me ? matchId : undefined);
   const canScore = !!me && (me.admin || scorers.data.includes(me.uid));
   const now = useClock(1000);
   const phase = match?.clock?.phase ?? "ready";
   useWakeLock(canScore && !!match && phase !== "ended");
-  const presenceRows = usePresence(canScore ? matchId : undefined, me, canScore && phase !== "ended");
+  const presenceRows = usePresence(canScore ? matchId : undefined, me, canScore && phase !== "ended" && !maq);
   const upcoming = !!match && phase === "ready";
   const boardId = useMatchBoard(match?.seasonId, matchId, upcoming, canScore);
   const board = useBoardView(boardId);
@@ -217,7 +224,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     throw e instanceof Error ? e : new Error(msg);
   }, []);
 
-  const actions = useMemo<MesaActions>(() => {
+  const realActions = useMemo<MesaActions>(() => {
     /** The queued item that writes event `id`, and which of its plays it is (a wave has several). */
     const local = (id: string): { item: QueueItem; index: number } | undefined => {
       if (!id.startsWith("live-")) return undefined;
@@ -363,6 +370,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     };
     // (players feed only the queued play's text; the actions read the match and the time through refs)
   }, [queue, matchId, fail, players]);
+  const actions = useMemo(() => (maq ? maquetaActions(realActions) : realActions), [maq, realActions]);
 
   const view = useMemo<MesaView | null>(() => {
     if (!match || !me) return null;
@@ -384,14 +392,14 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     const benchIds = lineup ? [...(match.bench ?? []), ...(match.starters ?? [])].filter((id) => !starters.includes(id)) : (match.bench ?? []);
     const { field, bench } = mesaPlayers(starters, benchIds, all, reading.elapsedSeconds, info, codes, pendingBy, lineup);
     const fresh = presenceRows.map<MesaPresence>((p) => ({ uid: p.uid, name: p.name, at: p.at, fresh: p.at > 0 && now - p.at < FRESH_MS, me: p.uid === me.uid }));
-    const people = new Map(fresh.map((p) => [p.uid, p.name] as const));
+    const people = new Map([...(clubPeople.data ?? []).map((p) => [p.uid, p.nickname || p.displayName || "Anotador"] as const), ...fresh.map((p) => [p.uid, p.name] as const)]);
     const rival = match.rival ?? "Rival";
     const rivalShort = rivalShortOf(rival, "rivalShort" in match ? match.rivalShort : undefined);
     const events = mesaEvents(match.events, localPlays, { nameOf, rival, rivalShort, uid: me.uid, people });
     const queuedGoals = { us: 0, them: 0 };
     for (const e of events) if (e.local && e.goal) queuedGoals[e.goal]++;
     const queueState: MesaQueueState = {
-      online: !snap.offline,
+      online: !snap.offline && maq !== "sinred",
       pending: snap.items.filter((x) => x.status !== "review").length,
       byPlayer: pendingBy,
       items: snap.items.filter((x) => x.status !== "review").map((x) => ({ requestId: x.requestId, type: x.payload.type, text: x.text, playerId: x.batch ? null : x.payload.playerId ?? null, minute: x.payload.minute + 1, count: x.batch?.length ?? 1, createdAt: x.createdAt, status: x.requestId === snap.sending || x.status === "sent" ? "sending" : "pending" })),

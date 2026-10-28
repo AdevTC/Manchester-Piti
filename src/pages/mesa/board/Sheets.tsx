@@ -24,7 +24,7 @@ const FAMILIES: readonly (readonly MesaType[])[] = [
 const familyOf = (t: MesaType) => FAMILIES.find((f) => f.includes(t)) ?? [t];
 const KNOWN = new Set<string>(MESA_TYPES);
 
-function Frame({ title, kicker, onClose, children, foot, head }: { title: string; kicker?: string; onClose: () => void; children: ReactNode; foot?: ReactNode; head?: ReactNode }) {
+function Frame({ title, kicker, sub, onClose, children, foot, head }: { title: string; kicker?: string; sub?: string; onClose: () => void; children: ReactNode; foot?: ReactNode; head?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // (the first control of the sheet takes the focus: A-MESA-22)
@@ -39,6 +39,7 @@ function Frame({ title, kicker, onClose, children, foot, head }: { title: string
         <div className="me-psh__t">
           {kicker && <p className="me-k">{kicker}</p>}
           <h2 className="me-h3" id="me-sheet-t">{title}</h2>
+          {sub && <p className="me-small">{sub}</p>}
         </div>
         <button type="button" className="vd-ibtn vd-glass vd-press" onClick={onClose} aria-label="Cerrar"><Icon name="close" /></button>
       </header>
@@ -62,10 +63,9 @@ function Jugador({ v, b }: { v: MesaView; b: B }) {
   const act = (t: MesaType, go: () => void) => () => (w(t) ? b.fail(w(t)) : go());
   const gal = galonesText(v, pid);
   const head = <Shirt kit={v.match.kit} num={p.guest ? undefined : p.number} className="me-shirt--s" />;
-  const sub = [p.keeper ? "portero" : placeWord(p.pos), `${p.minutes}′ jugados`, `minuto ${v.match.clock.minute}`, gal].filter(Boolean).join(" · ");
+  const line = [p.keeper ? "portero" : placeWord(p.pos), `${p.minutes}′ jugados`, `minuto ${v.match.clock.minute}`, gal].filter(Boolean).join(" · ");
   return (
-    <Frame title={upper(p.name)} kicker={undefined} onClose={b.closeSheet} head={head}>
-      <p className="me-small me-psh__sub">{sub}</p>
+    <Frame title={upper(p.name)} sub={line} onClose={b.closeSheet} head={head}>
       {v.match.clock.held && <p className="me-small me-note">En pausa: solo cambios, tarjetas y tocados.</p>}
       {b.sub !== "tarjeta" ? (
         <div className="me-grid" role="group" aria-label={`Acciones de ${p.name}`}>
