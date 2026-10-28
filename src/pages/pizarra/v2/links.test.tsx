@@ -2,7 +2,6 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { z } from "zod";
 import { lineupOf, demoSquad } from "./testkit";
 import { BoardHarness } from "./testkitBoard";
 import { TablerosPanel, type TablerosProps } from "./Tableros";
@@ -19,8 +18,7 @@ vi.mock("../../../components/pitch3d/support", () => ({ unsupportedReason: () =>
 async function inRouter(node: ReactNode) {
   const root = createRootRoute({ component: () => <>{node}</> });
   const leaf = (path: string) => createRoute({ getParentRoute: () => root, path, component: () => null });
-  const convocar = createRoute({ getParentRoute: () => root, path: "/admin/convocar", validateSearch: z.object({ j: z.string().optional() }), component: () => null });
-  const router = createRouter({ routeTree: root.addChildren([leaf("/pizarra"), leaf("/partidos/$matchId"), leaf("/jugadores/$playerId"), convocar]), history: createMemoryHistory({ initialEntries: ["/pizarra"] }) });
+  const router = createRouter({ routeTree: root.addChildren([leaf("/pizarra"), leaf("/partidos/$matchId"), leaf("/jugadores/$playerId"), leaf("/admin/partidos/$matchId/convocatoria")]), history: createMemoryHistory({ initialEntries: ["/pizarra"] }) });
   render(<RouterProvider router={router} />);
   await screen.findAllByRole("link");
 }
@@ -39,10 +37,10 @@ describe("pizarraLinks", () => {
     expect(screen.queryByRole("link", { name: "Convocar" })).toBeNull();
   });
 
-  it("an admin: Convocar that match in the Sala de control", async () => {
+  it("an admin: Convocar that match in the Sala de control (its convocatoria station)", async () => {
     await inRouter(pizarraLinks(true).match("m8"));
     expect(screen.getByRole("link", { name: "Ver el partido" })).toHaveAttribute("href", "/partidos/m8");
-    expect(screen.getByRole("link", { name: "Convocar" })).toHaveAttribute("href", "/admin/convocar?j=m8");
+    expect(screen.getByRole("link", { name: "Convocar" })).toHaveAttribute("href", "/admin/partidos/m8/convocatoria");
     expect(screen.getByRole("link", { name: "Convocar" })).toHaveClass("b3");
   });
 });

@@ -41,47 +41,51 @@ async function openPartidos(page: Page) {
     .click();
   await expect(page).toHaveURL(/\/admin\/partidos/);
 }
-/** «Nuevo partido»: fills the modal and creates the draft (it opens on «Encuentro»); returns its id. */
+/** «Nuevo partido»: fills the sheet and creates the draft (r12: it opens on its Datos station); returns its id. */
 async function nuevoPartido(page: Page, o: { rival: string; date: string; time: string; venue?: string }): Promise<string> {
   await page.getByRole("button", { name: "Nuevo partido" }).first().click();
-  const modal = page.getByRole("dialog", { name: "Nuevo partido" });
-  await expect(modal).toBeVisible();
-  await modal.getByLabel("Rival", { exact: true }).fill(o.rival);
-  const season = modal.getByLabel("Temporada", { exact: true });
+  const sheet = page.getByRole("dialog", { name: "Nuevo partido" });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("textbox", { name: /^Rival/ }).fill(o.rival);
+  const season = sheet.getByRole("combobox", { name: /^Temporada/ });
   if (await season.count()) await season.selectOption("preview-season");
-  await modal.getByLabel("Fecha", { exact: true }).fill(o.date);
-  await modal.getByLabel("Hora (Madrid)").fill(o.time);
-  await modal.getByRole("button", { name: "Crear y abrir" }).click();
-  await expect(page.getByText(new RegExp(`Borrador · ${o.rival} creado`))).toBeVisible();
-  // (r12: the new match opens on its Datos station)
+  await sheet.getByLabel("Fecha", { exact: true }).fill(o.date);
+  await sheet.getByLabel("Hora (Madrid)").fill(o.time);
+  await sheet.getByRole("button", { name: "Crear", exact: true }).click();
+  await expect(page.getByText(new RegExp(`${o.rival} creado`))).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/partidos\/[^/?]+\/datos/);
-  // (the match's own screen, not the list still on screen while the match's code arrives: the list shows another
-  // match's workspace beside it on the desktop)
-  await expect(page.locator(".sc-match .det")).toBeVisible();
-  if (o.venue) await page.getByLabel("Nombre del campo").fill(o.venue);
+  // (the match's own Datos, not the list still on screen while the match's code arrives)
+  await expect(page.locator(".sc-match .pa-datos")).toBeVisible();
+  if (o.venue) await setVenue(page, o.venue);
   return new URL(page.url()).pathname.split("/")[3] ?? "";
 }
+/** Datos › Dónde: a ground by hand («Otro campo», when the club has a list of grounds). */
+async function setVenue(page: Page, name: string) {
+  const ground = page.getByRole("combobox", { name: /^Campo/ });
+  if ((await ground.inputValue()) !== "otro") await ground.selectOption("otro");
+  await page.getByRole("textbox", { name: /^Nombre del campo/ }).fill(name);
+}
+/** Datos' foot (its state, why, the buttons). */
+const datosFoot = (page: Page) => page.locator(".pa-foot");
 /** A Madrid calendar day relative to today, as the date field wants it. */
 const madridDay = (days: number) =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(Date.now() + days * 86400000);
-/** The workspace's fixed footer (state, reason, buttons). */
-const footer = (page: Page) => page.locator(".det .df");
 
 test("programar, publicar en el calendario y reabrir un encuentro conserva sus datos", async ({ page }) => {
   await openPartidos(page);
   const rival = `Rival E2E ${Date.now()}`;
   await nuevoPartido(page, { rival, date: "2030-10-12", time: "18:30", venue: "Campo de integración" });
-  await expect(footer(page).getByText("Sin publicar · aún no sale en el calendario")).toBeVisible();
-  await footer(page).getByRole("button", { name: "Publicar en el calendario" }).click();
+  await expect(datosFoot(page).getByText("Borrador · el calendario aún no lo tiene")).toBeVisible();
+  await datosFoot(page).getByRole("button", { name: "Publicar en el calendario" }).click();
   await expect(page.getByText(/publicado · ya sale en el calendario/)).toBeVisible();
-  await expect(footer(page).getByText("Por jugar · sáb 12 oct 18:30")).toBeVisible();
+  await expect(datosFoot(page).getByText("Por jugar · 12 oct 18:30")).toBeVisible();
   // reopen it: the season's list finds it by its rival, the data is the saved one
   await page.goto("/admin/partidos");
   await page.getByRole("searchbox", { name: "Buscar partido" }).fill(rival);
-  await page.getByRole("button", { name: new RegExp(rival) }).click();
+  await page.getByRole("link", { name: new RegExp(rival) }).click();
   await page.getByRole("navigation", { name: "Las estaciones del partido" }).getByRole("link", { name: /^2 de 6 · Datos/ }).click();
-  await expect(page.getByLabel("Rival", { exact: true })).toHaveValue(rival);
-  await expect(page.getByLabel("Nombre del campo")).toHaveValue("Campo de integración");
+  await expect(page.getByRole("combobox", { name: "Nombre del rival" })).toHaveValue(rival);
+  await expect(page.getByRole("textbox", { name: /^Nombre del campo/ })).toHaveValue("Campo de integración");
   await expect(page.getByLabel("Fecha", { exact: true })).toHaveValue("2030-10-12");
   await expect(page.getByLabel("Hora (Madrid)")).toHaveValue("18:30");
 });
@@ -90,11 +94,11 @@ test("el borrador se guarda sin modificar el encuentro público", async ({ page 
   await openPartidos(page);
   const rival = `Borrador privado ${Date.now()}`;
   await nuevoPartido(page, { rival, date: "2030-11-02", time: "11:00" });
-  await page.getByLabel("Nombre del campo").fill("Campo del borrador");
+  await setVenue(page, "Campo del borrador");
   await expect(page.getByText("● Cambios sin guardar")).toBeVisible();
-  await footer(page).getByRole("button", { name: "Guardar borrador" }).click();
+  await datosFoot(page).getByRole("button", { name: "Guardar borrador" }).click();
   await expect(page.getByText("Borrador guardado · solo lo ven los capitanes")).toBeVisible();
-  await expect(footer(page).getByText(/^Guardado .* · hora de Madrid$/)).toBeVisible();
+  await expect(datosFoot(page).getByText(/^Guardado .* · hora de Madrid$/)).toBeVisible();
   await page.goto("/partidos");
   await expect(page.getByText(rival, { exact: true })).toHaveCount(0);
 });
@@ -104,7 +108,7 @@ test("el acta: convocatoria en Convocar, gol con «¿Quién marcó?» y publicar
   const rival = `Acta E2E ${Date.now()}`;
   // The shared clock needs it in the calendar: scheduled for tomorrow, published, then played now.
   const id = await nuevoPartido(page, { rival, date: madridDay(1), time: "10:00", venue: "Campo de pruebas" });
-  await footer(page).getByRole("button", { name: "Publicar en el calendario" }).click();
+  await datosFoot(page).getByRole("button", { name: "Publicar en el calendario" }).click();
   await expect(page.getByText(/publicado · ya sale en el calendario/)).toBeVisible();
   // Nobody has whistled it yet, so it is still «por jugar»: its Convocatoria station is Convocar (the one
   // convocatoria; r12's carril). (Convocar's markup is phase V1b's: a row per player with «Siete» / «Banq.».)
@@ -116,8 +120,11 @@ test("el acta: convocatoria en Convocar, gol con «¿Quién marcó?» y publicar
   page.on("request", (r) => r.url().includes("setConvocatoria") && inFlight++);
   page.on("requestfinished", (r) => r.url().includes("setConvocatoria") && inFlight--);
   page.on("requestfailed", (r) => r.url().includes("setConvocatoria") && inFlight--);
-  for (const name of ["Álex", "Dani", "Marcos", "Pablo", "Sergio", "David", "Mario"])
-    await page.locator(".pr", { hasText: name }).getByRole("button", { name: "Siete" }).click();
+  // (r12: a shirt of «Quién viene» → «Al siete»)
+  for (const name of ["Álex", "Dani", "Marcos", "Pablo", "Sergio", "David", "Mario"]) {
+    await page.getByRole("button", { name: new RegExp(`^${name}, .*: elegir dónde$`, "i") }).first().click();
+    await page.getByRole("group", { name: new RegExp(`^Dónde va ${name}$`, "i") }).getByRole("button", { name: "Al siete" }).click();
+  }
   await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
   await page.waitForTimeout(400); // a queued write starts right after the previous one ends
   await expect.poll(() => inFlight, { timeout: 10_000 }).toBe(0);
@@ -129,28 +136,40 @@ test("el acta: convocatoria en Convocar, gol con «¿Quién marcó?» y publicar
     const done = (await callFunction(token, "controlMatchClock", { matchId: id, action, revision })) as { clock: { revision: number } };
     revision = done.clock.revision;
   }
-  await page.goto(`/admin/partidos/${id}?tab=acta`);
-  // Its acta says it was played yesterday (so the home's seeded last result stays the latest).
-  await page.getByRole("tab", { name: /Encuentro/ }).click();
+  // Its acta says it was played yesterday (so the home's seeded last result stays the latest): its Datos, saved as a
+  // draft (the acta's stations share that one buffer with Datos).
+  await page.goto(`/admin/partidos/${id}/datos`);
   await page.getByLabel("Fecha", { exact: true }).fill(madridDay(-1));
-  await page.getByRole("tab", { name: /^Acta/ }).click();
-  // Acta: add the goal, name its scorer and its pass, then its minute.
+  await page.getByRole("button", { name: "Guardar borrador" }).click();
+  await expect(page.getByText("Borrador guardado · solo lo ven los capitanes")).toBeVisible();
+  await page.getByRole("navigation", { name: "Las estaciones del partido" }).getByRole("link", { name: /· Acta/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}/acta$`));
+  // Acta: add the goal, name its scorer and its pass in its row, then its minute.
+  const foot = page.locator(".ac-foot");
   await page.getByRole("button", { name: "Gol del Piti" }).click();
-  const picker = page.getByRole("dialog", { name: "¿Quién marcó?" });
+  const picker = page.getByRole("group", { name: "¿Quién marcó?" });
   await expect(picker).toBeVisible();
   await picker.getByRole("button", { name: "Mario marcó el gol 1" }).click();
-  await page.getByRole("dialog", { name: "¿Quién le dio el pase?" }).getByRole("button", { name: "Pase de Pablo" }).click();
-  await expect(footer(page).getByText("No cuadra: falta el minuto del gol 1")).toBeVisible();
+  await page.getByRole("group", { name: "¿Quién le dio el pase?" }).getByRole("button", { name: "Pase de Pablo" }).click();
+  await expect(foot.getByText("No cuadra: falta el minuto del gol 1")).toBeVisible();
   await page.getByLabel("Minuto del gol 1", { exact: true }).fill("0"); // whistled seconds after kick-off: only the 0′ fits
-  await expect(footer(page).getByText("Cuadra · 1 gol, con goleador")).toBeVisible();
-  await footer(page).getByRole("button", { name: "Publicar acta" }).click();
-  // The publish peak: FINAL → the vitrina → the hand-off.
+  await expect(foot.getByText("Cuadra · 1 gol, con goleador")).toBeVisible();
+  // Publicar: what the fans will see, then «Publicar el acta» says what it does before it goes.
+  await foot.getByRole("button", { name: "Ir a publicar" }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}/publicar$`));
+  await expect(page.getByRole("region", { name: "Así lo verá la afición" }).getByText(/^Mario/)).toBeVisible();
+  await page.locator(".ac-foot").getByRole("button", { name: "Publicar el acta" }).click();
+  const confirm = page.getByRole("dialog", { name: /^¿Publicar el acta de la/ });
+  await expect(confirm.getByText(/Se abre el MVP 48 h/)).toBeVisible();
+  await confirm.getByRole("button", { name: "Publicar el acta" }).click();
+  // Después: what publishing set going, and the way back to the acta.
   await expect(page).toHaveURL(new RegExp(`/admin/partidos/${id}/despues`));
-  const peak = page.getByRole("region", { name: "Acta publicada" });
-  await expect(peak.getByText("Acta publicada · la web ya lo cuenta")).toBeVisible();
-  await expect(peak.getByRole("button", { name: "Compartir el cartel" })).toBeVisible();
-  await peak.getByRole("button", { name: "Corregir el acta" }).click();
-  await expect(footer(page).getByText("Publicada · la web ya lo cuenta")).toBeVisible();
+  const after = page.getByRole("region", { name: "Después del partido", exact: true });
+  await expect(after.getByText("Publicada · la web ya lo cuenta")).toBeVisible();
+  await expect(after.getByRole("heading", { name: "El MVP" })).toBeVisible();
+  await expect(after.getByRole("button", { name: "Compartir el cartel" })).toBeVisible();
+  await after.getByRole("button", { name: "Corregir el acta" }).click();
+  await expect(page.locator(".ac-foot").getByText("Lo que cambies aquí se corrige en la web al guardar")).toBeVisible();
 });
 
 // /admin as the FIRST page loaded (refresh, bookmark, push link): its styles must not depend on a site page

@@ -56,6 +56,13 @@ describe("the carril", () => {
     expect(phaseWord("publicado", { published: true, draft: true })).toBe("Publicado · con una corrección en borrador");
     expect(words(input(fix, { cuadra: true }, { publishedFinal: true }))).toMatchObject({ acta: "toca · Corrección en borrador", publicar: "toca · La web cuenta la anterior" });
   });
+  it("la mesa of a played match: «Pitado» only when its clock ran; a clock left at «ready» is «Sin reloj»", () => {
+    const pub = { date: NOW - 30 * H, status: "finished", published: true } as Partial<AdminMatch>;
+    const at = (clock: AdminMatch["clock"]) => words(input({ ...pub, clock }, { cuadra: true }))["en-juego"];
+    expect(at(undefined)).toBe("hecho · Sin reloj");
+    expect(at({ phase: "ready" } as AdminMatch["clock"])).toBe("hecho · Sin reloj");
+    expect(at({ phase: "ended" } as AdminMatch["clock"])).toBe("hecho · Pitado");
+  });
   it("aplazado or cancelado: Datos says so and is where the match opens", () => {
     expect(words(input({ status: "postponed" })).datos).toBe("toca · Aplazado");
     expect(stationOf(carrilPhase({ ...base, status: "cancelled" } as AdminMatch, NOW))).toBe("datos");

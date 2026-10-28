@@ -204,7 +204,7 @@ it("Tabla before the league publishes: «La tabla, mientras llega»; the captain
   who.member = true;
   who.playerId = "adrian";
   render(<PartidosPage />);
-  expect(screen.getAllByRole("link", { name: /Publicar la clasificación/ })[0]).toHaveAttribute("href", "/admin/clasificacion");
+  expect(screen.getAllByRole("link", { name: /Publicar la clasificación/ })[0]).toHaveAttribute("href", "/admin/club/clasificacion");
 });
 
 it("Balance: the season's readout; a column read; the facets swap", () => {

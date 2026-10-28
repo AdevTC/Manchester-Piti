@@ -1,0 +1,153 @@
+/* ===== r12 · Hoy (board hoy.css, on SalaScreen: .hy is the screen, its body holds the week and the grid) ===== */
+
+/* la semana: one column per day, today marked, hitos as touchable words */
+.hy-week{margin:0 0 6px;padding:2px 0 12px;border-bottom:1px solid var(--vd-rule);min-width:0}
+.hy-days{list-style:none;margin:0;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(84px,1fr);gap:0;overflow-x:auto;scrollbar-width:thin}
+.hy-day{position:relative;display:grid;align-content:start;gap:6px;padding:8px 8px 6px;min-height:104px;box-sizing:border-box;border-left:1px solid var(--vd-rule)}
+.hy-day:first-child{border-left:0}
+.hy-day.is-past{opacity:.62}
+.hy-day.is-today{background:linear-gradient(180deg,rgba(108,171,221,.16),rgba(108,171,221,0));box-shadow:inset 0 2px 0 var(--vd-celeste);opacity:1}
+.hy-day__d{margin:0;display:flex;align-items:baseline;gap:5px;font-size:13px;color:var(--vd-ink2);white-space:nowrap}
+.hy-day__d b{font-size:20px;font-weight:760;font-feature-settings:'tnum' 1;color:var(--vd-ink-strong);letter-spacing:-.02em}
+.hy-day__now{margin:-4px 0 0;font-size:12px;font-weight:760;color:var(--vd-celeste-ink)}
+.hy-hito{display:block;width:100%;min-height:44px;padding:6px 8px;box-sizing:border-box;border:0;border-radius:12px;text-align:left;font-size:12.5px;line-height:1.25;font-weight:620;cursor:pointer;text-decoration:none;
+  color:var(--vd-ink);background:rgba(108,171,221,.08);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.hy-hito:hover{background:rgba(108,171,221,.16)}
+.hy-hito:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.hy-hito.is-partido{color:var(--vd-ink-strong);font-weight:720;background:rgba(108,171,221,.2);box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+.hy-hito.is-toca{color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-celeste),0 0 0 3px rgba(108,171,221,.18)}
+.hy-hito.is-toca::before{content:"Te toca · ";color:var(--vd-celeste-ink)}
+.hy-hito.is-hecho{background:none;box-shadow:none;color:var(--vd-ink2);font-weight:560}
+.hy-hito.is-hecho::before{content:"✓ "}
+.hy-hito.is-auto,.hy-hito.is-luego{background:none;box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink2)}
+.hy-hito.is-ahora{color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-live)}
+.hy-hito.is-ahora::before{content:"● ";color:var(--vd-live)}
+
+/* the grid: the match that matters and Te toca */
+.hy-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.hy-hero{padding:14px 0 18px;border-bottom:1px solid var(--vd-rule);min-width:0}
+.hy-hero__h{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:end;margin:0 0 16px}
+.hy-hero__h .sc-k{grid-column:1/-1}
+.hy-hero__t{margin:0;font-size:28px;line-height:1.05;font-weight:740;font-variation-settings:'wdth' 94;letter-spacing:-.022em;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.hy-hero__m{grid-column:1;margin:6px 0 0;font-size:14.5px;color:var(--vd-ink2)}
+.hy-hero__left{grid-column:2;grid-row:2/4;margin:0;display:grid;justify-items:end;gap:3px;text-align:right}
+.hy-hero__left span{font-size:13px;color:var(--vd-ink2)}
+.hy-hero__left b{font-size:30px;line-height:1;white-space:nowrap}
+.hy-carril{margin:4px 0 18px}
+.hy-conv{display:grid;gap:14px}
+.hy-conv__h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.hy-ans{list-style:none;margin:0;padding:0;display:grid;gap:0;border-top:1px solid var(--vd-rule)}
+.hy-ans__g{display:grid;grid-template-columns:120px minmax(0,1fr);align-items:center;gap:0 12px;min-height:58px;padding:5px 0;border-bottom:1px solid var(--vd-rule)}
+.hy-ans__t{margin:0;display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:14px}
+.hy-ans__t b{font-weight:650;color:var(--vd-ink)}
+.hy-ans__t .sc-num{font-size:20px}
+.hy-ans__g.is-yes .hy-ans__t b{color:var(--vd-ink-strong)}
+.hy-ans__sub{grid-column:1;margin:0;font-size:12.5px;color:var(--vd-ink2)}
+.hy-ans__shirts{grid-column:2;grid-row:1/3;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;min-width:0}
+.hy-ans__p{position:relative;display:inline-grid;justify-items:center}
+.hy-ans__g.is-none .sc-shirt,.hy-ans__g.is-no .sc-shirt{opacity:.55}
+.hy-ans__p.is-absent .sc-shirt{opacity:.4}
+.hy-ans__more{font-size:13px;font-weight:700;color:var(--vd-ink2);padding:0 4px}
+@container (min-width:760px){
+  .hy-ans{grid-template-columns:repeat(4,minmax(0,1fr));gap:0 16px;border-top:0}
+  .hy-ans__g{grid-template-columns:minmax(0,1fr);align-content:start;align-items:start;gap:6px;padding:8px 0 10px;border-bottom:0;border-top:1px solid var(--vd-rule)}
+  .hy-ans__sub,.hy-ans__shirts{grid-column:1;grid-row:auto}
+  .hy-ans__shirts{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:2px 4px}
+  .hy-ans .sc-shirt--s{--sw:40px}
+}
+.hy-seven{display:grid;gap:8px}
+.hy-seven__t{margin:0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:14px}
+.hy-seven__t b{font-weight:700;color:var(--vd-ink-strong)}
+.hy-seven__t span{color:var(--vd-ink2)}
+.hy-seven__slots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.hy-slot{display:grid;justify-items:center;gap:2px;min-width:0}
+.hy-slot small{font-size:12px;font-weight:650;color:var(--vd-ink2);max-width:100%;overflow-wrap:anywhere;text-align:center;line-height:1.2}
+.hy-slot__free{display:block;width:44px;height:48px;border-radius:12px;box-shadow:inset 0 0 0 1.5px var(--vd-rule2);background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(108,171,221,.06) 6px 12px)}
+.hy-hero__a{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.hy-hero__a .vd-btn{text-decoration:none}
+
+/* live and after */
+.hy-live,.hy-after{display:grid;gap:12px}
+.hy-live__score{margin:0;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hy-live__us{font-weight:760;font-size:18px;letter-spacing:.02em;color:var(--vd-ink-strong)}
+.hy-live__score .sc-score{font-size:64px}
+.hy-live__clock{margin:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--vd-ink)}
+.hy-live__clock .sc-clock{font-size:20px;color:var(--vd-ink-strong)}
+.hy-play{grid-template-columns:52px minmax(0,1fr);min-height:48px}
+.hy-play__min{font-family:var(--vd-mono);font-size:14px;color:var(--vd-ink2)}
+.hy-play.is-gol .sc-row__t b{color:var(--vd-oro)}
+.hy-play.is-suyo .sc-row__t b{color:var(--vd-rival)}
+.hy-after__line{font-size:16px}
+.hy-empty{display:grid;justify-items:start;gap:10px}
+
+/* Te toca */
+.hy-toca{padding:14px 0 8px;min-width:0}
+.hy-clear{margin:0;padding:14px 0;font-size:15.5px;color:var(--vd-ink)}
+.hy-clear::before{content:"✓ ";color:var(--vd-celeste-ink);font-weight:800}
+.hy-row{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:10px 2px}
+.hy-row__alt{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+.hy-row__link{display:inline-flex;align-items:center;min-height:36px;padding:0;font-size:13.5px;font-weight:650;color:var(--vd-celeste-ink);text-decoration:underline;text-underline-offset:3px}
+.hy-row__go{min-width:110px;text-decoration:none}
+.hy-more{display:inline-flex;min-height:44px;align-items:center;margin-top:4px;padding:0;border:0;background:none;font:inherit;font-size:14px;font-weight:650;color:var(--vd-celeste-ink);cursor:pointer}
+.hy-done{margin-top:10px}
+.hy-done__b{min-height:44px;padding:0;border:0;background:none;cursor:pointer}
+.hy-done__b:disabled{cursor:default}
+.hy-done__b .sc-tag{font-size:13.5px}
+.hy-next{margin-top:16px}
+.hy-next .sc-h3{margin:0 0 6px}
+.hy-next__r .sc-small{white-space:nowrap}
+
+/* tablet: the hero and Te toca side by side when there is room */
+@container (min-width:760px){
+  .hy-grid{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;align-items:start}
+  .hy-hero{border-bottom:0;padding-top:16px}
+  .hy-toca{padding-top:16px}
+}
+/* the hero is one column of two, too narrow for six stations side by side: the carril rolls as on the phone */
+@container (min-width:760px) and (max-width:1099px){
+  .hy-carril{min-width:0;grid-template-columns:repeat(var(--n,6),108px);overflow-x:auto;scrollbar-width:none}
+  .hy-carril::before{left:54px;right:auto;width:calc(108px * (var(--n,6) - 1))}
+  .hy-carril::-webkit-scrollbar{display:none}
+  .hy-carril .sc-station b{white-space:normal;overflow:visible}
+}
+@container (max-width:759px){
+  .hy-carril .sc-station b{white-space:normal;overflow:visible}
+  .hy-carril{grid-template-columns:repeat(var(--n,6),minmax(108px,1fr));overflow-x:auto;scrollbar-width:none;margin-left:calc(var(--sc-gut) * -1);margin-right:calc(var(--sc-gut) * -1);padding:0 var(--sc-gut)}
+  .hy-carril::before{left:calc(var(--sc-gut) + 54px);right:calc(var(--sc-gut) + 54px)}
+  .hy-carril::-webkit-scrollbar{display:none}
+}
+/* desktop: one screen, the page never scrolls; the regions scroll inside */
+@container (min-width:1100px){
+  .hy>.sc-screen__body{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0}
+  .hy-grid{min-height:0;grid-template-columns:minmax(0,1.35fr) minmax(360px,1fr);gap:40px}
+  .hy-hero,.hy-toca{min-height:0;height:100%;overflow:auto;scrollbar-width:thin;box-sizing:border-box;padding-right:6px;overscroll-behavior:contain}
+  .hy-hero__t{font-size:32px}
+  .hy-days{grid-auto-columns:minmax(92px,1fr)}
+  .hy-day{min-height:92px;padding-top:6px}
+  .hy-hero__h{margin-bottom:10px}
+  .hy-carril{margin:2px 0 10px}
+  .hy-antes .hy-hero__a{display:none}
+}
+@container (min-width:1800px){
+  .hy-grid{grid-template-columns:minmax(0,1.5fr) minmax(420px,1fr);gap:56px}
+  .hy-hero__t{font-size:38px}
+  .hy-ans .sc-shirt--s{--sw:54px}
+  .hy-seven .sc-shirt--m{--sw:80px}
+  .hy-live__score .sc-score{font-size:92px}
+}
+@container (min-width:2400px){
+  .hy-grid{grid-template-columns:minmax(0,1.6fr) minmax(480px,1fr);gap:72px}
+  .hy-days{grid-auto-columns:minmax(120px,1fr)}
+}
+@container (max-width:699px){
+  .hy-hero__h{grid-template-columns:minmax(0,1fr)}
+  .hy-hero__left{grid-column:1;grid-row:auto;justify-items:start;text-align:left;margin-top:8px;display:flex;gap:8px;align-items:baseline}
+  .hy-hero__left b{font-size:22px}
+  .hy-days{grid-auto-columns:96px;margin:0 calc(var(--sc-gut) * -1);padding:0 var(--sc-gut)}
+  .hy-ans__g{grid-template-columns:96px minmax(0,1fr)}
+  .hy-hero__t{font-size:24px}
+  .hy-seven__slots{gap:2px}
+  .hy-seven .sc-shirt--m{--sw:44px}
+  .hy-hero__a .vd-btn{flex:1 1 auto}
+  .hy-live__score .sc-score{font-size:52px}
+}

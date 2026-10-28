@@ -4,25 +4,20 @@
 import { useNavigate } from "@tanstack/react-router";
 import { pushState, savedTopics } from "../../../../lib/push";
 import { TuIcon, type TuIconName } from "../../../../components/vidrio/tu/ui";
-import type { SectionKey } from "../../../admin/shell/nav";
 import { ago } from "../../lines";
-import { adminLinks, doorLead, initials, secDesc } from "../model";
+import { adminLinks, doorLead, initials, secDesc, type AdminLinkKey } from "../model";
 import type { ScreenProps } from "../MiPagina";
 import { Shirt } from "../TuCard";
 import { Screen } from "./Head";
 
-const ADMIN_ICON: Record<SectionKey, TuIconName> = {
+const ADMIN_ICON: Record<AdminLinkKey, TuIconName> = {
   hoy: "shield",
   partidos: "fixtures",
-  convocar: "shirt",
+  convocatoria: "shirt",
   plantilla: "user",
-  fichas: "cardi",
+  socios: "cardi",
   caja: "euro",
-  temporadas: "flag",
-  contenido: "post",
-  capitanes: "shield",
-  clasificacion: "chart",
-  turnos: "swap",
+  club: "flag",
 };
 
 export function Capitania(p: ScreenProps) {

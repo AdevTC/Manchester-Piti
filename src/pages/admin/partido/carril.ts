@@ -111,7 +111,8 @@ export function stationsOf({ match: m, now, whistled = false, review, rsvp, mvpO
   out.push({
     id: "en-juego",
     state: live ? "ahora" : played ? "hecho" : off ? "luego" : !scorer && hasDate && t - now < 3 * D ? "toca" : "luego",
-    word: live ? (ph === "descanso" ? "Descanso" : "En juego") : ph === "pendiente" ? "No llegó a la mesa" : played ? (m.clock ? "Pitado" : "Sin reloj") : scorer ? `Anota ${scorer}` : "Sin anotador",
+    // (a clock left at «ready» never ran: the acta was written by hand, as the board's «Sin reloj»)
+    word: live ? (ph === "descanso" ? "Descanso" : "En juego") : ph === "pendiente" ? "No llegó a la mesa" : played ? (m.clock && m.clock.phase !== "ready" ? "Pitado" : "Sin reloj") : scorer ? `Anota ${scorer}` : "Sin anotador",
   });
   // 4 · el acta
   const miss = review.missingScorers;

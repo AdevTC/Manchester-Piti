@@ -35,7 +35,7 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
       analysis: { version: 2, revision: 0, profile: DEFAULT_ANALYSIS_PROFILE, coverage: [], observations: [{ id: 'detail-sub', canonicalEventId: 'sub', kind: 'substitution', team: 'us', actorId: ids[0], order: 1, time: { from: 120, to: 120, precision: 'exact' }, facts: { inPlayerId: ids[7] }, provenance: { time: { kind: 'explicit', sourceId: 'original' } } }] },
     } });
     await enterVestuario(page);
-    await page.goto(`/admin/partidos/${matchId}?tab=acta`);
+    await page.goto(`/admin/partidos/${matchId}/acta/narracion`);
     await page.getByRole('button', { name: 'Editar detalle', exact: true }).click();
     await page.getByLabel('Desde (segundos)', { exact: true }).fill('180');
     await page.getByRole('button', { name: 'Guardar detalle', exact: true }).click();
@@ -91,7 +91,7 @@ test('el administrador corrige, añade y borra detalles de un acta publicada y c
     await page.getByRole('link', { name: 'Abrir el análisis en Estadísticas' }).click();
     await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
     await expect(page.getByRole('list', { name: 'Indicadores de la selección' }).getByRole('button', { name: /Pases intentados/ }).locator('.nu-fig__v')).toHaveText('1');
-    await page.goto(`/admin/partidos/${matchId}?tab=acta`);
+    await page.goto(`/admin/partidos/${matchId}/acta/narracion`);
     const pass = page.locator('.ae-review-events > li').filter({ has: page.getByText('Pase', { exact: true }) });
     await pass.getByRole('button', { name: /^Borrar detalle/ }).click();
     await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();

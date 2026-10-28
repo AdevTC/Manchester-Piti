@@ -3,11 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { resetWhistledForTests } from "../data/whistleStore";
-import { Convocar } from "./Convocar";
-import { Partidos } from "./Partidos";
+import { ConvocatoriaScreen as Convocar, TemporadaScreen as Partidos } from "../areas/hoy-partidos/screens";
 
 // The Sala de control's ways out to the rest of the app for the same match or player: «Ver en la web»
-// (the match workspace, ⌘K), Convocar's «La pizarra» reader → the match's official board, and
+// (the match head, ⌘K), Convocar's «La pizarra» reader → the match's official board, and
 // ⌘K's «Abrir la pizarra (J… · rival)». Real AdminLayout on a memory router; data from the fixture.
 
 vi.mock("../data/useAdminData", async () => ({ useAdminData: (await import("../../../test/adminMocks")).currentAdminData }));
@@ -50,51 +49,51 @@ describe("the match workspace · «Ver en la web»", () => {
   it("a match in the calendar links to its public page", async () => {
     setAdminData(adminFixture());
     mountAdmin("/admin/partidos/m6/acta", { partidos: Partidos });
-    const det = await screen.findByRole("region", { name: "Partido J1" });
-    expect(within(det).getByRole("link", { name: /Ver en la web/ })).toHaveAttribute("href", "/partidos/m6");
+    await screen.findByRole("region", { name: "El acta del partido" });
+    // (r12: the match's head says it, over every station)
+    const head = document.querySelector(".sc-mhead") as HTMLElement;
+    expect(within(head).getByRole("link", { name: /Ver en la web/ })).toHaveAttribute("href", "/partidos/m6");
   });
 
   it("a draft not in the calendar yet has no public page: no link", async () => {
     // (the J2 only as a draft: out of the published matches)
     setAdminData(adminFixture({ published: fixturePublished.filter((m) => m.id !== "m7") }));
     mountAdmin("/admin/partidos/m7/acta", { partidos: Partidos });
-    const det = await screen.findByRole("region", { name: /^Partido / });
-    expect(within(det).queryByRole("link", { name: /Ver en la web/ })).toBeNull();
+    await screen.findByRole("region", { name: "El acta del partido" });
+    expect(within(document.querySelector(".sc-mhead") as HTMLElement).queryByRole("link", { name: /Ver en la web/ })).toBeNull();
   });
 
   it("⌘K: «Ver en la web» opens the match's public page", async () => {
     setAdminData(adminFixture());
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos/m6/acta", { partidos: Partidos });
-    await screen.findByRole("region", { name: "Partido J1" });
+    await screen.findByRole("region", { name: "El acta del partido" });
     const list = await palette(user, "ver en la web");
     await user.click(within(list).getByRole("option", { name: /Ver en la web/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/partidos/m6"));
   });
 });
 
-describe("Convocar · «La pizarra» opens the match's board", () => {
+describe("Convocatoria · «Abrir la pizarra» opens the match's board", () => {
   it("with an official board: that board, in the match's season", async () => {
     setAdminData(adminFixture({ officialLocks: { t1__m8: "b8", t1__temporada: "s1" } }));
-    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
-    await screen.findByRole("heading", { level: 1, name: "Convocar" });
-    const link = screen.getByRole("link", { name: /La pizarra/ });
-    expect(link).toHaveAttribute("href", "/pizarra?tablero=b8&season=t1");
-    expect(link).toHaveTextContent(/El siete oficial · \d de 7/);
+    mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 2, name: "Quién viene" });
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=b8&season=t1");
   });
 
   it("still to be played with only the season's official: that board", async () => {
     setAdminData(adminFixture({ officialLocks: { t1__temporada: "s1" } }));
-    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
-    await screen.findByRole("heading", { level: 1, name: "Convocar" });
-    expect(screen.getByRole("link", { name: /La pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
+    mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 2, name: "Quién viene" });
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
   });
 
   it("with none yet: the pizarra itself (to make and publish it)", async () => {
     setAdminData(adminFixture());
-    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
-    await screen.findByRole("heading", { level: 1, name: "Convocar" });
-    expect(screen.getByRole("link", { name: /La pizarra/ })).toHaveAttribute("href", "/pizarra?season=t1");
+    mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 2, name: "Quién viene" });
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?season=t1");
   });
 });
 
@@ -118,7 +117,7 @@ describe("⌘K · «Abrir la pizarra (J… · rival)»", () => {
     setAdminData(adminFixture({ officialLocks: { t1__m6: "b6", t1__temporada: "s1" } }));
     const user = userEvent.setup();
     const router = mountAdmin("/admin/partidos/m6/acta", { partidos: Partidos });
-    await screen.findByRole("region", { name: "Partido J1" });
+    await screen.findByRole("region", { name: "El acta del partido" });
     const list = await palette(user, "pizarra");
     const options = within(list).getAllByRole("option", { name: /Abrir la pizarra/ });
     expect(options.map((o) => o.textContent)).toEqual([expect.stringContaining("Abrir la pizarra (J1 · Emirates)")]);
@@ -130,7 +129,7 @@ describe("⌘K · «Abrir la pizarra (J… · rival)»", () => {
     setAdminData(adminFixture({ officialLocks: { t1__temporada: "s1" } }));
     const user = userEvent.setup();
     mountAdmin("/admin/partidos/m6/acta", { partidos: Partidos });
-    await screen.findByRole("region", { name: "Partido J1" });
+    await screen.findByRole("region", { name: "El acta del partido" });
     await palette(user, "pizarra");
     expect(screen.queryByRole("option", { name: /Abrir la pizarra \(J1 · Emirates\)/ })).toBeNull();
   });
@@ -139,7 +138,7 @@ describe("⌘K · «Abrir la pizarra (J… · rival)»", () => {
     setAdminData(adminFixture());
     const user = userEvent.setup();
     mountAdmin("/admin/partidos/m6/acta", { partidos: Partidos });
-    await screen.findByRole("region", { name: "Partido J1" });
+    await screen.findByRole("region", { name: "El acta del partido" });
     await palette(user, "pizarra");
     expect(screen.queryByRole("option", { name: /Abrir la pizarra/ })).toBeNull();
   });
