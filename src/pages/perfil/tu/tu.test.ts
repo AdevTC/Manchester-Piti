@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminLinks, allowedSec, dirOf, doorLead, fitWord, initials, screenAt, secLabel, secsOf, sinceLong } from "./model";
+import { adminLinks, allowedSec, dirOf, doorLead, fitWord, initials, screenAt, secLabel, secsOf, signOutFailText, sinceLong } from "./model";
 import { clubLineOf, firstName, kindOf } from "./view";
 import { cromosOf, type CromosInput } from "./cromosModel";
 import { goalClock } from "./season";
@@ -31,6 +31,9 @@ describe("Tú: the screen an address shows", () => {
     expect(links[0]).toMatchObject({ t: "Sala de control", path: "/admin" });
     // (the r12 addresses, never an old one the router has to redirect)
     expect(links.map((l) => l.path)).toEqual(["/admin", "/admin/partidos", "/admin/partidos/proximo/convocatoria", "/admin/plantilla", "/admin/plantilla/socios", "/admin/caja", "/admin/club"]);
+  });
+  it("a «Salir» that fails says why", () => {
+    expect(signOutFailText({ code: "auth/network-request-failed" })).toBe("No se ha podido cerrar la sesión. No se ha podido conectar con Google. Comprueba tu conexión y vuelve a intentarlo.");
   });
   it("moves in the order of the tabs", () => {
     const at = (sec: "carta" | "nombre", page: "perfil" | "avisos" = "perfil") => ({ page, sec, open: null });

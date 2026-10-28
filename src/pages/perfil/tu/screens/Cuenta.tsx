@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { TuIcon } from "../../../../components/vidrio/tu/ui";
 import { copyText } from "../../fxRuntime";
-import { initials, secDesc, sinceLong } from "../model";
+import { initials, secDesc, signOutFailText, sinceLong } from "../model";
 import type { ScreenProps } from "../MiPagina";
 import { wantedNumber } from "../view";
 import { Screen } from "./Head";
@@ -92,7 +92,7 @@ export function Cuenta(p: ScreenProps) {
                 <b>¿Salir aquí?</b> Para volver, entra otra vez con tu Google.
               </p>
               <div className="tu-row">
-                <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm vd-btn--pri" onClick={() => void p.actions.signOut().catch(() => say("No se ha podido cerrar la sesión. Inténtalo otra vez."))}>
+                <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm vd-btn--pri" onClick={() => void p.actions.signOut().catch((e: unknown) => say(signOutFailText(e)))}>
                   Sí, salir
                 </button>
                 <button type="button" className="vd-link" onClick={() => setSo(false)}>

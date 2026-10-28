@@ -151,8 +151,9 @@ function Member({ screen, go, maq, say, toast }: { screen: Screen; go: Go; maq: 
       await proposePositions(playerId, set);
     },
     signOut: async () => {
-      leaveDoorNotice("Has salido en este dispositivo");
+      // (signed out first: a failure leaves no «Has salido» behind and Cuenta says why)
       await logout();
+      leaveDoorNotice("Has salido en este dispositivo");
     },
     leaveVestuario: async () => {
       await leaveVestuario({ confirm: true });
