@@ -6,7 +6,9 @@ import { positionText } from "../../../lib/positions";
 import type { PaletteCommand } from "../palette/search";
 import type { AdminData } from "../data/useAdminData";
 import { clockTime, jLabel, shortDate } from "../data/adminLogic";
+import { pizarraCommand } from "../palette/matchShortcuts";
 import { goHint, PLACES } from "./places";
+import type { AdminTarget } from "./nav";
 
 export interface CommandDeps {
   /** Navigates to an address of the sala (keeping the season). */
@@ -15,9 +17,13 @@ export interface CommandDeps {
   toggleTheme: () => void;
   /** (the pizarra and the web leave the sala) */
   navigate: (o: { href: string }) => unknown;
+  /** Today's router-free targets (useAdminGo): the pizarra's command takes one. */
+  adminGo: (t: AdminTarget) => void;
+  /** The player whose ficha is on screen, if any. */
+  fichaId?: string;
 }
 
-export function salaCommands(data: AdminData, { go, theme, toggleTheme, navigate }: CommandDeps, counts?: Partial<Record<string, number>>): PaletteCommand[] {
+export function salaCommands(data: AdminData, { go, theme, toggleTheme, navigate, adminGo, fichaId }: CommandDeps, counts?: Partial<Record<string, number>>): PaletteCommand[] {
   const cmds: PaletteCommand[] = [
     { id: "a:nuevo-partido", group: "Acciones", icon: "+", title: "Nuevo partido", description: "Rival, fecha y hora · tecla N", keys: "N", keywords: "crear añadir jornada", run: () => go("/admin/partidos/nuevo") },
     { id: "a:alta", group: "Acciones", icon: "+", title: "Alta de jugador", description: "Una camiseta nueva en la plantilla", keywords: "nuevo crear jugador fichar", run: () => go("/admin/plantilla/alta") },
@@ -29,8 +35,11 @@ export function salaCommands(data: AdminData, { go, theme, toggleTheme, navigate
   if (hero && hero.moment === "antes") cmds.push({ id: "a:convocar", group: "Acciones", icon: "✓", title: `Convocar la ${jLabel(hero.match)}`, description: hero.match.rival ?? "Rival", keywords: "convocar convocatoria titulares siete", run: () => go(`/admin/partidos/${hero.match.id}/convocatoria`) });
   if (hero) {
     const board = data.officialBoardOf(hero.match);
-    if (board) cmds.push({ id: "a:pizarra", group: "Acciones", icon: "▦", title: `Abrir la pizarra (${jLabel(hero.match)})`, description: "El siete y las jugadas", keywords: "pizarra tablero tactica", run: () => void navigate({ href: `/pizarra?tablero=${encodeURIComponent(board)}${hero.match.seasonId ? `&season=${encodeURIComponent(hero.match.seasonId)}` : ""}` }) });
+    if (board) cmds.push(pizarraCommand(hero.match, board, adminGo));
   }
+  // (a ficha on screen: his public page)
+  const ficha = fichaId ? data.roster.find((p) => p.id === fichaId) : undefined;
+  if (ficha) cmds.push({ id: `web:p:${ficha.id}`, group: "Acciones", icon: "↗", title: "Ver en la web", description: `${ficha.name} · su página pública`, hint: "ir", keywords: "web publica pagina jugador", run: () => void navigate({ href: `/jugadores/${ficha.id}` }) });
   cmds.push({ id: "a:tema", group: "Acciones", icon: "◐", title: theme === "dark" ? "Tema de día" : "Tema de noche", description: "Colores de la sala", keywords: "tema oscuro claro modo", run: toggleTheme });
   for (const p of PLACES) {
     const n = counts?.[p.key] ?? 0;

@@ -195,8 +195,9 @@ export function MatchEditor({ match, data, note, tab, onTab, onBack, onLifecycle
         if (!ok) buf.keepMirror();
       },
     },
-    // Tabs, the vitrina and «Nuevo partido» stay on this match: only leaving it is guarded.
-    shouldBlock: ({ current, next }) => next.pathname !== current.pathname && !next.pathname.replace(/\/+$/, "").endsWith(`/partidos/${match.id}`),
+    // Its tabs stay on this match (r12: the stations Datos, Acta and Publicar, where this same editor stays mounted —
+    // partido/PartidoLayout): only leaving them is guarded.
+    shouldBlock: ({ current, next }) => next.pathname !== current.pathname && !new RegExp(`/partidos/${match.id}(/(datos|acta|acta/narracion|acta/historial|publicar))?/?$`).test(next.pathname),
   });
 
   // ── palette ──

@@ -26,7 +26,7 @@ export function MatchEditorStation({ tab }: { tab: MatchTab }) {
   useMatchShortcuts(match);
   if (note.loading) return <ScreenLoading label="Cargando el acta" />;
   return (
-    <Interim>
+    <Interim h1={false}>
       <MatchEditor
         key={match.id}
         match={match}
@@ -36,7 +36,8 @@ export function MatchEditorStation({ tab }: { tab: MatchTab }) {
         onTab={(t) => go(`${base}/${STATION_OF[t]}`)}
         onBack={() => void navigate({ to: "/admin/partidos" })}
         onLifecycle={lifecycle}
-        onPublished={() => go(`${base}/despues`)}
+        // (once the editor has taken the published acta as clean: its guard would ask otherwise)
+        onPublished={() => setTimeout(() => go(`${base}/despues`), 0)}
       />
     </Interim>
   );

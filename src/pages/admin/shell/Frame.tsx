@@ -158,7 +158,7 @@ function Dock({ place, counts }: { place: PlaceKey | null; counts?: Record<Place
           const on = p.key === place;
           const n = counts?.[p.key] ?? 0;
           return (
-            <SalaLink key={p.key} to={p.path} className="sc-dock__a" aria-current={on ? "page" : undefined} aria-label={placeLabel(p.name, n)}>
+            <SalaLink key={p.key} to={p.path} className="sc-dock__a" aria-current={on ? "page" : undefined} aria-label={placeLabel(p.name, n)} aria-keyshortcuts={goKeys(p.key)}>
               <span className="sc-dock__i">
                 <VIcon name={p.icon} size={22} />
                 {n > 0 && (

@@ -74,7 +74,8 @@ export function adminLegacyTarget(pathname: string, search: Search): AdminTarget
   }
   if (seg[1] === "plantilla" && seg.length === 2) {
     const jugador = typeof search.jugador === "number" ? String(search.jugador) : search.jugador;
-    if (isId(jugador)) return keep(`/admin/plantilla/${jugador}`, without("jugador", "nuevo", "vista", "dorsal"));
+    // (a ficha opened from the cromos keeps `vista=cromos`: its «‹» goes back to them)
+    if (isId(jugador)) return keep(`/admin/plantilla/${jugador}`, search.vista === "cromos" ? { ...without("jugador", "nuevo", "dorsal") } : without("jugador", "nuevo", "vista", "dorsal"));
     if (on(search.nuevo)) return keep("/admin/plantilla/alta", without("nuevo", "jugador", "vista"));
     if (search.vista === "cromos") return keep("/admin/plantilla/cromos", without("vista"));
     if ("jugador" in search || "nuevo" in search || "vista" in search) return keep("/admin/plantilla", without("jugador", "nuevo", "vista", "dorsal"));

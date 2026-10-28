@@ -20,7 +20,7 @@ vi.mock("../club/clubLive", () => ({
 
 const row = (over: Partial<ClaimLogRow> & { uid: string }): ClaimLogRow => ({ playerId: "", playerName: "", nickname: "", email: "", status: "pending", at: 0, resolvedAt: 0, resolvedBy: "", ...over });
 const cards = () => screen.queryAllByRole("article");
-const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
+const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live"))!;
 
 describe("Fichas", () => {
   beforeEach(() => {
@@ -77,7 +77,7 @@ describe("Fichas", () => {
     await user.click(await screen.findByRole("button", { name: "Aprobar: @nuevo.socio es KEVIN" }));
     expect(cards()).toHaveLength(1);
     expect(caption()).toHaveTextContent("@nuevo.socio ya es KEVIN · su carta y su voto, activos");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("FICHA");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("FICHA");
     expect(screen.getByText("La percha de las cuentas · 3 de 12 camisetas ya tienen su socio")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "3 resueltas" }));
     expect(within(screen.getByRole("list", { name: "Cuentas resueltas" })).getAllByRole("listitem")[0]).toHaveTextContent("@nuevo.socio → KEVIN · Aprobada por adrian_tc · ahora mismo");

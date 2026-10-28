@@ -41,6 +41,7 @@ describe("the Sala de control's old addresses", () => {
     moves("/admin/plantilla?nuevo=true&dorsal=12", "/admin/plantilla/alta?dorsal=12");
     moves("/admin/plantilla?vista=cromos", "/admin/plantilla/cromos");
     moves("/admin/plantilla?jugador=p1&season=t1", "/admin/plantilla/p1?season=t1");
+    moves("/admin/plantilla?jugador=p1&vista=cromos", "/admin/plantilla/p1?vista=cromos");
     moves("/admin/fichas", "/admin/plantilla/socios?ver=fichas");
     moves("/admin/fichas?season=t1", "/admin/plantilla/socios?season=t1&ver=fichas");
     moves("/admin/capitanes", "/admin/plantilla/capitanes");

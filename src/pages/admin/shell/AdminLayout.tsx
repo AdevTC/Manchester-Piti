@@ -23,7 +23,7 @@ import { GuardProvider } from "../ui/GuardProvider";
 import { useLayerStack } from "../ui/layerCore";
 import { LayerProvider } from "../ui/layers";
 import type { Viewer } from "./Account";
-import { AdminDataContext, ShellContext, type ShellApi } from "./context";
+import { AdminDataContext, ShellContext, useAdminGo, type ShellApi } from "./context";
 import { useDockCounts } from "./counters";
 import { Door } from "./Door";
 import { SalaFrame } from "./Frame";
@@ -31,7 +31,6 @@ import { HeadContext, HeadStore, useRegisteredHead } from "./head";
 import { salaCommands } from "./salaCommands";
 import { useSalaGo } from "./salaHref";
 import { salaDirection, sameMatch, screenOf, PLACE } from "./places";
-import { ScreenError, ScreenLoading } from "./Screen";
 import { OFFLINE_LINE, useOnline, useSalaSeason, useSeasonParam } from "./season";
 import { useSalaShortcuts } from "./shortcuts";
 import { StatusProvider } from "./StatusStrip";
@@ -166,14 +165,17 @@ function Sala({ appRef, viewer, desktop, data }: { appRef: RefObject<HTMLDivElem
   }, [head.title]);
 
   const shell = useMemo<ShellApi>(() => ({ openPalette: () => setPalette(true), theme, toggleTheme: toggle }), [theme, toggle]);
-  const commands = useMemo(() => salaCommands(data, { go, theme, toggleTheme: toggle, navigate }, counts), [data, go, theme, toggle, navigate, counts]);
+  const adminGo = useAdminGo();
+  const fichaId = info.screen === "ficha" ? info.playerId : undefined;
+  const commands = useMemo(() => salaCommands(data, { go, theme, toggleTheme: toggle, navigate, adminGo, fichaId }, counts), [data, go, theme, toggle, navigate, adminGo, fichaId, counts]);
   useRegisterCommands(commands);
 
   const rest = online ? `Todo guardado · ${clockTime(data.now)}` : `Sin conexión · ${OFFLINE_LINE}`;
   return (
     <ShellContext.Provider value={shell}>
       <SalaFrame mode="sala" place={info.place} head={head} counts={counts} viewer={viewer} season={season} online={online} rest={rest} dark={theme === "dark"} onTheme={toggle} onSearch={() => setPalette(true)} desktop={desktop} appRef={appRef}>
-        {data.loading ? <ScreenLoading /> : data.error && !data.matches.length ? <ScreenError what="la sala" onRetry={() => window.location.reload()} /> : <Outlet />}
+        {/* (each screen says its own loading and error, with ScreenLoading / ScreenError: the frame is there at once) */}
+        <Outlet />
       </SalaFrame>
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
     </ShellContext.Provider>

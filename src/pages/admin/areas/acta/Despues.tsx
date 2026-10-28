@@ -21,7 +21,7 @@ export function DespuesScreen() {
       </section>
     );
   return (
-    <Interim>
+    <Interim h1={false}>
       <Publicado match={match} onLifecycle={lifecycle} />
     </Interim>
   );

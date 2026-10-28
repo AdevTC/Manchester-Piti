@@ -119,6 +119,8 @@ export function StatusStrip({ rest }: { rest: string }) {
         <button
           type="button"
           className="sc-status__act"
+          // (pressing it never takes the focus from the field being typed: its blur would save what «Deshacer» undoes)
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             const act = line.act;
             dismiss();

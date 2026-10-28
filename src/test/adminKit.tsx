@@ -204,6 +204,9 @@ type ViewKey = "hoy" | "partidos" | "detalle" | "convocar" | "fichas" | "plantil
  * addresses (router.tsx's admin tree) and every old one redirected the way the app does (lib/legacyUrls).
  */
 export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> = {}) {
+  // (the frame measures window.innerWidth: jsdom's 1024 is a tablet since r12 — the desktop starts at 1100 — so a test
+  // that did not choose a width gets the desktop it was written for)
+  if (window.innerWidth === 1024) Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
   const on = (k: ViewKey) => !!views[k];
   const root = createRootRoute({
     component: () => <Outlet />,
@@ -218,7 +221,9 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
   const match = createRoute({ getParentRoute: () => partidos, path: "$matchId", component: PartidoLayout });
   const real = on("partidos") || on("detalle");
   const st = (name: string, Real: View) => (real ? Real : Marker(`estación ${name}`));
-  const plantilla = createRoute({ getParentRoute: () => admin, path: "plantilla" });
+  // (the list, the ficha, the alta and the cromos are PlantillaArea's own, as in the app: router.tsx)
+  const plantilla = createRoute({ getParentRoute: () => admin, path: "plantilla", component: on("plantilla") ? PL.PlantillaArea : Outlet });
+  const own = (name: string) => (on("plantilla") ? () => <></> : Marker(name));
   const caja = createRoute({ getParentRoute: () => admin, path: "caja" });
   const club = createRoute({ getParentRoute: () => admin, path: "club" });
   const tree = root.addChildren([
@@ -242,13 +247,13 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
         ]),
       ]),
       plantilla.addChildren([
-        r(plantilla, "/", on("plantilla") ? PL.JugadoresScreen : Marker("vista plantilla")),
-        r(plantilla, "alta", on("plantilla") ? PL.AltaScreen : Marker("vista alta")),
-        r(plantilla, "cromos", on("plantilla") ? PL.CromosScreen : Marker("vista cromos")),
+        r(plantilla, "/", own("vista plantilla")),
+        r(plantilla, "alta", own("vista alta")),
+        r(plantilla, "cromos", own("vista cromos")),
         r(plantilla, "antiguos", PL.AntiguosScreen),
         r(plantilla, "socios", on("fichas") ? PL.SociosScreen : Marker("vista socios")),
         r(plantilla, "capitanes", on("capitanes") ? PL.CapitanesScreen : Marker("vista capitanes")),
-        r(plantilla, "$playerId", on("plantilla") ? PL.FichaScreen : Marker("vista ficha")),
+        r(plantilla, "$playerId", own("vista ficha")),
       ]),
       caja.addChildren([r(caja, "/", on("caja") ? CJ.CajaScreen : Marker("vista caja")), r(caja, "coste/$matchId", on("caja") ? CJ.CosteScreen : Marker("vista coste"))]),
       club.addChildren([

@@ -5,15 +5,19 @@
 // once the data is in; an archived match goes to Archivados. Inside a match the dock hides and «‹ Volver» leads to
 // Partidos (the frame's head says «J3 · Red Demons»).
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { flushSync } from "react-dom";
 import { Outlet, useParams, useRouterState } from "@tanstack/react-router";
 import { VIcon } from "../../../components/vidrio/VIcon";
 import { rivalCode } from "../../../lib/eventMeta";
 import { NEXT_MATCH, type Station } from "../../../lib/adminUrls";
 import { dateMillis } from "../../../../functions/src/matchEngine";
+import { toBePlayed } from "../../../lib/derived/kickoff";
 import { clockTime, jLabel, shortDate } from "../data/adminLogic";
 import type { MatchLifecycleRequest } from "../data/archivedMatches";
 import { useWhistled } from "../data/whistleStore";
 import { MatchLifecycleDialog } from "../partidos/MatchLifecycleDialog";
+import type { MatchTab } from "../shell/nav";
+import { MatchEditorStation } from "../areas/interim/MatchEditorStation";
 import { useAdmin } from "../shell/context";
 import { useSalaHead } from "../shell/head";
 import { screenOf, stationName } from "../shell/places";
@@ -30,13 +34,21 @@ import { PartidoContext, type Partido } from "./partidoContext";
 import { LifecycleContext } from "./lifecycle";
 import { PrimaryContext, PrimaryStore, useStationPrimaryValue } from "./primary";
 
+/** TEMPORARY (r12): the stations today's MatchEditor still draws, and its tab for each (see the body below). */
+const INTERIM_EDITOR: Partial<Record<Station, MatchTab>> = { datos: "encuentro", acta: "acta", publicar: "publicar" };
+
 export function PartidoLayout() {
   const { matchId = "" } = useParams({ strict: false }) as { matchId?: string };
   const data = useAdmin();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const go = useSalaGo();
   const info = screenOf(pathname);
-  const next = data.next?.match.id;
+  // (the next match: the calendar's, else the first still to be played, a draft too — as Convocar picked it)
+  const next =
+    data.next?.match.id ??
+    data.matches
+      .filter((m) => m.status !== "cancelled" && toBePlayed(m, data.now))
+      .sort((a, b) => dateMillis(a.date) - dateMillis(b.date))[0]?.id;
   const archived = data.archivedMatches.some((m) => m.id === matchId);
   // (the old addresses without a match, and an archived one: replaced once the data says where)
   const resolveTo = matchId === NEXT_MATCH && next ? pathname.replace(`/admin/partidos/${NEXT_MATCH}`, `/admin/partidos/${next}`) : archived ? `/admin/partidos/archivados/${matchId}` : null;
@@ -44,7 +56,7 @@ export function PartidoLayout() {
     if (resolveTo) go(resolveTo, { replace: true });
   }, [resolveTo, go]);
   const match = data.matches.find((m) => m.id === matchId) ?? null;
-  if (resolveTo || (data.archivesLoading && !match)) return <ScreenLoading label="Abriendo el partido" />;
+  if (resolveTo || ((data.loading || data.archivesLoading) && !match)) return <ScreenLoading label="Abriendo el partido" />;
   if (!match) return <MissingMatch next={matchId === NEXT_MATCH} />;
   return <MatchFrame key={match.id} matchId={match.id} station={info.station} sub={info.screen.startsWith("acta-") ? info.screen : undefined} />;
 }
@@ -110,8 +122,11 @@ function MatchFrame({ matchId, station: inAddress, sub }: { matchId: string; sta
   const primary = useStationPrimaryValue(primaryStore);
   const partido = useMemo<Partido>(() => ({ match, phase, station, auto, stations, review, j, base }), [match, phase, station, auto, stations, review, j, base]);
   const onComplete = (r: MatchLifecycleRequest) => {
-    r.onDone?.();
-    setLifecycle(null);
+    // (the editor's clean state first, so its unsaved-changes guard does not ask on the way out)
+    flushSync(() => {
+      r.onDone?.();
+      setLifecycle(null);
+    });
     status.show({ tag: r.action === "delete" ? "Borrado" : "Archivado", message: `${r.match.rival || "Partido"} · ${r.action === "delete" ? "partido eliminado definitivamente" : r.action === "archive" ? "fuera del calendario; se reactiva desde Archivados" : "partido reactivado"}` });
     go(r.action === "archive" ? `/admin/partidos/archivados/${r.match.id}` : "/admin/partidos");
   };
@@ -160,7 +175,10 @@ function MatchFrame({ matchId, station: inAddress, sub }: { matchId: string; sta
               <Carril stations={stations} current={station} />
             </nav>
             <div className="sc-match__body">
-              <Outlet />
+              {/* (TEMPORARY: the stations still drawn by today's workspace keep ONE editor mounted across them, as its
+                  tabs did, so its unsaved edits survive a change of station; each area removes its line from
+                  INTERIM_EDITOR when it draws its station, and the outlet takes over) */}
+              {INTERIM_EDITOR[sub ? "acta" : station] ? <MatchEditorStation tab={INTERIM_EDITOR[sub ? "acta" : station]!} /> : <Outlet />}
               {primary && <PrimaryAction spec={primary} place="pin" />}
             </div>
           </div>

@@ -408,14 +408,15 @@ const adminHistorialRoute = createRoute({ getParentRoute: () => adminPartidoRout
 const adminPublicarRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "publicar", component: lazyRouteComponent(actaArea, "PublicarScreen") });
 const adminDespuesRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "despues", component: lazyRouteComponent(actaArea, "DespuesScreen") });
 // Plantilla: Jugadores · Socios · Capitanes, the ficha, the alta, the cromos, the old ones
-const adminPlantillaRoute = createRoute({ getParentRoute: () => adminRoute, path: "plantilla", validateSearch: legacySearch });
-const adminJugadoresRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "/", component: lazyRouteComponent(plantillaArea, "JugadoresScreen") });
-const adminAltaRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "alta", validateSearch: adminAltaSearchSchema, component: lazyRouteComponent(plantillaArea, "AltaScreen") });
-const adminCromosRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "cromos", component: lazyRouteComponent(plantillaArea, "CromosScreen") });
+const adminPlantillaRoute = createRoute({ getParentRoute: () => adminRoute, path: "plantilla", validateSearch: legacySearch, component: lazyRouteComponent(plantillaArea, "PlantillaArea") });
+// (the list, the ficha, the alta and the cromos: PlantillaArea draws them itself, one instance across the four)
+const adminJugadoresRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "/" });
+const adminAltaRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "alta", validateSearch: adminAltaSearchSchema });
+const adminCromosRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "cromos" });
 const adminAntiguosRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "antiguos", component: lazyRouteComponent(plantillaArea, "AntiguosScreen") });
 const adminSociosRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "socios", validateSearch: adminSociosSearchSchema, component: lazyRouteComponent(plantillaArea, "SociosScreen") });
 const adminCapitanesRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "capitanes", component: lazyRouteComponent(plantillaArea, "CapitanesScreen") });
-const adminFichaRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "$playerId", component: lazyRouteComponent(plantillaArea, "FichaScreen") });
+const adminFichaRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "$playerId" });
 // Caja: la caja and the cost of a match
 const adminCajaRoute = createRoute({ getParentRoute: () => adminRoute, path: "caja", validateSearch: legacySearch });
 const adminCajaIndexRoute = createRoute({ getParentRoute: () => adminCajaRoute, path: "/", component: lazyRouteComponent(cajaArea, "CajaScreen") });

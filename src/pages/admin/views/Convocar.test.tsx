@@ -16,13 +16,13 @@ vi.mock("../../../lib/clubApi", () => ({
 }));
 // (the team's absences, for the «Ausente · hasta …» badges)
 const { absences } = vi.hoisted(() => ({ absences: { list: [] as unknown[], days: [] as string[] } }));
-vi.mock("../convocar/live", async () => {
-  const kit = await import("../../../test/adminKit");
-  return {
-    useMatchAnswers: (id: string | undefined) => ({ data: id === "m8" ? kit.fixtureAnswers : [], loading: false }),
-    useTeamAbsences: (today: string) => (absences.days.push(today), absences.list),
-  };
-});
+// (the J8's answers: the kit's, read when called — importing the kit inside the factory deadlocks it now that the kit
+// mounts the sala's real screens, Convocar among them)
+const answersOf = vi.hoisted(() => ({ m8: [] as unknown[] }));
+vi.mock("../convocar/live", () => ({
+  useMatchAnswers: (id: string | undefined) => ({ data: id === "m8" ? answersOf.m8 : [], loading: false }),
+  useTeamAbsences: (today: string) => (absences.days.push(today), absences.list),
+}));
 const { setReminders } = vi.hoisted(() => ({ setReminders: vi.fn((_on: boolean) => Promise.resolve()) }));
 vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loading: false, set: setReminders }) }));
 // (the official board's seven, by board id: no Firestore in tests)
@@ -33,9 +33,10 @@ const setConv = vi.mocked(api.setConvocatoria);
 const WIDTH = window.innerWidth;
 const SIX = ["evans", "illescas", "tello", "eguzquiza", "huberoski", "erik"];
 const withJ8 = (j8: Partial<ClubMatch>): ClubMatch[] => fixturePublished.map((m) => (m.id === "m8" ? { ...m, ...j8 } : m));
-const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
+const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live"))!;
 
 beforeEach(() => {
+  answersOf.m8 = fixtureAnswers;
   absences.list = [];
   absences.days = [];
   localStorage.clear();
@@ -132,7 +133,7 @@ describe("Convocar", () => {
     await user.click(await screen.findByRole("button", { name: "ADRIÁN T.C. en el siete" }));
     expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: [...SIX, "adrian"], bench: ["kevin", "almachi"], notify: false });
     expect(caption()).toHaveTextContent("ADRIÁN T.C. al siete · la pizarra y el acta ya lo ven");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("J3");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("J3");
     expect(screen.getByRole("button", { name: "ADRIÁN T.C. en el siete: tocar para bajarlo al banquillo · Delantero" })).toHaveClass("open");
     await user.click(within(caption()).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: SIX, bench: ["kevin", "almachi"], notify: false }));
@@ -226,9 +227,10 @@ describe("Convocar", () => {
 
   it("nothing to play: the empty shirt and «Nuevo partido»", async () => {
     setAdminData(adminFixture({ published: fixturePublished.filter((m) => m.id !== "m8") }));
+    // (r12: /admin/convocar is the next match's Convocatoria; with none, the match's screen says so)
     mountAdmin("/admin/convocar", { convocar: Convocar });
-    expect(await screen.findByText("Sin partidos por jugar")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Nuevo partido" })).toHaveClass("gold");
+    expect(await screen.findByRole("heading", { level: 1, name: "No hay un próximo partido" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nuevo partido" })).toHaveAttribute("href", "/admin/partidos/nuevo");
   });
 
   it("phones: the switcher, el siete on the small rail, the pool and the sticky «Publicar y avisar»", async () => {

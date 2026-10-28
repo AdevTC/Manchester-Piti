@@ -9,7 +9,7 @@ import { usePartido } from "../../partido/partidoContext";
 export function ConvocatoriaScreen() {
   const { match } = usePartido();
   return (
-    <Interim search={{ j: match.id }}>
+    <Interim search={{ j: match.id }} h1={false}>
       <Convocar />
     </Interim>
   );

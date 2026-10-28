@@ -184,7 +184,7 @@ export function Partidos() {
       </div>
     </section>
   ) : selectedArchive ? (
-    <ArchivedMatchPane match={selectedArchive} data={data} onBack={() => { setArchiveMode(true); back(); }} onLifecycle={setLifecycle} />
+    <ArchivedMatchPane match={selectedArchive} data={data} onBack={() => void navigate({ to: "/admin/partidos/archivados" })} onLifecycle={setLifecycle} />
   ) : selected ? (
     <MatchPane key={selected.id} match={selected} data={data} tab={tabParam} onTab={setTab} onBack={back} onLifecycle={setLifecycle} onPublished={() => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selected.id }, search: { vitrina: true } })} />
   ) : matchId && matchId === created && !hidden.has(matchId) ? (
