@@ -1,11 +1,11 @@
 // «Ya la he pagado»: a member's payment notice (cajaClaims/{id}, written by him, firestore.rules
 // cajaClaimOk) tells the captains — once per claim, to each captain's devices and centro de avisos (not to
 // the member himself if he is a captain). The captains confirm or reject it in La caja (the web's batch).
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "./common.js";
-import { sendTo, vapidPrivate } from "./push.js";
-import { cajaClaimNotice } from "./pushLogic.js";
+import { deliver, sendTo, vapidPrivate } from "./push.js";
+import { cajaClaimNotice, cajaRejectedNotice } from "./pushLogic.js";
 import { nameFor } from "./names.js";
 
 export const onCajaClaimCreated = onDocumentCreated({ document: "cajaClaims/{claimId}", secrets: [vapidPrivate] }, async (event) => {
@@ -25,5 +25,17 @@ export const onCajaClaimCreated = onDocumentCreated({ document: "cajaClaims/{cla
     for (const c of captains.docs) if (c.id !== d.uid) await sendTo(notice, c.id);
   } catch (e) {
     console.error("onCajaClaimCreated", claimId, e);
+  }
+});
+
+// M-20: a payment notice rejected tells its member, with the captain's reason (cajaClaims.reason), once.
+export const onCajaClaimResolved = onDocumentUpdated({ document: "cajaClaims/{claimId}", secrets: [vapidPrivate] }, async (event) => {
+  const after = event.data?.after.data();
+  const notice = cajaRejectedNotice(event.params.claimId, event.data?.before.data(), after);
+  if (!notice || typeof after?.uid !== "string" || !after.uid) return;
+  try {
+    await deliver(notice, after.uid);
+  } catch (e) {
+    console.error("onCajaClaimResolved", event.params.claimId, e);
   }
 });

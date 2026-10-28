@@ -39,6 +39,8 @@ export interface Notice {
   /** The topic it answers to in a match's own avisos (pushMatchTopics.ts) when not its `topic`: the descanso
    *  and the 2ª parte go on «start» but are «Descanso y final» in the match's sheet. */
   matchTopic?: Topic;
+  /** M-33: wait this long and send it only if this play still counts then (heldGoalNotice). */
+  holdFor?: { ms: number; eventId: string };
 }
 
 /** A button of a notice (the Notification API's `actions`): its id, which the service worker reads on
@@ -206,7 +208,12 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
     const seen = new Set((before?.events ?? []).filter(scored).map((e) => e.id));
     const fresh = (after.events ?? []).filter((e) => !seen.has(e.id) && scored(e));
     // (a goal written after the final whistle is a correction of the acta: silent, like its undo)
-    if (fresh.length && !ended) out.push(goalNotice(id, fresh[fresh.length - 1], { gf, ga }, rival, nameOf));
+    if (fresh.length && !ended) {
+      const last = fresh[fresh.length - 1];
+      const n = goalNotice(id, last, { gf, ga }, rival, nameOf);
+      // M-33: the rival's goal waits THEIR_GOAL_HOLD_MS (la mesa's «Deshacer»): undone by then, nothing goes
+      out.push(THEIRS.has(last.type) ? { ...n, holdFor: { ms: THEIR_GOAL_HOLD_MS, eventId: last.id } } : n);
+    }
     // Tarjetas («Todo»): each new card while it is being played, ours or the rival's (once each).
     if (notDone(before) && !ended) {
       const seenCards = new Set((before?.events ?? []).filter((e) => CARDS.has(e.type)).map((e) => e.id));
@@ -235,6 +242,22 @@ export function noticesFor(id: string, before: MatchLike | undefined, after: Mat
   }
   out.push(...postponedNotices(id, before, after, now));
   return out;
+}
+
+/** M-33: how long the rival's goal waits before its notice: la mesa shows «El aviso sale en 8 s · Deshacer»; the
+ *  2 s more cover the undo's trip over a weak signal. */
+export const THEIR_GOAL_HOLD_MS = 10_000;
+/**
+ * The held goal's notice once its wait is over, from the match as it is then (null: undone or deleted, no longer
+ * counting, the whistle blown or the match done — nothing goes, nor «Gol anulado», which needs its notice to have
+ * gone). The score is the one at that moment.
+ */
+export function heldGoalNotice(id: string, match: MatchLike | undefined, eventId: string, nameOf: (playerId: string) => string): Notice | null {
+  if (!match || match.archived || !notDone(match) || whistled(match)) return null;
+  const e = (match.events ?? []).find((x) => x.id === eventId);
+  if (!e || !scored(e)) return null;
+  const memberOr = (pid: string) => (isGuestId(pid) ? guestLabel({ guests: match.guests }, pid) : nameOf(pid));
+  return goalNotice(id, e, liveScore(match.events), match.rival ?? "el rival", memberOr);
 }
 
 /** A sentence that may end in a name: «Pase de Adrián T.C.» never gets a second full stop. */
@@ -442,11 +465,13 @@ export function notasNotice(id: string, before: MatchLike | undefined, after: Ma
  * changes — never on the edits of an official that stays put. Not for a match already played or
  * cancelled. The tag is per board and match, so a phone keeps one notice for each.
  */
-export function lineupNotice(id: string, before: LineupLike | undefined, after: LineupLike | undefined, match: MatchLike | null | undefined): Notice | null {
+export function lineupNotice(id: string, before: LineupLike | undefined, after: LineupLike | undefined, match: MatchLike | null | undefined, now?: number): Notice | null {
   if (!after?.isOfficial) return null;
   const mid = after.matchId ?? null;
   if (before?.isOfficial && (before.matchId ?? null) === mid) return null;
   if (mid && match && (match.archived || match.status === "finished" || match.status === "cancelled")) return null;
+  // (nor once it has kicked off — its clock running or its hour gone — nor while postponed: PZ-B-PAR-03)
+  if (mid && match && (match.status === "postponed" || (match.clock?.phase ?? "ready") !== "ready" || typeof match.liveEndedAt === "number" || (now != null && typeof match.date === "number" && match.date <= now))) return null;
   const rival = mid ? match?.rival : undefined;
   const day = mid && typeof match?.date === "number" ? when(match.date) : "";
   // A match's official opens the match's Campo (public: members see the official seven there, fans the
@@ -528,6 +553,15 @@ export function cajaClaimNotice(id: string, claim: { amount: number; concept?: s
     url: "/admin/caja",
     log: `cajaclaim-${id}`,
   };
+}
+/** M-20: «Tu aviso de pago no se ha confirmado», with the captain's reason, to the member (once per claim). Only on
+ *  the change pendiente → rechazado. */
+export function cajaRejectedNotice(id: string, before: { status?: unknown } | undefined, after: { status?: unknown; amount?: unknown; concept?: unknown; reason?: unknown } | undefined): Notice | null {
+  if (!after || after.status !== "rechazado" || before?.status !== "pendiente") return null;
+  const amount = typeof after.amount === "number" ? EUR.format(after.amount / 100) : "";
+  const concept = typeof after.concept === "string" && after.concept.trim() ? ` · ${after.concept.trim()}` : "";
+  const reason = typeof after.reason === "string" && after.reason.trim() ? sentence(`«${after.reason.trim()}»`) : "Habla con la capitanía.";
+  return { topic: "personal", title: "Tu aviso de pago no se ha confirmado", body: `${amount}${concept}. ${reason}`.replace(/^\. /, ""), tag: `cajaclaim-${id}`, url: "/vestuario/caja", log: `cajaclaim-no-${id}` };
 }
 
 /** «Turno hecho: ERIK» · «Lavar la equipación · contra Orduña fc», to the captains, once per match and member. */

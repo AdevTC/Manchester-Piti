@@ -6,6 +6,8 @@ import { GUEST_ID_RE, GUEST_NAME_MAX, MAX_GUESTS } from "./derived/guests";
 import { MESA_NAME_MAX } from "../../functions/src/mesaLogic";
 import { parseKickoffWeather } from "../../functions/src/weatherLogic";
 import { parseStoredNotas } from "../../functions/src/rating/frozen";
+import { storedVideoMarks } from "../../functions/src/matchExtrasLogic";
+import { SOCIAL_NETS } from "./clubContentDefaults";
 
 /**
  * Firestore Timestamp-ish (tiene toMillis) o Date o número epoch.
@@ -103,6 +105,18 @@ export const seasonMatchSchema = z.looseObject({
   notas: z
     .unknown()
     .transform((v) => parseStoredNotas(v) ?? undefined)
+    .optional()
+    .catch(undefined),
+  // r12 (backend stamps; malformed → absent, never the match): the first publication, the MVP moved by hand,
+  // the video marks of each goal.
+  actaPublishedAt: z.number().refine(Number.isFinite).optional().catch(undefined),
+  mvpManual: z
+    .object({ action: z.enum(["close", "reopen"]), by: z.string(), at: z.number() })
+    .optional()
+    .catch(undefined),
+  videoMarks: z
+    .unknown()
+    .transform((v) => storedVideoMarks(v))
     .optional()
     .catch(undefined),
 });
@@ -504,6 +518,67 @@ export const noticeSchema = z.object({
   audience: z.enum(["team", "captains", "personal"]),
   uid: z.string().optional(),
 });
+
+// ── r12 · la Sala de control: lo nuevo de clubContent, pushSent, clubDrafts y matchPrivate ──────────────────
+const https = z.string().max(300).regex(/^https:\/\/.+/);
+const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+/** clubContent.kits (M-19): a malformed kit reads as absent (the web paints the one in its code). */
+export const clubKitSchema = z.object({
+  name: z.string().max(30).optional(),
+  note: z.string().max(200),
+  colors: z.array(z.object({ name: z.string().min(1).max(20), hex: z.string().regex(/^#[0-9a-fA-F]{6}$/) })).min(1).max(4),
+});
+export const clubKitsSchema = z.object({ home: clubKitSchema.optional().catch(undefined), away: clubKitSchema.optional().catch(undefined) });
+/** clubContent.trophies (M-19): only the valid ones. */
+export const clubTrophySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  date: z.union([ymd, z.string().regex(/^\d{4}$/)]),
+  photoUrl: z.union([https, z.literal("")]).optional(),
+  note: z.string().max(200).optional(),
+});
+/** clubContent.socials (M-45). */
+export const clubSocialSchema = z.object({ net: z.enum(SOCIAL_NETS), url: https });
+/** clubContent.sponsors[] with M-45's optional featured / from / to. */
+export const clubSponsorSchema = z.object({
+  name: z.string().max(60),
+  url: z.string().max(300).catch(""),
+  logo: z.string().max(300).catch(""),
+  featured: z.boolean().optional().catch(undefined),
+  from: ymd.optional().catch(undefined),
+  to: ymd.optional().catch(undefined),
+});
+/** A list read item by item: the valid entries only (one bad one never drops the rest). */
+export const validItems = <T>(schema: z.ZodType<T>, v: unknown, max: number): T[] =>
+  (Array.isArray(v) ? v : []).flatMap((x) => {
+    const r = schema.safeParse(x);
+    return r.success ? [r.data] : [];
+  }).slice(0, max);
+/** pushSent/{id} (M-18 «Lo que se ha mandado»). */
+export const pushSentSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  topic: z.string(),
+  url: z.string(),
+  tag: z.string().catch(""),
+  matchId: z.string().nullable().catch(null),
+  audience: z.enum(["publico", "equipo", "capitanes", "convocados"]).catch("publico"),
+  kind: z.enum(["auto", "manual", "recordatorio"]).catch("auto"),
+  devices: z.number().int().min(0).catch(0),
+  members: z.number().int().min(0).catch(0),
+  by: z.string().nullable().catch(null),
+  at: firestoreDate.transform((v) => dateMs(v)),
+});
+/** clubDrafts/content (M-20): anything malformed reads as no draft on the server. */
+export const clubContentDraftSchema = z.object({
+  club: z.record(z.string(), z.unknown()),
+  stories: z.record(z.string(), z.unknown()),
+  by: z.string(),
+  byName: z.string().optional(),
+  at: firestoreDate.transform((v) => dateMs(v)).nullable().catch(null),
+});
+/** matchPrivate/{id}.notasError (M-42). */
+export const notasErrorSchema = z.object({ at: z.number(), message: z.string() });
 
 /** Forma de un resultado de partido editado en Admin. */
 export const matchResultSchema = z.object({

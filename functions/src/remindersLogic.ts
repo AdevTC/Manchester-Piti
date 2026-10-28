@@ -57,8 +57,7 @@ export const isAnswer = (v: unknown): v is Answer => v === "yes" || v === "no" |
 
 /**
  * The captains' notice when someone changes their answer within 24 h of kick-off (a first answer, the
- * same answer again or a match already started say nothing).
- */
+ * same answer again or a match already started say nothing). */
 export function lateChangeNotice(matchId: string, who: string, before: unknown, after: unknown, match: { rival?: string; date?: number }, now: number): Notice | null {
   if (!isAnswer(before) || !isAnswer(after) || before === after) return null;
   if (typeof match.date !== "number") return null;
@@ -72,4 +71,23 @@ export function lateChangeNotice(matchId: string, who: string, before: unknown, 
     tag: `late-${matchId}`,
     url: matchUrl(matchId, "vestuario"),
   };
+}
+
+// ── r12 · a mano (M-07 «Recordar ahora», M-18 «Mandar un aviso a mano») ──
+/** «Recordar ahora»: once every this long per match (a double tap, two captains at once). */
+export const REMIND_NOW_GAP_MS = 30 * 60_000;
+/** The reminder sent by hand: the 24 h one inside the last day, the 48 h one before. */
+export const remindNowKind = (kickoff: number, now: number): ReminderKind => (kickoff - now <= 24 * HOUR ? "24" : "48");
+/** Why «Recordar ahora» cannot go now (null = it can): a match still to play, with a convocatoria, someone left. */
+export function remindNowProblem(m: { status?: unknown; date: number | null; starters: readonly string[]; bench: readonly string[] }, missing: number, now: number): string | null {
+  if (m.status !== "scheduled" || m.date == null || m.date <= now) return "Ese partido ya no se juega: solo se recuerda un partido por jugar.";
+  if (!m.starters.length && !m.bench.length) return "Todavía no hay convocatoria: convoca antes de recordar.";
+  if (!missing) return "Ya contestaron todos los convocados.";
+  return null;
+}
+export const CAPTAIN_NOTICE_MAX = 140;
+export const CAPTAIN_NOTICE_GAP_MS = 60_000;
+/** A captain's own notice: «Aviso de la capitanía» and his words, to the vestuario (or the match). */
+export function captainNotice(text: string, url: string, now: number): Notice {
+  return { topic: "personal", title: "Aviso de la capitanía", body: text, tag: `manual-${now}`, url };
 }

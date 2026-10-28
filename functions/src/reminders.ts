@@ -10,14 +10,16 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { db } from "./common.js";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { z } from "zod";
+import { admin, db, idSchema, parse } from "./common.js";
 import { matchActiveTx, runMatchTransaction } from './matchAccess.js';
-import { sendTo, vapidPrivate } from "./push.js";
+import { logSent, sendTo, vapidPrivate } from "./push.js";
 import { flushSevens } from "./seven.js";
 import { notifyRotaHandover } from "./rota.js";
 import { nameFor } from "./names.js";
 import { byAbsence } from "./absencesLogic.js";
-import { HOUR, LATE_DEBOUNCE_MS, lateChangeNotice, REMINDER_MIN_LEAD, reminderDue, reminderNotice, unanswered } from "./remindersLogic.js";
+import { HOUR, LATE_DEBOUNCE_MS, lateChangeNotice, REMIND_NOW_GAP_MS, remindNowKind, remindNowProblem, REMINDER_MIN_LEAD, reminderDue, reminderNotice, unanswered } from "./remindersLogic.js";
 
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x) : []);
 const millis = (v: unknown): number | null => {
@@ -55,14 +57,55 @@ export async function remindConvocados(now: number): Promise<void> {
     const answered = new Set(answers.docs.map((a) => a.get("playerId")).filter((x): x is string => typeof x === "string"));
     const notice = reminderNotice(m.id, kind, { rival: m.get("rival") ?? "el rival", date });
     // (members only: unanswered leaves out the guests, who have no playerLinks to read)
+    const sent = { devices: 0, members: 0 };
     for (const pid of unanswered(starters, bench, answered)) {
       const uid = (await db.doc(`playerLinks/${pid}`).get()).get("uid");
       if (typeof uid !== "string" || !uid) continue;
       if (!(await once(`remind-${kind}-${m.id}-${pid}`, m.id, { uid }))) continue;
-      await sendTo(notice, uid);
+      sent.devices += (await sendTo(notice, uid)).devices;
+      sent.members++;
     }
+    if (sent.members) await logSent(notice, sent, { kind: "recordatorio", audience: "convocados" });
   }
 }
+
+/** M-07 «Recordar ahora a los que faltan»: the reminder, now, to each convocado who hasn't answered (whatever the
+ *  «Recordatorios automáticos» switch says: it is by hand). Once every REMIND_NOW_GAP_MS per match. */
+export const remindNow = onCall({ secrets: [vapidPrivate] }, async (req) => {
+  const by = await admin(req);
+  const { matchId } = parse(z.object({ matchId: idSchema }), req.data);
+  const m = await db.doc(`matches/${matchId}`).get();
+  if (!m.exists) throw new HttpsError("failed-precondition", "El partido aún no está en el calendario: publícalo antes de avisar.");
+  const now = Date.now();
+  const date = millis(m.get("date"));
+  const starters = strs(m.get("starters"));
+  const bench = strs(m.get("bench"));
+  const answers = await db.collection(`matchPrivate/${matchId}/availability`).get();
+  const answered = new Set(answers.docs.map((a) => a.get("playerId")).filter((x): x is string => typeof x === "string"));
+  const missing = unanswered(starters, bench, answered);
+  const problem = remindNowProblem({ status: m.get("status"), date, starters, bench }, missing.length, now);
+  if (problem) throw new HttpsError("failed-precondition", problem);
+  // (one at a time per match, whoever asks)
+  const gate = db.doc(`pushLog/remind-now-${matchId}`);
+  const wait = await runMatchTransaction(matchId, async (tx) => {
+    if (!(await matchActiveTx(tx, matchId))) throw new HttpsError("failed-precondition", "El partido está archivado o ya no existe. Recarga antes de continuar.");
+    const last = millis((await tx.get(gate)).get("sentAt"));
+    if (last != null && now - last < REMIND_NOW_GAP_MS) return Math.ceil((REMIND_NOW_GAP_MS - (now - last)) / 60_000);
+    tx.set(gate, { sentAt: now, matchId, by });
+    return 0;
+  });
+  if (wait) throw new HttpsError("resource-exhausted", `Ya se ha recordado hace un momento: vuelve a intentarlo en ${wait} min.`);
+  const notice = reminderNotice(matchId, remindNowKind(date!, now), { rival: m.get("rival") ?? "el rival", date: date! });
+  const sent = { devices: 0, members: 0 };
+  for (const pid of missing) {
+    const uid = (await db.doc(`playerLinks/${pid}`).get()).get("uid");
+    if (typeof uid !== "string" || !uid) continue;
+    sent.devices += (await sendTo(notice, uid)).devices;
+    sent.members++;
+  }
+  await logSent(notice, sent, { kind: "manual", audience: "convocados", by });
+  return { sent: sent.members, missing: missing.length };
+});
 
 export const pushReminders = onSchedule({ schedule: "every 5 minutes", timeZone: "Europe/Madrid", region: "europe-west1", secrets: [vapidPrivate] }, async () => {
   const now = Date.now();

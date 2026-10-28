@@ -746,7 +746,8 @@ assert.equal(conv.convocatoriaAt, quiet.at);
 assert.equal(conv.convocatoriaNotifiedAt, undefined);
 const convDraft = (await db.doc("matchDrafts/" + convId).get()).data();
 assert.deepEqual(convDraft.starters, [pA, pB]);
-assert.equal(convDraft.revision, 3);
+// B-ACTA-01: a draft in step with the published match (both 3) follows it to 4, so the acta still saves
+assert.equal(convDraft.revision, 4);
 // a quiet save never notifies (the trigger leaves managed convocatorias to the callable)
 await new Promise((r) => setTimeout(r, 1500));
 assert.equal((await db.doc("pushLog/conv-" + convId).get()).exists, false);

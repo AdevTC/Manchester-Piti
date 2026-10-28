@@ -81,18 +81,22 @@ try {
   await denied("setMatchLineup", admin, { matchId: matchA, boardId: bOutsider }, "INVALID_ARGUMENT", /invitado/);
   await denied("setMatchLineup", admin, { matchId: matchA, boardId: `${suffix}-nope` }, "NOT_FOUND");
 
-  // ---- no official yet: David's board becomes it; no roll call, so the old banquillo stays
+  // ---- no official yet: a scorer's board never becomes it (PZ-B-PAR-02) — the match gets a copy as its official
+  // and David keeps his own board to fix and send again; no roll call, so the old banquillo stays
   let r = await ok("setMatchLineup", david, { matchId: matchA, boardId: bDavid });
-  assert.equal(r.changed, true); assert.equal(r.officialId, bDavid); checks += 2;
+  assert.equal(r.changed, true); assert.notEqual(r.officialId, bDavid); checks += 2;
+  const off = r.officialId;
+  boards.push(off);
   assert.deepEqual(r.starters, sevenA); assert.deepEqual(r.bench, [ids[6], ids[8]]); checks += 2;
   let m = await snap(matchA);
-  assert.equal(m.lineup.system, "3-2-1"); assert.equal(m.lineup.boardId, bDavid); assert.equal(m.lineup.setBy, david.uid); checks += 3;
+  assert.equal(m.lineup.system, "3-2-1"); assert.equal(m.lineup.boardId, off); assert.equal(m.lineup.setBy, david.uid); checks += 3;
   assert.deepEqual(m.lineup.slots.map((s) => s.playerId), sevenA); checks++;
   assert.deepEqual(m.lineup.slots.map((s) => s.code), ["POR", "LI", "DFC", "LD", "MC", "MC", "DC"]); checks++;
   assert.deepEqual(m.starters, sevenA); assert.deepEqual(m.bench, [ids[6], ids[8]]); assert.deepEqual(m.notCalled, [ids[9]]); checks += 3;
   assert.equal(typeof m.convocatoriaAt, "number"); checks++;
-  { const b = await boardOf(bDavid); assert.equal(b.isOfficial, true); assert.equal(b.matchId, matchA); checks += 2; }
-  assert.equal((await lockOf(matchA)).lineupId, bDavid); checks++;
+  { const b = await boardOf(bDavid); assert.equal(b.isOfficial, false); assert.equal(b.matchId, null); checks += 2; }
+  { const b = await boardOf(off); assert.deepEqual([b.isOfficial, b.matchId, b.formation], [true, matchA, "3-2-1"]); checks++; }
+  assert.equal((await lockOf(matchA)).lineupId, off); checks++;
 
   // ---- the same again: nothing written
   const revision = m.revision;
@@ -100,24 +104,30 @@ try {
   assert.equal(r.changed, false); checks++;
   assert.equal((await snap(matchA)).revision, revision); checks++;
 
-  // ---- one notice per send: «Ya está el siete» from the board, never a convocatoria notice as well
+  // ---- one notice per send: «Ya está el siete» from the official, never a convocatoria notice as well
   await wait(3000);
-  assert.equal((await db.doc(`pushLog/lineup-${bDavid}-${matchA}`).get()).exists, true); checks++;
+  assert.equal((await db.doc(`pushLog/lineup-${off}-${matchA}`).get()).exists, true); checks++;
   assert.equal((await db.doc(`pushLog/conv-${matchA}`).get()).exists, false); checks++;
 
-  // ---- the admin sends another board: copied onto the official (which stays David's board)
+  // ---- the admin sends another board: copied onto the official, with its plan (PZ-B-PAR-01)
+  await db.doc(`lineups/${bAdmin}`).update({ subs: [{ minute: 25, outId: ids[0], inId: ids[8] }], roles: { captain: ids[1] }, takers: { penalties: [ids[2]] }, variants: [{ id: "v2", name: "2ª parte", slots: ids.slice(0, 7).map((playerId) => ({ playerId })) }] });
   r = await ok("setMatchLineup", admin, { matchId: matchA, boardId: bAdmin });
-  assert.equal(r.changed, true); assert.equal(r.officialId, bDavid); checks += 2;
+  assert.equal(r.changed, true); assert.equal(r.officialId, off); checks += 2;
   {
-    const b = await boardOf(bDavid);
+    const b = await boardOf(off);
     assert.equal(b.formation, "2-3-1"); assert.deepEqual(b.slots.map((s) => s.playerId), ids.slice(0, 7)); assert.deepEqual(b.bench, [ids[8]]); assert.equal(b.isOfficial, true); checks += 4;
+    assert.deepEqual(b.subs, [{ minute: 25, outId: ids[0], inId: ids[8] }]); assert.deepEqual(b.roles, { captain: ids[1] }); assert.deepEqual(b.takers, { penalties: [ids[2]] }); assert.equal(b.variants.length, 1); checks += 4;
     assert.equal((await boardOf(bAdmin)).isOfficial, false); checks++;
   }
   m = await snap(matchA);
-  assert.equal(m.lineup.system, "2-3-1"); assert.equal(m.lineup.boardId, bDavid); assert.equal(m.lineup.setBy, admin.uid); checks += 3;
+  assert.equal(m.lineup.system, "2-3-1"); assert.equal(m.lineup.boardId, off); assert.equal(m.lineup.setBy, admin.uid); checks += 3;
   assert.deepEqual(m.bench, [ids[8], ids[7]]); assert.deepEqual(m.notCalled, [ids[9]]); checks += 2;
   // the official sent again: the same seven, nothing to write
-  assert.equal((await ok("setMatchLineup", david, { matchId: matchA, boardId: bDavid })).changed, false); checks++;
+  assert.equal((await ok("setMatchLineup", david, { matchId: matchA, boardId: off })).changed, false); checks++;
+  // the same seven with another plan is news: only the plan changes on the official
+  await db.doc(`lineups/${bAdmin}`).update({ subs: [] });
+  assert.equal((await ok("setMatchLineup", admin, { matchId: matchA, boardId: bAdmin })).changed, true); checks++;
+  assert.deepEqual((await boardOf(off)).subs, []); checks++;
 
   // ---- «¿Quién ha venido?»
   await denied("setMatchPresent", david, { matchId: matchA, present: [ids[0], `${suffix}-ghost`] }, "INVALID_ARGUMENT", /temporada/);
@@ -129,10 +139,12 @@ try {
   // with a roll call: the banquillo is who came, the rest «no convocado»
   const bDavid2 = await board("david2", david, "3-2-1", sevenA);
   r = await ok("setMatchLineup", david, { matchId: matchA, boardId: bDavid2 });
-  assert.equal(r.changed, true); assert.equal(r.officialId, bDavid); checks += 2;
+  assert.equal(r.changed, true); assert.equal(r.officialId, off); checks += 2;
   m = await snap(matchA);
   assert.deepEqual(m.starters, sevenA); assert.deepEqual(m.bench, [ids[6]]); assert.deepEqual(m.notCalled, [ids[8], ids[9]]); checks += 3;
-  assert.equal((await boardOf(bDavid)).formation, "3-2-1"); checks++;
+  assert.equal((await boardOf(off)).formation, "3-2-1"); checks++;
+  // (a board without a plan clears the official's: what la mesa reads is the plan of the seven sent)
+  assert.equal((await boardOf(off)).subs, undefined); checks++;
   assert.equal((await boardOf(bDavid2)).isOfficial, false); checks++;
 
   // ---- setConvocatoria: the same seven (any order) keeps the lineup; another seven drops it

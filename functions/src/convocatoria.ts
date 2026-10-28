@@ -21,6 +21,7 @@ import { boardNotice, convocatoriaMessage, parseSiete, sevenOf, sieteKey, sieteL
 import { matchActiveTx, requireActiveMatch, runMatchTransaction } from './matchAccess.js';
 import { notifyRota } from "./rota.js";
 import { lineupSeven, parseMatchLineup, sameSeven } from "./matchLineup.js";
+import { draftFollows } from "./matchExtrasLogic.js";
 
 const input = z.object({
   matchId: idSchema,
@@ -90,8 +91,9 @@ export const setConvocatoria = onCall({ secrets: [vapidPrivate] }, async (req) =
     const stored = parseMatchLineup(pub.get("lineup"));
     const staleLineup = !!stored && !sameSeven(lineupSeven(stored), data.starters);
     if (pub.exists) tx.update(pubRef, { ...fields, ...(staleLineup ? { lineup: FieldValue.delete() } : {}), revision, updatedAt: FieldValue.serverTimestamp() });
-    // The draft keeps its own revision (the acta editor's base): only the lineup follows.
-    if (draft.exists) tx.update(draftRef, fields);
+    // The draft takes the lineup; one in step with the published match takes its new revision too, so the acta
+    // editor can still save it (B-ACTA-01). A draft already behind keeps its base: a real conflict.
+    if (draft.exists) tx.update(draftRef, { ...fields, ...(pub.exists && draftFollows(pub.get("revision"), draft.get("revision")) ? { revision } : {}) });
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, revision, updatedBy: uid, at: FieldValue.serverTimestamp(), convocatoria: data.notify ? "notify" : "save" });
     // The notice tells what the members see: the calendar's (published) date and rival, else the draft's.
     const told = (field: string) => (pub.exists && pub.get(field) != null ? pub.get(field) : shown.get(field));

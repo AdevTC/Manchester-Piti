@@ -13,13 +13,14 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, idSchema, memberAs, parse } from "./common.js";
+import { heldGoalNotice } from "./pushLogic.js";
 import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, notaPlayers, notasNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { LATE_TOPICS, legacyTodoGets, presetOf, presetTopics, PUSH_PRESETS, TOPICS_VERSION } from "./pushPresets.js";
 import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
 import { isPaused } from "./pushPauseLogic.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
-import { noticeRecord } from "./noticesLogic.js";
+import { NOTICE_TTL_MS, noticeRecord, noticeRecordAs, type NoticeAudience } from "./noticesLogic.js";
 import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
 import { jornadaOf } from "./jornada.js";
 import { absencesOnMatch } from "./absenceAnswers.js";
@@ -206,11 +207,12 @@ export const pushUnsubscribe = onCall(async (req) => {
  *  goes to `uid`'s devices only, whatever their topics (and nowhere without a uid). */
 /** `skip`: members whose devices a broadcast leaves out (they got their own version of it); `keep` false: a push
  *  only, not kept in the centro de avisos (a personal copy of a notice the bell already has for everyone). */
-export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<string>, keep = true) {
+export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<string>, keep = true): Promise<SentCount> {
+  const none = { devices: 0, members: 0 };
   const matchId = noticeMatchId(notice.url);
-  if (matchId && !(await matchActive(matchId))) return;
+  if (matchId && !(await matchActive(matchId))) return none;
   const who = pushAudience(notice, uid);
-  if (!who) return;
+  if (!who) return none;
   // The centro de avisos keeps it too, whoever has push on (even nobody).
   if (keep) await keepNotice(notice, uid);
   let q: FirebaseFirestore.Query = db.collection("pushSubscriptions");
@@ -227,14 +229,16 @@ export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<st
   const found = new Map(subs.docs.map((d) => [d.id, d]));
   for (const d of chose?.docs ?? []) found.set(d.id, d);
   for (const d of todo?.docs ?? []) if (legacyTodoGets({ preset: d.get("preset"), topics: d.get("topics"), topicsV: d.get("topicsV") }, who.topic as string)) found.set(d.id, d);
-  // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
-  if (!found.size) return;
   // A device's choice for this match decides alone; otherwise «Avisos a medida»: «Solo goles» gets only
   // the goals (not even the personal notices), «Nada» nothing (pushMatchTopics.ts deviceGets).
   // «Pausar» (pushPause.ts): a paused device gets nothing for now; the bell already kept the notice.
   const now = Date.now();
   const devices = [...found.values()].filter((d) => !(skip && skip.has(d.get("uid"))) && !isPaused(d.get("pausedUntil"), now) && deviceGets({ preset: d.get("preset"), matchTopics: d.get("matchTopics") }, notice, about));
-  if (!devices.length) return;
+  const sent = { devices: devices.length, members: new Set(devices.map((d) => d.get("uid")).filter((u) => typeof u === "string" && u)).size };
+  // M-18 «Lo que se ha mandado»: every notice to a topic (the personal ones are counted by whoever sends them).
+  if (!uid && keep) await logSent(notice, sent, { kind: "auto", audience: "publico" });
+  // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
+  if (!devices.length) return sent;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
   await Promise.all(
     devices.map(async (d) => {
@@ -249,13 +253,54 @@ export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<st
       }
     }),
   );
+  return sent;
+}
+
+/** M-18: a notice kept once in the centro de avisos for `audience`, and pushed to each of `uids`' devices. */
+export async function sendToMembers(notice: Notice, uids: readonly string[], audience: NoticeAudience): Promise<SentCount> {
+  if (audience !== "personal") await keepNotice(notice, undefined, { audience });
+  const people = [...new Set(uids)];
+  let devices = 0;
+  for (const u of people) devices += (await sendTo({ ...notice, topic: "personal" }, u, undefined, audience === "personal")).devices;
+  // (members: everyone it was meant for, whether or not their phone has push on; devices: the phones it reached)
+  return { devices, members: people.length };
+}
+
+/** How many devices (and distinct members) a notice went to. */
+export interface SentCount {
+  devices: number;
+  members: number;
+}
+/** M-18 «Lo que se ha mandado» (`pushSent`, the captains read it): a notice sent, to whom, how many. Never in the
+ *  way of the push. */
+export async function logSent(notice: Notice, sent: SentCount, how: { kind: "auto" | "manual" | "recordatorio"; audience: "publico" | "equipo" | "capitanes" | "convocados"; by?: string }): Promise<void> {
+  try {
+    const now = Date.now();
+    await db.collection("pushSent").add({
+      title: notice.title,
+      body: notice.body,
+      topic: notice.topic,
+      url: notice.url,
+      tag: notice.tag,
+      matchId: noticeMatchId(notice.url) ?? notice.matchId ?? null,
+      audience: how.audience,
+      kind: how.kind,
+      devices: sent.devices,
+      members: sent.members,
+      by: how.by ?? null,
+      at: Timestamp.fromMillis(now),
+      expireAt: Timestamp.fromMillis(now + NOTICE_TTL_MS),
+    });
+  } catch (e) {
+    console.error("pushSent", notice.tag, e);
+  }
 }
 
 /** Stores a notice in `notices/{id}` for the centro de avisos (noticesLogic.ts: whether, for whom, its id).
  *  `create`: a retried trigger finds its doc taken and stores nothing. Never in the way of the push. */
-async function keepNotice(notice: Notice, uid?: string): Promise<void> {
+async function keepNotice(notice: Notice, uid?: string, who?: { audience: NoticeAudience; uid?: string }): Promise<void> {
   try {
-    const rec = noticeRecord(notice, uid, Date.now());
+    const rec = who ? noticeRecordAs(notice, who, Date.now()) : noticeRecord(notice, uid, Date.now());
     if (!rec) return;
     await db.doc(`notices/${rec.id}`).create({ ...rec.doc, at: Timestamp.fromMillis(rec.doc.at), expireAt: Timestamp.fromMillis(rec.doc.expireAt) });
   } catch (e) {
@@ -266,6 +311,8 @@ async function keepNotice(notice: Notice, uid?: string): Promise<void> {
   }
 }
 
+/** M-33 in the emulator (tests and local runs): the rival's goal waits this long instead of THEIR_GOAL_HOLD_MS. */
+export const EMULATOR_HOLD_MS = 2_000;
 const asMatch = (d: DocumentData | undefined): MatchLike | undefined =>
   d && {
     ...d,
@@ -305,7 +352,26 @@ export const pushOnMatch = onDocumentWritten({ document: "matches/{matchId}", se
   const players = await Promise.all([...ids].map((id) => db.doc(`players/${id}`).get()));
   // the season's shirt names, like the match page (nameFor with the match's season)
   const names = new Map(players.map((p) => [p.id, nameFor(p.data(), after?.seasonId)]));
-  for (const n of named ? noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", now) : draft) await deliver(n);
+  const held: Notice[] = [];
+  for (const n of named ? noticesFor(event.params.matchId, before, after, (id) => names.get(id) ?? "Jugador", now) : draft) {
+    if (n.holdFor) held.push(n);
+    else await deliver(n);
+  }
+  // M-33: the rival's goal goes after its wait, from the match as it is then — undone meanwhile, nothing goes.
+  for (const n of held) {
+    // (the emulator runs one trigger at a time: there the wait is 2 s, so it never holds every other trigger 10 s)
+    await new Promise((ok) => setTimeout(ok, process.env.FUNCTIONS_EMULATOR === "true" ? EMULATOR_HOLD_MS : n.holdFor!.ms));
+    try {
+      if (!(await matchActive(event.params.matchId))) continue;
+      const fresh = asMatch((await db.doc(`matches/${event.params.matchId}`).get()).data());
+      const pid = fresh?.events?.find((e) => e.id === n.holdFor!.eventId)?.playerId;
+      if (pid && !isGuestId(pid) && !names.has(pid)) names.set(pid, nameFor((await db.doc(`players/${pid}`).get()).data(), fresh?.seasonId));
+      const late = heldGoalNotice(event.params.matchId, fresh, n.holdFor!.eventId, (id) => names.get(id) ?? "Jugador");
+      if (late) await deliver(late);
+    } catch (e) {
+      console.error("pushOnMatch: held goal", event.params.matchId, e);
+    }
+  }
   // «Ya están las notas»: the acta's notas just appeared — «Mira la tuya» to each one with a nota (once each),
   // «Míralas» to everyone else on the result's topic (once per match). Never in the way of the rest.
   if (notasNotice(event.params.matchId, before, after, null, false))
@@ -414,7 +480,7 @@ export const pushOnLineup = onDocumentWritten({ document: "lineups/{lineupId}", 
   await sevenPublished(event.params.lineupId, after);
   const mid = after.matchId ?? null;
   const match = mid ? asMatch((await db.doc(`matches/${mid}`).get()).data()) : null;
-  const notice = lineupNotice(event.params.lineupId, before, after, match);
+  const notice = lineupNotice(event.params.lineupId, before, after, match, Date.now());
   if (!notice) return;
   if (!(await claimLog(notice.tag, mid ?? undefined))) return;
   // One «siete» per match: quiet when the convocatoria just told the team this same seven (seven.ts).

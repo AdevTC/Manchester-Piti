@@ -84,7 +84,7 @@ export async function cleanupDeletedMatch(id: string): Promise<void> {
   exact.add(`conv-${id}-cambios`);
   for (const board of boardIds) exact.add(`lineup-${board}-${id}`);
   for (const board of relatedBoards) exact.add(`seven-${board.id}`);
-  const prefixes = ['goal-off', 'goal', 'remind-48', 'remind-24', 'late'];
+  const prefixes = ['goal-off', 'goal', 'remind-48', 'remind-24', 'remind-now', 'late'];
   const relatedLog = (log: FirebaseFirestore.QueryDocumentSnapshot) => {
     if (typeof log.get('matchId') === 'string') return log.get('matchId') === id;
     if (exact.has(log.id)) return true;

@@ -9,7 +9,7 @@ import { nameFor } from "./names.js";
 import { matchActive, matchActiveTx, runMatchTransaction, runOptionalMatchTransaction } from './matchAccess.js';
 import { parseSiete, sevenChangeNotice, sevenDiff, sevenNewsworthy, sevenOf, sevenStep, sieteKey, sieteLog, sieteStep, SEVEN_DEBOUNCE_MS, type LineupLike, type MatchLike, type Notice, type SieteAsk } from "./pushLogic.js";
 
-type Send = (n: Notice) => Promise<void>;
+type Send = (n: Notice) => Promise<unknown>;
 
 const logRef = (id: string) => db.doc(`pushLog/seven-${id}`);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
