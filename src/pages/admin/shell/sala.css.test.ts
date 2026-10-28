@@ -22,6 +22,11 @@ describe("sala.css", () => {
     // (the v2 frame's own variables: whatever still reads one gets a Vidrio token instead)
     expect(css).not.toMatch(/var\(--(red|amber|panel2?|pline|deep|shirt|led|glass|wall|wall-line|railbar|pegdot|sheet|pop|scrim|stick)[,)]/);
   });
+  it("the confirmation's line and error (both <p>) keep their margins over the frame's `.vx.sc p{margin:0}` reset", () => {
+    expect(css).toContain(".vx.sc h1,.vx.sc h2,.vx.sc h3,.vx.sc p{margin:0}");
+    expect(css).toMatch(/\.vx\.sc \.sc-confirm__lede\{margin:0 0 12px/);
+    expect(css).toMatch(/\.vx\.sc \.sc-confirm__err\{[^}]*margin:12px 0 0/);
+  });
   it("no maqueta pieces", () => {
     expect(css).not.toMatch(/sc-strip|sc-interp|--sc-strip-h/);
   });

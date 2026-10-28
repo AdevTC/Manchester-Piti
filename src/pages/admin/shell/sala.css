@@ -369,14 +369,13 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 }
 /* the confirmation on the sheet (ui/layers ConfirmModal): its line, what will happen (✓, or the warning mark when it
    destroys), the error, and a destructive confirmation that says so in a word, an icon and its colour */
-.sc-confirm__lede{margin:0 0 12px;font-size:15px;line-height:1.45;color:var(--vd-g-ink2)}
+.vx.sc .sc-confirm__lede{margin:0 0 12px;font-size:15px;line-height:1.45;color:var(--vd-g-ink2)}
 .sc-confirm__cs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .sc-confirm__cs li{display:flex;align-items:flex-start;gap:10px;font-size:14.5px;line-height:1.4;color:var(--vd-g-ink)}
 .sc-confirm__cs svg{flex:none;margin-top:1px;color:var(--vd-celeste)}
 :root[data-theme="light"] .sc-confirm__cs svg{color:var(--vd-celeste-ink)}
 .sc-confirm.is-danger .sc-confirm__cs svg{color:var(--vd-roja)}
-.vx.sc .sc-confirm__lede+.sc-confirm__cs{margin-top:4px}
-.sc-confirm__err{display:flex;align-items:flex-start;gap:8px;margin:12px 0 0;font-size:14.5px;font-weight:650;line-height:1.4;color:var(--vd-g-ink)}
+.vx.sc .sc-confirm__err{display:flex;align-items:flex-start;gap:8px;margin:12px 0 0;font-size:14.5px;font-weight:650;line-height:1.4;color:var(--vd-g-ink)}
 .sc-confirm__err svg{flex:none;color:var(--vd-roja)}
 .vx.sc .sc-confirm .sc-sheet__f .vd-btn{flex:0 1 auto}
 .vx.sc .vd-btn.sc-danger{--vd-g-tint:rgba(229,72,77,.34);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-roja)}
