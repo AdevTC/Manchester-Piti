@@ -23,16 +23,16 @@ const EXTRA = {
 } as const;
 export type PlIconName = VIconName | keyof typeof EXTRA;
 /** VIcon, plus the board's download · trash · door. */
-export function Icon({ name, size = 18 }: { name: PlIconName; size?: number }) {
+export function Icon({ name, size = 18, flip }: { name: PlIconName; size?: number; flip?: boolean }) {
   if (name in EXTRA) {
     const d = EXTRA[name as keyof typeof EXTRA];
     return (
-      <svg className="sc-i" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <svg className={flip ? "sc-i pl-flip" : "sc-i"} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d={d} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
-  return <VIcon name={name as VIconName} size={size} className="sc-i" />;
+  return <VIcon name={name as VIconName} size={size} className={flip ? "sc-i pl-flip" : "sc-i"} />;
 }
 
 export type PlArea = "jugadores" | "socios" | "capitanes";

@@ -260,6 +260,9 @@
 
 /* ---------- phone and tablet ---------- */
 @container (max-width:1099px){
+  /* the regions scroll inside only ≥ 1100: below, the page scrolls, so the pinned trays (the ficha's «anterior ·
+     siguiente», the alta's «Dar de alta») stick to the frame's scroller, not to a region that never scrolls */
+  .sc-pl .pl-listcol,.sc-pl .pl-fichacol,.sc-pl .pl-cromosw,.sc-pl .pl-alta,.sc-pl .pl-old,.sc-pl .pl-glance,.sc-pl .pl-so__grid,.sc-pl .pl-cap{overflow:visible;-webkit-mask-image:none;mask-image:none}
   .sc-pl>.sc-shead{position:sticky;top:0;z-index:6}
   .sc-pl>.sc-shead .sc-shead__a{flex:1 1 100%}
   .pl-nav{flex:1 1 100%}

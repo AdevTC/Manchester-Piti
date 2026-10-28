@@ -762,7 +762,7 @@ export function Ficha({ row, index, total, prev, next, nextGap, allDone, open, v
 
       <nav className="pl-fnav sc-primary sc-primary--pin" aria-label="Pasar de jugador">
         <button type="button" className="vd-ibtn vd-glass vd-press" aria-label={prev ? `Jugador anterior: ${prev.name}` : "Jugador anterior"} aria-keyshortcuts="ArrowLeft ArrowUp" aria-disabled={!prev || undefined} onClick={() => prev && open(prev.id, -1)}>
-          <Icon name="arrow" size={20} />
+          <Icon name="arrow" size={20} flip />
         </button>
         <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm pl-fnav__gap" aria-disabled={!nextGap || undefined} aria-label={nextGap ? `Siguiente sin completar: ${nextGap.name}` : "No queda otra ficha sin completar"} onClick={() => nextGap && open(nextGap.id, 1)}>
           {allDone ? "Todas completas" : nextGap ? "Siguiente sin completar" : "Es la última sin completar"}

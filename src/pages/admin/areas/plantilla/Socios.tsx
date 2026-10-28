@@ -112,7 +112,9 @@ function Socios({ data }: { data: AdminData }) {
   const [doorPick, setDoorPick] = useState("");
   const [quit, setQuit] = useState("");
   const [resOpen, setResOpen] = useState(false);
-  const [invFor, setInvFor] = useState("");
+  // «Invitar con esta ficha» (the ficha's Cuenta y web) comes with ?para=<playerId>: the invitation starts for that ficha
+  const para = useSearch({ strict: false, select: (s) => (s as { para?: unknown }).para });
+  const [invFor, setInvFor] = useState(typeof para === "string" ? para : "");
   const [uses, setUses] = useState<0 | 1>(1);
   const [days, setDays] = useState(7);
   const [busy, setBusy] = useState(false);
