@@ -10,6 +10,7 @@ import type { DoorsView, NightView, PlayRowV, Task, TaskAct, TasksView } from ".
 import { MatchLink, PageLink } from "./links";
 import { SocialIcon } from "../../../components/vidrio/SocialIcon";
 import { socialLabel, type SocialLink } from "../../../lib/social";
+import type { FeaturedSponsor } from "../../../lib/clubExtras";
 import { PI, Seg, Tee } from "./ui";
 
 export interface PortadaProps {
@@ -23,6 +24,8 @@ export interface PortadaProps {
   doors: DoorsView;
   /** The club's profiles: «Síguenos» (none → no band). */
   social: readonly SocialLink[];
+  /** r12 M-45: the featured sponsor in its dates (clubExtras.featuredSponsor); null → as before. */
+  sponsor?: FeaturedSponsor | null;
   kit: Kit;
   matchId: string | null;
   go: (to: "campo" | "jugadas" | "lo-tuyo" | "camiseta") => (e: React.MouseEvent) => void;
@@ -388,12 +391,12 @@ export function Portada(p: PortadaProps) {
         </ul>
       </section>
 
-      {p.social.length > 0 && (
+      {(p.social.length > 0 || p.sponsor) && (
         <section className="in-band in-follow" aria-labelledby="in-follow-h">
           <header className="in-band__head">
             <div>
-              <h2 id="in-follow-h">Síguenos</h2>
-              <p>El Piti también juega fuera de la web.</p>
+              <h2 id="in-follow-h">{p.social.length > 0 ? "Síguenos" : "Nos apoya"}</h2>
+              <p>{p.social.length > 0 ? "El Piti también juega fuera de la web." : "El patrocinador del Piti."}</p>
             </div>
           </header>
           <ul className="in-follow__g">
@@ -412,10 +415,46 @@ export function Portada(p: PortadaProps) {
                 </a>
               </li>
             ))}
+            {p.sponsor && <SponsorLi s={p.sponsor} />}
           </ul>
         </section>
       )}
     </div>
+  );
+}
+
+/** r12 M-45 · the featured sponsor beside the networks: its logo (https) or its initials, its name, and its web
+ *  when it has one (a link that says it opens elsewhere). */
+function SponsorLi({ s }: { s: FeaturedSponsor }) {
+  const ini = s.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  const inner = (
+    <>
+      <span className="in-follow__ic" aria-hidden="true">
+        {s.logo ? <img src={s.logo} alt="" width={32} height={32} loading="lazy" decoding="async" referrerPolicy="no-referrer" style={{ objectFit: "contain" }} /> : <b>{ini}</b>}
+      </span>
+      <span className="in-follow__t">
+        <b>{s.name}</b>
+        <span className="in-follow__h">Nos apoya</span>
+        <span>{s.url ? "Visita su web" : "El patrocinador del Piti"}</span>
+      </span>
+    </>
+  );
+  return (
+    <li className="in-follow__spons">
+      {s.url ? (
+        <a className="vd-glass vd-press in-follow__a" href={s.url} target="_blank" rel="noopener noreferrer" aria-label={`${s.name}, patrocinador de Manchester Piti (se abre en otra pestaña)`}>
+          {inner}
+          <PI name="chev-r" />
+        </a>
+      ) : (
+        <div className="vd-glass in-follow__a">{inner}</div>
+      )}
+    </li>
   );
 }
 

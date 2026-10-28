@@ -4,6 +4,7 @@
 import { useState, type CSSProperties } from "react";
 import type { Kit } from "../../../components/jersey3d/kitStill";
 import { Go, I, CREST } from "./ui";
+import type { KitId, ReadKit } from "../../../lib/clubExtras";
 
 export interface EquipoShirt {
   id: string;
@@ -28,6 +29,8 @@ export interface EquipoProps {
   photo: string;
   venues: Venue[];
   cap: boolean;
+  /** r12 M-19: clubContent.kits as read (clubExtras.readKits); a kit not `saved` shows the code's below. */
+  kits?: Record<KitId, ReadKit>;
 }
 
 const KITS = {
@@ -35,9 +38,10 @@ const KITS = {
   away: { note: "Negra de fuera, con la franja roja en diagonal.", sw: [["noche", "Noche"], ["tiza", "Tiza"], ["rojo", "Rojo"]] },
 } as const;
 
-export function Equipo({ still, mk, squad, captain, toCrest, photo, venues, cap }: EquipoProps) {
+export function Equipo({ still, mk, squad, captain, toCrest, photo, venues, cap, kits }: EquipoProps) {
   const [kit, setKit] = useState<Kit>("home");
   const k = KITS[kit];
+  const saved = kits?.[kit].saved ? kits[kit] : null;
   const which = kit === "away" ? "La 2ª equipación" : "La 1ª equipación";
   const front = still(kit, "front");
   const back = still(kit, "back");
@@ -67,14 +71,21 @@ export function Equipo({ still, mk, squad, captain, toCrest, photo, venues, cap 
               2ª equipación
             </button>
           </div>
-          <p className="cb-kits__note">{k.note}</p>
+          <p className="cb-kits__note">{saved ? saved.note : k.note}</p>
           <ul className="cb-sw" aria-label="Colores de la equipación">
-            {k.sw.map(([key, t]) => (
-              <li key={key}>
-                <i className={`cb-sw__dot cb-sw__dot--${key}`} aria-hidden="true" />
-                {t}
-              </li>
-            ))}
+            {saved
+              ? saved.colors.map((c, i) => (
+                  <li key={`${i}-${c.name}`}>
+                    <i className="cb-sw__dot" style={{ background: c.hex }} aria-hidden="true" />
+                    {c.name}
+                  </li>
+                ))
+              : k.sw.map(([key, t]) => (
+                  <li key={key}>
+                    <i className={`cb-sw__dot cb-sw__dot--${key}`} aria-hidden="true" />
+                    {t}
+                  </li>
+                ))}
           </ul>
           <p className="cb-kits__next">Cada partido dice con cuál se juega, en su previa.</p>
         </div>

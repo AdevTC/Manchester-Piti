@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   path: "/",
   search: {} as Record<string, unknown>,
   navigate: vi.fn(),
+  /** clubContent fields over the defaults (r12 M-45). */
+  content: null as Record<string, unknown> | null,
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className, to, params, ...rest }: { children?: ReactNode; className?: string; to?: string; params?: Record<string, string>; "aria-label"?: string }) => (
@@ -30,7 +32,7 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: state.loading ? [] : state.matches, players: PLAYERS, loading: state.loading, error: null }) }));
 vi.mock("../../lib/clubContent", async () => {
   const { DEFAULT_CONTENT } = await import("../../lib/clubContentDefaults");
-  return { useClubContent: () => DEFAULT_CONTENT };
+  return { useClubContent: () => (state.content ? { ...DEFAULT_CONTENT, ...state.content } : DEFAULT_CONTENT) };
 });
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }] }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null, loading: false }) }));
@@ -84,6 +86,7 @@ beforeEach(() => {
   state.scorers = [];
   state.path = "/";
   state.search = {};
+  state.content = null;
   state.navigate.mockReset();
   state.navigate.mockResolvedValue(undefined);
 });
@@ -170,6 +173,38 @@ describe("Inicio, la portada", () => {
       ["https://www.instagram.com/manchesterpiti.__/", "_blank", "noopener noreferrer"],
       ["https://www.youtube.com/@ManchesterPitiFC2026", "_blank", "noopener noreferrer"],
     ]);
+    // (no featured sponsor: nothing else in the band)
+    expect(within(follow).getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.queryByText("Nos apoya")).toBeNull();
+  });
+
+  it("r12 M-45: the networks of clubContent.socials and the featured sponsor in its dates", () => {
+    at("antes");
+    state.content = {
+      socials: [
+        { net: "tiktok", url: "https://www.tiktok.com/@manchesterpiti" },
+        { net: "instagram", url: "https://www.instagram.com/manchesterpiti.__/" },
+      ],
+      sponsors: [
+        { name: "Bar Pepe", url: "https://barpepe.es", logo: "" },
+        { name: "Talleres Ruiz", url: "https://talleresruiz.es", logo: "https://talleresruiz.es/logo.png", featured: true, from: "2000-01-01", to: "2999-12-31" },
+      ],
+    };
+    render(<HomePage />);
+    const follow = screen.getByRole("region", { name: "Síguenos" });
+    expect(within(follow).getAllByRole("link").map((a) => a.getAttribute("aria-label"))).toEqual([
+      "TikTok de Manchester Piti (se abre en otra pestaña)",
+      "Instagram de Manchester Piti (se abre en otra pestaña)",
+      "Talleres Ruiz, patrocinador de Manchester Piti (se abre en otra pestaña)",
+    ]);
+    expect(within(follow).getByText("Nos apoya")).toBeTruthy();
+  });
+
+  it("r12 M-45: a sponsor out of its dates stays out of Inicio", () => {
+    at("antes");
+    state.content = { sponsors: [{ name: "Talleres Ruiz", url: "https://talleresruiz.es", logo: "", featured: true, to: "2000-01-01" }] };
+    render(<HomePage />);
+    expect(screen.queryByText("Talleres Ruiz")).toBeNull();
   });
 
   it("a door to a screen navigates there inside a View Transition", () => {

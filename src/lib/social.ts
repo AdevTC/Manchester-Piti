@@ -1,8 +1,10 @@
-// The club's social profiles (clubContent instagram / youtube): what Club's head and Inicio's «Síguenos» link
-// to. Only an https address of the network's own site becomes a link; anything else (empty, a typo, another
-// site) shows nothing.
+// The club's social profiles: what Club's head and Inicio's «Síguenos» link to. r12 M-45: clubContent.socials (any
+// of the eight networks, in its order) when it has a valid one; else the old instagram / youtube fields, exactly as
+// before (clubExtras.readSocials). Only an https address becomes a link; Instagram and YouTube also have to be the
+// network's own site (anything else — empty, a typo, another site — shows nothing). One link per network.
+import { readSocials, SOCIAL_NAME, type RawContent, type SocialNet } from "./clubExtras";
 
-export type SocialKey = "instagram" | "youtube";
+export type SocialKey = SocialNet;
 
 export interface SocialLink {
   key: SocialKey;
@@ -15,34 +17,47 @@ export interface SocialLink {
   href: string;
 }
 
-const HOSTS: Record<SocialKey, readonly string[]> = {
+/** Networks whose address must be on their own site (the old fields' check, kept for the list too). */
+const HOSTS: Partial<Record<SocialKey, readonly string[]>> = {
   instagram: ["instagram.com", "www.instagram.com"],
   youtube: ["youtube.com", "www.youtube.com", "m.youtube.com"],
 };
-const NAME: Record<SocialKey, string> = { instagram: "Instagram", youtube: "YouTube" };
-const BLURB: Record<SocialKey, string> = { instagram: "Fotos y lo que pasa en cada partido", youtube: "Los partidos en vídeo" };
+const BLURB: Record<SocialKey, string> = {
+  instagram: "Fotos y lo que pasa en cada partido",
+  youtube: "Los partidos en vídeo",
+  tiktok: "Los mejores momentos, en corto",
+  whatsapp: "El canal del club",
+  x: "Lo último del Piti",
+  facebook: "Las noticias del club",
+  twitch: "Partidos en directo",
+  web: "Más del Piti",
+};
 
-/** The profile's handle from its address: instagram.com/user → @user, youtube.com/@Name → @Name. */
+/** The profile's handle from its address: instagram.com/user → @user, youtube.com/@Name → @Name, tiktok.com/@user
+ *  → @user, x.com/user → @user, twitch.tv/user → user; a web, its host. */
 function handleOf(key: SocialKey, url: URL): string {
   const first = url.pathname.split("/").filter(Boolean)[0] ?? "";
-  if (key === "instagram") return first ? `@${first}` : "";
-  return first.startsWith("@") ? first : "";
+  if (key === "instagram" || key === "x") return first ? `@${first.replace(/^@/, "")}` : "";
+  if (key === "youtube" || key === "tiktok") return first.startsWith("@") ? first : "";
+  if (key === "twitch") return first;
+  if (key === "web") return url.hostname.replace(/^www\./, "");
+  return "";
 }
 
-/** The links worth showing, Instagram first. */
-export function socialLinks(c: { instagram?: string; youtube?: string }): SocialLink[] {
+/** The links worth showing, in the content's order (old fields: Instagram first). */
+export function socialLinks(c: RawContent<"socials" | "instagram" | "youtube">): SocialLink[] {
   const out: SocialLink[] = [];
-  for (const key of ["instagram", "youtube"] as const) {
-    const raw = (c[key] ?? "").trim();
-    if (!raw) continue;
+  for (const s of readSocials(c)) {
+    if (out.some((l) => l.key === s.net)) continue;
     let url: URL;
     try {
-      url = new URL(raw);
+      url = new URL(s.url.trim());
     } catch {
       continue;
     }
-    if (url.protocol !== "https:" || !HOSTS[key].includes(url.hostname.toLowerCase())) continue;
-    out.push({ key, name: NAME[key], handle: handleOf(key, url) || NAME[key], blurb: BLURB[key], href: url.href });
+    const hosts = HOSTS[s.net];
+    if (url.protocol !== "https:" || (hosts && !hosts.includes(url.hostname.toLowerCase()))) continue;
+    out.push({ key: s.net, name: SOCIAL_NAME[s.net], handle: handleOf(s.net, url) || SOCIAL_NAME[s.net], blurb: BLURB[s.net], href: url.href });
   }
   return out;
 }

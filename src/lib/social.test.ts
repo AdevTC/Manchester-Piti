@@ -20,4 +20,21 @@ describe("socialLinks", () => {
   it("a channel address without @handle keeps the network's name", () => {
     expect(socialLinks({ youtube: "https://www.youtube.com/channel/UC123" })[0].handle).toBe("YouTube");
   });
+  it("r12 M-45: clubContent.socials rules over the old fields, in its order, one per network", () => {
+    const l = socialLinks({
+      instagram: "https://www.instagram.com/old/",
+      socials: [
+        { net: "tiktok", url: "https://www.tiktok.com/@manchesterpiti" },
+        { net: "instagram", url: "https://instagram.com.evil.example/x" },
+        { net: "x", url: "https://x.com/elpiti" },
+        { net: "x", url: "https://x.com/otro" },
+        { net: "web", url: "https://www.manchesterpiti.es/" },
+      ],
+    });
+    expect(l.map((x) => [x.key, x.name, x.handle])).toEqual([
+      ["tiktok", "TikTok", "@manchesterpiti"],
+      ["x", "X", "@elpiti"],
+      ["web", "La web", "manchesterpiti.es"],
+    ]);
+  });
 });
