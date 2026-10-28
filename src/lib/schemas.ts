@@ -107,13 +107,8 @@ export const seasonMatchSchema = z.looseObject({
     .transform((v) => parseStoredNotas(v) ?? undefined)
     .optional()
     .catch(undefined),
-  // r12 (backend stamps; malformed → absent, never the match): the first publication, the MVP moved by hand,
-  // the video marks of each goal.
+  // r12 (backend stamps; malformed → absent, never the match): the first publication, the video marks of each goal.
   actaPublishedAt: z.number().refine(Number.isFinite).optional().catch(undefined),
-  mvpManual: z
-    .object({ action: z.enum(["close", "reopen"]), by: z.string(), at: z.number() })
-    .optional()
-    .catch(undefined),
   videoMarks: z
     .unknown()
     .transform((v) => storedVideoMarks(v))
@@ -571,6 +566,8 @@ export const pushSentSchema = z.object({
 });
 /** clubDrafts/content (M-20): anything malformed reads as no draft on the server. */
 export const clubContentDraftSchema = z.object({
+  /** The saves so far: the next save carries rev + 1 (the rules refuse a stale one). */
+  rev: z.number().int().min(0).catch(0),
   club: z.record(z.string(), z.unknown()),
   stories: z.record(z.string(), z.unknown()),
   by: z.string(),
@@ -579,6 +576,8 @@ export const clubContentDraftSchema = z.object({
 });
 /** matchPrivate/{id}.notasError (M-42). */
 export const notasErrorSchema = z.object({ at: z.number(), message: z.string() });
+/** matchPrivate/{id}.mvpManual (M-11: who closed or reopened the MVP by hand). */
+export const mvpManualSchema = z.object({ action: z.enum(["close", "reopen"]), by: z.string(), at: z.number() });
 
 /** Forma de un resultado de partido editado en Admin. */
 export const matchResultSchema = z.object({

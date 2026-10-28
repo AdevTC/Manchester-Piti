@@ -69,7 +69,8 @@ export function mvpWindow(action: MvpAction, m: { status?: unknown; voteClosesAt
     return { voteClosesAt: now };
   }
   if (now >= actaPublishedAt(m, now) + RATING_WINDOW_MS) return { problem: "Ya no se puede reabrir: pasaron los 7 días del partido." };
-  return { voteClosesAt: now + MVP_REOPEN_MS };
+  // (a vote still open never gets shorter: «24 h más» from now, or what it had left if that is longer)
+  return { voteClosesAt: Math.max(closes, now + MVP_REOPEN_MS) };
 }
 
 // ── M-38 · la crónica corta ──
@@ -102,8 +103,9 @@ export interface GuestPlan {
   bench: string[];
   present: string[] | null;
 }
-/** The guest added to a match (or the one already there with that name), and its lists after it. */
-export function addGuestPlan(m: { guests?: unknown; starters?: unknown; bench?: unknown; present?: unknown }, rawName: string): GuestPlan | { problem: string } {
+/** The guest added to a match (or the one already there with that name), and its lists after it. `taken`: ids
+ *  another copy of the match uses (its draft), never given to a new guest. */
+export function addGuestPlan(m: { guests?: unknown; starters?: unknown; bench?: unknown; present?: unknown }, rawName: string, taken: readonly string[] = []): GuestPlan | { problem: string } {
   const name = rawName.replace(/\s+/g, " ").trim();
   if (!name || name.length > GUEST_NAME_MAX) return { problem: `El nombre del invitado debe tener entre 1 y ${GUEST_NAME_MAX} caracteres.` };
   const guests = (Array.isArray(m.guests) ? m.guests : []).filter((g): g is MatchGuest => !!g && typeof g.id === "string" && typeof g.name === "string");
@@ -117,9 +119,41 @@ export function addGuestPlan(m: { guests?: unknown; starters?: unknown; bench?: 
     return { guest: g, created, guests: created ? [...guests, g] : guests, bench: listed ? bench : [...bench, ref], present: present && !present.includes(ref) ? [...present, ref] : present };
   };
   if (same) return place(same, false);
-  if (guests.length >= MAX_GUESTS) return { problem: `Como mucho ${MAX_GUESTS} invitados por partido.` };
-  const free = ["g1", "g2", "g3", "g4"].find((id) => !guests.some((g) => g.id === id))!;
+  const free = ["g1", "g2", "g3", "g4"].find((id) => !guests.some((g) => g.id === id) && !taken.includes(id));
+  if (guests.length >= MAX_GUESTS || !free) return { problem: `Como mucho ${MAX_GUESTS} invitados por partido.` };
   return place({ id: free, name }, true);
+}
+/** The draft's own fields once the guest is on the published match (B: never its list replaced): the guest added if
+ *  its id is free there, on its banquillo; null when the draft already uses that id for someone else. */
+export function draftGuestFields(d: { guests?: unknown; starters?: unknown; bench?: unknown }, guest: MatchGuest): { guests: MatchGuest[]; bench?: string[] } | null {
+  const guests = (Array.isArray(d.guests) ? d.guests : []).filter((g): g is MatchGuest => !!g && typeof g.id === "string" && typeof g.name === "string");
+  const there = guests.find((g) => g.id === guest.id);
+  if (there && fold(there.name) !== fold(guest.name)) return null;
+  const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const ref = GUEST_PREFIX + guest.id;
+  const listed = ids(d.starters).includes(ref) || ids(d.bench).includes(ref);
+  return { guests: there ? guests : [...guests, guest], ...(listed ? {} : { bench: [...ids(d.bench), ref] }) };
+}
+/** Whether a draft's field can take the published one's new value (B: a draft's own edit is never overwritten):
+ *  it still holds what the published match had, or nothing. */
+export function draftFieldFollows(draftValue: unknown, publishedValue: unknown): boolean {
+  const empty = draftValue === undefined || draftValue === null || draftValue === "" || (typeof draftValue === "object" && !Array.isArray(draftValue) && Object.keys(draftValue as object).length === 0);
+  return empty || stableJson(draftValue) === stableJson(publishedValue);
+}
+/** JSON with every map's keys in order (Firestore keeps no key order). */
+export function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object" && typeof (v as { toMillis?: unknown }).toMillis !== "function")
+    return `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${stableJson((v as Record<string, unknown>)[k])}`).join(",")}}`;
+  return JSON.stringify(v ?? null);
+}
+/** A value that names `id` anywhere (a string equal to it, or a key): any document a ficha must not be deleted from. */
+export function mentions(value: unknown, id: string): boolean {
+  if (typeof value === "string") return value === id;
+  if (Array.isArray(value)) return value.some((v) => mentions(v, id));
+  if (value && typeof value === "object" && typeof (value as { toMillis?: unknown }).toMillis !== "function")
+    return Object.entries(value as Record<string, unknown>).some(([k, v]) => k === id || mentions(v, id));
+  return false;
 }
 export const DURATION_MIN = 10;
 export const DURATION_MAX = 150;
@@ -169,6 +203,11 @@ export function replaceRef<T>(value: T, from: string, to: string): T {
     return out as T;
   }
   return value;
+}
+/** A retry of «Darle de alta»: the guest is no longer on the match's list and the ficha already plays in it. */
+export function alreadyPromoted(m: Record<string, unknown>, guestId: string, playerId: string): boolean {
+  const guests = Array.isArray(m.guests) ? (m.guests as MatchGuest[]) : [];
+  return !guests.some((g) => g.id === guestId) && mentions([m.starters, m.bench, m.events], playerId);
 }
 /** The match's fields with the guest made a member: every reference, and the guest off the list. */
 export function promoteInMatch(m: Record<string, unknown>, guestId: string, playerId: string): Record<string, unknown> | { problem: string } {

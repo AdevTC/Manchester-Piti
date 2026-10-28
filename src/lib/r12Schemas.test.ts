@@ -1,15 +1,14 @@
 // r12 · reading the new documents and fields defensively (src/lib/schemas.ts).
 import { describe, expect, it } from "vitest";
-import { clubContentDraftSchema, clubKitsSchema, clubSocialSchema, clubSponsorSchema, clubTrophySchema, notasErrorSchema, pushSentSchema, seasonMatchSchema, validItems } from "./schemas";
+import { clubContentDraftSchema, clubKitsSchema, clubSocialSchema, clubSponsorSchema, clubTrophySchema, mvpManualSchema, notasErrorSchema, pushSentSchema, seasonMatchSchema, validItems } from "./schemas";
 
 describe("r12 · the match's new stamps", () => {
-  it("reads actaPublishedAt, mvpManual and videoMarks; anything malformed is absent, never the match", () => {
-    const ok = seasonMatchSchema.parse({ id: "j1", actaPublishedAt: 5, mvpManual: { action: "close", by: "u", at: 6 }, videoMarks: { g1: 30 } });
-    expect(ok).toMatchObject({ actaPublishedAt: 5, mvpManual: { action: "close", by: "u", at: 6 }, videoMarks: { g1: 30 } });
-    const bad = seasonMatchSchema.parse({ id: "j1", actaPublishedAt: "ayer", mvpManual: { action: "x" }, videoMarks: { g1: -3 } });
+  it("reads actaPublishedAt and videoMarks; anything malformed is absent, never the match", () => {
+    const ok = seasonMatchSchema.parse({ id: "j1", actaPublishedAt: 5, videoMarks: { g1: 30 } });
+    expect(ok).toMatchObject({ actaPublishedAt: 5, videoMarks: { g1: 30 } });
+    const bad = seasonMatchSchema.parse({ id: "j1", actaPublishedAt: "ayer", videoMarks: { g1: -3 } });
     expect(bad.id).toBe("j1");
     expect(bad.actaPublishedAt).toBeUndefined();
-    expect(bad.mvpManual).toBeUndefined();
     expect(bad.videoMarks).toBeUndefined();
   });
 });
@@ -37,7 +36,10 @@ describe("r12 · pushSent, clubDrafts/content, notasError", () => {
     expect(d).toMatchObject({ at: 10_000, devices: 3, members: 2, audience: "publico", kind: "manual", matchId: "j1", by: "u", tag: "" });
   });
   it("the content's draft and the notas' failure", () => {
-    expect(clubContentDraftSchema.parse({ club: {}, stories: {}, by: "u", at: null }).at).toBeNull();
+    expect(clubContentDraftSchema.parse({ club: {}, stories: {}, by: "u", at: null })).toMatchObject({ at: null, rev: 0 });
+    expect(clubContentDraftSchema.parse({ rev: 3, club: {}, stories: {}, by: "u", at: 1 }).rev).toBe(3);
+    expect(mvpManualSchema.safeParse({ action: "close", by: "u", at: 1 }).success).toBe(true);
+    expect(mvpManualSchema.safeParse({ action: "x", by: "u", at: 1 }).success).toBe(false);
     expect(clubContentDraftSchema.safeParse({ club: "x", stories: {}, by: "u", at: 1 }).success).toBe(false);
     expect(notasErrorSchema.safeParse({ at: 1, message: "x" }).success).toBe(true);
   });

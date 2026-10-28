@@ -100,6 +100,9 @@ export const remindNow = onCall({ secrets: [vapidPrivate] }, async (req) => {
   for (const pid of missing) {
     const uid = (await db.doc(`playerLinks/${pid}`).get()).get("uid");
     if (typeof uid !== "string" || !uid) continue;
+    // (only who is still inside the vestuario: a removed member's link left behind gets nothing)
+    const access = (await db.doc(`teamMembers/${uid}`).get()).get("expiresAt");
+    if ((millis(access) ?? 0) <= now) continue;
     sent.devices += (await sendTo(notice, uid)).devices;
     sent.members++;
   }

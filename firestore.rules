@@ -314,7 +314,7 @@ service cloud.firestore {
     // content — names and #rrggbb — is the app's Zod on read) and M-45 las redes (clubContent.socials: ≤ 8 of
     // { net, url https ≤ 300 }). Absent: the web keeps what is in its code today.
     function kitOk(k) {
-      return k is map && k.keys().hasOnly(['name','note','colors'])
+      return k is map && k.keys().hasOnly(['name','note','colors']) && k.keys().hasAll(['note','colors'])
         && k.get('note', '') is string && k.get('note', '').size() <= 200
         && k.get('name', '') is string && k.get('name', '').size() <= 30
         && k.get('colors', []) is list && k.get('colors', []).size() >= 1 && k.get('colors', []).size() <= 4;
@@ -334,11 +334,15 @@ service cloud.firestore {
         && socialOk(ss, 4) && socialOk(ss, 5) && socialOk(ss, 6) && socialOk(ss, 7);
     }
     // M-20: the content's drafts on the server (one shared draft, the same shape the device kept), captains only.
+    // `rev` counts the saves: a save carries the next one, so a captain writing over a draft another captain changed
+    // meanwhile is refused («Otro capitán ha cambiado el borrador»); a new draft starts at 0.
     match /clubDrafts/{id} {
       allow read, delete: if admin() && id == 'content';
       allow create, update: if admin() && id == 'content'
-        && request.resource.data.keys().hasOnly(['club','stories','by','byName','at'])
-        && request.resource.data.keys().hasAll(['club','stories','by','at'])
+        && request.resource.data.keys().hasOnly(['club','stories','by','byName','at','rev'])
+        && request.resource.data.keys().hasAll(['club','stories','by','at','rev'])
+        && request.resource.data.rev is int
+        && request.resource.data.rev == (resource == null ? 0 : resource.data.get('rev', 0) + 1)
         && request.resource.data.club is map && request.resource.data.club.size() <= 12
         && request.resource.data.stories is map && request.resource.data.stories.size() <= 60
         && request.resource.data.by == request.auth.uid

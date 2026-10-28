@@ -102,9 +102,10 @@ async function refused(user, ...writes) {
   assert.equal(await commit(user, writes), 403, JSON.stringify(writes));
   checked++;
 }
-/** The MVP tally is kept by a trigger: wait for it to settle. */
+/** The MVP tally is kept by a trigger: wait for it to settle. (The functions emulator runs one trigger at a time; on
+ *  a loaded machine the queue before tallyMvp can pass 15 s, so it gets 45.) */
 async function tally(matchId, expect) {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 180; i++) {
     const r = (await db.doc("mvpResults/" + matchId).get()).data();
     if (r && expect(r)) return r;
     await new Promise((ok) => setTimeout(ok, 250));

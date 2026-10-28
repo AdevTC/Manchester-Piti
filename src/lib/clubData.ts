@@ -43,15 +43,29 @@ export interface ClubMatch extends Omit<
   notas?: StoredNotas;
   /** r12: when the acta was first published (ms). Absent on older actas: voteClosesAt − 48 h. */
   actaPublishedAt?: number;
-  /** r12 M-11: the MVP vote closed or reopened by hand (setMvpVote). */
-  mvpManual?: MvpManual;
   /** r12 M-43: where each goal starts in the video (event id → seconds). */
   videoMarks?: Record<string, number>;
 }
+/** r12 M-11: the MVP vote closed or reopened by hand (setMvpVote), kept in matchPrivate/{id}.mvpManual. */
 export interface MvpManual {
   action: "close" | "reopen";
   by: string;
   at: number;
+}
+/** r12: what matchPrivate/{id} (members read it) holds for la Sala, besides what it had. */
+export interface MatchPrivateR12 {
+  mvpManual?: MvpManual;
+  notasError?: NotasError;
+  /** M-38: who wrote the crónica corta last, and (a scorer) the exact text he saved. */
+  reportBy?: string;
+  reportText?: string;
+}
+/** r12 M-46: a porra corrected by a captain (matchPrivate/{id}/predictions/{uid}): «Corregida por @capi». */
+export interface PredictionCorrection {
+  correctedBy: string;
+  correctedByName: string;
+  /** ms (a Timestamp in Firestore). */
+  correctedAt: number;
 }
 
 // ── r12 · new documents of la Sala de control (shapes in piti-diseno/src/admin/impl/API.md; Zod in schemas.ts) ──
@@ -78,6 +92,8 @@ export interface PushSentDoc {
 }
 /** clubDrafts/content (captains): the content drafts on the server, the same `{ club, stories }` the device kept (M-20). */
 export interface ClubContentDraftDoc {
+  /** The saves so far: write rev + 1 (0 for a new draft); a refused write means another captain changed it. */
+  rev: number;
   club: Record<string, unknown>;
   stories: Record<string, unknown>;
   by: string;

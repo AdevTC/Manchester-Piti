@@ -253,11 +253,28 @@ export const THEIR_GOAL_HOLD_MS = 10_000;
  * gone). The score is the one at that moment.
  */
 export function heldGoalNotice(id: string, match: MatchLike | undefined, eventId: string, nameOf: (playerId: string) => string): Notice | null {
-  if (!match || match.archived || !notDone(match) || whistled(match)) return null;
-  const e = (match.events ?? []).find((x) => x.id === eventId);
-  if (!e || !scored(e)) return null;
+  // (a final whistle during the wait doesn't silence it: the goal was written before it — only a held goal is one
+  // written while the match was being played; the acta published meanwhile does: «Final» told the score)
+  if (!match || match.archived || !notDone(match)) return null;
+  const events = match.events ?? [];
+  const at = events.findIndex((x) => x.id === eventId);
+  if (at < 0 || !scored(events[at])) return null;
   const memberOr = (pid: string) => (isGuestId(pid) ? guestLabel({ guests: match.guests }, pid) : nameOf(pid));
-  return goalNotice(id, e, liveScore(match.events), match.rival ?? "el rival", memberOr);
+  // the score right after this goal (a later goal, already told, doesn't make it read out of order)
+  return goalNotice(id, events[at], liveScore(events.slice(0, at + 1)), match.rival ?? "el rival", memberOr);
+}
+/** The rival's goals still held before the play at `beforeId` (a goal told now): they go first, in order — the
+ *  game went on after them, so they are no mistake — and the phone keeps the newest (same tag). push.ts skips any
+ *  already told (its pushLog). */
+export function heldBefore(match: MatchLike | undefined, beforeId: string | null): string[] {
+  const events = match?.events ?? [];
+  // (null: before the whistle — every play there is)
+  const at = beforeId === null ? events.length : events.findIndex((x) => x.id === beforeId);
+  const last = beforeId === null ? events.at(-1) : events[at];
+  const now = at < 0 ? undefined : last?.elapsedSeconds;
+  // (only the ones of the last minute of play: one still in its wait, never an old one that was never told)
+  const recent = (e: Ev) => typeof now !== "number" || typeof e.elapsedSeconds !== "number" || now - e.elapsedSeconds <= 60;
+  return (at < 0 ? [] : events.slice(0, at)).filter((e) => THEIRS.has(e.type) && scored(e) && recent(e)).map((e) => e.id);
 }
 
 /** A sentence that may end in a name: «Pase de Adrián T.C.» never gets a second full stop. */

@@ -23,9 +23,27 @@ export const sendCaptainNotice = onCall({ secrets: [vapidPrivate] }, async (req)
   const text = data.text.replace(/\s+/g, " ").trim();
   if (!text) throw new HttpsError("invalid-argument", "Escribe el aviso antes de mandarlo.");
   if (data.audience === "convocados" && !data.matchId) throw new HttpsError("invalid-argument", "Elige el partido de los convocados.");
+  const now = Date.now();
+  // who it is for, checked before the minute's turn is spent: only members still inside the vestuario
+  const members = await db.collection("teamMembers").where("expiresAt", ">", new Date(now)).get();
+  const inside = new Set(members.docs.map((d) => d.id));
+  let uids: string[] = [];
+  let url = "/vestuario";
+  if (data.audience === "todos") uids = [...inside];
+  else if (data.audience === "capitanes") {
+    const caps = await db.collection("users").where("role", "in", ["admin", "superadmin"]).get();
+    uids = caps.docs.map((d) => d.id).filter((u) => inside.has(u));
+  } else {
+    const match = await db.doc(`matches/${data.matchId}`).get();
+    if (!match.exists || !(await matchActive(data.matchId!))) throw new HttpsError("failed-precondition", "Ese partido no tiene convocatoria.");
+    const players = memberIds([...strs(match.get("starters")), ...strs(match.get("bench"))]);
+    if (!players.length) throw new HttpsError("failed-precondition", "Ese partido no tiene convocatoria.");
+    const links = await db.getAll(...players.map((p) => db.doc(`playerLinks/${p}`)));
+    uids = links.map((l) => l.get("uid")).filter((u): u is string => typeof u === "string" && inside.has(u));
+    url = `/partidos/${data.matchId}`;
+  }
   // (one a minute per captain: a double tap never sends it twice)
   const gate = db.doc(`pushLog/manual-${by}`);
-  const now = Date.now();
   const go = await db.runTransaction(async (tx) => {
     const last = (await tx.get(gate)).get("sentAt");
     if (typeof last === "number" && now - last < CAPTAIN_NOTICE_GAP_MS) return false;
@@ -33,23 +51,6 @@ export const sendCaptainNotice = onCall({ secrets: [vapidPrivate] }, async (req)
     return true;
   });
   if (!go) throw new HttpsError("resource-exhausted", "Acabas de mandar un aviso: espera un minuto.");
-  let uids: string[] = [];
-  let url = "/vestuario";
-  if (data.audience === "todos") {
-    const members = await db.collection("teamMembers").where("expiresAt", ">", new Date(now)).get();
-    uids = members.docs.map((d) => d.id);
-  } else if (data.audience === "capitanes") {
-    const caps = await db.collection("users").where("role", "in", ["admin", "superadmin"]).get();
-    uids = caps.docs.filter((d) => !d.get("removedAt")).map((d) => d.id);
-  } else {
-    const match = await db.doc(`matches/${data.matchId}`).get();
-    if (!match.exists || !(await matchActive(data.matchId!))) throw new HttpsError("failed-precondition", "Ese partido no tiene convocatoria.");
-    const players = memberIds([...strs(match.get("starters")), ...strs(match.get("bench"))]);
-    if (!players.length) throw new HttpsError("failed-precondition", "Ese partido no tiene convocatoria.");
-    const links = await db.getAll(...players.map((p) => db.doc(`playerLinks/${p}`)));
-    uids = links.map((l) => l.get("uid")).filter((u): u is string => typeof u === "string" && !!u);
-    url = `/partidos/${data.matchId}`;
-  }
   const notice = captainNotice(text, url, now);
   const sent = await sendToMembers(notice, uids, data.audience === "todos" ? "team" : data.audience === "capitanes" ? "captains" : "personal");
   await logSent(notice, sent, { kind: "manual", audience: data.audience === "todos" ? "equipo" : data.audience, by });

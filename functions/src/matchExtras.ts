@@ -16,7 +16,7 @@ import { standingsLike } from "./rating/rival.js";
 import { frozenNotas } from "./rating/season.js";
 import { shotTally } from "./rating/values.js";
 import type { RatingMatch, StandingsLike } from "./rating/types.js";
-import { actaPublishedAt, addGuestPlan, draftFollows, DURATION_MAX, DURATION_MIN, mvpWindow, pruneVideoMarks, REPORT_MAX, reportProblem, stillOpen, videoMarksSchema } from "./matchExtrasLogic.js";
+import { actaPublishedAt, addGuestPlan, draftFieldFollows, draftFollows, draftGuestFields, DURATION_MAX, DURATION_MIN, mvpWindow, pruneVideoMarks, REPORT_MAX, reportProblem, stillOpen, videoMarksSchema } from "./matchExtrasLogic.js";
 
 type Snap = FirebaseFirestore.DocumentSnapshot;
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
@@ -26,11 +26,17 @@ const ms = (v: unknown): number => {
 };
 const NOT_PUBLISHED = "El acta aún no está publicada.";
 
-/** The published match's new revision, and the same fields on its draft (with the revision when it was in step). */
-function writeBoth(tx: FirebaseFirestore.Transaction, pub: Snap, draft: Snap, fields: Record<string, unknown>, bump = true): number {
-  const revision = num(pub.get("revision")) + (bump ? 1 : 0);
-  tx.update(pub.ref, { ...fields, ...(bump ? { revision } : {}), updatedAt: FieldValue.serverTimestamp() });
-  if (draft.exists) tx.update(draft.ref, { ...fields, ...(bump && draftFollows(pub.get("revision"), draft.get("revision")) ? { revision } : {}) });
+/** The published match's new revision, and the same fields on its draft — each one only where the draft still holds
+ *  the published value (or nothing): a draft's own edit is never overwritten — and the new revision when it was in
+ *  step. */
+function writeBoth(tx: FirebaseFirestore.Transaction, pub: Snap, draft: Snap, fields: Record<string, unknown>): number {
+  const revision = num(pub.get("revision")) + 1;
+  tx.update(pub.ref, { ...fields, revision, updatedAt: FieldValue.serverTimestamp() });
+  if (draft.exists) {
+    const follow = Object.fromEntries(Object.entries(fields).filter(([k]) => draftFieldFollows(draft.get(k), pub.get(k))));
+    const inStep = draftFollows(pub.get("revision"), draft.get("revision"));
+    if (Object.keys(follow).length || inStep) tx.update(draft.ref, { ...follow, ...(inStep ? { revision } : {}) });
+  }
   return revision;
 }
 const audit = (tx: FirebaseFirestore.Transaction, matchId: string, uid: string, what: Record<string, unknown>) =>
@@ -52,7 +58,9 @@ export const setMvpVote = onCall(async (req) => {
     const stored = await tx.get(resultRef);
     // (the publication time stays: the ratings' 7 days never move with the MVP)
     const published = actaPublishedAt({ actaPublishedAt: match.get("actaPublishedAt"), voteClosesAt: match.get("voteClosesAt") }, now);
-    tx.update(match.ref, { voteClosesAt: next.voteClosesAt, actaPublishedAt: published, mvpManual: { action, by: uid, at: now }, updatedAt: FieldValue.serverTimestamp() });
+    tx.update(match.ref, { voteClosesAt: next.voteClosesAt, actaPublishedAt: published, updatedAt: FieldValue.serverTimestamp() });
+    // (who moved it is the vestuario's, not the public match's)
+    tx.set(db.doc(`matchPrivate/${matchId}`), { mvpManual: { action, by: uid, at: now } }, { merge: true });
     const keep = stored.get("eligible");
     tx.set(resultRef, mvpDoc(tallyVotes(match.get("ledger"), votes.docs.map((v) => v.data())), next.voteClosesAt, now, typeof keep === "number" && keep > 0 ? keep : eligible));
     audit(tx, matchId, uid, { mvp: action, voteClosesAt: next.voteClosesAt });
@@ -158,7 +166,7 @@ export const setVideoMarks = onCall(async (req) => {
   const uid = await admin(req);
   const data = parse(z.object({ matchId: idSchema, marks: videoMarksSchema }), req.data);
   return runMatchTransaction(data.matchId, async (tx, { match, draft }) => {
-    if (!match.exists) throw new HttpsError("failed-precondition", NOT_PUBLISHED);
+    if (!match.exists || match.get("status") !== "finished") throw new HttpsError("failed-precondition", NOT_PUBLISHED);
     await requireActiveMatch(tx, data.matchId, match);
     if (!match.get("videoUrl")) throw new HttpsError("failed-precondition", "Pon antes el vídeo del partido.");
     const marks = pruneVideoMarks(data.marks, match.get("events"));
@@ -177,16 +185,17 @@ export const addMatchGuest = onCall(async (req) => {
     if (!match.exists) throw new HttpsError("not-found", "Publica primero el encuentro.");
     await requireActiveMatch(tx, data.matchId, match);
     if (!stillOpen({ status: match.get("status"), clock: match.get("clock"), liveEndedAt: match.get("liveEndedAt") })) throw new HttpsError("failed-precondition", "El partido ya ha terminado: los invitados se añaden en el acta.");
-    const plan = addGuestPlan({ guests: match.get("guests"), starters: match.get("starters"), bench: match.get("bench"), present: match.get("present") }, data.name);
+    // (a new guest takes an id free on both the match and its draft: the draft's guests are never replaced)
+    const draftIds = draft.exists && Array.isArray(draft.get("guests")) ? (draft.get("guests") as { id?: unknown }[]).map((g) => String(g?.id ?? "")) : [];
+    const plan = addGuestPlan({ guests: match.get("guests"), starters: match.get("starters"), bench: match.get("bench"), present: match.get("present") }, data.name, draftIds);
     if ("problem" in plan) throw new HttpsError(plan.problem.startsWith("Como mucho") ? "failed-precondition" : "invalid-argument", plan.problem);
     const revision = num(match.get("revision")) + 1;
     tx.update(match.ref, { guests: plan.guests, bench: plan.bench, ...(plan.present ? { present: plan.present } : {}), revision, updatedAt: FieldValue.serverTimestamp() });
-    // (the draft gets the guest too, on its own banquillo)
+    // (the draft gets only this guest, added to its own list and banquillo)
     if (draft.exists) {
-      const ref = `guest:${plan.guest.id}`;
-      const ids = (v: unknown) => (Array.isArray(v) ? (v as string[]) : []);
-      const listed = ids(draft.get("starters")).includes(ref) || ids(draft.get("bench")).includes(ref);
-      tx.update(draft.ref, { guests: plan.guests, ...(listed ? {} : { bench: [...ids(draft.get("bench")), ref] }), ...(draftFollows(match.get("revision"), draft.get("revision")) ? { revision } : {}) });
+      const d = draftGuestFields({ guests: draft.get("guests"), starters: draft.get("starters"), bench: draft.get("bench") }, plan.guest);
+      const inStep = draftFollows(match.get("revision"), draft.get("revision"));
+      if (d || inStep) tx.update(draft.ref, { ...(d ?? {}), ...(inStep ? { revision } : {}) });
     }
     audit(tx, data.matchId, actor.uid, { guest: plan.guest.id, created: plan.created });
     return { guest: plan.guest, ref: `guest:${plan.guest.id}`, created: plan.created };
