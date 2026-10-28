@@ -59,3 +59,14 @@ export function nicknameCandidates(base: string, n = 20) {
 
 /** A display name typed by someone who isn't in the squad. */
 export const cleanName = (s: string) => s.replace(/\s+/g, " ").trim().slice(0, 40);
+
+// ── r12 · quitar el acceso (M-13, B-CLUB-02/03) ──
+/** A ficha linked to someone who is no longer inside (removed by a captain, or without a profile) is free to
+ *  claim: links left behind before revokeMember freed them. */
+export const holderGone = (holder: { exists: boolean; removedAt?: unknown } | null | undefined): boolean => !!holder && (!holder.exists || !!holder.removedAt);
+/** The role kept when someone walks back in: a removed member comes back as a socio (never with the brazalete
+ *  he had); the superadmin keeps his. Undefined: no profile yet (the door decides). */
+export function returningRole(stored: unknown, removed: boolean): string | undefined {
+  if (typeof stored !== "string") return undefined;
+  return removed && stored !== "superadmin" ? "user" : stored;
+}

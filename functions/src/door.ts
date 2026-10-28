@@ -6,7 +6,7 @@ import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestor
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { admin, db, googleUser, idSchema, parse } from "./common.js";
-import { cleanName, FOREVER_MS, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates } from "./doorLogic.js";
+import { cleanName, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, returningRole } from "./doorLogic.js";
 import { forgetMemberDevices, sendTo } from "./push.js";
 import { nameFor } from "./names.js";
 
@@ -15,6 +15,8 @@ const codeSchema = z.string().regex(inviteCodePattern, "Invitación no válida."
 const whoSchema = z.object({ playerId: idSchema.optional(), name: z.string().max(60).optional() });
 // (the door has no match: the ficha's own name, as the jugador page shows it — nameFor without a season)
 const playerLabel = (p: FirebaseFirestore.DocumentSnapshot) => nameFor(p.data());
+/** The holder of a link (users/{uid}) read: whether that ficha is free to take (they are no longer inside). */
+const linkFree = (holder: FirebaseFirestore.DocumentSnapshot | null | undefined) => holderGone(holder ? { exists: holder.exists, removedAt: holder.get("removedAt") } : null);
 const inviteData = (snap: FirebaseFirestore.DocumentSnapshot) =>
   snap.exists ? { expiresAt: (snap.get("expiresAt") as Timestamp).toMillis(), maxUses: snap.get("maxUses") ?? 1, uses: snap.get("uses") ?? 0, revoked: !!snap.get("revoked") } : undefined;
 
@@ -30,7 +32,9 @@ async function admit(tx: Transaction, req: CallableRequest, uid: string, who: { 
     who.playerId ? tx.get(db.doc(`playerLinks/${who.playerId}`)) : Promise.resolve(null),
   ]);
   if (who.playerId && !player?.exists) throw new HttpsError("not-found", "Esa ficha no existe.");
-  const linkable = !!who.playerId && (!link?.exists || link.get("uid") === uid);
+  // (a ficha still linked to someone a captain removed is free: B-CLUB-02, links left from before the fix)
+  const holder = link?.exists && link.get("uid") !== uid ? await tx.get(db.doc(`users/${link.get("uid")}`)) : null;
+  const linkable = !!who.playerId && (!link?.exists || link.get("uid") === uid || linkFree(holder));
   let nickname = user.get("nickname") as string | undefined;
   let nameRef: FirebaseFirestore.DocumentReference | null = null;
   if (!nickname) {
@@ -47,7 +51,8 @@ async function admit(tx: Transaction, req: CallableRequest, uid: string, who: { 
     if (!nickname) throw new HttpsError("resource-exhausted", "No hemos podido reservar tu nombre. Prueba con otro.");
   }
   const email = (req.auth?.token.email as string | undefined) ?? "";
-  const role = user.get("role") ?? (email === SUPERADMIN && req.auth?.token.email_verified === true ? "superadmin" : "user");
+  // Whoever comes back after a captain removed them comes back as a socio, whatever role they kept (B-CLUB-03).
+  const role = returningRole(user.get("role"), !!user.get("removedAt")) ?? (email === SUPERADMIN && req.auth?.token.email_verified === true ? "superadmin" : "user");
   tx.set(db.doc(`teamMembers/${uid}`), { expiresAt: Timestamp.fromMillis(FOREVER_MS), joinedAt: FieldValue.serverTimestamp(), via, by });
   if (nameRef) tx.set(nameRef, { uid });
   tx.set(
@@ -67,6 +72,8 @@ async function admit(tx: Transaction, req: CallableRequest, uid: string, who: { 
     tx.set(db.doc(`playerLinks/${who.playerId}`), { uid, at: FieldValue.serverTimestamp() });
     const previous = user.get("playerId") as string | undefined;
     if (previous && previous !== who.playerId) tx.delete(db.doc(`playerLinks/${previous}`));
+    // (the removed holder's own pointer to it goes too)
+    if (holder?.exists && holder.get("playerId") === who.playerId) tx.update(holder.ref, { playerId: FieldValue.delete() });
   }
   tx.delete(db.doc(`accessRequests/${uid}`));
   return { nickname, linked: linkable };
@@ -186,14 +193,28 @@ export const revokeMember = onCall(async (req) => {
   const by = await admin(req);
   const { uid } = parse(z.object({ uid: z.string().min(1).max(128) }), req.data);
   if (uid === by) throw new HttpsError("failed-precondition", "No puedes quitarte el acceso a ti mismo.");
-  const user = await db.doc(`users/${uid}`).get();
-  if (user.get("role") === "superadmin") throw new HttpsError("permission-denied", "No se puede quitar el acceso al superadministrador.");
-  await db.doc(`teamMembers/${uid}`).delete();
-  await db.doc(`users/${uid}`).set({ removedAt: FieldValue.serverTimestamp() }, { merge: true });
-  await db.doc(`accessRequests/${uid}`).set({ status: "removed", resolvedBy: by, resolvedAt: FieldValue.serverTimestamp(), email: user.get("email") ?? "", name: user.get("nickname") ?? "" });
+  // One transaction: out of the vestuario, their ficha free for someone else (the link and their pointer to it),
+  // without the brazalete (B-CLUB-02/03, M-13), and their pending ficha claim gone. Again on someone already out:
+  // it clears what an older removal left behind.
+  const result = await db.runTransaction(async (tx) => {
+    const userRef = db.doc(`users/${uid}`);
+    const user = await tx.get(userRef);
+    if (user.get("role") === "superadmin") throw new HttpsError("permission-denied", "No se puede quitar el acceso al superadministrador.");
+    const playerId = user.get("playerId") as string | undefined;
+    const link = playerId ? await tx.get(db.doc(`playerLinks/${playerId}`)) : null;
+    const claim = await tx.get(db.doc(`playerClaims/${uid}`));
+    const wasCaptain = user.get("role") === "admin";
+    tx.delete(db.doc(`teamMembers/${uid}`));
+    tx.set(userRef, { removedAt: user.get("removedAt") ?? FieldValue.serverTimestamp(), ...(user.exists ? { role: "user", playerId: FieldValue.delete() } : {}) }, { merge: true });
+    const freed = link?.exists && link.get("uid") === uid ? playerId! : null;
+    if (freed) tx.delete(link!.ref);
+    if (claim.exists && claim.get("status") === "pending") tx.delete(claim.ref);
+    tx.set(db.doc(`accessRequests/${uid}`), { status: "removed", resolvedBy: by, resolvedAt: FieldValue.serverTimestamp(), email: user.get("email") ?? "", name: user.get("nickname") ?? "", ...(freed ? { freedPlayerId: freed } : {}), ...(wasCaptain ? { wasCaptain: true } : {}) });
+    return { freed, wasCaptain };
+  });
   // (like leaving: their devices keep the club's public notices, never the vestuario's any more)
   await forgetMemberDevices(uid);
-  return { ok: true };
+  return { ok: true, ...result };
 });
 
 /** For «¿Quién eres?»: which fichas already have an owner (ids only, never who). Any Google account. */
@@ -202,6 +223,8 @@ export const revokeMember = onCall(async (req) => {
 export const doorShirts = onCall(async () => {
   // "With access" = everyone with a profile who wasn't removed: members from the old team key keep
   // their access and walk back in on their next visit, even if their old session has lapsed.
-  const [links, people, removed] = await Promise.all([db.collection("playerLinks").get(), db.collection("users").count().get(), db.collection("users").where("removedAt", "!=", null).count().get()]);
-  return { taken: links.docs.map((d) => d.id), inside: people.data().count - removed.data().count };
+  const [links, people, removed] = await Promise.all([db.collection("playerLinks").get(), db.collection("users").count().get(), db.collection("users").where("removedAt", "!=", null).select().get()]);
+  // (a ficha linked to someone removed is free again: B-CLUB-02)
+  const out = new Set(removed.docs.map((d) => d.id));
+  return { taken: links.docs.filter((d) => !out.has(d.get("uid"))).map((d) => d.id), inside: people.data().count - removed.size };
 });

@@ -16,6 +16,7 @@ import { playerRefSchema } from "./eventSchema.js";
 import { isGuestId, isUnknownGuest, type MatchGuest } from "./guests.js";
 import { requireScorer } from "./liveClock.js";
 import { notCalledOf } from "./convocatoriaLogic.js";
+import { draftFollows } from "./matchExtrasLogic.js";
 import { findOfficialBoard, type BoardDb } from "./officialBoard.js";
 import { convocatoriaOf, lineupFromBoard, lineupSeven, parseMatchLineup, parsePresent, sameLineup, type MatchLineup, type SetMatchLineupResult } from "./matchLineup.js";
 import type { BoardLike } from "./boardCodes.js";
@@ -63,6 +64,21 @@ function playersProblem(players: readonly string[], roster: ReadonlySet<string>,
   return null;
 }
 
+/** What «Mandar a la mesa» copies from the sent board onto the match's official: the seven and its places, and the
+ *  plan that goes with it (cambios, roles/galones, lanzadores, the other versions). */
+export const SENT_KEYS = ["formation", "freeMode", "slots", "playerPositions", "subs", "roles", "takers", "variants"] as const;
+/** Whether two boards carry the same plan (the SENT_KEYS beyond the seven). */
+export function samePlan(a: object | undefined, b: object | undefined): boolean {
+  const x = a as Record<string, unknown> | undefined, y = b as Record<string, unknown> | undefined;
+  return (["subs", "roles", "takers", "variants"] as const).every((k) => stable(x?.[k] ?? null) === stable(y?.[k] ?? null));
+}
+/** JSON with every map's keys in order (Firestore doesn't keep a map's key order). */
+function stable(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stable).join(",")}]`;
+  if (v && typeof v === "object" && typeof (v as { toMillis?: unknown }).toMillis !== "function")
+    return `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${stable((v as Record<string, unknown>)[k])}`).join(",")}}`;
+  return JSON.stringify(v ?? null);
+}
 export const setMatchLineup = onCall(async (req): Promise<SetMatchLineupResult> => {
   const actor = await memberAs(req);
   const data = parse(lineupInput, req.data);
@@ -91,7 +107,9 @@ export const setMatchLineup = onCall(async (req): Promise<SetMatchLineupResult> 
     const lock = await tx.get(lockRef);
     // With no official for the match, the sent board becomes it, unless it is already the official of
     // another scope (the season's plan, another match): that one stays put and the match gets its copy.
-    const copyRef = !official && board.isOfficial === true ? db.collection("lineups").doc() : null;
+    // A scorer's own board never becomes the official (PZ-B-PAR-02: only a captain edits an official, so he would be
+    // left read-only on it): the match gets a copy as its official and his board stays his, to fix and send again.
+    const copyRef = !official && (board.isOfficial === true || !actor.isAdmin) ? db.collection("lineups").doc() : null;
 
     // ---- what changes
     const old = parseMatchLineup(match.get("lineup"));
@@ -100,7 +118,7 @@ export const setMatchLineup = onCall(async (req): Promise<SetMatchLineupResult> 
     const notCalled = notCalledOf(roster, conv);
     const officialId = official?.id ?? copyRef?.id ?? source.id;
     const convSame = sameList(before.starters, conv.starters) && sameList(before.bench, conv.bench) && sameSet(before.notCalled, notCalled);
-    const officialSame = official ? official.id === source.id || sameLineup(lineupFromBoard(official.board), next) : false;
+    const officialSame = official ? official.id === source.id || (sameLineup(lineupFromBoard(official.board), next) && samePlan(official.board, board)) : false;
     const lockSame = lock.get("lineupId") === officialId;
     if (sameLineup(old, next) && old?.boardId === officialId && convSame && officialSame && lockSame)
       return { ok: true as const, changed: false, officialId, starters: conv.starters, bench: conv.bench };
@@ -112,14 +130,17 @@ export const setMatchLineup = onCall(async (req): Promise<SetMatchLineupResult> 
     const fields = { starters: conv.starters, bench: conv.bench, notCalled };
     // (the convocatoria's stamp: pushOnMatch leaves a callable's convocatoria to its own notices)
     tx.update(matchRef, { ...fields, lineup, ...(convSame ? {} : { convocatoriaAt: now }), revision, updatedAt: FieldValue.serverTimestamp() });
-    // The draft keeps its own revision (the acta editor's base): only the convocatoria follows.
-    if (draft.exists) tx.update(draftRef, fields);
+    // The draft takes the convocatoria; one in step with the published match takes its new revision too, so the
+    // acta editor can still save it (B-ACTA-01). A draft already behind keeps its base: a real conflict.
+    if (draft.exists) tx.update(draftRef, { ...fields, ...(draftFollows(match.get("revision"), draft.get("revision")) ? { revision } : {}) });
     tx.set(db.collection("matchAudit").doc(), { matchId: data.matchId, revision, updatedBy: actor.uid, at: FieldValue.serverTimestamp(), lineup: { boardId: source.id, officialId } });
     const at = FieldValue.serverTimestamp();
     if (official && official.id !== source.id) {
       // The official carries the sent seven: its own trigger tells the team («Cambio en el siete»).
       const copy: Record<string, unknown> = { updatedAt: at };
-      for (const key of ["formation", "freeMode", "slots", "playerPositions"] as const) copy[key] = board[key] ?? FieldValue.delete();
+      // (the plan travels with the seven — PZ-B-PAR-01: la mesa reads the official's cambios, galones, lanzadores
+      // and «2ª parte» / «Plan B»)
+      for (const key of SENT_KEYS) copy[key] = board[key] ?? FieldValue.delete();
       if (board.bench !== undefined) copy.bench = board.bench;
       tx.update(db.doc(`lineups/${official.id}`), copy);
     } else if (copyRef) {

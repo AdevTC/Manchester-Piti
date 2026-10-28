@@ -34,6 +34,11 @@ function closeHold(c: MatchClock, now: number): MatchClock {
   const { heldAt, ...rest } = c;
   return { ...rest, pauses: [...(c.pauses ?? []), { from: heldAt, to: Math.max(heldAt, now) }] };
 }
+/** `pauses` plus the stretch from a whistle (`from`) to `now`, when there was one. */
+function stoppedSince(from: number | undefined, pauses: MatchClock["pauses"], now: number): NonNullable<MatchClock["pauses"]> {
+  const kept = pauses ?? [];
+  return from == null ? kept : [...kept, { from, to: Math.max(from, now) }];
+}
 export function archiveClock(clock: MatchClock | undefined, now: number): MatchClock | undefined {
   if (!clock || clock.pausedAt != null || !["first", "halftime", "second"].includes(clock.phase)) return clock;
   return { ...clock, pausedAt: now, revision: (Number.isFinite(clock.revision) ? clock.revision : 0) + 1 };
@@ -89,12 +94,14 @@ export function transitionClock(clock: MatchClock | undefined, action: ClockActi
   }
   if (action === "halftime" && c.phase === "first") return { ...next, phase: "halftime", firstEndedAt: now };
   if (action === "second" && c.phase === "halftime") return { ...next, phase: "second", secondStartedAt: now };
-  if (action === "resume_first" && c.phase === "halftime") { delete next.firstEndedAt; return { ...next, phase: "first" }; }
+  // Going back to a half (B-MESA-01): the time stopped since its whistle (the break, the minutes in Final) is
+  // closed into `pauses`, so the clock and everyone's minutes carry on from where they were.
+  if (action === "resume_first" && c.phase === "halftime") { delete next.firstEndedAt; return { ...next, phase: "first", pauses: stoppedSince(c.firstEndedAt, c.pauses, now) }; }
   if (action === "undo_second" && c.phase === "second") {
     if (events.some(e => e.period === 2 || (e.elapsedSeconds ?? (e.minute ?? 0) * 60) > clockReading({ ...c, secondStartedAt: undefined }, c.firstEndedAt!).elapsedSeconds)) throw new Error("Ya hay jugadas de la segunda parte. Revísalas antes de cancelar su inicio.");
     delete next.secondStartedAt; return { ...next, phase: "halftime" };
   }
   if (action === "finish" && (c.phase === "first" || c.phase === "second")) return { ...next, phase: "ended", endedAt: now };
-  if (action === "reopen" && c.phase === "ended") { delete next.endedAt; return { ...next, phase: c.secondStartedAt == null ? "first" : "second" }; }
+  if (action === "reopen" && c.phase === "ended") { delete next.endedAt; return { ...next, phase: c.secondStartedAt == null ? "first" : "second", pauses: stoppedSince(c.endedAt, c.pauses, now) }; }
   return fail();
 }

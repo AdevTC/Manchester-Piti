@@ -120,7 +120,11 @@ export interface MatchSheet {
   photoUrl?: string;
   /** El vídeo del partido: its YouTube link (matchVideo.ts), «Ver el partido en YouTube» on its page. */
   videoUrl?: string;
+  /** M-43: where each goal starts in the video (event id → seconds from its start; matchExtras.ts). */
+  videoMarks?: Record<string, number>;
   voteClosesAt?: number;
+  /** When the acta was first published (ms; absent on older actas: voteClosesAt − 48 h). */
+  actaPublishedAt?: number;
   gallery?: string[];
   meetingNote?: string;
   /** Aplazado: why (≤ 140, the admin's words; only with status "postponed"). */

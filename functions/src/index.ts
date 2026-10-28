@@ -11,10 +11,10 @@ import { activeMemberCount } from "./mvp.js";
 import { mvpDoc, tallyVotes } from "./mvpLogic.js";
 export { closeMvpVotes } from "./mvp.js";
 export { weatherOnMatch } from "./weather.js";
-export { onCajaClaimCreated } from "./caja.js";
+export { onCajaClaimCreated, onCajaClaimResolved } from "./caja.js";
 export { markTurnDone } from "./turnos.js";
 export { clubShare } from "./social.js";
-export { setSeasonArchived } from "./seasons.js";
+export { setSeasonArchived, deleteSeason, onSeasonDeleted } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
 export { clubBundle } from "./bundle.js";
 export { clubVitals } from "./vitals.js";
@@ -25,7 +25,7 @@ export { savePrediction } from "./savePrediction.js";
 export { controlMatchClock, setMatchScorers } from "./liveClock.js";
 export { pushSubscribe, pushSetPreset, pushSetMatchTopics, pushUnsubscribe, pushOnMatch, pushOnLineup, pushKickoff, pushOnClaim, pushOnPositionsReview, pushOnStandings, rotaTurnsOnWrite } from "./push.js";
 export { pushSetPause } from "./pushPause.js";
-export { pushReminders, pushOnAnswer } from "./reminders.js";
+export { pushReminders, pushOnAnswer, remindNow } from "./reminders.js";
 export { porraCountOnWrite } from "./porraCount.js";
 export { onAbsenceWritten } from "./absences.js";
 export { onPollCreated, onPollDeleted } from "./polls.js";
@@ -33,6 +33,11 @@ export { cleanupMatchTombstone, deleteMatch, setMatchArchived } from "./matches.
 export { setConvocatoria } from "./convocatoria.js";
 export { setMatchLineup, setMatchPresent } from "./matchLineupCallables.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
+// r12 · la Sala de control y la mesa
+export { setMvpVote, saveMatchReport, recalcMatchNotas, discardMatchDraft, setVideoMarks, addMatchGuest, setMatchDuration } from "./matchExtras.js";
+export { correctPrediction, recomputeSeasonPorra, deletePlayer } from "./clubAdmin.js";
+export { promoteGuest } from "./promoteGuest.js";
+export { sendCaptainNotice } from "./captainNotice.js";
 export { setNickname, setShirtName, cancelPlayerClaim, leaveVestuario } from "./profile.js";
 export { renameEverywhere } from "./rename.js";
 export {

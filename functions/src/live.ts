@@ -133,7 +133,10 @@ export const liveEvent = onCall(async (req) => {
     const stampPlay = (item: AddItem): Omit<MatchEvent, "id"> => {
       // A play tapped without signal keeps the time it was tapped: it is checked against that half's
       // window, not against the clock now (a pause or a whistle since then doesn't invalidate it).
-      const queued = item.tappedElapsed != null && !!m.clock;
+      // One tapped against the clock as it is now (same revision) went up at once: it is a live play, with the
+      // live checks (pause, break, final) and no «queued» mark (B-MESA-08); only an older revision is a replay.
+      const queued = item.tappedElapsed != null && !!m.clock && item.clockRevision !== m.clock.revision;
+      const tapped = item.tappedElapsed != null && !!m.clock && !queued && !item.manualTime ? item.tappedElapsed : null;
       let elapsed: number | undefined;
       let period: 1 | 2 | undefined;
       if (queued) {
@@ -147,7 +150,9 @@ export const liveEvent = onCall(async (req) => {
         if ((m.version === 2 && !m.clock) || (reading && !reading.playing && !atBreak)) throw new HttpsError("failed-precondition", reading?.held ? "El partido está en pausa: solo se anotan cambios, tarjetas y tocados. Pulsa «Seguir» para apuntar el resto." : "Inicia la parte antes de registrar jugadas en directo. En el descanso solo se anotan cambios y tarjetas.");
         if (m.clock && item.clockRevision !== m.clock.revision) throw new HttpsError("aborted", "La parte ha cambiado. Revisa el reloj antes de apuntar la jugada.");
         if (reading) {
-          elapsed = !item.manualTime ? reading.elapsedSeconds : item.event.minute * 60;
+          // (its tapped second, never after the clock's now nor before this half began)
+          const lo = reading.period === 2 ? reading.firstSeconds : 0;
+          elapsed = tapped != null ? Math.min(reading.elapsedSeconds, Math.max(lo, tapped)) : !item.manualTime ? reading.elapsedSeconds : item.event.minute * 60;
           if (elapsed > reading.elapsedSeconds) throw new HttpsError("invalid-argument", "La jugada no puede estar en el futuro.");
           period = reading.period;
         }

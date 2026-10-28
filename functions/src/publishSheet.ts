@@ -29,6 +29,7 @@ import { standingsLike } from "./rating/rival.js";
 import { frozenNotas } from "./rating/season.js";
 import { shotTally } from "./rating/values.js";
 import type { RatingMatch, StandingsLike } from "./rating/types.js";
+import { actaPublishedAt, baseRevision, pruneVideoMarks, storedVideoMarks, videoMarksSchema } from "./matchExtrasLogic.js";
 
 /** A stored match date in ms: a Timestamp to the exact ms, or a plain number (older and seeded matches). */
 const exactMillis = (v: unknown): number => {
@@ -85,6 +86,8 @@ export const sheetSchema = z.object({
   /** Aplazado: why (≤ 140) and the new date (ms; null = por decidir). Kept only with status "postponed". */
   postponedReason: z.string().trim().max(140, "El motivo cabe en 140 letras.").optional(),
   postponedTo: z.number().finite().min(0).nullable().optional(),
+  /** M-43: where each goal starts in the video (absent: the stored marks stay). */
+  videoMarks: videoMarksSchema.optional(),
 });
 export interface PublishRequest {
   id: string;
@@ -214,7 +217,8 @@ export async function publishSheet(input: PublishRequest) {
     await assertMatchNotDeleted(tx, input.id);
     if (old.exists || oldDraft.exists) await requireActiveMatch(tx, input.id, old.exists ? old : oldDraft);
     if (!currentSeason.exists || currentSeason.get('archived') === true) throw new HttpsError('failed-precondition', 'La temporada no está disponible para guardar partidos.');
-    if ((old.get("revision") ?? 0) !== (sheet.revision ?? 0))
+    // (a match that is only a draft: the draft's revision, which archiving and restoring it moves — B-PAR-01)
+    if (baseRevision({ exists: old.exists, revision: old.get("revision") }, { exists: oldDraft.exists, revision: oldDraft.get("revision") }) !== (sheet.revision ?? 0))
       throw new HttpsError(
         "aborted",
         input.staleMessage ?? "Otro administrador ha actualizado este partido. Recarga antes de guardar.",
@@ -280,6 +284,8 @@ export async function publishSheet(input: PublishRequest) {
     // the rival factor of its first publication. A rating that fails never blocks the acta: a correction keeps the
     // notas it had, a first publication goes without them (the web rates it then).
     let notas: unknown = finished ? (old.get("notas") ?? null) : null;
+    // (M-42: a failure is kept where the sala can see it, matchPrivate.notasError, and «Recalcular» clears it)
+    let notasProblem: string | null = finished && !seasonGames ? "no se ha podido leer la temporada" : null;
     if (finished && seasonGames)
       try {
         const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players };
@@ -289,6 +295,7 @@ export async function publishSheet(input: PublishRequest) {
         notas = notasDoc(frozenNotas(self, seasonGames, table, kept?.rival ?? null, kept?.normal ?? null), Date.now());
       } catch (error) {
         console.error("saveMatchSheet: the notas could not be rated, the acta keeps the ones it had", input.id, error);
+        notasProblem = error instanceof Error && error.message ? error.message.slice(0, 200) : "error al calcular";
       }
     const votes = await tx.get(ref.collection("votes"));
     // Replace this match's contribution atomically: corrections never double count.
@@ -350,9 +357,18 @@ export async function publishSheet(input: PublishRequest) {
     }
     // setConvocatoria's stamps live outside the sheet: a save keeps them (the trigger and Hoy read them).
     const stamps = Object.fromEntries((["convocatoriaAt", "convocatoriaNotifiedAt"] as const).flatMap((k) => (typeof old.get(k) === "number" ? [[k, old.get(k) as number]] : [])));
+    // r12: when the acta was first published (the ratings' 7 days), the MVP moved by hand, and the video marks
+    // (sent with the acta, or kept as they were; only those of goals still in it).
+    const published = finished
+      ? { actaPublishedAt: actaPublishedAt(old.exists && old.get("status") === "finished" ? { actaPublishedAt: old.get("actaPublishedAt"), voteClosesAt: old.get("voteClosesAt") } : null, Date.now()), ...(old.get("mvpManual") ? { mvpManual: old.get("mvpManual") } : {}) }
+      : {};
+    const marks = pruneVideoMarks(sheet.videoMarks ?? storedVideoMarks(old.get("videoMarks")), sheet.events);
+    const { videoMarks: _sentMarks, ...publicFields } = publicSheet;
     tx.set(ref, {
-      ...publicSheet,
+      ...publicFields,
       events: publicNarrationEvents(sheet.events),
+      ...published,
+      ...(Object.keys(marks).length ? { videoMarks: marks } : {}),
       ...(sheet.analysis ? { analysis: { ...sheet.analysis, revision: sheet.analysis.revision + 1 } } : {}),
       ...stamps,
       ...stamped,
@@ -375,6 +391,7 @@ export async function publishSheet(input: PublishRequest) {
     tx.set(db.doc(`matchPrivate/${input.id}`), {
       meetingNote: meetingNote ?? "",
       updatedBy: uid,
+      notasError: notasProblem ? { at: Date.now(), message: notasProblem } : FieldValue.delete(),
     }, { merge: true });
     tx.delete(db.doc(`matchDrafts/${input.id}`));
     tx.set(db.collection("matchAudit").doc(), {
