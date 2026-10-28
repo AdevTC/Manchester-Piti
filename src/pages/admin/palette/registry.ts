@@ -1,4 +1,4 @@
-// The palette's command registry: the shell registers the built-ins (Acciones, Secciones, Partidos,
+// The palette's command registry: the shell registers the built-ins (Acciones, Sitios, Partidos,
 // Jugadores) and every view can add its own while it is mounted:
 //
 //   const cmds = useMemo<PaletteCommand[]>(() => [{ id: "plantilla:exportar", group: "Acciones", icon: "↓",

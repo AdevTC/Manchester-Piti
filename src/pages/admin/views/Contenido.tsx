@@ -6,7 +6,8 @@
 // index's foot counts the changes and «Publicar contenido» (gold: THE action here) writes every draft at once
 // behind a lower third with «Deshacer». Nothing with a broken link or an incomplete item gets published.
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import { useViewSearch } from "../shell/interimSearch";
 import { useAuth } from "../../../context/AuthContext";
 import type { PlayerDoc } from "../../../lib/schemas";
 import { useLiveClubContent } from "../club/clubLive";
@@ -53,7 +54,7 @@ export function Contenido() {
   const writes = useClubWrites();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const search: { seccion?: unknown } = useSearch({ strict: false });
+  const search: { seccion?: unknown } = useViewSearch();
   const open = resolveGroup(search.seccion);
   const { content: live, loaded } = useLiveClubContent();
   const [drafts, update] = useContentDrafts(user?.uid);

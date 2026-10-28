@@ -86,10 +86,9 @@ describe("Hoy · Antes: the peg wall", () => {
       "Historia del escudo · por completar",
     ]);
     expect(within(side).getByText("EVANS, ERIK y TELLO")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Hoy · 5 por hacer/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Hoy · 5 cosas por hacer/ })).toBeInTheDocument();
     await user.click(within(side).getByRole("button", { name: "Revisar: Posiciones propuestas · por revisar" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla"));
-    expect(router.state.location.search).toMatchObject({ jugador: "evans" });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/evans"));
   });
 
   it("tap back → hangs in el siete (written at once, «Deshacer» puts it back); tap front → down to the banquillo; «Ya hay siete»", async () => {
@@ -98,9 +97,9 @@ describe("Hoy · Antes: the peg wall", () => {
     mountAdmin("/admin", { hoy: Hoy });
     await user.click(await screen.findByRole("button", { name: "Colgar a ADRIÁN T.C. en el siete" }));
     expect(setConv).toHaveBeenLastCalledWith({ matchId: "m8", starters: [...SEVEN.slice(0, 6), "adrian"], bench: ["kevin", "almachi"], notify: false });
-    const caption = screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
+    const caption = screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live"))!;
     expect(caption).toHaveTextContent("ADRIÁN T.C. al siete · la pizarra y el acta ya lo ven");
-    expect(caption.querySelector(".lt .k")).toHaveTextContent("J3");
+    expect(caption.querySelector(".sc-status__tag")).toHaveTextContent("J3");
     expect(screen.getByRole("button", { name: "ADRIÁN T.C. en el siete: tocar para bajarlo al banquillo" })).toHaveClass("open");
     // «Deshacer» writes the previous lineup back
     await user.click(within(caption).getByRole("button", { name: "Deshacer" }));
@@ -212,8 +211,7 @@ describe("Hoy · Después", () => {
     expect(hero).toHaveTextContent("2–1 en el campo de MAD SKY");
     expect(within(hero).getByRole("list", { name: "Lo que pasó" }).children).toHaveLength(4);
     await user.click(within(hero).getByRole("button", { name: "Apunta el resultado" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
-    expect(router.state.location.search).toMatchObject({ tab: "acta" });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8/acta"));
   });
 
   it("a clock nobody started, past its window: «SIN PITIDO · FALTA EL ACTA», no «Pitado el final» nor a result, «Apunta el resultado» stays", async () => {
@@ -226,7 +224,7 @@ describe("Hoy · Después", () => {
     expect(hero).toHaveTextContent("Sin pitido");
     expect(within(hero).queryByRole("img", { name: /Victoria|Empate|Derrota/ })).toBeNull();
     await user.click(within(hero).getByRole("button", { name: "Apunta el resultado" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8/acta"));
   });
 
   it("published: FINAL + «Ver la vitrina»", async () => {
@@ -235,8 +233,7 @@ describe("Hoy · Después", () => {
     const router = mountAdmin("/admin", { hoy: Hoy });
     expect(await screen.findByText("Acta publicada · la web ya lo cuenta")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ver la vitrina" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8"));
-    expect(router.state.location.search).toMatchObject({ vitrina: true });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/m8/despues"));
   });
 
   it("no match at all: the empty shirt and «Nuevo partido»; «N hechas» unfolds", async () => {
@@ -251,7 +248,6 @@ describe("Hoy · Después", () => {
     expect(done).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText(/MVP J1 cerrado · ganó ERIK/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Nuevo partido" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos"));
-    expect(router.state.location.search).toMatchObject({ nuevo: true });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/partidos/nuevo"));
   });
 });

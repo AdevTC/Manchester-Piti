@@ -81,7 +81,7 @@ describe("Contenido · el programa del club", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const router = mountAdmin("/admin/contenido", { contenido: Contenido });
     await user.click(await screen.findByRole("button", { name: /^01 Frase/ }));
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ seccion: "frase" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/club/web/historia"));
     const d = await editor("Frase, historia y campo");
     expect(d).toHaveTextContent("Se ve en: El club · portada e historia");
     expect(d).toHaveTextContent("Se guarda como borrador al escribir");
@@ -100,7 +100,7 @@ describe("Contenido · el programa del club", () => {
     expect(within(d).getByRole("button", { name: "Descartar borrador" })).toBeInTheDocument();
     await user.click(within(d).getByRole("button", { name: "Listo" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(router.state.location.search).not.toHaveProperty("seccion");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/club/web"));
 
     // Deshacer: nothing is written, the draft is still there
     await user.click(publishBtn());

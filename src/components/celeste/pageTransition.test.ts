@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetTapsForTesting, followHistory, pageChangeTypes, pageKeyOf, startPageTransition, tapsSkipTransitions } from "./pageTransition";
+import { _resetTapsForTesting, followHistory, pageChangeTypes, pageKeyOf, setAppTravel, startPageTransition, tapsSkipTransitions } from "./pageTransition";
 
 type FakeTransition = { finished: Promise<void>; skipTransition: ReturnType<typeof vi.fn>; end: () => void };
 function fakeDocument() {
@@ -64,10 +64,11 @@ describe("the page an address belongs to", () => {
     expect(pageKeyOf("/avisos/a-medida")).toBe("tu");
   });
 
-  it("leaves the apps of their own out (the Sala de control, the pizarra, la mesa)", () => {
-    expect(pageKeyOf("/admin/partidos")).toBeNull();
+  it("leaves the apps of their own out (the pizarra, la mesa); the Sala de control's screens are pages among themselves", () => {
     expect(pageKeyOf("/pizarra")).toBeNull();
     expect(pageKeyOf("/partidos/abc/mesa")).toBeNull();
+    expect(pageKeyOf("/admin/partidos")).toBe("sala:/admin/partidos");
+    expect(pageKeyOf("/admin/")).toBe("sala:/admin");
   });
 });
 
@@ -112,6 +113,25 @@ describe("the router's default transition", () => {
     h.go("BACK");
     expect(pageChangeTypes(info("/club", "/estadisticas"))).toEqual(["vd-page", "vd-back"]);
     expect(root().vdDir).toBe("left");
+  });
+
+  it("the Sala de control's screens travel the way the sala says (its stations keep the match's head)", () => {
+    const h = history();
+    followHistory(h);
+    h.go("PUSH");
+    setAppTravel((from, to) => ({ direction: to.endsWith("/datos") ? "right" : "left", keep: from.startsWith("/admin/partidos/m1") && to.startsWith("/admin/partidos/m1") }));
+    expect(pageChangeTypes(info("/admin/partidos/m1/convocatoria", "/admin/partidos/m1/datos"))).toEqual(["vd-page", "vd-forward"]);
+    expect(root().vdDir).toBe("right");
+    expect("vdKeep" in root()).toBe(true);
+    delete root().vdKeep;
+    delete root().vdPage;
+    expect(pageChangeTypes(info("/admin/plantilla", "/admin"))).toEqual(["vd-page", "vd-forward"]);
+    expect(root().vdDir).toBe("left");
+    expect("vdKeep" in root()).toBe(false);
+    // (into or out of the sala: two apps)
+    delete root().vdPage;
+    expect(pageChangeTypes(info("/admin", "/partidos"))).toBe(false);
+    setAppTravel(null);
   });
 
   it("leaves the first load, a change inside a page and the apps alone", () => {

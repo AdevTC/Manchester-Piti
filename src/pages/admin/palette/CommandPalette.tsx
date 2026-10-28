@@ -1,10 +1,11 @@
-// ⌘K / Ctrl K / «Buscar»: the command palette (`.pal`, the v2 canvas). A combobox input drives a grouped listbox
-// through aria-activedescendant: ↑↓ move (wrapping), Enter runs, Esc closes (the layer stack), a click
-// runs. Running a command closes the palette first, then acts (so a command can open another layer).
+// ⌘K / Ctrl K / «Buscar»: the palette (r12 `.sc-pal`, a glass dialog over a scrim). A combobox drives a grouped
+// listbox through aria-activedescendant: ↑↓ move (wrapping), Enter runs, Esc closes (the layer stack), a click
+// runs. Running a command closes the palette first, then acts (so a command can open another layer). Each
+// command's keys show as a key cap and in aria-keyshortcuts.
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { AdIcon } from "../ui/icons";
-import { useLayer, useLayerHost, zLayer, zScrim } from "../ui/layerCore";
+import { VIcon } from "../../../components/vidrio/VIcon";
+import { useLayer, useLayerHost } from "../ui/layerCore";
 import { usePaletteCommands } from "./registry";
 import { buildPaletteGroups, flatten, type PaletteCommand } from "./search";
 
@@ -16,7 +17,7 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const host = useLayerHost();
-  const { depth, isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus: input });
+  const { isTop } = useLayer({ modal: true, trap: true, onClose, ref, initialFocus: input });
   const commands = usePaletteCommands();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -48,12 +49,13 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
   const starts = groups.map((_, gi) => groups.slice(0, gi).reduce((n, g) => n + g.items.length, 0));
   const node = (
     <>
-      <div className={depth ? "scrim hi" : "scrim"} style={{ zIndex: zScrim(depth) }} onClick={isTop ? onClose : undefined} aria-hidden="true" />
-      <div ref={ref} className="pal" role="dialog" aria-modal="true" aria-label="Buscar" tabIndex={-1} style={{ zIndex: zLayer(depth) }}>
-        <div className="qi">
-          <AdIcon name="search" size={20} />
+      <div className="sc-layer" onClick={isTop ? onClose : undefined} aria-hidden="true" />
+      <div ref={ref} className="sc-pal vd-glass vd-glass--deep" role="dialog" aria-modal="true" aria-label="Buscar" tabIndex={-1}>
+        <div className="sc-pal__in">
+          <VIcon name="search" size={20} />
           <input
             ref={input}
+            className="sc-pal__q"
             role="combobox"
             aria-expanded="true"
             aria-controls={listId}
@@ -72,48 +74,41 @@ function PaletteLayer({ onClose }: { onClose: () => void }) {
           />
           <kbd>Esc</kbd>
         </div>
-        <div className="scr" id={listId} role="listbox" aria-label="Resultados">
+        <div className="sc-pal__list" id={listId} role="listbox" aria-label="Resultados">
           {groups.map((g, gi) => (
             <div role="group" aria-label={g.title} key={g.title}>
-              <p className="gh" aria-hidden="true">
+              <p className="sc-pal__gt" aria-hidden="true">
                 {g.title}
               </p>
               {g.items.map((c, ci) => {
                 const i = starts[gi] + ci;
                 return (
-                  <button
-                    type="button"
-                    className="op"
+                  <div
+                    className="sc-pal__o"
                     role="option"
                     id={optId(i)}
                     key={c.id}
                     aria-selected={i === at}
                     aria-keyshortcuts={c.keys ? c.keys.toLowerCase() : undefined}
-                    tabIndex={-1}
                     onMouseMove={() => i !== at && setActive(i)}
                     onClick={() => runCommand(c)}
                   >
-                    <AdIcon name="right" size={16} />
-                    {c.title}
+                    <b>{c.title}</b>
                     {c.description || c.hint ? <small>{c.description || c.hint}</small> : null}
-                    {c.keys && (
-                      <kbd className="ks" aria-hidden="true">
-                        {c.keys}
-                      </kbd>
-                    )}
-                  </button>
+                    {c.keys && <kbd aria-hidden="true">{c.keys}</kbd>}
+                  </div>
                 );
               })}
             </div>
           ))}
-          {!flat.length && <p className="none">Nada con «{query}».</p>}
+          {!flat.length && <p className="sc-pal__none">Nada con «{query}».</p>}
         </div>
-        <div className="ft" aria-hidden="true">
+        <p className="sc-pal__foot" aria-hidden="true">
           <span>↑↓ moverse</span>
           <span>Enter abrir</span>
           <span>Esc cerrar</span>
-          <span className="gk">G + letra ir a una sección</span>
-        </div>
+          <span>G + letra ir a un sitio</span>
+        </p>
       </div>
     </>
   );

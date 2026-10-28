@@ -94,8 +94,10 @@ export interface AdminData {
   now: number;
   /** Every season (archived ones flagged), by name. */
   seasons: SeasonDoc[];
-  /** The season the admin is about (the next match's, else the latest played, else the newest). */
+  /** The season the admin is about: the frame's pick, else la de ahora (autoSeason). */
   season: SeasonDoc | null;
+  /** La de ahora: the next match's season, else the latest played's, else the newest visible one. */
+  autoSeason: SeasonDoc | null;
   /** All players (validated docs). */
   players: PlayerDoc[];
   /** The current season's squad, by dorsal. */
@@ -147,7 +149,8 @@ export interface AdminData {
 const NO_PLAYERS: RosterPlayer[] = [];
 const isAdminRole = (r: string) => r === "admin" || r === "superadmin";
 
-export function useAdminData(): AdminData {
+/** `seasonPick`: the season the frame's picker chose (the address' `season`); unknown or absent = la de ahora. */
+export function useAdminData(seasonPick?: string): AdminData {
   const { user, profile } = useAuth();
   const canReadArchives = !!user && isAdminRole(profile?.role ?? "");
   const whistled = useWhistled();
@@ -176,8 +179,11 @@ export function useAdminData(): AdminData {
   const next = useMemo(() => nextMatch(matches, now), [matches, now]);
   const last = useMemo(() => lastActaMatch(matches, now), [matches, now]);
   const visibleSeasons = useMemo(() => seasons.filter((s) => !s.archived), [seasons]);
-  const seasonId = next?.seasonId || last?.seasonId || visibleSeasons.at(-1)?.id || "";
+  // (the frame's season picker: the one in the address when it is a season the club has, else la de ahora)
+  const autoId = next?.seasonId || last?.seasonId || visibleSeasons.at(-1)?.id || "";
+  const seasonId = seasonPick && seasons.some((s) => s.id === seasonPick) ? seasonPick : autoId;
   const season = seasons.find((s) => s.id === seasonId) ?? null;
+  const autoSeason = seasons.find((s) => s.id === autoId) ?? null;
 
   // Every season's squad (season shirt name + dorsal), by dorsal.
   const rosters = useMemo(() => {
@@ -274,6 +280,7 @@ export function useAdminData(): AdminData {
     now,
     seasons,
     season,
+    autoSeason,
     players: club.players,
     roster,
     matches,

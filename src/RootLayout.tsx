@@ -7,7 +7,6 @@ import { useAuth } from "./context/AuthContext";
 import { useTeam } from "./context/TeamContext";
 import { Crest } from "./components/Crest";
 import { RoutePending } from "./components/route-states";
-import { StateScreen } from "./components/celeste/StatePanel";
 import { useWelcome } from "./lib/doorWelcome";
 import { useRecordTrail } from "./lib/backTrail";
 import { under } from "./lib/paths";
@@ -47,17 +46,16 @@ export function RootLayout() {
   // The door stays up through the walkout after being let in.
   const welcome = useWelcome();
   const door = (privatePage || invitation) && (!member || !profile || !!welcome);
-  const admin = profile?.role === "admin" || profile?.role === "superadmin";
   // Celeste pages (home, plantilla, vestuario) bring their own header, dock and footer: hide the site chrome there.
   // While the session is being restored, private pages wait on a neutral skeleton (no gate flash).
   const checking = (privatePage || invitation) && (!ready || (member && loading));
   // The pizarra and the profile are Celeste pages too.
-  // The admin is its own app (fixed frame, slim header, own mobile bar): no site chrome around it.
-  // While the session is being checked, /admin shows no site chrome either (no flash of the old menu).
-  const adminApp = adminPath && (checking || (!door && admin));
-  // A member who is not a captain, on /admin: a Celeste page that sends him back to the vestuario.
-  const adminDoor = adminPath && !checking && !door && !admin;
-  const immersive = adminApp || adminDoor || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/estadisticas", "/club", "/jugadores", "/buscar", "/perfil", "/avisos"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  // The Sala de control is its own app (its frame, its bar, its dock): no site chrome around it, and it decides who
+  // looks (a member without the armband gets «Solo para la capitanía» in its frame: pages/admin/shell). Its <main>
+  // is its own (one main: B-SH-04). While the session is being checked, /admin shows no site chrome either.
+  const adminApp = adminPath && (checking || !door);
+  const Main = adminApp && !checking ? "div" : "main";
+  const immersive = adminApp || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/estadisticas", "/club", "/jugadores", "/buscar", "/perfil", "/avisos"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (
@@ -77,31 +75,17 @@ export function RootLayout() {
           <LiveScore />
         </Suspense>
       )}
-      <main id="contenido" className={immersive ? "club-main vx-main-shell" : "club-main"}>
+      <Main {...(adminApp && !checking ? {} : { id: "contenido" })} className={immersive ? "club-main vx-main-shell" : "club-main"}>
         {checking ? (
           <RoutePending />
         ) : door ? (
           <Suspense fallback={<RoutePending />}>
             <AccessGate />
           </Suspense>
-        ) : adminDoor ? (
-          <StateScreen
-            kind="empty"
-            icon="crown"
-            kicker="Sala de control · capitanes"
-            sub="Sala de control"
-            title="Solo para la capitanía"
-            body="Aquí se cuecen las convocatorias y las actas, y el brazalete no es tuyo (de momento). Lo tuyo te espera en el vestuario."
-            action={
-              <Link className="sp-btn" to="/vestuario">
-                Volver al vestuario
-              </Link>
-            }
-          />
         ) : (
           <Outlet />
         )}
-      </main>
+      </Main>
       {!immersive && (
       <footer className="club-footer">
         <div className="club-footer-brand">

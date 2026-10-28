@@ -7,7 +7,8 @@
 // (?nuevo; the N key opens it too). Archiving is reversible; deletion is permanent and only reported
 // after backend confirmation. Archived documents live in a separate, read-only collection view.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useViewSearch } from "../shell/interimSearch";
 import { flushSync } from "react-dom";
 import { apiError, deleteMatch } from "../../../lib/clubApi";
 import { jLabel, type AdminMatch } from "../data/adminLogic";
@@ -41,6 +42,8 @@ interface PartidosSearch {
   nuevo?: boolean | string;
   vitrina?: boolean | string;
 }
+/** (r12) the old tabs are the match's stations. */
+const TAB_STATION: Record<MatchTab, string> = { encuentro: "datos", convocatoria: "convocatoria", acta: "acta", publicar: "publicar" };
 const isTab = (t: unknown): t is MatchTab => typeof t === "string" && (MATCH_TABS as readonly string[]).includes(t);
 const isOn = (v: unknown) => v === true || v === "true";
 const isTyping = (t: EventTarget | null) => {
@@ -56,13 +59,13 @@ export function Partidos() {
   const { desktop } = useFrame();
   const whistled = useWhistled();
   const params = useParams({ strict: false }) as { matchId?: string };
-  const search = useSearch({ strict: false }) as PartidosSearch;
+  const search = useViewSearch<PartidosSearch & { archivados?: boolean }>();
   const matchId = params.matchId;
   const tabParam = isTab(search.tab) ? search.tab : undefined;
   const nuevo = isOn(search.nuevo);
   const [filter, setFilter] = useState<ListFilter>("todo");
   const [query, setQuery] = useState("");
-  const [archiveMode, setArchiveMode] = useState(false);
+  const [archiveMode, setArchiveMode] = useState(!!search.archivados);
   const [lifecycle, setLifecycle] = useState<MatchLifecycleRequest | null>(null);
   // A confirmed deletion stays hidden while realtime snapshots catch up.
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
@@ -81,17 +84,12 @@ export function Partidos() {
   const selected = matchId && hidden.has(matchId) ? null : (matches.find((m) => m.id === selectedId) ?? null);
   const selectedArchive = archivedMatches.find((m) => m.id === selectedId) ?? null;
 
-  const open = useCallback((id: string, tab?: MatchTab) => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab } }), [navigate]);
-  const setTab = (tab: MatchTab) => selectedId && void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selectedId }, search: { tab }, replace: true });
+  // (r12: straight to the new addresses — a redirect would draw the old one first: lib/adminUrls)
+  const open = useCallback((id: string, tab?: MatchTab) => void navigate({ href: `/admin/partidos/${id}${tab ? `/${TAB_STATION[tab]}` : ""}` }), [navigate]);
+  const setTab = (tab: MatchTab) => selectedId && void navigate({ href: `/admin/partidos/${selectedId}/${TAB_STATION[tab]}`, replace: true });
   const back = () => void navigate({ to: "/admin/partidos" });
-  const openNuevo = useCallback(() => {
-    if (matchId) void navigate({ to: "/admin/partidos/$matchId", params: { matchId }, search: { tab: tabParam, nuevo: true } });
-    else void navigate({ to: "/admin/partidos", search: { nuevo: true } });
-  }, [navigate, matchId, tabParam]);
-  const closeNuevo = () => {
-    if (matchId) void navigate({ to: "/admin/partidos/$matchId", params: { matchId }, search: { tab: tabParam }, replace: true });
-    else void navigate({ to: "/admin/partidos", replace: true });
-  };
+  const openNuevo = useCallback(() => void navigate({ to: "/admin/partidos/nuevo" }), [navigate]);
+  const closeNuevo = () => void navigate({ to: "/admin/partidos", replace: true });
 
   // N = «Nuevo partido» (no field focused, no layer open).
   const layerOpen = stack.length > 0;
@@ -140,7 +138,7 @@ export function Partidos() {
   const onCreated = ({ id, rival }: { id: string; rival: string }) => {
     setArchiveMode(false);
     setCreated(id);
-    void navigate({ to: "/admin/partidos/$matchId", params: { matchId: id }, search: { tab: "encuentro" } });
+    void navigate({ href: `/admin/partidos/${id}/datos` });
     toast.show({
       tag: "Borrador",
       message: `Borrador · ${rival} creado · completa el campo cuando lo sepas`,
@@ -183,9 +181,9 @@ export function Partidos() {
       </div>
     </section>
   ) : selectedArchive ? (
-    <ArchivedMatchPane match={selectedArchive} data={data} onBack={() => { setArchiveMode(true); back(); }} onLifecycle={setLifecycle} />
+    <ArchivedMatchPane match={selectedArchive} data={data} onBack={() => void navigate({ to: "/admin/partidos/archivados" })} onLifecycle={setLifecycle} />
   ) : selected ? (
-    <MatchPane key={selected.id} match={selected} data={data} tab={tabParam} onTab={setTab} onBack={back} onLifecycle={setLifecycle} onPublished={() => void navigate({ to: "/admin/partidos/$matchId", params: { matchId: selected.id }, search: { vitrina: true } })} />
+    <MatchPane key={selected.id} match={selected} data={data} tab={tabParam} onTab={setTab} onBack={back} onLifecycle={setLifecycle} onPublished={() => void navigate({ href: `/admin/partidos/${selected.id}/despues` })} />
   ) : matchId && matchId === created && !hidden.has(matchId) ? (
     <section className="det" aria-label="Partido">
       <div className="db">

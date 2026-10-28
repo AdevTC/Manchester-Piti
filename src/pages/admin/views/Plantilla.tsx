@@ -13,7 +13,8 @@
 // line. Phones: the list (or cromos) is the screen; a player opens his ficha full screen. CSV export.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import { useViewSearch } from "../shell/interimSearch";
 import { serverTimestamp } from "firebase/firestore";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { summaryText } from "../../../components/posiciones/mapaNav";
@@ -69,6 +70,15 @@ const FLIGHT_MS = 900;
 
 type Pending = Record<string, PlayerDoc | null>;
 type Search = { jugador?: string; nuevo?: true; dorsal?: number; vista?: "cromos" };
+/** (r12) what used to be this page's parameters, as the sala's new addresses (lib/adminUrls). */
+const hrefOf = (s: Search): string =>
+  s.nuevo
+    ? `/admin/plantilla/alta${s.dorsal ? `?dorsal=${s.dorsal}` : ""}`
+    : s.jugador
+      ? `/admin/plantilla/${s.jugador}${s.vista ? "?vista=cromos" : ""}`
+      : s.vista === "cromos"
+        ? "/admin/plantilla/cromos"
+        : "/admin/plantilla";
 
 export function Plantilla() {
   const data = useAdmin();
@@ -80,7 +90,7 @@ export function Plantilla() {
   const navigate = useNavigate();
   const theme = useDocumentTheme();
   const { modalOpen } = useLayerStack();
-  const search: { jugador?: unknown; nuevo?: unknown; dorsal?: unknown; vista?: unknown } = useSearch({ strict: false });
+  const search: { jugador?: unknown; nuevo?: unknown; dorsal?: unknown; vista?: unknown } = useViewSearch();
   const openId = search.jugador != null && search.jugador !== "" ? String(search.jugador) : null;
   const altaOpen = !openId && truthy(search.nuevo);
   const altaDorsal = dorsalParam(search.dorsal);
@@ -133,7 +143,7 @@ export function Plantilla() {
   const curId = openId ?? fallbackId;
   // …and pins it in the URL, so fixing his line (he leaves «Sin posición») doesn't swap the ficha under you
   useEffect(() => {
-    if (!openId && fallbackId) void navigate({ to: "/admin/plantilla", search: { jugador: fallbackId }, replace: true });
+    if (!openId && fallbackId) void navigate({ href: hrefOf({ jugador: fallbackId }), replace: true });
   }, [openId, fallbackId, navigate]);
   // who is out (red card or sanction by hand), with the changes still behind «Deshacer»; the matches to sanction until
   const suspended = useMemo(() => seasonSuspensions(data.matches, active?.id, players), [data.matches, active?.id, players]);
@@ -160,7 +170,7 @@ export function Plantilla() {
   const vt = canTransition();
   const go = (s: Search, flight: string[] = []) => {
     if (vt && flight.length) fly(flight);
-    void navigate({ to: "/admin/plantilla", search: s, viewTransition: vt });
+    void navigate({ href: hrefOf(s), viewTransition: vt });
   };
   const openPlayer = (id: string) => {
     if (id === openId) return;

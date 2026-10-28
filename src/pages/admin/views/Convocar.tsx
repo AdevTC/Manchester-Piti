@@ -7,7 +7,8 @@
 // the notice asks to announce it again; «Copiar la convocatoria de la Jn» with «Deshacer».
 // Phones: the switcher, el siete on a small rail, the pool, and a sticky «Publicar y avisar».
 import { useId, useMemo, useState } from "react";
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
+import { useViewSearch } from "../shell/interimSearch";
 import { rosterFor } from "../acta/roster";
 import { LoadError } from "../club/ClubStates";
 import { benchOf, convocables, copyFrom, exactPosition, matchLead, matchTitle, poolGroups, type PoolGroup } from "../convocar/convocarModel";
@@ -43,7 +44,7 @@ export function Convocar() {
   const data = useAdmin();
   const { desktop } = useFrame();
   const go = useAdminGo();
-  const search: { j?: unknown } = useSearch({ strict: false });
+  const search: { j?: unknown } = useViewSearch();
   const wanted = searchId(search.j);
   const list = useMemo(() => convocables(data.matches, data.now, wanted), [data.matches, data.now, wanted]);
   const match = list.find((m) => m.id === wanted) ?? list[0] ?? null;

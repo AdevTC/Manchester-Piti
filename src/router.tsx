@@ -13,7 +13,6 @@ import {
   RoutePending,
   RouteError,
   RouteNotFound,
-  AdminRouteNotFound,
 } from "./components/route-states";
 import { matchSearchSchema } from "./lib/matchTabs";
 import { analysisSearchFields, statsScopeSearchFields } from "./lib/analysisSearch";
@@ -134,56 +133,21 @@ export const partidosBalanceSearchSchema = z.object({
   ver: z.enum(["todo"]).optional().catch(undefined),
 });
 
-// /admin is the admin app's shell (a layout route; the admin-only guard lives in RootLayout). Hoy's only
-// search param is the legacy `tab` of the old single page: /admin?tab=matches|roster|seasons|admins
-// redirects to the new section (old links and bookmarks keep working), like /admin/convocatorias → convocar.
-export const adminSearchSchema = z.object({
-  tab: z.enum(["matches", "roster", "seasons", "admins"]).optional().catch(undefined),
-});
-const LEGACY_ADMIN_TAB = {
-  matches: "/admin/partidos",
-  roster: "/admin/plantilla",
-  seasons: "/admin/temporadas",
-  admins: "/admin/capitanes",
-} as const;
-// The admin sections' deep-linkable state (drawers, modals and tabs live in the URL).
-const optionalTrue = z.boolean().optional().catch(undefined);
-export const adminPartidosSearchSchema = z.object({
-  /** Open the «Nuevo partido» modal. */
-  nuevo: optionalTrue,
-});
-export const adminPartidoSearchSchema = z.object({
-  /** The match's tab; absent = the view's default (acta for drafts / played matches). */
-  tab: z.enum(["encuentro", "convocatoria", "acta", "publicar"]).optional().catch(undefined),
-  /** The publish peak (the vitrina) of a published acta. */
-  vitrina: optionalTrue,
-});
-export const adminConvocarSearchSchema = z.object({
-  /** The match whose convocatoria is open (match id). */
-  j: optionalString,
-});
-export const adminPlantillaSearchSchema = z.object({
-  /** The player whose edit drawer is open (player id). */
-  jugador: optionalString,
-  /** The «Alta de jugador» drawer is open. */
-  nuevo: optionalTrue,
-  /** «Todos en cromos» instead of the list + ficha. */
-  vista: z.enum(["cromos"]).optional().catch(undefined),
+// /admin is the Sala de control (r12): a layout route (who looks is decided there) over the five places' screens.
+// Every old address of the sala redirects through lib/adminUrls (the root's beforeLoad, with the season). The
+// screens' own parameters:
+export const adminAltaSearchSchema = z.object({
   /** «Alta» starting on this free dorsal (1–99; anything else is dropped). */
   dorsal: z.coerce.number().int().min(1).max(99).optional().catch(undefined),
+});
+export const adminSociosSearchSchema = z.object({
+  /** Which part of the door: who asks for a ficha, who is inside, the invitations. */
+  ver: z.enum(["fichas", "dentro", "invitaciones", "llaman"]).optional().catch(undefined),
 });
 // /pizarra?tablero=<id> opens that board (v2/deeplink.ts reads it on the first render). Declared so the
 // match page, the admin and the perfil link to a board through the typed route.
 export const pizarraSearchSchema = z.object({
   tablero: optionalString,
-});
-export const adminContenidoSearchSchema = z.object({
-  /** The content section whose editor drawer is open. */
-  seccion: optionalString,
-});
-export const adminCajaSearchSchema = z.object({
-  /** «Coste del partido» open for this match (match id): the match workspace's shortcut. */
-  coste: optionalString,
 });
 
 // Every old address (/matches/*, /stats?view=…, /profile and its tabs, /partidos?view=…, the /, /club and
@@ -410,95 +374,79 @@ const buscarRoute = createRoute({
   component: lazyRouteComponent(() => import("./components/celeste/BuscarPage"), "BuscarPage"),
 });
 
+// ── La Sala de control (r12, DIRECTION.md § Los cinco sitios): Hoy · Partidos · Plantilla · Caja · Club. Each screen
+// is its area's file (pages/admin/areas/<area>, MARCO.md says whose); the match is a layout of its own (its head and
+// carril) over its six stations.
+const hoyPartidos = () => import("./pages/admin/areas/hoy-partidos/screens");
+const actaArea = () => import("./pages/admin/areas/acta/screens");
+const plantillaArea = () => import("./pages/admin/areas/plantilla/screens");
+const cajaArea = () => import("./pages/admin/areas/caja/Caja");
+const clubArea = () => import("./pages/admin/areas/club/screens");
+// (the old addresses' parameters, typed for the links that still write them: see «TEMPORARY» below)
+const legacySearch = z.object({ j: optionalString, jugador: optionalString, seccion: optionalString, tab: optionalString, vitrina: z.boolean().optional().catch(undefined), nuevo: z.boolean().optional().catch(undefined), vista: optionalString, coste: optionalString });
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
   component: lazyRouteComponent(() => import("./pages/admin/shell/AdminLayout"), "AdminLayout"),
 });
-const adminIndexRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "/",
-  validateSearch: adminSearchSchema,
-  beforeLoad: ({ search }) => {
-    if (search.tab) throw redirect({ to: LEGACY_ADMIN_TAB[search.tab], replace: true });
-  },
-  component: lazyRouteComponent(() => import("./pages/admin/views/Hoy"), "Hoy"),
-});
-const adminPartidosRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "partidos",
-  validateSearch: adminPartidosSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Partidos"), "Partidos"),
-});
+const adminHoyRoute = createRoute({ getParentRoute: () => adminRoute, path: "/", component: lazyRouteComponent(hoyPartidos, "HoyScreen") });
+// Partidos: la temporada, nuevo, archivados (and one), and the match
+const adminPartidosRoute = createRoute({ getParentRoute: () => adminRoute, path: "partidos", validateSearch: legacySearch });
+const adminTemporadaRoute = createRoute({ getParentRoute: () => adminPartidosRoute, path: "/", component: lazyRouteComponent(hoyPartidos, "TemporadaScreen") });
+const adminNuevoRoute = createRoute({ getParentRoute: () => adminPartidosRoute, path: "nuevo", component: lazyRouteComponent(hoyPartidos, "NuevoScreen") });
+const adminArchivadosRoute = createRoute({ getParentRoute: () => adminPartidosRoute, path: "archivados", component: lazyRouteComponent(hoyPartidos, "ArchivadosScreen") });
+const adminArchivadoRoute = createRoute({ getParentRoute: () => adminPartidosRoute, path: "archivados/$matchId", component: lazyRouteComponent(hoyPartidos, "ArchivadoScreen") });
 const adminPartidoRoute = createRoute({
   getParentRoute: () => adminPartidosRoute,
   path: "$matchId",
-  validateSearch: adminPartidoSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Partidos"), "PartidoDetail"),
+  component: lazyRouteComponent(() => import("./pages/admin/partido/PartidoLayout"), "PartidoLayout"),
 });
-// An address under /admin the Sala de control does not have: the 404 inside its frame (not the public one).
+const adminStationAutoRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "/", component: lazyRouteComponent(hoyPartidos, "StationAuto") });
+const adminConvocatoriaRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "convocatoria", component: lazyRouteComponent(hoyPartidos, "ConvocatoriaScreen") });
+const adminDatosRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "datos", component: lazyRouteComponent(hoyPartidos, "DatosScreen") });
+const adminEnJuegoRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "en-juego", component: lazyRouteComponent(hoyPartidos, "EnJuegoScreen") });
+const adminActaRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "acta", component: lazyRouteComponent(actaArea, "ActaScreen") });
+const adminNarracionRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "acta/narracion", component: lazyRouteComponent(actaArea, "NarracionScreen") });
+const adminHistorialRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "acta/historial", component: lazyRouteComponent(actaArea, "HistorialScreen") });
+const adminPublicarRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "publicar", component: lazyRouteComponent(actaArea, "PublicarScreen") });
+const adminDespuesRoute = createRoute({ getParentRoute: () => adminPartidoRoute, path: "despues", component: lazyRouteComponent(actaArea, "DespuesScreen") });
+// Plantilla: Jugadores · Socios · Capitanes, the ficha, the alta, the cromos, the old ones
+const adminPlantillaRoute = createRoute({ getParentRoute: () => adminRoute, path: "plantilla", validateSearch: legacySearch, component: lazyRouteComponent(plantillaArea, "PlantillaArea") });
+// (the list, the ficha, the alta and the cromos: PlantillaArea draws them itself, one instance across the four)
+const adminJugadoresRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "/" });
+const adminAltaRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "alta", validateSearch: adminAltaSearchSchema });
+const adminCromosRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "cromos" });
+const adminAntiguosRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "antiguos", component: lazyRouteComponent(plantillaArea, "AntiguosScreen") });
+const adminSociosRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "socios", validateSearch: adminSociosSearchSchema, component: lazyRouteComponent(plantillaArea, "SociosScreen") });
+const adminCapitanesRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "capitanes", component: lazyRouteComponent(plantillaArea, "CapitanesScreen") });
+const adminFichaRoute = createRoute({ getParentRoute: () => adminPlantillaRoute, path: "$playerId" });
+// Caja: la caja and the cost of a match
+const adminCajaRoute = createRoute({ getParentRoute: () => adminRoute, path: "caja", validateSearch: legacySearch });
+const adminCajaIndexRoute = createRoute({ getParentRoute: () => adminCajaRoute, path: "/", component: lazyRouteComponent(cajaArea, "CajaScreen") });
+const adminCosteRoute = createRoute({ getParentRoute: () => adminCajaRoute, path: "coste/$matchId", component: lazyRouteComponent(cajaArea, "CosteScreen") });
+// Club: the office and its rooms
+const adminClubRoute = createRoute({ getParentRoute: () => adminRoute, path: "club" });
+const adminOficinaRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "/", component: lazyRouteComponent(clubArea, "OficinaScreen") });
+const adminTemporadasRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "temporadas", component: lazyRouteComponent(clubArea, "TemporadasScreen") });
+const adminClasificacionRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "clasificacion", component: lazyRouteComponent(clubArea, "ClasificacionScreen") });
+const adminWebRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "web", component: lazyRouteComponent(clubArea, "WebScreen") });
+const adminWebSeccionRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "web/$seccion", component: lazyRouteComponent(clubArea, "WebSeccionScreen") });
+const adminTurnosRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "turnos", component: lazyRouteComponent(clubArea, "TurnosScreen") });
+const adminVestuarioRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "vestuario", component: lazyRouteComponent(clubArea, "VestuarioScreen") });
+const adminAvisosRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "avisos", component: lazyRouteComponent(clubArea, "AvisosScreen") });
+const adminEquipacionesRoute = createRoute({ getParentRoute: () => adminClubRoute, path: "equipaciones", component: lazyRouteComponent(clubArea, "EquipacionesScreen") });
+// TEMPORARY (r12): the old addresses some links still name (today's views, the pizarra's «Convocar», Plantilla's
+// «Editar en la sala»): typed here so those links compile; they never render — the root redirects each one first
+// (lib/adminUrls). Wave 2 points the links at the new addresses and deletes these.
+const adminLegacyConvocarRoute = createRoute({ getParentRoute: () => adminRoute, path: "convocar", validateSearch: legacySearch });
+const adminLegacyFichasRoute = createRoute({ getParentRoute: () => adminRoute, path: "fichas" });
+const adminLegacyContenidoRoute = createRoute({ getParentRoute: () => adminRoute, path: "contenido", validateSearch: legacySearch });
+const adminLegacyTurnosRoute = createRoute({ getParentRoute: () => adminRoute, path: "turnos" });
+// An address under /admin the sala does not have: its own not-found screen, inside its frame.
 const adminNotFoundRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "$",
-  component: AdminRouteNotFound,
-});
-const adminConvocarRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "convocar",
-  validateSearch: adminConvocarSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Convocar"), "Convocar"),
-});
-// v1's path: old links keep working.
-const adminConvocatoriasRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "convocatorias",
-  validateSearch: adminConvocarSearchSchema,
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/admin/convocar", search: { j: search.j }, replace: true });
-  },
-});
-const adminFichasRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "fichas",
-  component: lazyRouteComponent(() => import("./pages/admin/views/Fichas"), "Fichas"),
-});
-const adminPlantillaRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "plantilla",
-  validateSearch: adminPlantillaSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Plantilla"), "Plantilla"),
-});
-const adminTemporadasRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "temporadas",
-  component: lazyRouteComponent(() => import("./pages/admin/views/Temporadas"), "Temporadas"),
-});
-const adminCapitanesRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "capitanes",
-  component: lazyRouteComponent(() => import("./pages/admin/views/Capitanes"), "Capitanes"),
-});
-const adminCajaRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "caja",
-  validateSearch: adminCajaSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Caja"), "Caja"),
-});
-const adminClasificacionRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "clasificacion",
-  component: lazyRouteComponent(() => import("./pages/admin/views/Clasificacion"), "Clasificacion"),
-});
-const adminTurnosRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "turnos",
-  component: lazyRouteComponent(() => import("./pages/admin/views/Turnos"), "Turnos"),
-});
-const adminContenidoRoute = createRoute({
-  getParentRoute: () => adminRoute,
-  path: "contenido",
-  validateSearch: adminContenidoSearchSchema,
-  component: lazyRouteComponent(() => import("./pages/admin/views/Contenido"), "Contenido"),
+  component: lazyRouteComponent(() => import("./pages/admin/shell/Screen"), "NotFoundScreen"),
 });
 
 // Invitation links (/invitacion/<code>): the layout shows the door until the account is inside;
@@ -581,18 +529,21 @@ const routeTree = rootRoute.addChildren([
   buscarRoute,
   pizarraRoute,
   adminRoute.addChildren([
-    adminIndexRoute,
-    adminPartidosRoute.addChildren([adminPartidoRoute]),
-    adminConvocarRoute,
-    adminConvocatoriasRoute,
-    adminFichasRoute,
-    adminPlantillaRoute,
-    adminTemporadasRoute,
-    adminCapitanesRoute,
-    adminContenidoRoute,
-    adminCajaRoute,
-    adminClasificacionRoute,
-    adminTurnosRoute,
+    adminHoyRoute,
+    adminPartidosRoute.addChildren([
+      adminTemporadaRoute,
+      adminNuevoRoute,
+      adminArchivadosRoute,
+      adminArchivadoRoute,
+      adminPartidoRoute.addChildren([adminStationAutoRoute, adminConvocatoriaRoute, adminDatosRoute, adminEnJuegoRoute, adminActaRoute, adminNarracionRoute, adminHistorialRoute, adminPublicarRoute, adminDespuesRoute]),
+    ]),
+    adminPlantillaRoute.addChildren([adminJugadoresRoute, adminAltaRoute, adminCromosRoute, adminAntiguosRoute, adminSociosRoute, adminCapitanesRoute, adminFichaRoute]),
+    adminCajaRoute.addChildren([adminCajaIndexRoute, adminCosteRoute]),
+    adminClubRoute.addChildren([adminOficinaRoute, adminTemporadasRoute, adminClasificacionRoute, adminWebRoute, adminWebSeccionRoute, adminTurnosRoute, adminVestuarioRoute, adminAvisosRoute, adminEquipacionesRoute]),
+    adminLegacyConvocarRoute,
+    adminLegacyFichasRoute,
+    adminLegacyContenidoRoute,
+    adminLegacyTurnosRoute,
     adminNotFoundRoute,
   ]),
   notFoundRoute,

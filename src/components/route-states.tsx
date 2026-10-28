@@ -116,25 +116,3 @@ export const RouteNotFound: React.FC = () => {
     />
   );
 };
-
-/** An address under /admin the Sala de control does not have: the 404 inside its own frame (its rail
- *  and header stay, the way out is its own start, Hoy). Members and fans never get here: RootLayout
- *  answers /admin/* first (the capitanía panel, the door). */
-export const AdminRouteNotFound: React.FC = () => {
-  useNoIndex();
-  return (
-    <div className="vx sp-inframe">
-      <StatePanel
-        kind="notfound"
-        heading="h1"
-        title="Esta sección no existe"
-        body="En la Sala de control no hay nada en esta dirección: puede que el enlace sea viejo o lleve una errata."
-        action={
-          <Link className="sp-btn" to="/admin">
-            Ir a Hoy
-          </Link>
-        }
-      />
-    </div>
-  );
-};

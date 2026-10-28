@@ -23,7 +23,7 @@ const WIDTH = window.innerWidth;
 const list = () => screen.getByRole("navigation", { name: "La plantilla" });
 const groups = () => [...list().querySelectorAll("section")].map((g) => `${g.getAttribute("aria-label")}: ${[...g.querySelectorAll(".li .tx b")].map((b) => b.textContent).join(", ")}`);
 const ficha = (name: string) => screen.getByRole("region", { name: `Ficha de ${name}` });
-const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("adm-toasts"))!;
+const caption = () => screen.getAllByRole("status").find((s) => s.classList.contains("sc-status__live"))!;
 const noLine = (id: string) => {
   const base = adminFixture();
   setAdminData({ ...base, players: base.players.map((p) => (p.id === id ? { ...p, naturalPosition: undefined } : p)) });
@@ -46,7 +46,7 @@ describe("Plantilla · ficha a ficha", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Plantilla" })).toBeInTheDocument();
     expect(screen.getByText("Temporada 1 · 12 jugadores")).toBeInTheDocument();
     expect(groups()).toEqual(["Porteros: EVANS, FER", "Defensas: ILLESCAS, TELLO, BRAWAN", "Medios: EGUZQUIZA, HUBEROSKI, ANDIA, ALMACHI", "Delanteros: ERIK, ADRIÁN T.C., KEVIN"]);
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "evans" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/evans"));
     expect(ficha("EVANS")).toHaveTextContent("Ficha 1 de 12");
     expect(within(list()).getByRole("button", { name: "Abrir la ficha de EVANS" })).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("img", { name: "Fichas completas: 0 de 12" })).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("Plantilla · ficha a ficha", () => {
     expect(groups()[0]).toBe("Sin posición: KEVIN");
     await user.click(within(screen.getByRole("group", { name: "Colocar a KEVIN" })).getByRole("button", { name: "DEF" }));
     expect(caption()).toHaveTextContent("KEVIN pasa a la defensa");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("LÍNEA");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("LÍNEA");
     expect(groups()[0]).toBe("Porteros: EVANS, FER");
     expect(groups()[1]).toBe("Defensas: ILLESCAS, KEVIN, TELLO, BRAWAN");
     await act(async () => {
@@ -95,7 +95,7 @@ describe("Plantilla · ficha a ficha", () => {
     const router = mountAdmin("/admin/plantilla", { plantilla: Plantilla });
     await screen.findByRole("navigation", { name: "La plantilla" });
     await user.click(within(list()).getByRole("button", { name: "Abrir la ficha de ERIK" }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "erik" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/erik"));
     const f = ficha("ERIK");
     // known only by his line (DEL): the map has nothing marked yet
     expect(within(f).queryByRole("group", { name: "Línea de ERIK" })).toBeNull();
@@ -113,7 +113,7 @@ describe("Plantilla · ficha a ficha", () => {
     expect(caption()).toHaveTextContent("Posiciones de ERIK: También MCD");
     await user.click(within(map()).getByRole("button", { name: /^MCD · Pivote/ }));
     expect(caption()).toHaveTextContent("Posiciones de ERIK: Pivote (MCD)");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("POSICIÓN");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("POSICIÓN");
     expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida" })).toBeInTheDocument();
     // the preferida's line moves him to the medios, and the list says his exact position
     expect(groups()[2]).toBe("Medios: EGUZQUIZA, ERIK, HUBEROSKI, ANDIA, ALMACHI");
@@ -158,7 +158,7 @@ describe("Plantilla · ficha a ficha", () => {
     await user.type(within(f).getByRole("textbox", { name: "Altura (cm)" }), "180");
     await user.tab();
     expect(caption()).toHaveTextContent("Ficha de ERIK guardada");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("FICHA");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("FICHA");
     expect(within(ficha("ERIK")).getByRole("img", { name: "Le falta la foto, el nacimiento y el peso" })).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(5300);
@@ -248,18 +248,18 @@ describe("Plantilla · ficha a ficha", () => {
     const router = mountAdmin("/admin/plantilla?jugador=evans", { plantilla: Plantilla });
     await screen.findByRole("region", { name: "Ficha de EVANS" });
     fireEvent.keyDown(document.body, { key: "ArrowDown" });
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "fer" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/fer"));
     fireEvent.keyDown(document.body, { key: "ArrowUp" });
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "evans" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/evans"));
     await user.click(within(ficha("EVANS")).getByRole("button", { name: "Jugador siguiente" }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "fer" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/fer"));
     await user.click(within(ficha("FER")).getByRole("button", { name: /Siguiente sin completar/ }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "illescas" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/illescas"));
     // typing in a field: the arrows are the field's
     const f = ficha("ILLESCAS");
     within(f).getByRole("textbox", { name: "Altura (cm)" }).focus();
     fireEvent.keyDown(within(f).getByRole("textbox", { name: "Altura (cm)" }), { key: "ArrowDown" });
-    expect(router.state.location.search).toEqual({ jugador: "illescas" });
+    expect(router.state.location.pathname).toBe("/admin/plantilla/illescas");
   });
 
   it("«Alta de jugador» takes the ficha's place: the shirt is stamped, free dorsales are a tap, and the new one opens", async () => {
@@ -267,7 +267,7 @@ describe("Plantilla · ficha a ficha", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const router = mountAdmin("/admin/plantilla?jugador=evans", { plantilla: Plantilla });
     await user.click(await screen.findByRole("button", { name: "Alta de jugador" }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ nuevo: true }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/alta"));
     const a = screen.getByRole("region", { name: "Alta de jugador" });
     const alta = within(a).getByRole("button", { name: "Dar de alta" });
     expect(alta).toBeDisabled();
@@ -287,9 +287,9 @@ describe("Plantilla · ficha a ficha", () => {
     await user.click(within(within(a).getByRole("group", { name: "Dorsales libres" })).getByRole("button", { name: "Dorsal 2" }));
     expect(within(a).getByRole("textbox", { name: "Dorsal en la Temporada 1" })).toHaveValue("2");
     await user.click(alta);
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "nuevo1" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/nuevo1"));
     expect(caption()).toHaveTextContent("PABLO entra en la plantilla con el 2");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("ALTA");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("ALTA");
     expect(screen.getByRole("region", { name: "Ficha de PABLO" })).toBeInTheDocument();
     expect(groups()[2]).toBe("Medios: PABLO, EGUZQUIZA, HUBEROSKI, ANDIA, ALMACHI");
     await act(async () => {
@@ -364,13 +364,13 @@ describe("Plantilla · ficha a ficha", () => {
     const user = userEvent.setup();
     const router = mountAdmin("/admin/plantilla?jugador=evans", { plantilla: Plantilla });
     await user.click(await screen.findByRole("button", { name: /Todos en cromos/ }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ vista: "cromos" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/cromos"));
     const grid = screen.getByRole("list", { name: "Todos en cromos" });
     expect(within(grid).getAllByRole("listitem")).toHaveLength(13);
     expect(within(grid).getByRole("button", { name: "Abrir la ficha de KEVIN" })).toHaveTextContent("Pide su ficha");
     expect(within(grid).getByRole("button", { name: /Alta de jugador/ })).toBeInTheDocument();
     await user.click(within(grid).getByRole("button", { name: "Abrir la ficha de TELLO" }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ jugador: "tello" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/tello"));
     expect(ficha("TELLO")).toBeInTheDocument();
   });
 
@@ -398,14 +398,14 @@ describe("Plantilla · ficha a ficha", () => {
     const user = userEvent.setup();
     const router = mountAdmin("/admin/plantilla", { plantilla: Plantilla });
     await screen.findByRole("searchbox", { name: "Buscar jugador" });
-    expect(router.state.location.search).toEqual({});
+    expect(router.state.location.pathname).toBe("/admin/plantilla");
     expect(screen.queryByRole("region", { name: /^Ficha de/ })).toBeNull();
     await user.click(within(list()).getByRole("button", { name: "Abrir la ficha de ADRIÁN T.C." }));
     const f = await screen.findByRole("region", { name: "Ficha de ADRIÁN T.C." });
     expect(screen.queryByRole("navigation", { name: "La plantilla" })).toBeNull();
     expect(within(f).getByRole("button", { name: /Siguiente sin completar/ })).toBeInTheDocument();
     await user.click(within(f).getByRole("button", { name: "Volver a la plantilla" }));
-    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla"));
     expect(list()).toBeInTheDocument();
   });
 
@@ -417,7 +417,7 @@ describe("Plantilla · ficha a ficha", () => {
     await user.click(within(grid).getByRole("button", { name: "Abrir la ficha de FER" }));
     const f = await screen.findByRole("region", { name: "Ficha de FER" });
     await user.click(within(f).getByRole("button", { name: "Volver a la plantilla" }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ vista: "cromos" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/plantilla/cromos"));
     expect(screen.getByRole("list", { name: "Todos en cromos" })).toBeInTheDocument();
   });
 
@@ -458,7 +458,7 @@ describe("Plantilla · sanciones", () => {
     await user.type(within(form).getByRole("textbox", { name: /Motivo/ }), "Federación");
     await user.click(within(form).getByRole("button", { name: "Sancionar" }));
     expect(caption()).toHaveTextContent("ERIK, sancionado 2 partidos · Federación");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("SANCIÓN");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("SANCIÓN");
     expect(screen.queryByRole("form", { name: "Sanción de ERIK" })).toBeNull();
     expect(ficha("ERIK")).toHaveTextContent("Sancionado · quedan 2 partidos · Federación");
     expect(within(estado("ERIK")).getByRole("button", { name: "Sancionado" })).toHaveAttribute("aria-pressed", "true");
@@ -580,7 +580,7 @@ describe("Plantilla · propuestas de posición", () => {
     await screen.findByRole("region", { name: "Ficha de ERIK" });
     await user.click(within(banner()).getByRole("button", { name: "Aprobar" }));
     expect(caption()).toHaveTextContent("ERIK: propuesta aprobada · Pivote (MCD) · también MC");
-    expect(caption().querySelector(".lt .k")).toHaveTextContent("PROPUESTA");
+    expect(caption().querySelector(".sc-status__tag")).toHaveTextContent("PROPUESTA");
     expect(within(ficha("ERIK")).queryByRole("group", { name: "Propuesta de ERIK" })).toBeNull();
     expect(within(map()).getByRole("button", { name: "MCD · Pivote: preferida" })).toBeInTheDocument();
     // undone: the proposal is back, nothing written
