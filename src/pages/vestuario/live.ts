@@ -568,9 +568,13 @@ export interface PersonRow {
   role: string;
   playerId: string | null;
   removed: boolean;
+  /** When the access was taken away (ms; 0 = inside, or unknown). */
+  removedAt?: number;
+  /** Who took it away (r12: the captain, or his own uid when he left); absent on the old removals. */
+  removedBy?: string | null;
 }
 export function useClubPeople(enabled: boolean) {
-  return useLiveQuery<PersonRow>(enabled ? "users" : null, (fb) => fb.collection(fb.db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt }));
+  return useLiveQuery<PersonRow>(enabled ? "users" : null, (fb) => fb.collection(fb.db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt, removedAt: millis(d.removedAt), removedBy: typeof d.removedBy === "string" ? d.removedBy : null }));
 }
 
 // ---------- your own membership (/profile: «Tu acceso» and the back of the card)

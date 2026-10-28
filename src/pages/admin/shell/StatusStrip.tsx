@@ -4,8 +4,8 @@
 // call (useToast(): show · defer · dismiss; useStatus() is its name in the sala):
 //   show()  — a line, with «Deshacer» (undo) or, for an error, «Reintentar» (retry); 5.2 s, errors 8 s.
 //   defer() — the reversible write: the change shows at once, the write waits 5.2 s behind «Deshacer» and only
-//             then commits (a second defer() commits the first at once; leaving the sala commits what waits). A
-//             failed commit calls onError and shows the error with «Reintentar».
+//             then commits (a second defer() commits the first at once; leaving the sala, closing the tab or
+//             hiding the app commits what waits). A failed commit calls onError and shows the error with «Reintentar».
 // Normal lines are announced politely, errors as an alert.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { apiError } from "../../../lib/clubApi";
@@ -98,6 +98,19 @@ export function StatusProvider({ children }: { children: ReactNode }) {
     },
     [flush],
   );
+  // …and so does closing the tab or leaving the app (the phone may never come back to fire the timer): the write
+  // goes to Firestore's local queue at once, which uploads it now or on the next visit.
+  useEffect(() => {
+    const away = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", away);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", away);
+    };
+  }, [flush]);
   const api = useMemo<ToastApi>(() => ({ show, defer, dismiss }), [show, defer, dismiss]);
   const shown = useMemo(() => ({ line, dismiss }), [line, dismiss]);
   return (
