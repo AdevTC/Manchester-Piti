@@ -46,11 +46,11 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await callFunction(token, "saveMatchSheet", { id: otherId, draft: false, sheet: { ...base, rival: otherRival, date: stamp - 8 * 86400000, events: [...base.events, { id: "other-pass", type: "pass", playerId: players[2], receiverId: players[3], minute: 5, period: 1, outcome: "complete" }] } });
     created.push(otherId);
     await enterVestuario(page);
-    await page.goto(`/admin/partidos/${id}?tab=acta`);
-    const editor = page.getByRole("region", { name: "Análisis detallado del acta" });
+    await page.goto(`/admin/partidos/${id}/acta/narracion`);
+    // (r12: the narrated analysis is its own screen, /acta/narracion)
+    const editor = page.getByRole("region", { name: "El análisis narrado", exact: true });
     await expect(editor).toBeVisible();
-    await editor.getByText("Importar análisis de una narración", { exact: true }).click();
-    await editor.getByRole("button", { name: "Copiar prompt y contexto" }).click();
+        await editor.getByRole("button", { name: "Copiar prompt y contexto" }).click();
     const context = JSON.parse(await editor.getByLabel("Contexto del partido (solo lectura)").inputValue()) as { format: string; matchId: string; baseRevision: number; profile: AnalysisProfile; existingAnalysis?: { revision: number } };
     expect(context.format).toBe("piti-context/v2");
     const observations: Observation[] = [
@@ -59,15 +59,18 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
       { id: "rich-recovery", kind: "recovery", team: "us", actorId: players[2], order: 3, period: 2, time: { from: 1640, to: 1640, precision: "exact" }, facts: {} },
     ];
     const bundle = { format: "piti-actions/v2", matchId: context.matchId, baseRevision: context.baseRevision, events: [], coverage: "partial", sources: [{ id: "private-source", quote: privateQuote }], analysis: { version: 2, revision: context.existingAnalysis?.revision ?? 0, profile: context.profile, observations, coverage: [{ family: "pass", team: "us", state: "complete" }] } };
-    await editor.getByLabel("Análisis estructurado").fill(JSON.stringify(bundle));
+    await editor.getByLabel("O pega el análisis estructurado").fill(JSON.stringify(bundle));
     await editor.getByRole("button", { name: "Revisar importación" }).click();
     const review = editor.getByRole("region", { name: "Revisión de la importación" });
     await expect(review.getByRole("region", { name: "Observaciones detalladas" })).toContainText("3 observaciones del análisis");
     await review.getByRole("button", { name: "Incorporar al borrador" }).click();
-    await expect(editor.getByText("Análisis incorporado al borrador. Revisa y publica el acta para actualizar la web.")).toBeVisible();
+    await expect(page.getByText("Análisis incorporado al borrador · se guarda con el acta")).toBeVisible();
     await expect(editor.getByRole("region", { name: "Observaciones detalladas" })).toContainText("3 observaciones del análisis");
-    await page.locator(".det .df").getByRole("button", { name: "Publicar acta", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Acta publicada", exact: true })).toBeVisible();
+    // (only a draft so far: «Ir a publicar», then «Publicar el acta» says what it does)
+    await page.locator(".ac-foot").getByRole("button", { name: "Ir a publicar", exact: true }).click();
+    await page.locator(".ac-foot").getByRole("button", { name: "Publicar el acta", exact: true }).click();
+    await page.getByRole("dialog", { name: /^¿Publicar el acta de la/ }).getByRole("button", { name: "Publicar el acta" }).click();
+    await expect(page.getByRole("region", { name: "Después del partido", exact: true })).toBeVisible();
 
     await page.goto(`/partidos/${id}/numeros`);
     // The canonical goal survives an observations-only import, while the new passes reach the numbers.
