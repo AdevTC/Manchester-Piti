@@ -15,6 +15,7 @@ export {
   myTurns,
   outOf,
   turnDone,
+  doneKeyOf,
   parseRota,
   parseRotaTurns,
   playedEntry,

@@ -8,6 +8,7 @@ import {
   parseRota,
   parseRotaTurns,
   turnDone,
+  doneKeyOf,
   rotaErrors,
   rotaHistory,
   rotaMatch,
@@ -320,6 +321,16 @@ describe("turnos «Hecho»", () => {
     expect(turnDone(doc, "u3")).toBe(false);
     expect(turnDone(parseRotaTurns({}), "u1")).toBe(false);
     expect(parseRotaTurns({}).done).toBeUndefined();
+  });
+  it("a captain's mark for a player without an account: `p:<playerId>` (r12, the Sala's «Después»)", () => {
+    const doc = parseRotaTurns({ seasonId: "s", lavar: { playerId: "hugo" }, done: { "p:hugo": 9 } });
+    expect(doc.done).toEqual({ "p:hugo": 9 });
+    expect(turnDone(doc, undefined, "hugo")).toBe(true);
+    expect(turnDone(doc, "u-hugo", "hugo")).toBe(true);
+    expect(turnDone(doc, "u-hugo")).toBe(false);
+    expect(turnDone(doc, null, "dani")).toBe(false);
+    expect(doneKeyOf("u-hugo", "hugo")).toBe("u-hugo");
+    expect(doneKeyOf(null, "hugo")).toBe("p:hugo");
   });
   it("«done» is a reserved job id", () => {
     expect(jobIdFor("done", [])).toBe("done-2");

@@ -366,8 +366,13 @@ function parseDone(raw: unknown): Record<string, number> {
   return out;
 }
 
-/** Whether `uid` marked his turn of the match done («Hecho»). */
-export const turnDone = (doc: RotaTurnsDoc | null | undefined, uid: string | null | undefined): boolean => !!uid && typeof doc?.done?.[uid] === "number";
+/** The `done` key of a player's turn marked by a captain: his member uid, or `p:<playerId>` when he has no account. */
+export const doneKeyOf = (uid: string | null | undefined, playerId: string): string => (uid ? uid : `p:${playerId}`);
+
+/** Whether the turn is marked done («Hecho»): by `uid` (the member himself, or a captain under his uid) or, given
+ *  the `playerId`, under `p:<playerId>` (a captain's mark for a player without an account). */
+export const turnDone = (doc: RotaTurnsDoc | null | undefined, uid: string | null | undefined, playerId?: string | null): boolean =>
+  (!!uid && typeof doc?.done?.[uid] === "number") || (!!playerId && typeof doc?.done?.[`p:${playerId}`] === "number");
 
 /** The turns of `turns` that `playerId` does (empty: none of the match's turns is his). */
 export const myTurns = (turns: readonly Turn[], playerId: string | null | undefined): Turn[] => (playerId ? turns.filter((t) => t.playerId === playerId) : []);
