@@ -497,6 +497,22 @@ describe("Narración", () => {
     expect(screen.getByText(/^Y la duración del partido sigue en 52 min/)).toBeInTheDocument();
   });
 
+  it("ACTA-16: the observations filter by kind and by state (Todas · Dudas · Anuladas)", async () => {
+    const obs = (id: string, kind: "pass" | "shot", validity?: "pending" | "void") => ({ id, kind, team: "us" as const, actorId: "erik", order: Number(id.slice(1)), time: { from: 60, to: 60, precision: "exact" as const }, facts: {}, ...(validity ? { validity } : {}) });
+    setAdminData(adminFixture({ published: fullJ1({ analysis: { version: 2, revision: 1, profile: DEFAULT_ANALYSIS_PROFILE, coverage: [], observations: [obs("o1", "pass"), obs("o2", "shot", "pending"), obs("o3", "pass", "void")] } as never }) }));
+    const user = userEvent.setup();
+    open("/admin/partidos/m6/acta/narracion");
+    const rows = () => screen.getAllByRole("button", { name: "Editar detalle" }).length;
+    await screen.findByRole("heading", { name: "3 observaciones del análisis" });
+    expect(rows()).toBe(3);
+    expect(screen.getByText("1 duda pendiente")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dudas" }));
+    expect(rows()).toBe(1);
+    await user.click(screen.getByRole("button", { name: "Todas" }));
+    await user.selectOptions(screen.getByLabelText("Tipo"), "pass");
+    expect(rows()).toBe(2);
+  });
+
   it("keeps the open detail form and its unapplied fields when the frame crosses both breakpoints", async () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
     let resizeFrame: ((width: number) => void) | undefined;
