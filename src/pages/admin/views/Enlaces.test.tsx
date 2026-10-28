@@ -3,8 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { resetWhistledForTests } from "../data/whistleStore";
-import { Convocar } from "./Convocar";
-import { Partidos } from "./Partidos";
+import { ConvocatoriaScreen as Convocar, TemporadaScreen as Partidos } from "../areas/hoy-partidos/screens";
 
 // The Sala de control's ways out to the rest of the app for the same match or player: «Ver en la web»
 // (the match workspace, ⌘K), Convocar's «La pizarra» reader → the match's official board, and
@@ -73,28 +72,26 @@ describe("the match workspace · «Ver en la web»", () => {
   });
 });
 
-describe("Convocar · «La pizarra» opens the match's board", () => {
+describe("Convocatoria · «Abrir la pizarra» opens the match's board", () => {
   it("with an official board: that board, in the match's season", async () => {
     setAdminData(adminFixture({ officialLocks: { t1__m8: "b8", t1__temporada: "s1" } }));
-    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
-    await screen.findByRole("heading", { level: 1, name: "Convocar" });
-    const link = screen.getByRole("link", { name: /La pizarra/ });
-    expect(link).toHaveAttribute("href", "/pizarra?tablero=b8&season=t1");
-    expect(link).toHaveTextContent(/El siete oficial · \d de 7/);
+    mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 2, name: "Quién viene" });
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=b8&season=t1");
   });
 
   it("still to be played with only the season's official: that board", async () => {
     setAdminData(adminFixture({ officialLocks: { t1__temporada: "s1" } }));
-    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
-    await screen.findByRole("heading", { level: 1, name: "Convocar" });
-    expect(screen.getByRole("link", { name: /La pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
+    mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 2, name: "Quién viene" });
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
   });
 
   it("with none yet: the pizarra itself (to make and publish it)", async () => {
     setAdminData(adminFixture());
-    mountAdmin("/admin/convocar?j=m8", { convocar: Convocar });
-    await screen.findByRole("heading", { level: 1, name: "Convocar" });
-    expect(screen.getByRole("link", { name: /La pizarra/ })).toHaveAttribute("href", "/pizarra?season=t1");
+    mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
+    await screen.findByRole("heading", { level: 2, name: "Quién viene" });
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?season=t1");
   });
 });
 
