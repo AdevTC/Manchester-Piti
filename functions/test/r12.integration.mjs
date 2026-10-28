@@ -392,6 +392,16 @@ try {
     assert.equal((await get(`users/${leaver.uid}`)).role, "admin"); checked++;
     await db.doc(`playerLinks/${ids[4]}`).delete();
     await db.doc(`playerLinks/${ids[5]}`).delete();
+    // a captain removed before r12 (no stamp) asks again: back as a socio (B-CLUB-03), his ficha still his
+    const oldCap = await google("oldcap");
+    people.push(oldCap.uid);
+    await db.doc(`users/${oldCap.uid}`).set({ role: "admin", nickname: `oldcap-${suffix}`.slice(0, 30), playerId: ids[6], removedAt: Timestamp.now() });
+    await db.doc(`playerLinks/${ids[6]}`).set({ uid: oldCap.uid });
+    assert.equal((await ok("requestAccess", oldCap, { name: "Vuelvo" })).status, "pending"); checked++;
+    await ok("resolveAccess", admin, { uid: oldCap.uid, approve: true });
+    const back = await get(`users/${oldCap.uid}`);
+    assert.equal(back.role, "user"); assert.equal(back.playerId, ids[6]); assert.equal((await get(`playerLinks/${ids[6]}`)).uid, oldCap.uid); checked += 3;
+    await db.doc(`playerLinks/${ids[6]}`).delete();
   }
   // the removed captain asks again and comes back as a socio
   assert.equal((await ok("requestAccess", member, { name: "Socio" })).status, "pending"); checked++;

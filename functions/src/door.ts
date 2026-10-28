@@ -6,7 +6,7 @@ import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestor
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { admin, db, googleUser, idSchema, parse } from "./common.js";
-import { cleanName, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, removedByCaptain, returningRole } from "./doorLogic.js";
+import { cleanName, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, outNotOnHisOwn, removedByCaptain, returningRole } from "./doorLogic.js";
 import { forgetMemberDevices, sendTo } from "./push.js";
 import { nameFor } from "./names.js";
 
@@ -52,7 +52,8 @@ async function admit(tx: Transaction, req: CallableRequest, uid: string, who: { 
   }
   const email = (req.auth?.token.email as string | undefined) ?? "";
   // Whoever comes back after a captain removed them comes back as a socio, whatever role they kept (B-CLUB-03).
-  const removed = removedByCaptain({ exists: user.exists, uid, removedAt: user.get("removedAt"), removedBy: user.get("removedBy") });
+  // (the role: kept only by someone clearly gone on his own — any other removal, stamped or not, comes back as a socio)
+  const removed = outNotOnHisOwn({ exists: user.exists, uid, removedAt: user.get("removedAt"), removedBy: user.get("removedBy") });
   const role = returningRole(user.get("role"), removed) ?? (email === SUPERADMIN && req.auth?.token.email_verified === true ? "superadmin" : "user");
   tx.set(db.doc(`teamMembers/${uid}`), { expiresAt: Timestamp.fromMillis(FOREVER_MS), joinedAt: FieldValue.serverTimestamp(), via, by });
   if (nameRef) tx.set(nameRef, { uid });

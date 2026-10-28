@@ -64,10 +64,14 @@ export const cleanName = (s: string) => s.replace(/\s+/g, " ").trim().slice(0, 4
 /** A ficha linked to someone who is no longer inside (removed by a captain, or without a profile) is free to
  *  claim: links left behind before revokeMember freed them. */
 export const holderGone = (holder: { exists: boolean; uid?: string; removedAt?: unknown; removedBy?: unknown } | null | undefined): boolean => !!holder && removedByCaptain(holder);
-/** Removed by a captain (revokeMember stamps `removedBy`), not gone on his own (leaveVestuario: `removedBy` = him)
- *  — a removal from before the stamp counts as gone on his own: nobody inherits someone else's ficha by default. */
+/** For his ficha: removed by a captain (revokeMember stamps `removedBy`) — only then is it free. A removal from before
+ *  the stamp keeps the link, as it always did: nobody inherits someone else's ficha by default. */
 export const removedByCaptain = (u: { exists: boolean; uid?: string; removedAt?: unknown; removedBy?: unknown }): boolean =>
   u.exists && !!u.removedAt && typeof u.removedBy === "string" && !!u.removedBy && u.removedBy !== u.uid;
+/** For his role: out, and not clearly on his own (leaveVestuario stamps `removedBy` = him). A removal without the stamp
+ *  — or by someone else — comes back as a socio: a captain removed before the stamp never walks back in as one. */
+export const outNotOnHisOwn = (u: { exists: boolean; uid?: string; removedAt?: unknown; removedBy?: unknown }): boolean =>
+  u.exists && !!u.removedAt && u.removedBy !== u.uid;
 /** The role kept when someone walks back in: a member a captain removed comes back as a socio (never with the
  *  brazalete he had); one who left on his own keeps his; the superadmin keeps his. Undefined: no profile yet. */
 export function returningRole(stored: unknown, removed: boolean): string | undefined {

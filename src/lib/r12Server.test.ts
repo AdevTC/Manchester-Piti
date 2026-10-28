@@ -24,7 +24,7 @@ import {
   storedVideoMarks,
   videoMarksSchema,
 } from "../../functions/src/matchExtrasLogic";
-import { holderGone, returningRole } from "../../functions/src/doorLogic";
+import { holderGone, outNotOnHisOwn, returningRole } from "../../functions/src/doorLogic";
 import { captainNotice, remindNowKind, remindNowProblem } from "../../functions/src/remindersLogic";
 import { cajaRejectedNotice, heldBefore, heldGoalNotice, noticesFor, THEIR_GOAL_HOLD_MS } from "../../functions/src/pushLogic";
 
@@ -195,6 +195,17 @@ describe("M-13 · B-CLUB-02/03 · quitar el acceso", () => {
     expect(holderGone({ exists: false })).toBe(false);
     expect(holderGone({ exists: true })).toBe(false);
     expect(holderGone(null)).toBe(false);
+  });
+  it("the role is kept only by who clearly left on his own; a removal without the stamp comes back as a socio", () => {
+    const at = { seconds: 1 };
+    expect(outNotOnHisOwn({ exists: true, uid: "u1", removedAt: at, removedBy: "u1" })).toBe(false);
+    expect(outNotOnHisOwn({ exists: true, uid: "u1", removedAt: at, removedBy: "cap" })).toBe(true);
+    // B-CLUB-03 with old data: a captain removed before r12 (no stamp) never walks back in as one
+    expect(outNotOnHisOwn({ exists: true, uid: "u1", removedAt: at })).toBe(true);
+    expect(returningRole("admin", outNotOnHisOwn({ exists: true, uid: "u1", removedAt: at }))).toBe("user");
+    // (but his ficha stays his: only a captain's stamped removal frees it)
+    expect(holderGone({ exists: true, uid: "u1", removedAt: at })).toBe(false);
+    expect(outNotOnHisOwn({ exists: true, uid: "u1" })).toBe(false);
   });
   it("whoever comes back after being removed comes back as a socio (the superadmin keeps his)", () => {
     expect(returningRole("admin", true)).toBe("user");
