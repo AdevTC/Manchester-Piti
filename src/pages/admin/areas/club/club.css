@@ -194,7 +194,6 @@
   .cl-nums{grid-template-columns:repeat(7,minmax(0,1fr))}
   .cl-nums--form{grid-template-columns:repeat(5,minmax(0,1fr))}
   .cl-item{grid-template-columns:minmax(0,1fr) auto;align-items:end}
-  .cl-eq{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 36px}
   .cl-bio{grid-template-columns:auto minmax(0,1fr);align-items:start}
   .cl-bio>.sc-small{grid-column:1/-1}
 }
@@ -206,7 +205,8 @@
   .cl-grid{flex:1;min-height:0;grid-template-columns:minmax(0,1.25fr) minmax(320px,.85fr);gap:44px}
   .cl-col{height:100%;box-sizing:border-box;padding-right:6px}
   .cl-web{grid-template-columns:minmax(320px,.8fr) minmax(0,1.3fr)}
-  .cl-ves,.cl-av,.cl-eq{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cl-ves,.cl-av{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cl-eq{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 36px}
   .cl-next{flex:none;padding:8px 0}
 }
 @container (min-width:1800px){

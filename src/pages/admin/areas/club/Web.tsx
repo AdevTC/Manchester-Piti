@@ -18,7 +18,7 @@ import { nameFor } from "../../../../lib/clubData";
 import { venueKey, venueName, VENUE_LIMITS } from "../../../../lib/derived/venue";
 import { plural } from "../../../../lib/derived/words";
 import { WEB_SECTIONS } from "../../../../lib/adminUrls";
-import { applyClub, CLUB_FIELDS, contentIssues, emailOk, LIMITS, monthLabel, pendingKeys, publishPlan, putClubDraft, putStoryDrafts, removePublished, sliceOf, staleKeys, storyOf, storyWith, type ClubKey, type ContentKey, type Drafts, type PlayerStory } from "../../club/contentModel";
+import { applyClub, CLUB_FIELDS, contentIssues, emailOk, LIMITS, monthLabel, pendingKeys, publishPlan, putClubDraft, putStoryDrafts, removePublished, sliceOf, staleKeys, storyOf, storyWith, type ClubKey, type Drafts, type PlayerStory } from "../../club/contentModel";
 import { useContentDraftState } from "../../club/contentDraftStore";
 import { linkState } from "../../club/plantillaLogic";
 import { useClubWrites } from "../../club/useClubWrites";
@@ -28,44 +28,14 @@ import { useAdmin } from "../../shell/context";
 import { useStatus } from "../../shell/statusContext";
 import { relWhen } from "./model";
 import { RoomScreen } from "./Room";
+import { ALIAS, SECTIONS, sectionMiss, type WebSection } from "./webModel";
 import { Shirt } from "./shirts";
 import { shirtOf, useStills } from "./stills";
 
-type WebSection = (typeof WEB_SECTIONS)[number];
-const ALIAS: Record<string, WebSection> = { frase: "historia", campos: "historia", escudo: "historia", foto: "contacto", colaboradores: "galeria" };
-const SECTIONS: readonly { id: WebSection; name: string; where: string; keys: readonly ContentKey[] }[] = [
-  { id: "historia", name: "Frase, historia y campos", where: "El club · portada e historia", keys: ["frase", "historia", "campos"] },
-  { id: "contacto", name: "Contacto, redes y foto del equipo", where: "El club · el equipo y el pie", keys: ["contacto"] },
-  { id: "momentos", name: "Momentos del club", where: "El club · la historia", keys: ["momentos"] },
-  { id: "historias", name: "Historias de jugadores", where: "Cada perfil de jugador", keys: ["historias"] },
-  { id: "preguntas", name: "Preguntas de vestuario", where: "El club · preguntas", keys: ["preguntas"] },
-  { id: "galeria", name: "Galería y colaboradores", where: "El club · galería e Inicio", keys: ["galeria", "colaboradores"] },
-];
 const FIELD_KEY: Record<string, ClubKey> = Object.fromEntries(Object.entries(CLUB_FIELDS).flatMap(([k, fs]) => fs.map((f) => [f, k as ClubKey])));
 const ok = (u: string) => linkState(u) !== "bad";
 const listUp = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
 const upFirst = (s: string) => s.charAt(0).toLocaleUpperCase("es") + s.slice(1);
-
-/** What a section is missing (it asks, never blocks). */
-function sectionMiss(id: WebSection, c: ClubContent, withStory: number, squad: number): string[] {
-  const m: string[] = [];
-  if (id === "historia") {
-    if (!c.intro.trim()) m.push("falta la frase");
-    if (!c.story.trim()) m.push("falta la historia");
-    if (!c.crestStory?.trim()) m.push("falta la historia del escudo");
-    if (!c.venues.length) m.push("sin campos");
-  } else if (id === "contacto") {
-    if (!c.photoUrl.trim()) m.push("sin foto del equipo");
-    if (!c.email.trim()) m.push("sin correo");
-  } else if (id === "momentos") {
-    if (!c.milestones.length) m.push("sin momentos");
-  } else if (id === "historias") {
-    if (withStory < squad) m.push(`faltan ${squad - withStory} historias`);
-  } else if (id === "preguntas") {
-    if (!(c.faq ?? []).length) m.push("sin preguntas");
-  } else if (!c.gallery.length) m.push("sin fotos");
-  return m;
-}
 
 export function WebScreen() {
   return <WebRoom section={null} />;

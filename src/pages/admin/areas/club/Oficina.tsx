@@ -13,7 +13,8 @@ import { plural } from "../../../../lib/derived/words";
 import { useMatchTurns } from "../../../../lib/useRotaTurns";
 import { useStandings } from "../../../../lib/useStandings";
 import { useAbsences, useBoard, usePolls } from "../../../vestuario/live";
-import { pendingKeys, storyOf } from "../../club/contentModel";
+import { applyClub, contentIssues, pendingKeys, storyOf, storyWith } from "../../club/contentModel";
+import { webMissCount } from "./webModel";
 import { useContentDraftState } from "../../club/contentDraftStore";
 import { ScreenError, ScreenLoading, SalaScreen } from "../../shell/Screen";
 import { SalaLink } from "../../shell/SalaLink";
@@ -60,7 +61,11 @@ function useClubDoors(): { doors: Door[]; asks: string[]; loading: boolean; erro
     const behind = tableBehind(standings, lastJ);
     const liveStory = (id: string) => storyOf(data.players.find((p) => p.id === id));
     const pending = pendingKeys(web.drafts, content, liveStory).length;
-    const gaps = data.content.gaps.length;
+    // (the same count as the web room's line: each section's missing things and what blocks publishing)
+    const cur = applyClub(content, web.drafts);
+    const squad = data.players.filter((p) => (p.seasons ?? []).includes(sid));
+    const withStory = squad.filter((p) => storyWith(web.drafts, p.id, storyOf(p)).bio.trim()).length;
+    const gaps = webMissCount(cur, withStory, squad.length) + contentIssues(cur).length;
     const kits = readKits(content);
     const trophies = readTrophies(content);
     const nameOf = (id: string | null) => (id ? nameFor(data.players.find((p) => p.id === id), sid) : "");
