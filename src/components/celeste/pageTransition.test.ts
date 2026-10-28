@@ -72,6 +72,20 @@ describe("a tap during a View Transition", () => {
     expect((clicked.mock.calls[0][0] as MouseEvent).clientY).toBe(800);
   });
 
+  it("waits for the transition to be gone when the click comes first (WebKit)", async () => {
+    const { doc, start, tap } = fakeDocument();
+    tapsSkipTransitions(doc);
+    const clicked = tabUnderTheFinger(doc);
+    const t = start();
+    tap();
+    doc.documentElement.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(clicked).not.toHaveBeenCalled();
+    t.end();
+    await t.finished;
+    await Promise.resolve();
+    expect(clicked).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves a click on the page alone when no transition was cut short", () => {
     const { doc } = fakeDocument();
     tapsSkipTransitions(doc);

@@ -228,12 +228,17 @@ export function tapsSkipTransitions(doc: Document = document): void {
     (e) => {
       const at = skippedAt;
       skippedAt = -1;
-      if (at < 0 || e.target !== doc.documentElement || e.timeStamp - at > 1500 || running) return;
-      const under = doc.elementFromPoint(e.clientX, e.clientY);
-      if (!under || under === doc.documentElement || under === doc.body) return;
+      if (at < 0 || e.target !== doc.documentElement || e.timeStamp - at > 1500) return;
       e.stopImmediatePropagation();
       const { clientX, clientY, screenX, screenY, button, buttons, ctrlKey, shiftKey, altKey, metaKey } = e;
-      under.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, view: doc.defaultView, detail: 1, clientX, clientY, screenX, screenY, button, buttons, ctrlKey, shiftKey, altKey, metaKey }));
+      const send = () => {
+        const under = doc.elementFromPoint(clientX, clientY);
+        if (!under || under === doc.documentElement || under === doc.body) return;
+        under.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, view: doc.defaultView, detail: 1, clientX, clientY, screenX, screenY, button, buttons, ctrlKey, shiftKey, altKey, metaKey }));
+      };
+      // (WebKit takes a few frames to tear a skipped transition down: the click can come first)
+      if (running) running.finished.then(send, send);
+      else send();
     },
     { capture: true },
   );
