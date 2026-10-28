@@ -19,7 +19,7 @@ export const CLUB_FIELDS = {
   frase: ["intro", "location", "founded", "venue"],
   historia: ["story", "crestStory"],
   campos: ["venues"],
-  contacto: ["email", "instagram", "youtube", "photoUrl"],
+  contacto: ["email", "instagram", "youtube", "photoUrl", "socials"],
   momentos: ["milestones"],
   preguntas: ["faq"],
   colaboradores: ["sponsors"],
@@ -95,6 +95,14 @@ export interface PlayerStory {
   photoUrl: string;
 }
 export const storyOf = (p: { bio?: string; quote?: string; photoUrl?: string } | undefined): PlayerStory => ({ bio: p?.bio ?? "", quote: p?.quote ?? "", photoUrl: p?.photoUrl ?? "" });
+
+/** `v` without its undefined values, at any depth (arrays and plain objects). */
+export function withoutUndefined<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(withoutUndefined) as T;
+  if (v && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype)
+    return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, withoutUndefined(x)])) as T;
+  return v;
+}
 
 /** JSON with sorted keys and trimmed strings: «the same content» regardless of key order or stray spaces. */
 export function canonical(v: unknown): string {
@@ -207,7 +215,7 @@ export function contentIssues(c: ClubContent): Issue[] {
   if (c.story.length > LIMITS.story) out.push({ key: "historia", text: "Nuestra historia es demasiado larga" });
   if ((c.crestStory ?? "").length > LIMITS.crestStory) out.push({ key: "historia", text: "La historia del escudo es demasiado larga" });
   if (!emailOk(c.email)) out.push({ key: "contacto", text: "Contacto: el correo no es válido" });
-  const nc = nBad([c.instagram, c.youtube, c.photoUrl]);
+  const nc = nBad([c.instagram, c.youtube, c.photoUrl, ...(c.socials ?? []).map((x) => x.url)]);
   if (nc) out.push({ key: "contacto", text: `Contacto: ${links(nc)}` });
   if (c.milestones.some((m) => !m.title.trim())) out.push({ key: "momentos", text: "Momentos: hay uno sin título" });
   if (c.milestones.length > LIMITS.milestones) out.push({ key: "momentos", text: `Momentos: máximo ${LIMITS.milestones}` });
@@ -236,8 +244,9 @@ export function storyIssues(stories: readonly { name: string; story: PlayerStory
 export interface PublishPlan {
   /** The whole clubContent/main document to write, or null when no club section changed. */
   content: ClubContent | null;
-  /** players/{id} merges (bio, quote, photoUrl). */
-  stories: { id: string; data: PlayerStory }[];
+  /** players/{id} merges: only the bio and the quote this draft changed (B-CLUB-06: the photo is the ficha's, never
+   *  written from here). */
+  stories: { id: string; data: Partial<PlayerStory> }[];
   sections: ContentKey[];
 }
 /** What «Publicar contenido» writes: the published content with every club draft applied, and each
@@ -249,7 +258,13 @@ export function publishPlan(d: Drafts, live: ClubContent, liveStory: (id: string
     content: clubChanged ? applyClub(live, d) : null,
     stories: Object.entries(d.stories)
       .filter(([id, e]) => !same(e.value, liveStory(id)))
-      .map(([id, e]) => ({ id, data: { bio: e.value.bio.trim(), quote: e.value.quote.trim(), photoUrl: e.value.photoUrl.trim() } })),
+      .map(([id, e]) => {
+        const data: Partial<PlayerStory> = {};
+        // (never the photo: it is the ficha's, changed in the plantilla; an old draft that carried one leaves it be)
+        for (const k of ["bio", "quote"] as const) if (e.value[k].trim() !== e.base[k].trim()) data[k] = e.value[k].trim();
+        return { id, data };
+      })
+      .filter((s) => Object.keys(s.data).length > 0),
     sections,
   };
 }

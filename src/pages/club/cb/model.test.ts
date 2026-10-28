@@ -70,6 +70,18 @@ describe("the vitrina's pieces", () => {
     expect(ps.filter((p) => p.at !== null).map((p) => p.id)).toEqual(["escudo"]);
     expect(defaultPiece(ps)).toBe("escudo");
   });
+  it("r12 M-19: no trophies keeps the cup's place; with some, the cup is the newest one (won, beside the crest)", () => {
+    const empty = piecesOf({ season: S, nameOf: (id) => NAMES[id] ?? id, squad: new Set(Object.keys(NAMES)), trophies: [] });
+    expect(empty).toEqual(pieces);
+    expect(pieces.at(-1)).toEqual({ id: "primera-copa", icon: "trophy", kicker: "La primera copa", title: "Aquí irá", detail: "el primer título del Piti", at: null, cup: true });
+    const one = piecesOf({ season: S, nameOf: (id) => NAMES[id] ?? id, squad: new Set(Object.keys(NAMES)), trophies: [{ name: "Torneo de Navidad", date: "2025-12-20", note: "En los penaltis." }] }).at(-1);
+    expect([one?.kicker, one?.title, one?.detail, one?.at, one?.note]).toEqual(["La primera copa", "Torneo de Navidad", "20 de diciembre de 2025", 0, "En los penaltis."]);
+    const two = piecesOf({ season: S, nameOf: (id) => NAMES[id] ?? id, squad: new Set(Object.keys(NAMES)), trophies: [{ name: "Torneo de Navidad", date: "2025-12-20" }, { name: "Copa de verano", date: "2025" }] });
+    const cup = two.at(-1);
+    expect([cup?.kicker, cup?.detail, cup?.note]).toEqual(["Las copas · 2 títulos", "20 de diciembre de 2025", "También en la vitrina: Copa de verano (2025)."]);
+    // (a trophy belongs to no jornada: the hub still opens on the season's latest)
+    expect(defaultPiece(two)).toBe("primer-gol");
+  });
 });
 
 describe("la línea del club", () => {

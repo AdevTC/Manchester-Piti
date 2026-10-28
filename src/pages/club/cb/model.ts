@@ -10,6 +10,7 @@ import { keyEvents } from "../../partidos/pa/season";
 import { madridDate, madridTime } from "../../../lib/derived/madrid";
 import { venueName } from "../../../lib/derived/venue";
 import type { VIconName } from "../../../components/vidrio/VIcon";
+import type { ClubTrophy } from "../../../lib/clubContentDefaults";
 
 const DAY = 86_400_000;
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -200,6 +201,24 @@ export interface PiecesIn {
   nameOf: (id: string) => string;
   /** The squad's ids (guests never count). */
   squad: ReadonlySet<string>;
+  /** r12 M-19: clubContent.trophies as read (clubExtras.readTrophies, newest first). None: «La primera copa · Aquí irá». */
+  trophies?: readonly ClubTrophy[];
+}
+
+/** «12 de octubre de 2025» from "2025-10-12", «2025» from "2025". */
+export function trophyDate(date: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  return m ? `${+m[3]} de ${MONTH_LONG[+m[2] - 1] ?? ""} de ${m[1]}` : date;
+}
+/** The cup at the end of the shelf: the newest trophy when the club has any (won, beside the crest: it belongs to
+ *  no jornada), else the place kept for the first one. */
+function cupPiece(trophies: readonly ClubTrophy[] | undefined): Piece {
+  const [newest, ...rest] = trophies ?? [];
+  if (!newest) return { id: "primera-copa", icon: "trophy", kicker: "La primera copa", title: "Aquí irá", detail: "el primer título del Piti", at: null, cup: true };
+  const when = trophyDate(newest.date);
+  const others = rest.map((t) => `${t.name} (${t.date.slice(0, 4)})`);
+  const note = [newest.note?.trim() ?? "", others.length ? `También en la vitrina: ${andList(others)}.` : ""].filter(Boolean).join(" ") || "Un título del Piti, en su balda.";
+  return { id: "primera-copa", icon: "trophy", kicker: rest.length ? `Las copas · ${rest.length + 1} títulos` : "La primera copa", title: newest.name, detail: when, at: 0, date: when, note, cup: true };
 }
 
 const goalsBy = (m: ClubMatch) => {
@@ -223,7 +242,7 @@ function leadersOf(totals: Map<string, number>, nameOf: (id: string) => string):
 }
 
 /** The team's pieces in the board's order: the crest, the ones won (by the jornada that won them), then the ones to win. */
-export function piecesOf({ season, nameOf, squad }: PiecesIn): Piece[] {
+export function piecesOf({ season, nameOf, squad, trophies }: PiecesIn): Piece[] {
   const played = season.jornadas.slice(0, season.played).filter((x) => x.gf !== null);
   const won: Piece[] = [];
   const at = (x: Jor) => ({ at: x.j, date: longDate(x.at), match: `J${x.j}`, matchId: x.id });
@@ -363,7 +382,7 @@ export function piecesOf({ season, nameOf, squad }: PiecesIn): Piece[] {
   ].filter((p) => !has.has(p.id as PieceId)) as Piece[];
   const ORDER: PieceId[] = ["primera-victoria", "primer-gol", "primer-partido", "debut", "porteria-a-cero", "pichichi", "record", "asistencias", "penalti", "hat-trick"];
   won.sort((a, b) => (a.at ?? 0) - (b.at ?? 0) || wonRank(a.id, played.length) - wonRank(b.id, played.length) || ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
-  return [ESCUDO, ...won, ...todo, { id: "primera-copa", icon: "trophy", kicker: "La primera copa", title: "Aquí irá", detail: "el primer título del Piti", at: null, cup: true }];
+  return [ESCUDO, ...won, ...todo, cupPiece(trophies)];
 }
 /** Within one jornada: a first win comes first; a lost first match leads with its goal (the board's «real»). */
 function wonRank(id: PieceId, n: number): number {

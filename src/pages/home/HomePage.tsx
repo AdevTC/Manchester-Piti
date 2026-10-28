@@ -40,6 +40,7 @@ import { pushState, savedTopics, toggleTopic, usePushPreset, PRESET_NOTES, type 
 import { formatDate } from "../../lib/clubData";
 import { useClubContent } from "../../lib/clubContent";
 import { socialLinks } from "../../lib/social";
+import { featuredSponsor } from "../../lib/clubExtras";
 import { useVenuePlace } from "../partidos/vidrio/venuePlace";
 import { usePolls, usePollVotes, useMatchScorers, useMvpResults, useMeetingNote } from "../vestuario/live";
 import { useMe, voteMvp, votePoll, predictScore } from "../vestuario/writes";
@@ -184,8 +185,11 @@ function SkyLayer({ light, gold, cold, className, style }: { light: string; gold
 export function HomePage() {
   const { matches, players, loading } = useClubData();
   const { seasons } = useSeason();
-  const social = socialLinks(useClubContent());
+  const content = useClubContent();
+  const social = socialLinks(content);
   const clockNow = useMatchClock(matches);
+  // (r12 M-45: the sponsor marked for Inicio, in its dates; none → Inicio as before)
+  const sponsor = featuredSponsor(content, madridDate(clockNow));
   const theme = useDocumentTheme();
   const dia = theme === "light";
   const viewer = useViewer();
@@ -795,6 +799,7 @@ export function HomePage() {
                 night={night}
                 doors={doors}
                 social={social}
+                sponsor={sponsor}
                 kit={kit}
                 matchId={pm?.id ?? null}
                 go={(to) => go(to)}

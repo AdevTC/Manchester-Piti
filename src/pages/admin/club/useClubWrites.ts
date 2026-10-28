@@ -9,7 +9,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { deletePlayer as deletePlayerCall, resolvePlayerClaim, setSeasonArchived } from "../../../lib/clubApi";
 import type { ClubContent } from "../../../lib/clubContent";
 import { useDeleteSeason, useUpsertPlayer, useUpsertSeason } from "../useAdminMutations";
-import type { PlayerStory } from "./contentModel";
+import { withoutUndefined, type PlayerStory } from "./contentModel";
 import type { CopyEntry } from "./seasonsLogic";
 
 export interface ClubWrites {
@@ -28,7 +28,7 @@ export interface ClubWrites {
   setRole: (uid: string, email: string, role: "admin" | "user") => Promise<void>;
   resolveClaim: (uid: string, approve: boolean) => Promise<void>;
   /** clubContent/main (whole document) and the player stories, in one batch. */
-  publishContent: (content: ClubContent | null, stories: readonly { id: string; data: PlayerStory }[]) => Promise<void>;
+  publishContent: (content: ClubContent | null, stories: readonly { id: string; data: Partial<PlayerStory> }[]) => Promise<void>;
 }
 
 export function useClubWrites(): ClubWrites {
@@ -49,7 +49,7 @@ export function useClubWrites(): ClubWrites {
         const ref = doc(collection(db, "seasons"));
         const batch = writeBatch(db);
         batch.set(ref, { name, captainPlayerId: "", createdAt: new Date() });
-        for (const e of copy) batch.update(doc(db, "players", e.id), { seasons: arrayUnion(ref.id), [`seasonDetails.${ref.id}`]: { shirtName: e.shirtName, number: e.number } });
+        for (const e of copy) batch.update(doc(db, "players", e.id), { seasons: arrayUnion(ref.id), [`seasonDetails.${ref.id}`]: { shirtName: e.shirtName, ...(e.number != null ? { number: e.number } : {}) } });
         await batch.commit();
         return ref.id;
       },
@@ -64,7 +64,9 @@ export function useClubWrites(): ClubWrites {
       },
       publishContent: async (content, stories) => {
         const batch = writeBatch(db);
-        if (content) batch.set(doc(db, "clubContent", "main"), content);
+        // (a field the content never had, or a sponsor's empty date, reads as undefined: Firestore refuses those, so
+        // they are left out)
+        if (content) batch.set(doc(db, "clubContent", "main"), withoutUndefined(content));
         for (const s of stories) batch.set(doc(db, "players", s.id), s.data, { merge: true });
         await batch.commit();
       },

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useLocation, useSearch } from "@tanstack/react-router";
 import { useClubContent } from "../../lib/clubContent";
 import { socialLinks } from "../../lib/social";
+import { readKits, readTrophies } from "../../lib/clubExtras";
 import { dateMillis, nameFor, nextFixture, playerForSeason, useClubData } from "../../lib/clubData";
 import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { useSeason } from "../../context/SeasonContext";
@@ -96,6 +97,9 @@ export function ClubPage() {
   const demo = mq?.larga ? longDemo : null;
   const c = mq?.demo ? demoContent(raw) : raw;
   const social = socialLinks(c);
+  // (r12 M-19: the kits and the trophies, from the content when it has them, else the code's)
+  const kits = useMemo(() => readKits(c), [c]);
+  const trophies = useMemo(() => readTrophies(c), [c]);
   const matches = demo ? demo.matches : club.matches;
   const players = demo ? (demo.players as unknown as typeof club.players) : club.players;
   const seasons = useMemo(() => (demo ? [...realSeasons, demo.season] : realSeasons), [demo, realSeasons]);
@@ -148,7 +152,7 @@ export function ClubPage() {
   const table = demo ? demo.standings : standings;
   const us = table?.rows.findIndex((r) => r.isUs) ?? -1;
   const S = useMemo(() => seasonFrom(season?.name ?? "La temporada", strip.segments, us >= 0 && table ? { pos: us + 1, of: table.rows.length } : null), [season?.name, strip.segments, us, table]);
-  const pieces = useMemo(() => piecesOf({ season: S, nameOf, squad: squadIds }), [S, nameOf, squadIds]);
+  const pieces = useMemo(() => piecesOf({ season: S, nameOf, squad: squadIds, trophies }), [S, nameOf, squadIds, trophies]);
   const nextJ = S.jornadas[S.played] ?? null;
 
   // ── the screen, the piece in focus
@@ -348,6 +352,7 @@ export function ClubPage() {
               photo={/^https:\/\//.test(c.photoUrl ?? "") ? c.photoUrl : ""}
               venues={venues}
               cap={cap}
+              kits={kits}
             />
             {roomFoot("equipo")}
           </div>

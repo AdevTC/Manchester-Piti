@@ -107,15 +107,22 @@ export function archiveImpact(seasonId: string, seasons: readonly SeasonDoc[], p
 export interface CopyEntry {
   id: string;
   shirtName: string;
-  number: number;
+  /** null: he had no dorsal in that season (he joins without one). */
+  number: number | null;
 }
-/** «Copiar plantilla»: everyone in `fromId` joins the new season with that season's shirt name and dorsal. */
-export function copyRosterPlan(players: readonly PlayerDoc[], fromId: string): CopyEntry[] {
+/** «Copiar plantilla»: everyone in `fromId` with a dorsal joins the new season with that season's shirt name and
+ *  dorsal; with `noNumber`, those without one too (B-CLUB-11: they were left out without a word — see
+ *  copyLeftOut). By dorsal, the ones without last. */
+export function copyRosterPlan(players: readonly PlayerDoc[], fromId: string, noNumber = false): CopyEntry[] {
   return players
     .filter((p) => (p.seasons ?? []).includes(fromId))
     .map((p) => ({ id: p.id, shirtName: nameIn(p, fromId).toUpperCase(), number: numberIn(p, fromId) }))
-    .filter((e): e is CopyEntry => e.number != null)
-    .sort((a, b) => a.number - b.number);
+    .filter((e) => noNumber || e.number != null)
+    .sort((a, b) => (a.number ?? 1000) - (b.number ?? 1000));
+}
+/** B-CLUB-11: who in `fromId` has no dorsal there (copying «con sus dorsales» leaves them out unless asked). */
+export function copyLeftOut(players: readonly PlayerDoc[], fromId: string): string[] {
+  return players.filter((p) => (p.seasons ?? []).includes(fromId) && numberIn(p, fromId) == null).map((p) => nameIn(p, fromId).toUpperCase());
 }
 
 // ───────────────────────── the vitrina (the active season as silverware) ─────────────────────────
