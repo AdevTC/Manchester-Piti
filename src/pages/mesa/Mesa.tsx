@@ -1,66 +1,19 @@
-// La mesa (/matches/$matchId/mesa): the full-screen scoring screen for an admin or one of the match's
-// anotadores. The phase picks the screen (Antes · En juego · Descanso · Final), `?vista=cronica` opens
-// «Lo que va pasando». Everyone else gets a short «Solo para quien anota» with the way back.
+// La mesa (/partidos/$matchId/mesa): the full-screen scoring screen of a match for an admin or one of its anotadores,
+// as the r12 boards draw it (./board). The phase picks the screen (Antes · ¿Quién ha venido? · En juego · Descanso ·
+// Final · Publicado), `?vista=cronica` opens «Lo que va pasando». Everyone else gets «Solo para quien anota» with the
+// way back; a match that isn't there, «No encontramos el partido»; an acta already out, its closed door.
 import { useMemo } from "react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useNoIndex } from "../../hooks/useNoIndex";
 import { useMesa } from "./useMesa";
-import { pickScreen, pizarraHref } from "./model";
-import { EnJuego } from "./EnJuego";
-import { Antes } from "./screens/Antes";
-import { Cronica } from "./screens/Cronica";
-import { Descanso } from "./screens/Descanso";
-import { Final } from "./screens/Final";
-import type { MesaNav, MesaView } from "./types";
-import "./tokens.css";
-import "./enjuego.css";
+import { pizarraHref } from "./model";
+import { Board, Door, Loading } from "./board/Board";
+import type { MesaNav } from "./types";
 import { backFromMesa } from "../match/partido/paths";
 
 const route = getRouteApi("/partidos/$matchId/mesa");
-
-/** The screen for the view (exported for the tests). */
-export function MesaScreenFor({ view, vista }: { view: MesaView; vista?: string }) {
-  switch (pickScreen(view.match.clock.phase, vista)) {
-    case "cronica":
-      return <Cronica view={view} />;
-    case "antes":
-      return <Antes view={view} />;
-    case "descanso":
-      return <Descanso view={view} />;
-    case "final":
-      return <Final view={view} />;
-    default:
-      return <EnJuego view={view} />;
-  }
-}
-
-function Gate({ matchId, title, body }: { matchId: string; title: string; body: string }) {
-  const navigate = useNavigate();
-  return (
-    <main className="mesa">
-      <div className="col gate">
-        <div className="gate-card" role="status">
-          <h1>{title}</h1>
-          <p>{body}</p>
-          {/* (back to the screen of the match page la mesa was opened from) */}
-          <a
-            className="gate-back"
-            href={backFromMesa(matchId)}
-            onClick={(e) => {
-              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-              e.preventDefault();
-              void navigate({ href: backFromMesa(matchId) });
-            }}
-          >
-            Volver al partido
-          </a>
-        </div>
-      </div>
-    </main>
-  );
-}
 
 export function Mesa() {
   useNoIndex();
@@ -77,32 +30,28 @@ export function Mesa() {
     () => ({
       cronica: () => void navigate({ to: "/partidos/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: "cronica" as const }) }),
       mesa: () => void navigate({ to: "/partidos/$matchId/mesa", params: { matchId }, search: (s) => ({ ...s, vista: undefined }) }),
-      // «Volver al partido»: the screen la mesa was opened from
+      // «Salir de la mesa»: the screen of the match page la mesa was opened from
       exit: () => void navigate({ href: backFromMesa(matchId) }),
       acta: () => void navigate({ to: "/partidos/$matchId", params: { matchId } }),
       // (by href: the pizarra reads «desde=mesa&partido» itself; its route declares only «tablero»)
       pizarra: (boardId?: string | null) => void navigate({ href: pizarraHref(matchId, boardId) }),
+      go: (href: string) => void navigate({ href }),
     }),
     [navigate, matchId],
   );
   const { view, state, canScore, scorersLoading } = useMesa({ matchId, me, nav });
 
-  if (authLoading || !ready || (me && scorersLoading) || state === "loading") {
+  if (authLoading || !ready || (me && scorersLoading) || state === "loading") return <Loading />;
+  if (!me || !canScore)
     return (
-      <main className="mesa" aria-busy="true">
-        <div className="col gate">
-          <p className="gate-wait" role="status">Abriendo la mesa…</p>
-        </div>
-      </main>
+      <Door
+        kicker="La mesa"
+        title="Solo para quien anota"
+        body="La mesa es para los capitanes y los anotadores de este partido. El directo se sigue en la página del partido."
+        actions={[{ t: "Volver al partido", go: nav.exit, pri: true }]}
+      />
     );
-  }
-  if (!me || !canScore) return <Gate matchId={matchId} title="Solo para quien anota" body="La mesa es para los administradores y los anotadores de este partido. El directo se sigue en la página del partido." />;
-  if (state === "missing" || !view) return <Gate matchId={matchId} title="No encontramos el partido" body="Puede que se haya borrado o archivado." />;
-  return (
-    <main className="mesa">
-      <div className="col">
-        <MesaScreenFor view={view} vista={vista} />
-      </div>
-    </main>
-  );
+  if (state === "missing" || !view)
+    return <Door kicker="La mesa" title="No encontramos el partido" body="Puede que se haya borrado o archivado." crest={false} actions={[{ t: "Volver a los partidos", go: () => nav.go("/partidos"), pri: true }]} />;
+  return <Board view={view} vista={vista} />;
 }

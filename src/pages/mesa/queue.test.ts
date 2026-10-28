@@ -201,6 +201,35 @@ describe("la cola de la mesa", () => {
     q.close();
   });
 
+  it("B-MESA-06: settle espera a que acabe la subida en vuelo; después la jugada ya está arriba y se corrige allí", async () => {
+    let finish: () => void = () => undefined;
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => true, send: () => new Promise<void>((ok) => (finish = ok)) });
+    q.enqueue(item("g", { type: "goal", playerId: "p1" }));
+    await flushed();
+    expect(q.isSending("g")).toBe(true);
+    // (while it goes up, the queue can't change it: before the fix the edit went to the server with an id it didn't have yet)
+    expect(q.amend("g", { assistPlayerId: "p2" })).toBe(false);
+    let settled = false;
+    const waiting = q.settle("g").then(() => (settled = true));
+    await flushed();
+    expect(settled).toBe(false);
+    finish();
+    await waiting;
+    expect(q.isSending("g")).toBe(false);
+    expect(q.getSnapshot().items[0].status).toBe("sent");
+    await expect(q.settle("nada")).resolves.toBeUndefined();
+    q.close();
+  });
+
+  it("corregir el minuto de una jugada que sigue en el móvil cambia su tiempo de juego", async () => {
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => false, send: async () => { throw offline(); } });
+    q.enqueue(item("a"));
+    await flushed();
+    expect(q.amend("a", { elapsedSeconds: 9 * 60 + 30 })).toBe(true);
+    expect(q.getSnapshot().items[0].payload).toMatchObject({ minute: 9, tappedElapsed: 570, playerId: "p1" });
+    q.close();
+  });
+
   it("solo los códigos de rechazo van a revisar; la red se reintenta", () => {
     expect(isRejection(rejected("x"))).toBe(true);
     expect(isRejection({ code: "functions/invalid-argument" })).toBe(true);

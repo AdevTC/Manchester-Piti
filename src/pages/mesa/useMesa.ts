@@ -5,21 +5,21 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useClubData, nameFor, dateMillis, type ClubMatch } from "../../lib/clubData";
-import { apiError, controlMatchClock, mesaEvent, publishLive } from "../../lib/clubApi";
+import { apiError, controlMatchClock, mesaEvent, publishLive, setMatchScorers } from "../../lib/clubApi";
 import { isGuestId, withGuestNames } from "../../lib/derived/guests";
 import { useClock } from "../../hooks/useClock";
-import { useMatchScorers } from "../vestuario/live";
+import { useClubPeople, useMatchScorers } from "../vestuario/live";
 import { useBoardView, useMatchBoard } from "../pizarra/useMatchBoard";
 import { useWakeLock } from "../pizarra/v2/useMatchDay";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { systemText } from "../../lib/derived/system";
 import { useStandings } from "../../lib/useStandings";
 import { lineupSeven, parseMatchLineup, parsePresent } from "../../lib/matchLineup";
-import { addSubs, MAX_WAVE } from "./api";
+import { addMatchGuest, addSubs, MAX_WAVE, saveMatchReport, setMatchDuration } from "./api";
 import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type QueuePayload } from "./queue";
 import {
   buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
-  plannedSubsOf, rivalInitialsOf, rivalShortOf, withLocal, type LocalPlay, type PlayerInfo,
+  boardExtrasOf, NO_EXTRAS, rivalInitialsOf, rivalShortOf, withLocal, type BoardExtras, type LocalPlay, type PlayerInfo,
 } from "./model";
 import type { ClockAction, MesaActions, MesaAddOpts, MesaEditPatch, MesaNav, MesaPresence, MesaQueueState, MesaType, MesaView, MesaWaveItem } from "./types";
 
@@ -72,27 +72,22 @@ function usePresence(matchId: string | undefined, me: { uid: string; name: strin
   return rows;
 }
 
-// ---------- the pizarra's planned subs (a listener on the official board: a sub planned or changed in the
-// pizarra during the match reaches «El siguiente cambio» at once; the board's view is useBoardView's)
-interface PlannedSub {
-  min?: number;
-  out: string;
-  in: string;
-}
-function usePlannedSubs(boardId: string | null): PlannedSub[] {
-  const [got, setGot] = useState<{ id: string; subs: PlannedSub[] } | null>(null);
+// ---------- the pizarra's plan (a listener on the official board: a sub planned or changed in the pizarra during
+// the match reaches «Toca» at once; the board's view is useBoardView's). With it, its galones, its takers and its
+// «2ª parte» (boardExtrasOf: what setMatchLineup copies to the official, B-PAR-01); a board without them reads empty.
+function useBoardExtras(boardId: string | null): BoardExtras {
+  const [got, setGot] = useState<{ id: string; extras: BoardExtras } | null>(null);
   useEffect(() => {
     if (!boardId) return;
     // (its own listener: useLiveDoc keeps one projection per doc, and useBoardView already maps this one)
     return onSnapshot(
       doc(db, "lineups", boardId),
-      (s) => setGot({ id: boardId, subs: plannedSubsOf(s.exists() ? s.data().subs : undefined) }),
-      () => setGot({ id: boardId, subs: NO_SUBS }),
+      (s) => setGot({ id: boardId, extras: boardExtrasOf(s.exists() ? s.data() : null) }),
+      () => setGot({ id: boardId, extras: NO_EXTRAS }),
     );
   }, [boardId]);
-  return got && got.id === boardId ? got.subs : NO_SUBS;
+  return got && got.id === boardId ? got.extras : NO_EXTRAS;
 }
-const NO_SUBS: PlannedSub[] = [];
 
 // ---------- the queue
 function useQueue(uid: string | undefined, matchId: string | undefined): MesaQueue | null {
@@ -190,8 +185,11 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
   const upcoming = !!match && phase === "ready";
   const boardId = useMatchBoard(match?.seasonId, matchId, upcoming, canScore);
   const board = useBoardView(boardId);
-  const plannedSubs = usePlannedSubs(boardId);
+  const extras = useBoardExtras(boardId);
+  const plannedSubs = extras.subs;
   const { standings } = useStandings(match?.seasonId);
+  // (the club's people: the scorers' names, and «Añadir anotador» for an admin; only admins read them)
+  const clubPeople = useClubPeople(!!me?.admin);
   const hasStandings = !!standings && standings.rows.length > 0;
   const queue = useQueue(canScore ? me?.uid : undefined, matchId);
   const snap = useSyncExternalStore(queue?.subscribe ?? noop, queue?.getSnapshot ?? (() => EMPTY_SNAP), () => EMPTY_SNAP);
@@ -251,8 +249,15 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     };
     const textOf = (type: MesaType, opts: MesaAddOpts) =>
       eventText({ type, playerId: opts.playerId, assistPlayerId: opts.assistPlayerId, inPlayerId: opts.inPlayerId }, (id) => playerInfo(matchRef.current, players).nameOf(id), matchRef.current?.rival ?? "el rival");
-    const remove = async (id: string) => {
+    /** A play still on this phone that is going up right now can't be changed here: wait for its upload to end
+     *  (B-MESA-06), then it is either back in the queue or on the server, with the id the server gave it. */
+    const settled = async (id: string) => {
       const q = local(id);
+      if (q && queue?.isSending(q.item.requestId)) await queue.settle(q.item.requestId);
+      return local(id);
+    };
+    const remove = async (id: string) => {
+      const q = await settled(id);
       if (q && q.item.status !== "sent" && queue?.drop(q.item.requestId, q.index)) return;
       try {
         await mesaEvent({ action: "delete", matchId, eventId: id });
@@ -292,8 +297,8 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
         return itemPlays({ requestId, payload: batch[0], batch }).map((p) => p.id);
       },
       async edit(id: string, patch: MesaEditPatch) {
-        const q = local(id);
-        if (q && queue?.amend(q.item.requestId, { type: patch.type, playerId: patch.playerId, assistPlayerId: patch.assistPlayerId, inPlayerId: patch.inPlayerId, ...(patch.assistPlayerId !== undefined ? { assistReviewed: true } : {}) }, q.index)) return;
+        const q = await settled(id);
+        if (q && queue?.amend(q.item.requestId, { type: patch.type, playerId: patch.playerId, assistPlayerId: patch.assistPlayerId, inPlayerId: patch.inPlayerId, elapsedSeconds: patch.elapsedSeconds, ...(patch.assistPlayerId !== undefined ? { assistReviewed: true } : {}) }, q.index)) return;
         try {
           await mesaEvent({ action: "edit", matchId, eventId: id, patch });
         } catch (e) {
@@ -325,6 +330,35 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       },
       retryNow() {
         queue?.setOnline(true);
+      },
+      async addGuest(name: string) {
+        try {
+          const r = await addMatchGuest({ matchId, name });
+          return r.data.ref;
+        } catch (e) {
+          return fail(e);
+        }
+      },
+      async setDuration(minutes: number) {
+        try {
+          await setMatchDuration({ matchId, minutes });
+        } catch (e) {
+          fail(e);
+        }
+      },
+      async saveReport(report: string) {
+        try {
+          await saveMatchReport({ matchId, report });
+        } catch (e) {
+          fail(e);
+        }
+      },
+      async setScorers(uids: string[]) {
+        try {
+          await setMatchScorers({ matchId, uids });
+        } catch (e) {
+          fail(e);
+        }
       },
     };
     // (players feed only the queued play's text; the actions read the match and the time through refs)
@@ -366,6 +400,18 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     };
     const sentOff = new Set(bench.filter((p) => p.sentOff).map((p) => p.id));
     const plan = nextPlannedSub(plannedSubs, field.map((p) => p.id), bench.map((p) => p.id), sentOff);
+    const onIds = new Set(field.map((p) => p.id));
+    const offIds = new Set(bench.map((p) => p.id));
+    const planList = [...plannedSubs]
+      .sort((a, b) => (a.min ?? 0) - (b.min ?? 0))
+      .filter((x) => onIds.has(x.out) && offIds.has(x.in) && !sentOff.has(x.in))
+      .map((x) => ({ min: typeof x.min === "number" ? x.min : null, inId: x.in, outId: x.out, inName: nameOf(x.in), outName: nameOf(x.out) }));
+    const personName = (uid: string) => {
+      const p = (clubPeople.data ?? []).find((x) => x.uid === uid);
+      return (p && (p.nickname || p.displayName)) || fresh.find((x) => x.uid === uid)?.name || (uid === me.uid ? me.name : "Anotador");
+    };
+    const scorerList = [...new Set([...(scorers.data ?? []), ...fresh.filter((p) => p.fresh).map((p) => p.uid)])].map((uid) => ({ uid, name: personName(uid) }));
+    const scorerOptions = me.admin ? (clubPeople.data ?? []).filter((p) => !p.removed && !["admin", "superadmin"].includes(p.role) && !(scorers.data ?? []).includes(p.uid)).map((p) => ({ uid: p.uid, name: p.nickname || p.displayName || "Socio" })) : [];
     return {
       match: {
         id: match.id,
@@ -386,6 +432,12 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
         clock: reading,
         published: match.status === "finished",
         pendingDuplicates: (match.events ?? []).filter((e) => !counted(e)).length,
+        venue: typeof match.venue === "string" ? match.venue : "",
+        duration: Math.round(reading.halfSeconds / 30),
+        kit: (match as { kit?: unknown }).kit === "away" ? "away" : "home",
+        voteClosesAt: typeof match.voteClosesAt === "number" ? match.voteClosesAt : null,
+        report: typeof match.report === "string" ? match.report : "",
+        guests: Array.isArray(match.guests) ? match.guests.length : 0,
       },
       field,
       bench,
@@ -395,12 +447,17 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       queue: queueState,
       lastOwn: lastId ? events.find((e) => e.id === lastId) ?? null : null,
       nextSub: plan ? { ...plan, inName: nameOf(plan.inId), outName: nameOf(plan.outId) } : null,
+      plan: planList,
+      scorers: scorerList,
+      scorerOptions,
+      galones: { captainId: extras.captainId, viceId: extras.viceId, takers: extras.takers },
+      secondHalf: extras.second,
       nameOf,
       notice,
       actions,
       nav,
     };
-  }, [match, matches, me, players, now, snap, board, boardId, hasStandings, presenceRows, plannedSubs, lastId, notice, actions, nav]);
+  }, [match, matches, me, players, now, snap, board, boardId, hasStandings, presenceRows, extras, plannedSubs, lastId, notice, actions, nav, clubPeople, scorers]);
 
   return { view, state: loading ? "loading" : match ? "ready" : "missing", canScore, scorersLoading: scorers.loading };
 }

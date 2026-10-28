@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
-import { buzzOf, eventText, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
+import { boardExtrasOf, buzzOf, eventText, NO_EXTRAS, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
 
 const ev = (id: string, type: MatchEvent["type"], at: number, more: Partial<MatchEvent> = {}): MatchEvent => ({ id, type, elapsedSeconds: at, period: 1, ...more });
 
@@ -128,10 +128,13 @@ describe("dónde va cada camiseta", () => {
 
 describe("cómo se dice cada jugada", () => {
   const nameOf = (id: string) => ({ p: "Mario", q: "Pablo", h: "Hugo" })[id] ?? id;
-  it("con el nombre, el rival y la asistencia", () => {
-    expect(eventText({ type: "goal", playerId: "p", assistPlayerId: "q" }, nameOf, "Atlético Demo")).toBe("Gol de Mario, asistencia de Pablo");
-    expect(eventText({ type: "goal" }, nameOf, "Atlético Demo")).toBe("Gol del Piti, falta decir quién");
-    expect(eventText({ type: "substitution", playerId: "q", inPlayerId: "h" }, nameOf, "X")).toBe("Entra Hugo, sale Pablo");
+  it("con el nombre, el rival y el pase (las palabras de los tableros r12)", () => {
+    expect(eventText({ type: "goal", playerId: "p", assistPlayerId: "q" }, nameOf, "Atlético Demo")).toBe("Gol de Mario, pase de Pablo");
+    expect(eventText({ type: "goal", playerId: "p", assistReviewed: true }, nameOf, "Atlético Demo")).toBe("Gol de Mario, sin pase");
+    expect(eventText({ type: "goal", playerId: "p" }, nameOf, "Atlético Demo")).toBe("Gol de Mario");
+    expect(eventText({ type: "goal" }, nameOf, "Atlético Demo")).toBe("Gol del Piti · falta quién marcó");
+    expect(eventText({ type: "substitution", playerId: "q", inPlayerId: "h" }, nameOf, "X")).toBe("Entra Hugo por Pablo");
+    expect(eventText({ type: "opponent_penalty_missed" }, nameOf, "Atlético Demo")).toBe("Atlético Demo falla su penalti");
     expect(eventText({ type: "opponent_foul" }, nameOf, "Atlético Demo")).toBe("Falta de Atlético Demo");
     expect(eventText({ type: "injury", playerId: "p" }, nameOf, "X")).toBe("Mario, tocado");
   });
@@ -169,5 +172,31 @@ describe("el cambio previsto en la pizarra", () => {
     const subs = [{ min: 20, out: "a", in: "x" }, { min: 10, out: "gone", in: "y" }, { min: 15, out: "b", in: "y" }];
     expect(nextPlannedSub(subs, ["a", "b"], ["x", "y"])).toEqual({ inId: "y", outId: "b" });
     expect(nextPlannedSub(subs, ["c"], ["x"])).toBeNull();
+  });
+});
+
+describe("lo que la mesa toma del tablero oficial además del siete (B-PAR-01)", () => {
+  it("un oficial con plan, galones, lanzadores y «2ª parte» los trae todos", () => {
+    const official = {
+      subs: [{ id: "s1", min: 25, out: "sergio", in: "hugo" }, { id: "bad", out: 3 }],
+      roles: { captainId: "mario", viceId: "dani", penaltiesId: "old" },
+      takers: { penalties: ["pablo", "mario"], freekicks: ["dani"], corners: [] },
+      variants: [
+        { id: "vb", name: "Plan B", slots: [{ playerId: "x", position: "DC" }] },
+        { id: "v2", name: "2ª parte", slots: [{ playerId: "hugo", position: "POR" }, { playerId: "mario", position: "DC" }, { playerId: null, position: "MC" }] },
+      ],
+    };
+    expect(boardExtrasOf(official)).toEqual({
+      subs: [{ min: 25, out: "sergio", in: "hugo" }],
+      captainId: "mario",
+      viceId: "dani",
+      takers: { penalties: ["pablo", "mario"], freekicks: ["dani"], corners: [] },
+      second: { seven: ["hugo", "mario"], keeper: "hugo", codes: { hugo: "POR", mario: "DC" } },
+    });
+  });
+  it("un tablero viejo lee su galón suelto como lista, y sin nada se queda como hoy", () => {
+    expect(boardExtrasOf({ roles: { penaltiesId: "pablo", cornersId: "dani" } }).takers).toEqual({ penalties: ["pablo"], freekicks: [], corners: ["dani"] });
+    expect(boardExtrasOf({ formation: "2-3-1", slots: [] })).toEqual(NO_EXTRAS);
+    expect(boardExtrasOf(null)).toEqual(NO_EXTRAS);
   });
 });

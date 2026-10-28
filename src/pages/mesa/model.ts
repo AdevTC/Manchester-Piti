@@ -279,42 +279,42 @@ export function eventTag(type: string, rivalShort: string): string {
 export function eventSide(type: string): "us" | "them" {
   return type.startsWith("opponent_") ? "them" : "us";
 }
-/** «Gol de Mario, asistencia de Pablo», «Entra Hugo, sale Pablo», «Mario y Pablo se cambian el sitio»,
- *  «Falta de Atlético Demo». */
-export function eventText(e: Pick<MatchEvent, "type" | "playerId" | "assistPlayerId" | "inPlayerId">, nameOf: (id: string) => string, rival: string): string {
+/** How la mesa says a play (the r12 boards' words): «Gol de Mario, pase de Pablo», «Gol de Mario, sin pase» (the
+ *  pass answered «nadie»), «Entra Hugo por Pablo», «Mario y Pablo se cambian el sitio», «Falta de Atlético Demo». */
+export function eventText(e: Pick<MatchEvent, "type" | "playerId" | "assistPlayerId" | "inPlayerId"> & { assistReviewed?: boolean }, nameOf: (id: string) => string, rival: string): string {
   const p = e.playerId ? nameOf(e.playerId) : "";
   const a = e.assistPlayerId ? nameOf(e.assistPlayerId) : "";
   switch (e.type) {
-    case "goal": return p ? `Gol de ${p}${a ? `, asistencia de ${a}` : ""}` : "Gol del Piti, falta decir quién";
+    case "goal": return p ? `Gol de ${p}${a ? `, pase de ${a}` : e.assistReviewed ? ", sin pase" : ""}` : "Gol del Piti · falta quién marcó";
     case "goal_penalty": return p ? `Gol de penalti de ${p}` : "Gol de penalti";
-    case "goal_freekick": return p ? `Gol de falta de ${p}${a ? `, asistencia de ${a}` : ""}` : "Gol de falta";
+    case "goal_freekick": return p ? `Gol de falta de ${p}${a ? `, la tocó ${a}` : ""}` : "Gol de falta";
     case "opponent_own_goal": return `Autogol de ${rival}`;
     case "own_goal": return p ? `Gol en propia de ${p}` : "Gol en propia";
     case "opponent_goal": return `Gol de ${rival}`;
-    case "woodwork": return p ? `Al palo, ${p}` : "Al palo";
+    case "woodwork": return p ? `Al palo: ${p}` : "Al palo";
     case "chance": return p ? `Ocasión de ${p}` : "Ocasión del Piti";
-    case "corner": return p ? `Córner de ${p}` : "Córner del Piti";
+    case "corner": return p ? `Córner del Piti, lo saca ${p}` : "Córner del Piti";
     case "foul": return p ? `Falta de ${p}` : "Falta del Piti";
     case "foul_received": return p ? `Falta sobre ${p}` : "Falta a favor";
     case "yellow_card": return p ? `Amarilla a ${p}` : "Amarilla";
-    case "double_yellow": return p ? `Segunda amarilla a ${p}` : "Segunda amarilla";
+    case "double_yellow": return p ? `Segunda amarilla a ${p}: expulsado` : "Segunda amarilla";
     case "red_card": return p ? `Roja a ${p}` : "Roja";
     case "injury": return p ? `${p}, tocado` : "Tocado";
     case "save": return p ? `Parada de ${p}` : "Parada";
-    case "substitution": return e.inPlayerId ? `Entra ${nameOf(e.inPlayerId)}${p ? `, sale ${p}` : ""}` : p ? `Sale ${p}` : "Cambio";
+    case "substitution": return e.inPlayerId ? `Entra ${nameOf(e.inPlayerId)}${p ? ` por ${p}` : ""}` : p ? `Sale ${p}` : "Cambio";
     case "position_swap": return p && e.inPlayerId ? `${p} y ${nameOf(e.inPlayerId)} se cambian el sitio` : "Cambio de sitio";
     case "penalty_received": return p ? `Penalti a favor, sobre ${p}` : "Penalti a favor";
-    case "penalty_committed": return p ? `Penalti en contra, de ${p}` : "Penalti en contra";
+    case "penalty_committed": return p ? `Penalti en contra, lo hace ${p}` : "Penalti en contra";
     case "penalty_saved": return p ? `Penalti parado por ${p}` : "Penalti parado";
     case "penalty_missed": return p ? `Penalti fallado por ${p}` : "Penalti fallado";
     case "opponent_chance": return `Ocasión de ${rival}`;
-    case "opponent_corner": return `Córner para ${rival}`;
+    case "opponent_corner": return `Córner de ${rival}`;
     case "opponent_foul": return `Falta de ${rival}`;
-    case "opponent_woodwork": return `Al palo, ${rival}`;
+    case "opponent_woodwork": return `Al palo de ${rival}`;
     case "opponent_offside": return `Fuera de juego de ${rival}`;
     case "opponent_yellow": return `Amarilla a ${rival}`;
     case "opponent_red": return `Roja a ${rival}`;
-    case "opponent_penalty_missed": return `Penalti fallado por ${rival}`;
+    case "opponent_penalty_missed": return `${rival} falla su penalti`;
     default: return EVENT_LABELS[e.type as keyof typeof EVENT_LABELS] ?? e.type;
   }
 }
@@ -485,6 +485,44 @@ export function mesaPlayers(
 }
 
 /** The planned subs of a board doc (`lineups/{id}.subs`), malformed entries dropped. */
+/** What the mesa takes from the official board besides its seven (B-PAR-01: setMatchLineup now copies them to the
+ *  official too): the planned subs, the galones (captain and vice) and the dead-ball takers in order, and the
+ *  «2ª parte» version of the seven. A board without them reads as empty: la mesa behaves as before. */
+export interface BoardExtras {
+  subs: { min?: number; out: string; in: string }[];
+  captainId: string | null;
+  viceId: string | null;
+  takers: { penalties: string[]; freekicks: string[]; corners: string[] };
+  /** The board's «2ª parte»: its seven (slot order) and who keeps goal in it. */
+  second: { seven: string[]; keeper: string | null; codes: Record<string, string> } | null;
+}
+export const NO_EXTRAS: BoardExtras = { subs: [], captainId: null, viceId: null, takers: { penalties: [], freekicks: [], corners: [] }, second: null };
+const idOrNull = (x: unknown): string | null => (typeof x === "string" && x ? x : null);
+const ids = (x: unknown): string[] => (Array.isArray(x) ? x.filter((y): y is string => typeof y === "string" && !!y).slice(0, 3) : []);
+export function boardExtrasOf(doc: Record<string, unknown> | undefined | null): BoardExtras {
+  if (!doc) return NO_EXTRAS;
+  const roles = doc.roles && typeof doc.roles === "object" ? (doc.roles as Record<string, unknown>) : {};
+  const stored = doc.takers && typeof doc.takers === "object" ? (doc.takers as Record<string, unknown>) : null;
+  // (a board saved before the ordered lists carries one id per galón)
+  const list = (kind: "penalties" | "freekicks" | "corners", legacy: string) => (stored ? ids(stored[kind]) : idOrNull(roles[legacy]) ? [roles[legacy] as string] : []);
+  const v2 = Array.isArray(doc.variants) ? (doc.variants as unknown[]).find((v) => !!v && typeof v === "object" && (v as { id?: unknown }).id === "v2") as { slots?: unknown } | undefined : undefined;
+  let second: BoardExtras["second"] = null;
+  if (v2 && Array.isArray(v2.slots)) {
+    const slots = v2.slots.flatMap((s: unknown) => {
+      const o = s && typeof s === "object" ? (s as { playerId?: unknown; position?: unknown }) : {};
+      return typeof o.playerId === "string" && o.playerId ? [{ id: o.playerId, code: typeof o.position === "string" ? o.position : "" }] : [];
+    });
+    if (slots.length) second = { seven: slots.map((s) => s.id), keeper: slots.find((s) => s.code === "POR")?.id ?? null, codes: Object.fromEntries(slots.map((s) => [s.id, s.code])) };
+  }
+  return {
+    subs: plannedSubsOf(doc.subs),
+    captainId: idOrNull(roles.captainId),
+    viceId: idOrNull(roles.viceId),
+    takers: { penalties: list("penalties", "penaltiesId"), freekicks: list("freekicks", "freekicksId"), corners: list("corners", "cornersId") },
+    second,
+  };
+}
+
 export function plannedSubsOf(raw: unknown): { min?: number; out: string; in: string }[] {
   return Array.isArray(raw)
     ? raw.flatMap((x: unknown) => {

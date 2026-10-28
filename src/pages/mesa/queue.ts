@@ -117,6 +117,8 @@ export class MesaQueue {
   private again = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private closed = false;
+  /** Who waits for an upload in flight to end (settle). */
+  private waiters = new Map<string, (() => void)[]>();
   private readonly o: Required<Omit<QueueOptions, "channel" | "storage">> & Pick<QueueOptions, "channel" | "storage">;
 
   constructor(opts: QueueOptions) {
@@ -180,6 +182,23 @@ export class MesaQueue {
     };
   };
   getSnapshot = (): QueueSnapshot => this.snap;
+  /** The play is uploading right now (it can't be changed or dropped here until that ends). */
+  isSending(requestId: string): boolean {
+    return this.sending === requestId;
+  }
+  /** Resolves when the upload of `requestId` in flight ends (at once if it isn't uploading): then the play is
+   *  either up (changed on the server) or back in the queue (changed here). B-MESA-06: an assist, «Sin pase» or
+   *  «Deshacer» tapped while the goal is still going up waits for it instead of being lost. */
+  settle(requestId: string): Promise<void> {
+    if (this.sending !== requestId) return Promise.resolve();
+    return new Promise((ok) => this.waiters.set(requestId, [...(this.waiters.get(requestId) ?? []), ok]));
+  }
+  private release(requestId: string) {
+    const list = this.waiters.get(requestId);
+    if (!list) return;
+    this.waiters.delete(requestId);
+    for (const ok of list) ok();
+  }
 
   // ---------- writing
   /** A new play: stored first, then uploaded. */
@@ -212,17 +231,23 @@ export class MesaQueue {
   /** Changes a play still waiting to go up (the assist of a goal tapped without signal; with `index`, one
    *  change of a wave). False when it is not pending here any more (uploading or already up: then it is
    *  edited on the server). */
-  amend(requestId: string, patch: Partial<Pick<QueuePayload, "type" | "playerId" | "assistPlayerId" | "inPlayerId" | "assistReviewed">>, index = 0): boolean {
+  amend(requestId: string, patch: Partial<Pick<QueuePayload, "type" | "playerId" | "assistPlayerId" | "inPlayerId" | "assistReviewed">> & { elapsedSeconds?: number }, index = 0): boolean {
     const it = this.items.find((x) => x.requestId === requestId);
     if (!it || it.status !== "pending" || this.sending === requestId) return false;
     const plays = itemPlays(it);
     if (!plays[index]) return false;
     const payload: QueuePayload = { ...plays[index].payload };
-    for (const [k, v] of Object.entries(patch) as [keyof typeof patch, string | boolean | undefined][]) {
+    const { elapsedSeconds, ...fields } = patch;
+    for (const [k, v] of Object.entries(fields) as [keyof typeof fields, string | boolean | undefined][]) {
       // (a key present but undefined means «unchanged»: only "" clears a field; the type is never cleared)
       if (v === undefined || (v === "" && k === "type")) continue;
       if (v === "") delete payload[k];
       else Object.assign(payload, { [k]: v });
+    }
+    // («Corregir» the minute of a play still on the phone: it goes up with the corrected time)
+    if (typeof elapsedSeconds === "number" && Number.isFinite(elapsedSeconds)) {
+      payload.tappedElapsed = Math.max(0, Math.min(4 * 3600, Math.round(elapsedSeconds)));
+      payload.minute = Math.floor(payload.tappedElapsed / 60);
     }
     const batch = it.batch?.map((p, i) => (i === index ? payload : p));
     this.set(this.items.map((x) => (x.requestId === requestId ? { ...x, payload: batch ? batch[0] : payload, ...(batch ? { batch } : {}) } : x)));
@@ -293,6 +318,7 @@ export class MesaQueue {
       } finally {
         this.sending = null;
         this.emit();
+        this.release(next.requestId);
       }
     }
     if (failed || this.items.some((x) => x.status === "sent")) this.schedule(failed ? this.o.retryMs : RESEND_SENT_MS);
@@ -320,6 +346,7 @@ export class MesaQueue {
     this.closed = true;
     if (this.timer) clearTimeout(this.timer);
     this.listeners.clear();
+    for (const id of [...this.waiters.keys()]) this.release(id);
     try {
       this.o.channel?.close();
     } catch {
