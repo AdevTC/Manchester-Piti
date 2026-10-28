@@ -4,7 +4,11 @@ import { useState } from "react";
 import { eventMinute, EVENT_LABELS, type MatchEvent } from "../../../../functions/src/matchEngine";
 import { OUTCOME_LABELS } from "../../../../functions/src/matchAnalysis";
 import type { NarrationChange, previewNarration } from "../../../lib/narration";
-import type { PlayerInfo } from "./TabActa";
+/** What the review says of a player (the acta session's info gives it). */
+export interface PlayerInfo {
+  name: string;
+  number: number | null;
+}
 
 const FIELD_LABELS: Record<string, string> = { type: "Acción", minute: "Minuto", elapsedSeconds: "Segundo de juego", timingUnknown: "Sin minuto conocido", period: "Parte", playerId: "Autor", receiverId: "Receptor", assistPlayerId: "Asistente", assistReviewed: "Asistencia revisada", inPlayerId: "Entra", team: "Equipo", opponentPlayer: "Jugador rival", outcome: "Resultado", keyPass: "Pase clave", delivery: "Envío", bodyPart: "Contacto", zone: "Zona", x: "Posición X", y: "Posición Y", endX: "Destino X", endY: "Destino Y", possessionSeconds: "Segundos de posesión", note: "Nota", source: "Origen", sourceRef: "Fragmento o referencia" };
 const WORDS: Record<string, string> = { us: "Manchester Piti", opponent: "Rival", short: "Corto", long: "Largo", cross: "Centro", through: "Al espacio", throw: "Con la mano", right: "Derecha", left: "Izquierda", center: "Centro", head: "Cabeza", hand: "Mano", other: "Otro", live: "En directo", manual: "Manual", narration: "Narración" };

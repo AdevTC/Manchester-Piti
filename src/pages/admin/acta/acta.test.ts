@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { assign, calledUp, copyLineup, lineupCounts, lineupProblem, lineupReady, previousLineup, restNotCalled, roleOf, type Lineup } from "./convocatoria";
 import { dateInput, joinDate, madridTime, proposeDate, splitDate } from "./dates";
 import { clearDraft, draftKey, readDraft, recoverable, writeDraft } from "./localDraft";
-import { minutesTable } from "./minutes";
-import { mvpStatus, publishConsequences, scorerChips } from "./publish";
 import { buildResumen } from "./resumen";
 import { reviewMatch } from "./review";
 import { fromMatch, setAssist, setMinute, setScorer, sig, upsertEvent, type MatchSheet } from "./sheetModel";
@@ -94,21 +92,6 @@ describe("convocatoria rules", () => {
   });
 });
 
-describe("minutes and participation", () => {
-  it("previews the ledger: minutes, entries, exits and goals", () => {
-    const t = minutesTable(j7(), nameOf);
-    expect(t.errors).toEqual([]);
-    const by = Object.fromEntries(t.rows.map((r) => [r.id, r]));
-    expect(by.evans).toMatchObject({ minutes: 50, detail: "inicial" });
-    expect(by.adrian).toMatchObject({ minutes: 50, detail: "inicial · 2 goles" });
-    expect(by.tello).toMatchObject({ minutes: 30, detail: "inicial · sale 30′" });
-    expect(by.kevin).toMatchObject({ minutes: 20, detail: "suplente · entra 30′" });
-    expect(by.almachi).toMatchObject({ minutes: 12, detail: "suplente · entra 38′" });
-    expect(by.fer).toMatchObject({ minutes: 0, played: false, detail: "suplente · no jugó" });
-    expect(by.huberoski.detail).toBe("inicial · 1 gol · 1 asistencia");
-  });
-});
-
 describe("«Preparar resumen con los datos del acta»", () => {
   it("writes the result, the scorers with their minutes and the assists", () => {
     expect(buildResumen(j7(), nameOf)).toBe(
@@ -164,38 +147,6 @@ describe("local draft recovery", () => {
     clearDraft(key, s);
     expect(s.getItem(key)).toBeNull();
     expect(readDraft(key, isStr, null)).toBeNull();
-  });
-});
-
-describe("publishing, in words", () => {
-  it("scorer chips with minute, kind and assist", () => {
-    let s = upsertEvent(j7(), { id: "p", type: "goal_penalty", minute: 49, playerId: "erik" });
-    s = upsertEvent(s, { id: "o", type: "opponent_own_goal", minute: 50 });
-    expect(scorerChips(s, nameOf)).toEqual(["ADRIÁN T.C. 9′ (HUBEROSKI)", "ADRIÁN T.C. 31′ (ERIK)", "HUBEROSKI 46′", "ERIK 49′ de penalti", "Autogol de FUSION 7 50′"]);
-  });
-  it("a goal the live clock stamped reads in football's minute (18:30 of play → 19′), as on the web", () => {
-    const s = upsertEvent({ ...j7(), events: [] }, { id: "g", type: "goal", minute: 18, elapsedSeconds: 18 * 60 + 30, playerId: "erik" });
-    expect(scorerChips(s, nameOf)).toEqual(["ERIK 19′"]);
-  });
-  it("what happens: web, minutes, the MVP window", () => {
-    const first = publishConsequences({ finished: true, starters: 7, bench: 5, firstTime: true, now: NOW });
-    expect(first.map((c) => c.tone)).toEqual(["o", "o", "g", ""]);
-    expect(first[0].text).toBe("Convocatoria: 7 titulares y 5 suplentes · minutos calculados");
-    expect(first[2].text).toBe("La votación del MVP se abre ahora y cierra en 48 h (mié 4 nov, 10:00)");
-    const fix = publishConsequences({ finished: true, starters: 7, bench: 5, voteClosesAt: NOW + 3600_000, firstTime: false, now: NOW });
-    expect(fix[2].text).toBe("La votación del MVP sigue abierta hasta el lun 2 nov, 11:00");
-    const sched = publishConsequences({ finished: false, starters: 0, bench: 0, firstTime: true, now: NOW });
-    expect(sched[0].text).toBe("Sale en el calendario de la web con su fecha, hora y campo");
-    expect(sched[1].text).toBe("Sin convocatoria todavía: se puede hacer después");
-  });
-  it("the MVP line: opens at publish, closes 48 h later, has a winner", () => {
-    const base = { finished: true, published: false, winners: [], votes: 0, total: 0 };
-    expect(mvpStatus(base, NOW)).toBe("la votación se abre sola al publicar el acta y dura 48 h.");
-    expect(mvpStatus({ ...base, finished: false }, NOW)).toMatch(/^la votación se abre sola cuando se publique/);
-    expect(mvpStatus({ ...base, published: true, voteClosesAt: NOW + 3600_000 }, NOW)).toBe("votación abierta · cierra el lun 2 nov a las 11:00. Se abrió sola al publicar.");
-    expect(mvpStatus({ ...base, published: true, voteClosesAt: NOW - 1, winners: ["ERIK"], votes: 9, total: 12 }, NOW)).toBe("votación cerrada · ganó ERIK con 9 votos.");
-    expect(mvpStatus({ ...base, published: true, voteClosesAt: NOW - 1, winners: ["ERIK", "KEVIN"], votes: 4, total: 8 }, NOW)).toBe("votación cerrada · empate entre ERIK y KEVIN con 4 votos.");
-    expect(mvpStatus({ ...base, published: true, voteClosesAt: NOW - 1 }, NOW)).toBe("votación cerrada el lun 2 nov · nadie votó.");
   });
 });
 
