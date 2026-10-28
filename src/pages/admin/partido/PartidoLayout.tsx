@@ -36,7 +36,7 @@ import { LifecycleContext } from "./lifecycle";
 import { PrimaryContext, PrimaryStore, useStationPrimaryValue } from "./primary";
 
 /** TEMPORARY (r12): the stations today's MatchEditor still draws, and its tab for each (see the body below). */
-const INTERIM_EDITOR: Partial<Record<Station, MatchTab>> = { datos: "encuentro", acta: "acta", publicar: "publicar" };
+const INTERIM_EDITOR: Partial<Record<Station, MatchTab>> = { datos: "encuentro" };
 
 export function PartidoLayout() {
   const { matchId = "" } = useParams({ strict: false }) as { matchId?: string };
