@@ -1036,7 +1036,7 @@ function PlayerScreen(props: {
             </Link>
           )}
           {hero.admin && (
-            <Link className="vd-glass vd-press vd-btn vd-btn--sm" to="/admin/plantilla" search={{ jugador: hero.id }}>
+            <Link className="vd-glass vd-press vd-btn vd-btn--sm" to="/admin/plantilla/$playerId" params={{ playerId: hero.id }}>
               Editar ficha
               <Ic name="chev-r" />
             </Link>

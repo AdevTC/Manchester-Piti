@@ -26,7 +26,11 @@ export interface CajaClaim {
   resolvedAt?: number;
   /** The `pago` movement a confirmation wrote (only when confirmed). */
   movId?: string;
+  /** M-20: why a captain rejected it (≤ 130; only on a rejection, when he said why). */
+  reason?: string;
 }
+/** M-20: the most a rejection's reason says (firestore.rules). */
+export const CLAIM_REASON_MAX = 130;
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 function millisOf(v: unknown): number {
@@ -60,6 +64,7 @@ export function parseCajaClaim(id: string, d: unknown): CajaClaim | null {
     ...(str(d.resolvedBy) ? { resolvedBy: d.resolvedBy as string } : {}),
     ...(status !== "pendiente" ? { resolvedAt: millisOf(d.resolvedAt) } : {}),
     ...(str(d.movId) ? { movId: d.movId as string } : {}),
+    ...(status === "rechazado" && typeof d.reason === "string" && d.reason.trim() ? { reason: d.reason.trim().slice(0, CLAIM_REASON_MAX) } : {}),
   };
 }
 
@@ -89,8 +94,12 @@ export function cajaClaimFields(me: { uid: string; playerId: string | null }, c:
     status: "pendiente" as const,
   };
 }
-/** A captain's answer (all but resolvedAt, the server's time): «confirmado» carries the movement's id. */
-export const cajaClaimResolveFields = (by: string, status: Exclude<CajaClaimStatus, "pendiente">, movId?: string) => ({ status, resolvedBy: by, ...(status === "confirmado" && movId ? { movId } : {}) });
+/** A captain's answer (all but resolvedAt, the server's time): «confirmado» carries the movement's id; «rechazado»
+ *  may say why (M-20: trimmed, ≤ 130; left out when empty, as the rules allow). */
+export const cajaClaimResolveFields = (by: string, status: Exclude<CajaClaimStatus, "pendiente">, movId?: string, reason?: string) => {
+  const why = status === "rechazado" ? (reason ?? "").trim().slice(0, CLAIM_REASON_MAX) : "";
+  return { status, resolvedBy: by, ...(status === "confirmado" && movId ? { movId } : {}), ...(why ? { reason: why } : {}) };
+};
 /** The `pago` a confirmation writes (cajaMovFields; dated the day he said it, Madrid). */
 export const claimPagoFields = (claim: CajaClaim, by: string, now: number) =>
   cajaMovFields(claim.seasonId, { kind: "pago", playerId: claim.playerId, amount: claim.amount, concept: claim.concept || "Pago avisado", date: madridDate(claim.at || now), matchId: null }, by);

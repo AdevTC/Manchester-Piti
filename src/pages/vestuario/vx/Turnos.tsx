@@ -45,7 +45,7 @@ export function TurnosBlock({ c }: { c: VxCtx }) {
         <p className="cb-small">Aún no hay turnos esta temporada.</p>
         {c.admin && (
           <div className="cb-row-acts">
-            <Go className="vd-link" href="/admin/turnos">
+            <Go className="vd-link" href="/admin/club/turnos">
               Crear los turnos
             </Go>
           </div>

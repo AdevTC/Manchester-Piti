@@ -150,6 +150,9 @@ header.vx-top .vx-actions .sc-search{width:auto;flex:0 0 auto;padding:0 14px;min
 .sc-screen{box-sizing:border-box;padding:6px var(--sc-gut) 28px;max-width:1720px;margin:0 auto;width:100%}
 .sc-screen--fit{height:100%;min-height:0;display:flex;flex-direction:column;padding-bottom:0}
 .sc-screen--fit>.sc-screen__body{flex:1;min-height:0}
+/* below 1100 the frame scrolls: a fit screen grows with its content and still fills the scroller (a pinned action
+   sits at its foot) */
+@container (max-width:1099px){.sc-screen--fit{height:auto;min-height:100%}.sc-screen--fit>.sc-screen__body{flex:1 0 auto}}
 .sc-shead{display:flex;align-items:flex-end;gap:12px 18px;flex-wrap:wrap;padding:14px 0 18px}
 .sc-shead__t{flex:1 1 320px;min-width:0}
 .sc-shead__a{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

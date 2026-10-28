@@ -1,6 +1,5 @@
 // Tú (TU boards, component.js): who looks at /perfil, which screens his page has, what each tab says it holds
 // and which address each screen is. Pure: the page (TuPage) reads the screen from the address and draws it.
-import { SECTION, type SectionKey } from "../../admin/shell/nav";
 
 /** Who looks: no session · a member without a ficha (his carné) · a new account whose ficha is pending or was
  *  turned down (the sobre / the pick) · a player with his ficha linked. */
@@ -115,14 +114,19 @@ export function doorLead(n: number): string {
   return `${n <= 10 ? WORDS[n] : n} peticiones esperan tu sí o tu no.`;
 }
 
-/** Capitanía's «Administrar el club»: straight into the admin's sections (Hoy is the sala de control itself). */
-export const ADMIN_LINKS: readonly SectionKey[] = ["hoy", "partidos", "convocar", "plantilla", "fichas", "caja", "temporadas", "contenido"];
-export function adminLinks(): { key: SectionKey; t: string; hint: string; path: string }[] {
-  return ADMIN_LINKS.map((k) => {
-    const s = SECTION[k];
-    return { key: k, t: k === "hoy" ? "Sala de control" : s.name, hint: s.blurb, path: s.path };
-  });
-}
+/** Capitanía's «Administrar el club»: straight into the sala's places and the screens a captain opens most (r12
+ *  addresses; Hoy is the sala de control itself). */
+export type AdminLinkKey = "hoy" | "partidos" | "convocatoria" | "plantilla" | "socios" | "caja" | "club";
+const ADMIN_LINKS: readonly { key: AdminLinkKey; t: string; hint: string; path: string }[] = [
+  { key: "hoy", t: "Sala de control", hint: "Lo que te toca esta semana", path: "/admin" },
+  { key: "partidos", t: "Partidos", hint: "La temporada, cada partido con su carril", path: "/admin/partidos" },
+  { key: "convocatoria", t: "Convocatoria", hint: "El próximo partido: quién va y el siete", path: "/admin/partidos/proximo/convocatoria" },
+  { key: "plantilla", t: "Plantilla", hint: "Jugadores, fichas y dorsales", path: "/admin/plantilla" },
+  { key: "socios", t: "Socios", hint: "La puerta: quién pide su ficha y quién está dentro", path: "/admin/plantilla/socios" },
+  { key: "caja", t: "Caja", hint: "Cuotas, campo y árbitro, y el bote", path: "/admin/caja" },
+  { key: "club", t: "Club", hint: "Temporadas, la web del club, turnos y avisos", path: "/admin/club" },
+];
+export const adminLinks = (): { key: AdminLinkKey; t: string; hint: string; path: string }[] => ADMIN_LINKS.map((l) => ({ ...l }));
 
 /** The move's direction between two screens (an «Avisos» tab always goes right, coming back from it left). */
 export function dirOf(from: Screen, to: Screen): "left" | "right" {

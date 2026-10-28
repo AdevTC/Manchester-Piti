@@ -40,20 +40,26 @@ export function gapsText(gaps: readonly GapKey[]): string {
   return `Le falta ${words.length < 2 ? words[0] : `${words.slice(0, -1).join(", ")} y ${words[words.length - 1]}`}`;
 }
 
-/** His account in the vestuario: linked (a member has his ficha), asking for it (a claim waits in Fichas), none. */
-export type Account = "vinculada" | "pide" | "sin";
+/** His account in the vestuario: linked (a member has his ficha), asking for it (a claim waits in Socios), held by
+ *  someone who is out (`fuera`: an old removal without the r12 stamp, or one who left on his own — the server keeps
+ *  that link, API.md §0; «Liberar la ficha» calls revokeMember again), none. */
+export type Account = "vinculada" | "pide" | "fuera" | "sin";
 export interface AccountSources {
-  people: readonly { playerId: string | null; removed: boolean; nickname?: string }[];
+  people: readonly { uid?: string; playerId: string | null; removed: boolean; removedBy?: string | null; nickname?: string }[];
   claims: readonly { playerId: string; nickname?: string }[];
 }
+/** A member who is out still holds his ficha unless a captain took his access away (users.removedBy = another uid). */
+export const holdsAfterLeaving = (p: { uid?: string; removed: boolean; removedBy?: string | null }) => p.removed && !(p.removedBy && p.removedBy !== p.uid);
 export function accountOf(id: string, src: AccountSources): { state: Account; who: string } {
   const owner = src.people.find((p) => !p.removed && p.playerId === id);
   if (owner) return { state: "vinculada", who: owner.nickname ?? "" };
   const claim = src.claims.find((c) => c.playerId === id);
   if (claim) return { state: "pide", who: claim.nickname ?? "" };
+  const gone = src.people.find((p) => p.playerId === id && holdsAfterLeaving(p));
+  if (gone) return { state: "fuera", who: gone.nickname ?? "" };
   return { state: "sin", who: "" };
 }
-export const ACCOUNT_LABEL: Record<Account, string> = { vinculada: "Cuenta vinculada", pide: "Pide su ficha", sin: "Sin cuenta" };
+export const ACCOUNT_LABEL: Record<Account, string> = { vinculada: "Cuenta vinculada", pide: "Pide su ficha", fuera: "La guarda un socio que ya no está", sin: "Sin cuenta" };
 
 /** A row of the tablón: the plantilla row plus what it lacks and its account. */
 export interface BoardRow extends PlantillaRow {
@@ -61,16 +67,18 @@ export interface BoardRow extends PlantillaRow {
   account: Account;
   /** The member's nickname (linked) or the claimant's (asking). */
   who: string;
+  /** Suspended now (a sanction by hand or the acta's red card): «Sancionados». */
+  sanctioned: boolean;
 }
-export function boardRows(rows: readonly PlantillaRow[], src: AccountSources): BoardRow[] {
+export function boardRows(rows: readonly PlantillaRow[], src: AccountSources, suspended?: { has: (id: string) => boolean }): BoardRow[] {
   return rows.map((r) => {
     const a = accountOf(r.id, src);
-    return { ...r, gaps: gapsOf(r.doc), account: a.state, who: a.who };
+    return { ...r, gaps: gapsOf(r.doc), account: a.state, who: a.who, sanctioned: !!suspended?.has(r.id) };
   });
 }
 
 /** The gap filters (the chips under the title): each one isolates the players that need that. */
-export type BoardFilter = "todos" | "propuestas" | "pos" | "foto" | "datos" | "lesion" | "cuenta" | "pide" | "dup";
+export type BoardFilter = "todos" | "propuestas" | "pos" | "foto" | "datos" | "lesion" | "sanc" | "cuenta" | "pide" | "dup";
 /** In the chips' order («Propuestas» first: it is the captain's to do). */
 export const FILTER_LABEL: Record<Exclude<BoardFilter, "todos">, string> = {
   propuestas: "Propuestas",
@@ -78,6 +86,7 @@ export const FILTER_LABEL: Record<Exclude<BoardFilter, "todos">, string> = {
   foto: "Sin foto",
   datos: "Faltan datos",
   lesion: "Lesionados",
+  sanc: "Sancionados",
   cuenta: "Sin cuenta",
   pide: "Piden su ficha",
   dup: "Dorsal repetido",
@@ -103,8 +112,10 @@ export function matchesFilter(r: BoardRow, f: BoardFilter, dup: ReadonlySet<numb
       return r.gaps.some((g) => DATOS.includes(g));
     case "lesion":
       return r.injured;
+    case "sanc":
+      return r.sanctioned;
     case "cuenta":
-      return r.account === "sin";
+      return r.account === "sin" || r.account === "fuera";
     case "pide":
       return r.account === "pide";
     case "dup":

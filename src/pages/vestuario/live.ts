@@ -282,10 +282,16 @@ export interface MatchPrivate {
   scorerUids: string[];
   /** How many porras the match has (the server's count: the porras themselves stay private before the whistle). */
   porraCount: number | null;
+  /** r12 M-42: the notas could not be rated at publication (null when they were, or nothing is known). */
+  notasError: { at: number; message: string } | null;
 }
-const EMPTY_MATCH_PRIVATE: MatchPrivate = { meetingNote: "", scorerUids: [], porraCount: null };
+const EMPTY_MATCH_PRIVATE: MatchPrivate = { meetingNote: "", scorerUids: [], porraCount: null, notasError: null };
+const notasErrorOf = (v: unknown): MatchPrivate["notasError"] => {
+  const o = v as { at?: unknown; message?: unknown } | null | undefined;
+  return o && typeof o.at === "number" && typeof o.message === "string" ? { at: o.at, message: o.message } : null;
+};
 const mapMatchPrivate = (d: DocumentData | undefined): MatchPrivate =>
-  d ? { meetingNote: (d.meetingNote as string | undefined) ?? "", scorerUids: (d.scorerUids as string[] | undefined) ?? [], porraCount: typeof d.porraCount === "number" ? d.porraCount : null } : EMPTY_MATCH_PRIVATE;
+  d ? { meetingNote: (d.meetingNote as string | undefined) ?? "", scorerUids: (d.scorerUids as string[] | undefined) ?? [], porraCount: typeof d.porraCount === "number" ? d.porraCount : null, notasError: notasErrorOf(d.notasError) } : EMPTY_MATCH_PRIVATE;
 /** The whole private match doc. Read it through useMeetingNote / useMatchScorers; never map matchPrivate/{id} elsewhere. */
 export function useMatchPrivate(matchId: string | undefined) {
   return useLiveDoc<MatchPrivate>(matchId ? `matchPrivate/${matchId}` : null, "matchPrivate", mapMatchPrivate, EMPTY_MATCH_PRIVATE);
@@ -568,9 +574,13 @@ export interface PersonRow {
   role: string;
   playerId: string | null;
   removed: boolean;
+  /** When the access was taken away (ms; 0 = inside, or unknown). */
+  removedAt?: number;
+  /** Who took it away (r12: the captain, or his own uid when he left); absent on the old removals. */
+  removedBy?: string | null;
 }
 export function useClubPeople(enabled: boolean) {
-  return useLiveQuery<PersonRow>(enabled ? "users" : null, (fb) => fb.collection(fb.db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt }));
+  return useLiveQuery<PersonRow>(enabled ? "users" : null, (fb) => fb.collection(fb.db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt, removedAt: millis(d.removedAt), removedBy: typeof d.removedBy === "string" ? d.removedBy : null }));
 }
 
 // ---------- your own membership (/profile: «Tu acceso» and the back of the card)
@@ -725,4 +735,15 @@ export function useNotices(uid: string | undefined, admin: boolean): Live<Notice
   const loading = team.loading || captains.loading || mine.loading;
   const error = team.error || captains.error || mine.error;
   return useMemo(() => ({ data: list, loading, error }), [list, loading, error]);
+}
+
+// ---------- r12 · the acta's Después and Historial (captains): what was sent and who changed what, for ONE match
+/** pushSent where matchId == id (M-18: «Los avisos que salieron»). Captains only (rules); a where without orderBy
+ *  needs no composite index: the screen sorts. */
+export function useMatchPushSent<T>(matchId: string | undefined, enabled: boolean, map: (id: string, d: DocumentData) => T): Live<T[]> {
+  return useLiveQuery<T>(matchId && enabled ? `pushSent/match/${matchId}` : null, (fb) => fb.query(fb.collection(fb.db, "pushSent"), fb.where("matchId", "==", matchId!)), map);
+}
+/** matchAudit where matchId == id (H-PAR-05: the acta's history). Captains only (rules); the screen sorts. */
+export function useMatchAudit<T>(matchId: string | undefined, enabled: boolean, map: (id: string, d: DocumentData) => T): Live<T[]> {
+  return useLiveQuery<T>(matchId && enabled ? `matchAudit/${matchId}` : null, (fb) => fb.query(fb.collection(fb.db, "matchAudit"), fb.where("matchId", "==", matchId!)), map);
 }

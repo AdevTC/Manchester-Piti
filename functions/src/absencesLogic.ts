@@ -72,6 +72,8 @@ export interface Absence {
   note: string;
   /** ms (0 while the server time is pending). */
   createdAt: number;
+  /** r12: the captain who wrote it for the member from la Sala (absent when the member wrote it himself). */
+  by?: string;
 }
 
 const millisOf = (v: unknown): number => {
@@ -96,12 +98,15 @@ export function parseAbsence(id: string, d: unknown): Absence | null {
     to: o.to,
     note: typeof o.note === "string" ? o.note : "",
     createdAt: millisOf(o.createdAt),
+    ...(typeof o.by === "string" && o.by ? { by: o.by } : {}),
   };
 }
 
 /** The captains' one notice goes only for an absence the trigger's transaction still saw (`seen`: not
- *  deleted before the trigger ran) that is not entirely past (its `to` is today or later, Madrid). */
-export const absenceNoticeDue = (a: Pick<Absence, "to">, seen: boolean, now: number): boolean => seen && a.to >= madridDate(now);
+ *  deleted before the trigger ran) that is not entirely past (its `to` is today or later, Madrid), and never for
+ *  one a captain wrote himself from la Sala (the captains already know: the «No puedo» is applied all the same). */
+export const absenceNoticeDue = (a: Pick<Absence, "to"> & Partial<Pick<Absence, "uid" | "by">>, seen: boolean, now: number): boolean =>
+  seen && a.to >= madridDate(now) && !(a.by && a.by !== a.uid);
 
 /** Does the absence cover this Madrid day? */
 export const covers = (a: Pick<Absence, "from" | "to">, day: string): boolean => a.from <= day && day <= a.to;

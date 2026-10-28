@@ -265,6 +265,28 @@ export function removeEvent(sheet: MatchSheet, id: string): MatchSheet {
     sheet.events.filter((e) => e.id !== id),
   );
 }
+/**
+ * «Deshacer» of a removal (B-ACTA-02): the event back where it was AND its narrated detail as it was before the
+ * removal (removing marks the linked observation void; putting the event back through withEvents alone would
+ * rewrite it as a manual correction). `before` = the sheet just before the removal; edits made since stay.
+ */
+export function restoreEvent(sheet: MatchSheet, before: MatchSheet, id: string): MatchSheet {
+  const event = before.events.find((e) => e.id === id);
+  if (!event || sheet.events.some((e) => e.id === id)) return sheet;
+  const at = before.events.findIndex((e) => e.id === id);
+  // (after the events that preceded it in `before` and are still here)
+  const prev = before.events.slice(0, at).map((e) => e.id);
+  let pos = 0;
+  sheet.events.forEach((e, i) => {
+    if (prev.includes(e.id)) pos = i + 1;
+  });
+  const events = [...sheet.events];
+  events.splice(pos, 0, event);
+  const old = new Map((before.analysis?.observations ?? []).filter((o) => o.canonicalEventId === id).map((o) => [o.id, o]));
+  const analysis = sheet.analysis ? { ...sheet.analysis, observations: sheet.analysis.observations.map((o) => old.get(o.id) ?? o) } : before.analysis;
+  return { ...sheet, events, ...(analysis ? { analysis } : {}) };
+}
+
 /** Digits typed in a minute box → the event's minute (empty → none). */
 export function setMinute(sheet: MatchSheet, id: string, text: string): MatchSheet {
   const digits = text.replace(/[^0-9]/g, "").slice(0, 3);

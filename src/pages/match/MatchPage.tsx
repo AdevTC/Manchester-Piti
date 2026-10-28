@@ -608,7 +608,7 @@ export function MatchPage() {
   const admin =
     viewer.admin && !live
       ? {
-          href: finalish ? `/admin/partidos/${encodeURIComponent(match.id)}?tab=acta` : `/admin/partidos/${encodeURIComponent(match.id)}`,
+          href: finalish ? `/admin/partidos/${encodeURIComponent(match.id)}/acta` : `/admin/partidos/${encodeURIComponent(match.id)}`,
           label: finalish ? "Editar el acta" : "Abrir en la Sala de control",
         }
       : null;

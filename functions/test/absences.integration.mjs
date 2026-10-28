@@ -156,6 +156,16 @@ await until("new1 loses the second absence's answer", async () => (await read("n
 assert.equal((await db.doc(`pushLog/absence-${A}`).get()).get("at").toMillis(), claimedAt);
 checked++;
 
+// ---------- r12: a captain writes one for the member from la Sala (`by`): «No puedo» all the same, no notice
+const cRef = await db.collection("absences").add({ uid, playerId: ficha, name: nick, from: madridDate(now + 6 * DAY), to: madridDate(now + 6 * DAY), createdAt: Timestamp.now(), by: captain });
+const C = cRef.id;
+await until("new1 answered by the captain's absence", async () => isAbsence(await read("new1"), C));
+await sleep(3000);
+assert.equal((await db.doc(`pushLog/absence-${C}`).get()).exists, false, "a captain's own absence for a member tells no captain");
+checked++;
+await cRef.delete();
+await until("new1 loses the captain's absence", async () => (await read("new1")) === undefined);
+
 // (cleanup: the emulator keeps no upcoming test matches)
 for (const k of ["soon", "in1", "in2", "out", "off", "past", "newAns", "new1"]) {
   for (const who of [uid, other]) await answerRef(k, who).delete();

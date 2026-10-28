@@ -252,7 +252,7 @@ export function mountAdmin(path: string, views: Partial<Record<ViewKey, View>> =
         r(plantilla, "/", own("vista plantilla")),
         r(plantilla, "alta", own("vista alta")),
         r(plantilla, "cromos", own("vista cromos")),
-        r(plantilla, "antiguos", PL.AntiguosScreen),
+        r(plantilla, "antiguos", on("plantilla") ? PL.AntiguosScreen : Marker("vista antiguos")),
         r(plantilla, "socios", on("fichas") ? PL.SociosScreen : Marker("vista socios")),
         r(plantilla, "capitanes", on("capitanes") ? PL.CapitanesScreen : Marker("vista capitanes")),
         r(plantilla, "$playerId", own("vista ficha")),

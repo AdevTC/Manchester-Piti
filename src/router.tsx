@@ -143,6 +143,8 @@ export const adminAltaSearchSchema = z.object({
 export const adminSociosSearchSchema = z.object({
   /** Which part of the door: who asks for a ficha, who is inside, the invitations. */
   ver: z.enum(["fichas", "dentro", "invitaciones", "llaman"]).optional().catch(undefined),
+  /** «Invitar con esta ficha»: the invitation starts for this player (PLANTILLA r12). */
+  para: z.string().max(128).optional().catch(undefined),
 });
 // /pizarra?tablero=<id> opens that board (v2/deeplink.ts reads it on the first render). Declared so the
 // match page, the admin and the perfil link to a board through the typed route.

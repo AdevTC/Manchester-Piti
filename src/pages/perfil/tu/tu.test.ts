@@ -29,7 +29,8 @@ describe("Tú: the screen an address shows", () => {
   it("Capitanía's «Administrar el club» goes straight into the admin's sections", () => {
     const links = adminLinks();
     expect(links[0]).toMatchObject({ t: "Sala de control", path: "/admin" });
-    expect(links.map((l) => l.path)).toEqual(["/admin", "/admin/partidos", "/admin/convocar", "/admin/plantilla", "/admin/fichas", "/admin/caja", "/admin/temporadas", "/admin/contenido"]);
+    // (the r12 addresses, never an old one the router has to redirect)
+    expect(links.map((l) => l.path)).toEqual(["/admin", "/admin/partidos", "/admin/partidos/proximo/convocatoria", "/admin/plantilla", "/admin/plantilla/socios", "/admin/caja", "/admin/club"]);
   });
   it("moves in the order of the tabs", () => {
     const at = (sec: "carta" | "nombre", page: "perfil" | "avisos" = "perfil") => ({ page, sec, open: null });
