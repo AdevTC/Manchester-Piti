@@ -410,7 +410,7 @@ function Socios({ data }: { data: AdminData }) {
   const on = (k: string) => (ver === k ? " is-on" : "");
 
   return (
-    <SalaScreen title="Socios" lede={LEDE} headSub={`La puerta del vestuario${todo ? ` · ${plural(todo, "cosa por hacer", "cosas por hacer")}` : ""}`} actions={<PlNav at="socios" />} fit className="pl pl--socios">
+    <SalaScreen title="Socios" lede={LEDE} headSub={`La puerta del vestuario${todo ? ` · ${plural(todo, "cosa por hacer", "cosas por hacer")}` : ""}`} actions={<PlNav at="socios" />} fit className="sc-pl pl--socios">
       <div className="pl-so" ref={root}>
         <nav className="pl-so__tabs" aria-label="Secciones de socios">
           {SOCIOS_TABS.map((t) => (

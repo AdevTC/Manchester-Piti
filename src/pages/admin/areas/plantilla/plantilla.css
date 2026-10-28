@@ -3,8 +3,8 @@
    SalaScreen's `section.sc-screen.pl`, its head is `.sc-shead` (title + lede | the own navigation + the one primary
    action) and its blocks live in `.sc-screen__body`. Reading on the light field in rows with hairlines; glass only on
    what is touched. No hex colours: tokens and the washes sala.css already uses. Nothing under 11.5 px (B-SH-17). ===== */
-.pl .vd-seg__b[aria-pressed="true"],.pl .vd-seg__b[aria-current="page"]{color:var(--vd-g-ink);font-weight:700}
-.pl [aria-disabled="true"]{opacity:.5;cursor:default}
+.sc-pl .vd-seg__b[aria-pressed="true"],.sc-pl .vd-seg__b[aria-current="page"]{color:var(--vd-g-ink);font-weight:700}
+.sc-pl [aria-disabled="true"]{opacity:.5;cursor:default}
 .pl-lab{font-size:13.5px;font-weight:650;color:var(--vd-ink);margin:0}
 .pl-err{margin:4px 0 0;font-size:13.5px;font-weight:600;color:var(--vd-ink-strong)}
 .pl-err::before{content:"! ";color:var(--vd-roja);font-weight:900}
@@ -15,16 +15,16 @@
 .pl-ok{margin:0;display:flex;align-items:center;min-height:44px;font-size:14px;color:var(--vd-ink2)}
 .pl-ok::before{content:"✓ ";color:var(--vd-celeste-ink);font-weight:800;margin-right:4px}
 .pl-flip{transform:scaleX(-1)}
-.pl .sc-i{width:18px;height:18px;flex:none}
+.sc-pl .sc-i{width:18px;height:18px;flex:none}
 .pl-shirt0{display:block;width:var(--sw,64px);height:calc(var(--sw,64px) * 1.1);flex:none;border-radius:12px;background:rgba(108,171,221,.08)}
-.pl .sc-shirt--l{--sw:110px}.pl .sc-shirt--xl{--sw:180px}
+.sc-pl .sc-shirt--l{--sw:110px}.sc-pl .sc-shirt--xl{--sw:180px}
 
 /* the own navigation: Jugadores · Socios · Capitanes */
 .pl-nav{display:block;min-width:0}
 .pl-seg{max-width:460px;width:100%}
 .pl-seg .vd-seg__b{text-decoration:none;gap:8px;color:inherit}
 .pl-seg .sc-count{min-width:20px;height:20px;font-size:11.5px}
-.pl .sc-shead__a .sc-primary--head .vd-btn{min-width:200px}
+.sc-pl .sc-shead__a .sc-primary--head .vd-btn{min-width:200px}
 
 /* ---------- the list ---------- */
 .pl-tools{display:grid;gap:10px;padding:2px 0 12px}
@@ -129,15 +129,15 @@
 .pl-map__half{position:absolute;left:0;right:0;top:0;height:22%;overflow:hidden;border-radius:20px 20px 0 0;pointer-events:none}
 .pl-map__half::after{content:"";position:absolute;left:50%;top:0;width:28%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
 .pl-map__box{position:absolute;left:24%;right:24%;bottom:0;height:17%;box-shadow:inset 0 0 0 1px var(--vd-rule2);pointer-events:none}
-.pl-spot{position:absolute;transform:translate(-50%,-50%);min-width:54px;height:44px;padding:0 8px;border:0;border-radius:12px;cursor:pointer;font:inherit;font-size:13.5px;font-weight:720;letter-spacing:.02em;
+.pl-pos{position:absolute;transform:translate(-50%,-50%);min-width:54px;height:44px;padding:0 8px;border:0;border-radius:12px;cursor:pointer;font:inherit;font-size:13.5px;font-weight:720;letter-spacing:.02em;
   color:var(--vd-ink);background:rgba(108,171,221,.10);box-shadow:inset 0 0 0 1px var(--vd-rule2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-.pl-spot:hover{background:rgba(108,171,221,.2)}
-.pl-spot:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
-.pl-spot.is-main{background:var(--vd-celeste);color:var(--vd-noche);box-shadow:0 6px 16px -8px rgba(2,8,26,.6)}
-.pl-spot.is-main::before{content:"★ "}
-.pl-spot.is-also{background:rgba(108,171,221,.26);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
-.pl-spot.is-also::before{content:"● ";font-size:11.5px}
-.pl-spot.is-was{box-shadow:inset 0 0 0 1.5px var(--vd-rule2),0 0 0 3px rgba(108,171,221,.18)}
+.pl-pos:hover{background:rgba(108,171,221,.2)}
+.pl-pos:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.pl-pos.is-main{background:var(--vd-celeste);color:var(--vd-noche);box-shadow:0 6px 16px -8px rgba(2,8,26,.6)}
+.pl-pos.is-main::before{content:"★ "}
+.pl-pos.is-also{background:rgba(108,171,221,.26);color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+.pl-pos.is-also::before{content:"● ";font-size:11.5px}
+.pl-pos.is-was{box-shadow:inset 0 0 0 1.5px var(--vd-rule2),0 0 0 3px rgba(108,171,221,.18)}
 .pl-map__key{margin:0;display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--vd-ink2)}
 .pl-key{font-style:normal;color:var(--vd-celeste-ink)}
 .pl-played{margin:0;font-size:14px;color:var(--vd-ink)}
@@ -156,8 +156,10 @@
 .pl-proptag{margin:0;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 .pl-savehint{margin:6px 0 0}
 
-/* anterior · siguiente sin completar · siguiente (phone: pinned in the thumb zone) */
-.pl-fnav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--vd-rule)}
+/* anterior · siguiente sin completar · siguiente (phone: pinned in the thumb zone; on the desktop too, at the foot of
+   the ficha: stronger than sala.css's .sc-primary--pin, which hides a pinned tray ≥ 1100) */
+.sc-pl .pl-fnav,.sc-pl .pl-altaa{display:flex}
+.pl-fnav{align-items:center;gap:10px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--vd-rule)}
 .pl-fnav__gap{flex:1 1 auto;max-width:320px}
 .pl-fnav__k{font-size:12.5px;color:var(--vd-ink2);display:none}
 
@@ -186,7 +188,7 @@
 
 /* ---------- alta: the plain kit printed while you type (Barlow Condensed: DIRECTION law 8) ---------- */
 .pl-alta{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
-.pl-kit{position:relative;margin:0 auto;width:240px;display:grid;justify-items:center}
+.pl-kit{position:relative;margin:0 auto;width:240px;display:grid;justify-items:center;align-content:start;align-self:start}
 .pl-kit__c{display:block;width:100%;height:auto;aspect-ratio:540/600;filter:drop-shadow(0 8px 14px rgba(2,8,26,.35))}
 :root[data-theme="light"] .pl-kit__c{filter:drop-shadow(0 8px 14px rgba(30,60,110,.22))}
 .pl-kit__ghost{position:absolute;left:0;top:0;width:100%;height:auto;aspect-ratio:540/600;opacity:.3;pointer-events:none}
@@ -234,7 +236,7 @@
 .pl-role.is-superadmin,.pl-role.is-admin{color:var(--vd-celeste-ink)}
 .pl-lock{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:650;color:var(--vd-ink2);min-height:36px}
 .pl-lock .sc-i{width:16px;height:16px}
-.pl-invf{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;align-items:end;padding:4px 0 14px}
+.pl-invf{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;align-items:end;padding:4px 0 14px}
 .pl-invf .vd-seg{height:48px}
 .pl-codew{display:block;line-height:1.6;margin-bottom:2px}
 .pl-code{display:inline-block;font-family:var(--vd-mono);font-size:13px;line-height:1.4;font-weight:500;padding:1px 6px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--vd-rule2);color:var(--vd-ink-strong);overflow-wrap:anywhere}
@@ -258,8 +260,8 @@
 
 /* ---------- phone and tablet ---------- */
 @container (max-width:1099px){
-  .pl>.sc-shead{position:sticky;top:0;z-index:6}
-  .pl>.sc-shead .sc-shead__a{flex:1 1 100%}
+  .sc-pl>.sc-shead{position:sticky;top:0;z-index:6}
+  .sc-pl>.sc-shead .sc-shead__a{flex:1 1 100%}
   .pl-nav{flex:1 1 100%}
   .pl-seg{max-width:none}
   .pl--ficha .pl-listcol,.pl--jug .pl-fichacol{display:none}
@@ -287,9 +289,9 @@
 
 /* ---------- desktop: one screen, the page never scrolls, the regions do ---------- */
 @container (min-width:1100px){
-  .pl .sc-shead{align-items:center}
+  .sc-pl .sc-shead{align-items:center}
   .pl-nav{width:420px}
-  .pl .sc-screen__body>*{height:100%;min-height:0;box-sizing:border-box}
+  .sc-pl .sc-screen__body>*{height:100%;min-height:0;box-sizing:border-box}
   .pl-cromosw,.pl-alta,.pl-old,.pl-cap,.pl-so__grid{overflow:auto;scrollbar-width:thin;padding-right:6px;padding-bottom:20px}
   .pl-jug{display:grid;grid-template-columns:minmax(380px,.82fr) minmax(0,1.4fr);gap:36px}
   .pl-listcol,.pl-fichacol{min-height:0;overflow:auto;scrollbar-width:thin;padding-right:6px;box-sizing:border-box}
@@ -333,8 +335,8 @@
   .pl-ficha{max-width:1100px}
 }
 @media (prefers-reduced-motion:reduce){
-  .pl-spot{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .pl-pos{-webkit-backdrop-filter:none;backdrop-filter:none}
 }
 
 /* text that wraps inside a row: each piece is its own block line */
-.pl .sc-row__t>span,.pl .sc-row__t>b{display:block;min-width:0;overflow-wrap:anywhere}
+.sc-pl .sc-row__t>span,.sc-pl .sc-row__t>b{display:block;min-width:0;overflow-wrap:anywhere}

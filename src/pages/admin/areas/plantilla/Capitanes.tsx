@@ -220,7 +220,7 @@ function Capitanes({ data }: { data: AdminData }) {
   };
 
   return (
-    <SalaScreen title="Capitanes" lede={LEDE} headSub="El brazalete y el capitán en el campo" actions={<PlNav at="capitanes" />} fit className="pl pl--capitanes">
+    <SalaScreen title="Capitanes" lede={LEDE} headSub="El brazalete y el capitán en el campo" actions={<PlNav at="capitanes" />} fit className="sc-pl pl--capitanes">
       <div className="pl-cap" ref={root}>
         <section className="pl-cap__arm" aria-labelledby="pl-c-arm">
           <header className="sc-sec__h">

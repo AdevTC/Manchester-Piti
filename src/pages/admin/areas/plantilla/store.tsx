@@ -14,7 +14,7 @@ import { seasonSuspensions, upcomingFor } from "../../club/sanctionLogic";
 import { useClubWrites } from "../../club/useClubWrites";
 import { useAdmin } from "../../shell/context";
 import { useStatus } from "../../shell/statusContext";
-import { PlantillaContext, type AltaSeed, type PlantillaStore, type PlantillaWrite } from "./storeContext";
+import { PlantillaContext, type AltaDraft, type PlantillaStore, type PlantillaWrite } from "./storeContext";
 
 type Pending = Record<string, PlayerDoc | null>;
 
@@ -24,10 +24,9 @@ export function PlantillaProvider({ children }: { children: ReactNode }) {
   const writes = useClubWrites();
   const theme = useDocumentTheme();
   const [pending, setPending] = useState<Pending>({});
-  const [revs, setRevs] = useState<Record<string, number>>({});
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<BoardFilter>("todos");
-  const [seed, setSeed] = useState<AltaSeed | null>(null);
+  const [alta, setAlta] = useState<AltaDraft | null>(null);
 
   const players = useMemo(() => {
     const known = new Set(data.players.map((p) => p.id));
@@ -81,7 +80,6 @@ export function PlantillaProvider({ children }: { children: ReactNode }) {
     },
     [status],
   );
-  const reopen = useCallback((id: string) => setRevs((r) => ({ ...r, [id]: (r[id] ?? 0) + 1 })), []);
 
   const value: PlantillaStore = {
     data,
@@ -93,16 +91,14 @@ export function PlantillaProvider({ children }: { children: ReactNode }) {
     upcoming,
     writes,
     write,
-    rev: (id) => revs[id] ?? 0,
-    reopen,
     still,
     blank: stillOf(plain),
     q,
     setQ,
     filter,
     setFilter,
-    seed,
-    setSeed,
+    alta,
+    setAlta,
   };
   return <PlantillaContext.Provider value={value}>{children}</PlantillaContext.Provider>;
 }

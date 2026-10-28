@@ -6,6 +6,7 @@ import { VIcon, type VIconName } from "../../../../components/vidrio/VIcon";
 import { SalaLink } from "../../shell/SalaLink";
 import { useAdmin } from "../../shell/context";
 import { plural } from "../../../../lib/derived/words";
+import "../../../../styles/vidrio/components.css";
 
 /** A printed shirt still (law 8): `size` s · l · xl; without the still yet, its place (same size, never a CSS print). */
 export function Shirt({ src, size, alt = "", vt, className = "" }: { src: string | undefined; size: "s" | "l" | "xl"; alt?: string; vt?: string; className?: string }) {
