@@ -7,6 +7,7 @@ import { isCompleted } from "../../functions/src/matchEngine";
 import { SYSTEM_IDS, isFormationName, systemDef } from "./formations";
 import { POS_CODES, isPosCode, type PosCode } from "./positions";
 import { notesMean, type MatchNote, type SeasonRatings } from "./rating/season";
+import { fixedPositions } from "../../functions/src/rating/fixed";
 import { isGuestId } from "./derived/guests";
 
 export interface PosLine {
@@ -55,9 +56,10 @@ function eventsAt(pe: unknown, code: PosCode): Ev {
 /**
  * A player's minutes, matches and events by exact position over the finished matches of `games`.
  *
- * `rating` is GLOBAL restricted to the matches where that code was his most-played code (ties in catalogue
- * order): his notas there (`ratings`: seasonRatings over the same period, so it is the card's own nota of
- * each match) on GLOBAL's scale, with its cushion and its rule for short matches. Null with fewer than 2 such
+ * `rating` is GLOBAL restricted to the matches where that code was his fixed position (where he started, or
+ * first came on: the one his nota was rated in; when the acta cannot place him, his most-played code, ties in
+ * catalogue order): his notas there (`ratings`: seasonRatings over the same period, so it is the card's own nota
+ * of each match) on GLOBAL's scale, with its cushion and its rule for short matches. Null with fewer than 2 such
  * matches with a nota, or without `ratings` (the pages that only read the minutes).
  */
 export function playerPositions(pid: string, games: ClubMatch[], ratings?: SeasonRatings): PlayerPositions {
@@ -86,10 +88,14 @@ export function playerPositions(pid: string, games: ClubMatch[], ratings?: Seaso
       lines.set(code, l);
       minutes += min;
     }
-    // the match's nota counts for the rating of his most-played code
-    const [code] = byCode.reduce((a, b) => (b[1] > a[1] || (b[1] === a[1] && order(b[0]) < order(a[0])) ? b : a));
+    // the match's nota counts for the rating of his fixed position, the one it was rated in (with minutes there);
+    // else of his most-played code
     const note = ratings?.noteOf(m.id, pid);
-    if (note) notes.set(code, [...(notes.get(code) ?? []), note]);
+    if (note) {
+      const fixed = fixedPositions(m).get(pid);
+      const code = fixed && byCode.some(([c]) => c === fixed) ? fixed : byCode.reduce((a, b) => (b[1] > a[1] || (b[1] === a[1] && order(b[0]) < order(a[0])) ? b : a))[0];
+      notes.set(code, [...(notes.get(code) ?? []), note]);
+    }
   }
   const list = [...lines.values()]
     .map((l) => {
