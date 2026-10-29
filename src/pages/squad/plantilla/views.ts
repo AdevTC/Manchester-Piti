@@ -836,7 +836,7 @@ export function playerView(S: Squad, st: ViewState, who: Who, lines: Map<string,
         ? `Más minutos de ${posName(top.code)}: ${top.min}′ en ${top.matches}${top.matches === 1 ? " partido." : " partidos."}`
         : `Sin pizarra oficial en las actas: cuenta su posición preferida, ${posName(fp.main ?? top.code)}, en ${top.matches}${top.matches === 1 ? " partido." : " partidos."}`,
     rows: pp.lines.map((l) => ({ code: l.code, name: posName(l.code), min: l.min != null ? `${l.min}′` : "—", pj: l.matches, g: l.goals, a: l.assists, rating: l.rating == null ? "—" : f1(l.rating) })),
-    note: "Valoración: su GLOBAL en los partidos que jugó sobre todo en ese puesto; aparece desde el segundo.",
+    note: "Valoración: su GLOBAL en los partidos en que ese fue su puesto, donde empezó o entró (si el acta no lo dice, donde más jugó); aparece desde el segundo.",
     reviewT: me === focus ? "Tus posiciones." : "Sus posiciones.",
     review: !(me === focus || admin)
       ? ""

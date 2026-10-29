@@ -64,7 +64,16 @@ describe("playerPositions", () => {
     expect(playerPositions("ana", odd).lines.map((l) => l.code)).toEqual(["MC"]);
   });
 
-  it("rates a code with GLOBAL's notas of the matches where it was his most-played one; null below 2", () => {
+  it("rates the code he started in, his fixed position (the one his nota was rated in), not the one with most minutes", () => {
+    // ana starts at centre-back and swaps to the middle at 20′, twice
+    const swapped = (n: number) => match(n, { ana: row(50, { positionsPlayed: { DFC: 20, MC: 30 } }), bea: row(50, { positionsPlayed: { MC: 20, DFC: 30 } }) }, { starters: ["ana", "bea"], events: [{ id: `s${n}`, type: "position_swap", minute: 20, playerId: "ana", inPlayerId: "bea" }] as Ev[] });
+    const gs = [swapped(1), swapped(2)];
+    const ratings = seasonRatings(ratingMatches(gs));
+    const by = new Map(playerPositions("ana", gs, ratings).lines.map((l) => [l.code, l.rating]));
+    expect(by.get("DFC")).toBe(Math.round(notesMean([ratings.noteOf("j1", "ana")!, ratings.noteOf("j2", "ana")!]) * 10) / 10);
+    expect(by.get("MC")).toBeNull();
+  });
+  it("without a fixed position (the acta cannot place his start), the code with most minutes; null below 2", () => {
     const ratings = seasonRatings(ratingMatches(games));
     const p = playerPositions("ana", games, ratings);
     const by = new Map(p.lines.map((l) => [l.code, l.rating]));
