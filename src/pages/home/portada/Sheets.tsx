@@ -3,7 +3,7 @@
 // played), «El cartel» (the night's poster to share or save).
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Kit } from "../../../components/jersey3d/kitStill";
-import { scoreText } from "../../../lib/derived/words";
+import { homeFirst, scoreText } from "../../../lib/derived/words";
 import { PI, Tee } from "./ui";
 import { RivalMark } from "../../../components/vidrio/RivalMark";
 
@@ -40,7 +40,7 @@ function Sheet({ id, cls, title, sub, closeLabel, onClose, children }: { id: str
   );
 }
 
-export function PorraSheet({ sub, rival, code, logo, note, initial, onSave, onClose }: { sub: string; rival: string; code: string; logo?: string; note: string; initial: { us: number; them: number }; onSave: (us: number, them: number) => Promise<void>; onClose: () => void }) {
+export function PorraSheet({ sub, rival, code, logo, home, note, initial, onSave, onClose }: { sub: string; rival: string; code: string; logo?: string; home: boolean; note: string; initial: { us: number; them: number }; onSave: (us: number, them: number) => Promise<void>; onClose: () => void }) {
   const [d, setD] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -56,44 +56,50 @@ export function PorraSheet({ sub, rival, code, logo, note, initial, onSave, onCl
       },
     );
   };
+  // (the home side on the left: away, the rival's goals first)
+  const [left, right] = homeFirst(
+    home,
+    <div className="in-porra__s">
+      <img src="/crest-128.webp" alt="" width={40} height={40} />
+      <b>Piti</b>
+      <div className="in-step">
+        <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("us", -1)} aria-label="Un gol menos del Piti">
+          <PI name="chev-l" />
+        </button>
+        <output className="in-step__v" aria-live="polite">
+          {d.us}
+        </output>
+        <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("us", 1)} aria-label="Un gol más del Piti">
+          <PI name="chev-r" />
+        </button>
+      </div>
+    </div>,
+    <div className="in-porra__s">
+      <span className="vd-team__crest vd-team__crest--rival in-porra__or" aria-hidden="true">
+        <RivalMark logo={logo}>{code}</RivalMark>
+      </span>
+      <b>{rival}</b>
+      <div className="in-step">
+        <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("them", -1)} aria-label={`Un gol menos de ${rival}`}>
+          <PI name="chev-l" />
+        </button>
+        <output className="in-step__v" aria-live="polite">
+          {d.them}
+        </output>
+        <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("them", 1)} aria-label={`Un gol más de ${rival}`}>
+          <PI name="chev-r" />
+        </button>
+      </div>
+    </div>,
+  );
   return (
     <Sheet id="in-porra-t" cls="in-porra" title="Tu porra" sub={sub} closeLabel="Cerrar la porra" onClose={onClose}>
       <div className="in-porra__g">
-        <div className="in-porra__s">
-          <img src="/crest-128.webp" alt="" width={40} height={40} />
-          <b>Piti</b>
-          <div className="in-step">
-            <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("us", -1)} aria-label="Un gol menos del Piti">
-              <PI name="chev-l" />
-            </button>
-            <output className="in-step__v" aria-live="polite">
-              {d.us}
-            </output>
-            <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("us", 1)} aria-label="Un gol más del Piti">
-              <PI name="chev-r" />
-            </button>
-          </div>
-        </div>
+        {left}
         <span className="in-porra__sep" aria-hidden="true">
           –
         </span>
-        <div className="in-porra__s">
-          <span className="vd-team__crest vd-team__crest--rival in-porra__or" aria-hidden="true">
-            <RivalMark logo={logo}>{code}</RivalMark>
-          </span>
-          <b>{rival}</b>
-          <div className="in-step">
-            <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("them", -1)} aria-label={`Un gol menos de ${rival}`}>
-              <PI name="chev-l" />
-            </button>
-            <output className="in-step__v" aria-live="polite">
-              {d.them}
-            </output>
-            <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => step("them", 1)} aria-label={`Un gol más de ${rival}`}>
-              <PI name="chev-r" />
-            </button>
-          </div>
-        </div>
+        {right}
       </div>
       <p className="vd-small pp-sheet__note">{note}</p>
       {err && (

@@ -10,11 +10,22 @@ import { JUG_FILTERS } from "./screenModel";
 import { PlayLi, TaskTile } from "./Portada";
 import { PageLink } from "./links";
 import { PI, Seg, Tee } from "./ui";
+import { homeFirst } from "../../../lib/derived/words";
 import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 export function SubHead({ cap, onBack }: { cap: CapView; onBack: (e: React.MouseEvent) => void }) {
   const ref = useRef<HTMLAnchorElement | null>(null);
   useLiveDock(ref, "lens");
+  // (the home side's crest on the left)
+  const [crestL, crestR] = homeFirst(
+    cap.home,
+    <img src="/crest-128.webp" alt="" width={28} height={28} />,
+    cap.code ? (
+      <span className="in-cap__r" aria-hidden="true">
+        <RivalMark logo={cap.logo}>{cap.code}</RivalMark>
+      </span>
+    ) : null,
+  );
   return (
     <div className="in-subhead">
       <a className="vd-glass vd-press vd-btn vd-btn--sm in-back" href="/" onClick={onBack}>
@@ -22,13 +33,9 @@ export function SubHead({ cap, onBack }: { cap: CapView; onBack: (e: React.Mouse
         Inicio
       </a>
       <a ref={ref} className={`vd-glass in-cap${cap.word ? " is-word" : ""}`} href="/" onClick={onBack} style={{ viewTransitionName: "in-score" }} aria-label={cap.aria}>
-        <img src="/crest-128.webp" alt="" width={28} height={28} />
+        {crestL}
         <b className="in-cap__s">{cap.score}</b>
-        {cap.code && (
-          <span className="in-cap__r" aria-hidden="true">
-            <RivalMark logo={cap.logo}>{cap.code}</RivalMark>
-          </span>
-        )}
+        {crestR}
         {cap.when && (
           <span className="in-cap__w">
             {cap.live && <span className="vd-livedot" aria-hidden="true" />}

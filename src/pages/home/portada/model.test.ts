@@ -4,6 +4,7 @@ import { capOf, heroOf, lensOf, movOf, ribbon, tardeOf, type Ctx, type Fase, typ
 import { doorsOf, playRows, tasksOf, type TasksIn } from "./bands";
 import { campoOf, jugadasOf } from "./screenModel";
 import { onPitch, pulseOf, type LedgerRow, type Partido, type Play } from "./partido";
+import { SCORE_DASH } from "../../../lib/derived/words";
 
 const N = (id: string) => ({ jordi: "Jordi", alcides: "Alcides", evans: "Evans", fer: "Fer", erik: "Erik", adrian: "Adrián T.C." })[id] ?? id;
 const play = (id: string, m: number, k: Play["k"], who: string | null, extra: Partial<Play> = {}): Play => ({ id, m, k, side: k === "rival" ? "them" : "us", who, out: null, assist: null, title: k === "gol" ? `Gol de ${N(who ?? "")}` : k === "rival" ? "Gol de Orduña fc" : `Entra ${N(who ?? "")}`, sub: "", ...extra });
@@ -126,6 +127,15 @@ describe("La portada: the headline and your line", () => {
   it("the capsule of the screens says the score and the minute", () => {
     expect(capOf(ctx("directo", "jugador", { m: 12 }))).toMatchObject({ score: "0⁠–⁠1", when: "Viendo el 12′", live: false });
     expect(capOf(ctx("aplazado"))).toMatchObject({ score: "Aplazado", word: true });
+  });
+
+  it("away, the board puts the home side first: their goals lead the score and its label, our crest goes right", () => {
+    const away = ctx("directo", "jugador", { m: 12, M: fx({ home: false }) });
+    expect(capOf(away)).toMatchObject({ score: `1${SCORE_DASH}0`, home: false, aria: "Volver a Inicio: Orduña fc 1, Manchester Piti 0" });
+    const l = lensOf(away);
+    expect(l).toMatchObject({ home: false, us: 0, them: 1 });
+    expect(l.scoreLabel).toBe("Orduña fc 1, Manchester Piti 0, en el minuto 12");
+    expect(lensOf(ctx("directo", "jugador", { m: 12 })).scoreLabel).toBe("Manchester Piti 0, Orduña fc 1, en el minuto 12");
   });
 });
 

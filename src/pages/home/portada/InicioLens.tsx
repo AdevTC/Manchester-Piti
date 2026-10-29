@@ -8,6 +8,7 @@ import { MatchLink } from "./links";
 import { Lens, useLiveDock } from "../../../components/vidrio";
 import type { LensView, MovView } from "./model";
 import { PI } from "./ui";
+import { homeFirst } from "../../../lib/derived/words";
 import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 export interface LensActions {
@@ -24,6 +25,48 @@ export function InicioLens({ lens, mov, playing, fx, acts, actaId, live }: { len
   const uid = useId().replace(/:/g, "");
   const ref = useRef<HTMLDivElement | null>(null);
   useLiveDock(ref, "lens");
+  // (the home side on the left, as a scoreboard reads: away, the rival first and we on the right)
+  const [scL, scR] = homeFirst(lens.home, lens.us, lens.them);
+  const [left, right] = homeFirst(
+    lens.home,
+    <div className="vd-team">
+      <img className="vd-team__crest" src="/crest-128.webp" alt="" width={68} height={68} />
+      <b>
+        <span className="pp-long">Manchester Piti</span>
+        <span className="pp-short">Piti</span>
+      </b>
+      <span>{lens.usWhere}</span>
+    </div>,
+    <div className="vd-team">
+      {lens.code ? (
+        <span className="vd-team__crest vd-team__crest--rival" aria-hidden="true">
+          <RivalMark logo={lens.logo}>{lens.code}</RivalMark>
+        </span>
+      ) : (
+        <span className="vd-team__crest vd-team__crest--rival" aria-hidden="true" />
+      )}
+      <b>{lens.rival}</b>
+      <span>{lens.themWhere}</span>
+    </div>,
+  );
+  // (each side's goals under its crest: away, the rival's in the left column)
+  const [scoredL, scoredR] = homeFirst(
+    lens.home,
+    <ul className="pp-scorers__us" aria-label="Goles del Piti">
+      {lens.ours.map((g, k) => (
+        <li key={k} className={g.later ? "is-later" : undefined}>
+          <span className="vd-clock">{g.m}</span> {g.name}
+        </li>
+      ))}
+    </ul>,
+    <ul className="pp-scorers__them" aria-label={`Goles de ${lens.rival}`}>
+      {lens.theirs && (
+        <li>
+          <b>{lens.rivalShort}</b> <span className="vd-clock in-mins">{lens.theirs}</span>
+        </li>
+      )}
+    </ul>,
+  );
   const cls = ["pp-lens", "in-lens", fx === "gold" ? "is-goal vd-rim-gold" : "", lens.pre ? "is-pre" : "", lens.off ? "is-off" : ""].filter(Boolean).join(" ");
   return (
     <div ref={ref} className="in-lensbox vd-morph" style={{ viewTransitionName: "in-score" }}>
@@ -34,23 +77,16 @@ export function InicioLens({ lens, mov, playing, fx, acts, actaId, live }: { len
             <span>{lens.kicker}</span>
           </p>
           <div className="vd-teams pp-teams">
-            <div className="vd-team">
-              <img className="vd-team__crest" src="/crest-128.webp" alt="" width={68} height={68} />
-              <b>
-                <span className="pp-long">Manchester Piti</span>
-                <span className="pp-short">Piti</span>
-              </b>
-              <span>{lens.usWhere}</span>
-            </div>
+            {left}
             <div className="pp-mid">
               {lens.face === "score" && (
                 <p className="vd-scoreline vd-score in-score" role="img" aria-label={lens.scoreLabel}>
                   <span className="vd-digit" aria-hidden="true">
-                    {lens.us}
+                    {scL}
                   </span>
                   <span className="vd-scoreline__sep" aria-hidden="true" />
                   <span className="vd-digit" aria-hidden="true">
-                    {lens.them}
+                    {scR}
                   </span>
                 </p>
               )}
@@ -67,17 +103,7 @@ export function InicioLens({ lens, mov, playing, fx, acts, actaId, live }: { len
                 </p>
               )}
             </div>
-            <div className="vd-team">
-              {lens.code ? (
-                <span className="vd-team__crest vd-team__crest--rival" aria-hidden="true">
-                  <RivalMark logo={lens.logo}>{lens.code}</RivalMark>
-                </span>
-              ) : (
-                <span className="vd-team__crest vd-team__crest--rival" aria-hidden="true" />
-              )}
-              <b>{lens.rival}</b>
-              <span>{lens.themWhere}</span>
-            </div>
+            {right}
           </div>
           <p className="vd-status pp-status">
             {lens.live && <span className="vd-live">En directo</span>}
@@ -85,21 +111,9 @@ export function InicioLens({ lens, mov, playing, fx, acts, actaId, live }: { len
             <span>{lens.status}</span>
           </p>
           {lens.hasScorers && (
-            <div className="pp-scorers in-scorers">
-              <ul className="pp-scorers__us" aria-label="Goles del Piti">
-                {lens.ours.map((g, k) => (
-                  <li key={k} className={g.later ? "is-later" : undefined}>
-                    <span className="vd-clock">{g.m}</span> {g.name}
-                  </li>
-                ))}
-              </ul>
-              <ul className="pp-scorers__them" aria-label={`Goles de ${lens.rival}`}>
-                {lens.theirs && (
-                  <li>
-                    <b>{lens.rivalShort}</b> <span className="vd-clock in-mins">{lens.theirs}</span>
-                  </li>
-                )}
-              </ul>
+            <div className={`pp-scorers in-scorers${lens.home ? "" : " is-away"}`}>
+              {scoredL}
+              {scoredR}
             </div>
           )}
         </div>
@@ -253,6 +267,13 @@ function Tarde({ t }: { t: NonNullable<MovView["tarde"]> }) {
 function Ultimo({ mov, actaId, onCampo }: { mov: MovView; actaId: string | null; onCampo: (e: React.MouseEvent) => void }) {
   const l = mov.last;
   if (!l) return null;
+  const [crestL, crestR] = homeFirst(
+    l.home,
+    <img src="/crest-128.webp" alt="" width={34} height={34} />,
+    <span className="in-last__or" aria-hidden="true">
+      <RivalMark logo={l.logo}>{l.code}</RivalMark>
+    </span>,
+  );
   return (
     <div className="in-last">
       <p className="pp-mov__k in-last__k">
@@ -260,13 +281,11 @@ function Ultimo({ mov, actaId, onCampo }: { mov: MovView; actaId: string | null;
         <span>{l.when}</span>
       </p>
       <div className="in-last__row">
-        <img src="/crest-128.webp" alt="" width={34} height={34} />
+        {crestL}
         <p className="in-last__sc" role="img" aria-label={l.aria}>
           <span aria-hidden="true">{l.score}</span>
         </p>
-        <span className="in-last__or" aria-hidden="true">
-          <RivalMark logo={l.logo}>{l.code}</RivalMark>
-        </span>
+        {crestR}
         <p className="in-last__t">
           <b>{l.title}</b>
           <span>{l.sub}</span>

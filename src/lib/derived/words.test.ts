@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capital, endSentence, plural, pluralWord, SCORE_DASH, scoreText } from "./words";
+import { capital, endSentence, homeFirst, plural, pluralWord, SCORE_DASH, scoreText } from "./words";
 import { madridDay, madridDayParts, madridTime } from "./madrid";
 
 describe("words", () => {
@@ -34,6 +34,15 @@ describe("madrid day and time", () => {
   it("prints the clock in 24 h", () => {
     expect(madridTime(lateSept)).toBe("00:30");
     expect(madridTime(Date.UTC(2026, 10, 8, 11))).toBe("12:00");
+  });
+});
+
+describe("homeFirst", () => {
+  it("the home side on the left: away we go right; no flag counts as at home", () => {
+    expect(homeFirst(true, "us", "them")).toEqual(["us", "them"]);
+    expect(homeFirst(undefined, "us", "them")).toEqual(["us", "them"]);
+    expect(homeFirst(null, "us", "them")).toEqual(["us", "them"]);
+    expect(homeFirst(false, "us", "them")).toEqual(["them", "us"]);
   });
 });
 

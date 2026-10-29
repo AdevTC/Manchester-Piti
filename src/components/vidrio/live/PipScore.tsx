@@ -6,12 +6,15 @@ import { VidrioSky } from "../VidrioSky";
 import { skyAt } from "../sky";
 import { rivalInitials } from "./liveModel";
 import { RivalMark } from "../RivalMark";
+import { homeFirst } from "../../../lib/derived/words";
 
 export interface PipScoreProps {
   big: string | null;
   rival: string;
   /** The rival's escudo (rivalLogos), else their initials. */
   logo?: string;
+  /** At home (the home side's crest on the left; `big` already puts its goals first). */
+  home?: boolean | null;
   head: string;
   sub: string;
   now: number;
@@ -23,17 +26,22 @@ export interface PipScoreProps {
   cold?: boolean;
 }
 
-export function PipScore({ big, rival, logo, head, sub, now, live, digit, fx = null, gold, cold }: PipScoreProps) {
+export function PipScore({ big, rival, logo, home, head, sub, now, live, digit, fx = null, gold, cold }: PipScoreProps) {
   const sky = skyAt(now, live);
+  const [crestL, crestR] = homeFirst(
+    home,
+    <img className="vd-pipscore__crest" src="/crest-128.webp" alt="" />,
+    <span className="vd-team__crest vd-team__crest--rival vd-pipscore__or" aria-hidden="true">
+      <RivalMark logo={logo}>{rivalInitials(rival)}</RivalMark>
+    </span>,
+  );
   return (
     <div className={`vd-pipscr${fx ? ` is-fx is-fx--${fx}` : ""}`}>
       <VidrioSky light={sky.light} floodlit={sky.floodlit} gold={gold} cold={cold} className="vd-pipscr__sky" />
       <div className="vd-pipscore">
-        <img className="vd-pipscore__crest" src="/crest-128.webp" alt="" />
+        {crestL}
         {big && <span className={`vd-score vd-pipscore__num${digit ? ` ${digit}` : ""}`}>{big}</span>}
-        <span className="vd-team__crest vd-team__crest--rival vd-pipscore__or" aria-hidden="true">
-          <RivalMark logo={logo}>{rivalInitials(rival)}</RivalMark>
-        </span>
+        {crestR}
         <span className="vd-wave" aria-hidden="true" />
         <span className="vd-wave vd-wave--2" aria-hidden="true" />
       </div>

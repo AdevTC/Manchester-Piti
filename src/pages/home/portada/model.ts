@@ -2,7 +2,7 @@
 // IN-Inicio390…1920, over production's data). The lens (the score, «La moviola», «La tarde», «El último» or the
 // still), the headline with its line for you, the actions and the weather; the score capsule of the screens and
 // the floating score. Pure: HomePage gathers the data and the components draw what this returns.
-import { SCORE_DASH, scoreText } from "../../../lib/derived/words";
+import { SCORE_DASH, homeFirst, scoreText } from "../../../lib/derived/words";
 import { KEY_PLAY, isCard, scoreAt, stintsAt, onFieldAt, type Partido, type Play, type PlayK } from "./partido";
 
 /** The moments the boards draw. */
@@ -128,6 +128,8 @@ export interface LensView {
   rival: string;
   code: string;
   logo?: string;
+  /** At home: the board puts the home side on the left (homeFirst). */
+  home: boolean;
   usWhere: string;
   themWhere: string;
   face: "score" | "time" | "word";
@@ -186,6 +188,7 @@ export function lensOf(c: Ctx): LensView {
     rival,
     code: F?.code ?? "",
     logo: F?.logo,
+    home: F ? F.home : true,
     usWhere: F ? (F.home ? "En casa" : "Fuera") : "",
     themWhere: F ? (F.home ? "Fuera" : "En casa") : "",
     face: faceKind,
@@ -200,7 +203,7 @@ export function lensOf(c: Ctx): LensView {
     theirs: theirs.join(" "),
     rivalShort: rival.replace(/ fc$/i, ""),
     hasScorers: played && ours.length + theirs.length > 0,
-    scoreLabel: played ? `Manchester Piti ${sc.us}, ${rival} ${sc.them}${dragged ? `, en el minuto ${c.m}` : live ? ", en directo" : ""}` : faceKind === "time" ? `Pitido inicial a las ${time}` : word,
+    scoreLabel: played ? `${homeFirst(F?.home, `Manchester Piti ${sc.us}`, `${rival} ${sc.them}`).join(", ")}${dragged ? `, en el minuto ${c.m}` : live ? ", en directo" : ""}` : faceKind === "time" ? `Pitido inicial a las ${time}` : word,
     aria: semana ? "El próximo partido" : "El partido de hoy",
     pre: pre || semana,
     off: off || !F,
@@ -306,7 +309,7 @@ export interface MovView {
   // «La tarde»
   tarde: TardeView | null;
   // «El último»
-  last: { when: string; score: string; code: string; logo?: string; aria: string; title: string; sub: string } | null;
+  last: { when: string; score: string; code: string; logo?: string; home: boolean; aria: string; title: string; sub: string } | null;
   still: { icon: "cal" | "mesa"; t: string; d: string } | null;
 }
 
@@ -440,10 +443,11 @@ export function movOf(c: Ctx, tarde: TardeView | null, playing: boolean): MovVie
       kind === "last" && c.M
         ? {
             when: `${J ? `${J} · ` : ""}${c.M.dayLong}`,
-            score: scoreText(scE.us, scE.them),
+            score: scoreText(...homeFirst(c.M.home, scE.us, scE.them)),
             code: c.M.code,
             logo: c.M.logo,
-            aria: `Manchester Piti ${scE.us}, ${rival} ${scE.them}`,
+            home: c.M.home,
+            aria: homeFirst(c.M.home, `Manchester Piti ${scE.us}`, `${rival} ${scE.them}`).join(", "),
             title: `${scE.us > scE.them ? "Ganamos" : scE.us < scE.them ? "Perdimos" : "Empatamos"} ante ${rival}`,
             sub: `${c.M.home ? "En casa" : "Fuera"} · el acta ya está publicada`,
           }
@@ -650,6 +654,7 @@ export interface CapView {
   score: string;
   code: string;
   logo?: string;
+  home: boolean;
   word: boolean;
   when: string;
   live: boolean;
@@ -671,17 +676,18 @@ export function capOf(c: Ctx): CapView {
   const F = c.M;
   const J = jOf(F);
   const rival = F?.rival ?? "";
-  const score = played ? scoreText(sc.us, sc.them) : semana && c.P ? scoreText(scE.us, scE.them) : pre ? (F?.time ?? "") : f === "aplazado" ? "Aplazado" : F ? "Sin acta" : "Piti";
+  const score = played ? scoreText(...homeFirst(F?.home, sc.us, sc.them)) : semana && c.P ? scoreText(...homeFirst(F?.home, scE.us, scE.them)) : pre ? (F?.time ?? "") : f === "aplazado" ? "Aplazado" : F ? "Sin acta" : "Piti";
   return {
     score,
     code: F?.code ?? "",
     logo: F?.logo,
+    home: F ? F.home : true,
     word: f === "aplazado" || f === "pendiente" || !F,
     when: live ? (dragged ? `Viendo el ${c.m}′` : f === "descanso" ? "Descanso" : `${c.edge}′`) : semana && c.P ? `${J ? `${J} · ` : ""}final` : f === "final" || f === "acta" ? (dragged ? `Viendo el ${c.m}′` : "Final") : pre ? (f === "pitido" ? "A punto" : "Hoy") : "",
     live: live && f !== "descanso" && !dragged,
     showProg: hasGame,
     prog: Number(((c.m / (c.P?.duration ?? 50)) * 100).toFixed(2)),
-    aria: `Volver a Inicio: ${hasGame ? `Manchester Piti ${played ? sc.us : scE.us}, ${rival} ${played ? sc.them : scE.them}` : pre ? `hoy a las ${F?.time ?? ""} contra ${rival}` : f === "aplazado" ? "aplazado" : F ? "pendiente del acta" : "la portada"}`,
+    aria: `Volver a Inicio: ${hasGame ? homeFirst(F?.home, `Manchester Piti ${played ? sc.us : scE.us}`, `${rival} ${played ? sc.them : scE.them}`).join(", ") : pre ? `hoy a las ${F?.time ?? ""} contra ${rival}` : f === "aplazado" ? "aplazado" : F ? "pendiente del acta" : "la portada"}`,
   };
 }
 

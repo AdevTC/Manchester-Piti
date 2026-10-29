@@ -5,6 +5,7 @@
 // seven facets). Handlers live in the components; these return words, numbers and ids.
 import { clockTime as hhmm, daysBetween, distanceText, longDay, shortDay, tinyDay, untilText, postponedLine, newDateLine } from "../vidrio/model";
 import { MONTHS_SHORT, madridDate } from "../../../lib/derived/madrid";
+import { homeFirst } from "../../../lib/derived/words";
 import { capW as cap, grad, listW, onPitch, ourLine, pluralW as plural, scorers, signed, simulate, slugW, stretches, streaks, tableOf, type Ev, type Letter, type PMatch, type PSeason, type TRow } from "./season";
 import type { StandingRow } from "../../../lib/standings";
 import { matchVideoHref } from "../../../../functions/src/matchVideo";
@@ -224,6 +225,8 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
     j: sel.j,
     ini: sel.ini,
     logo: sel.logo,
+    /** At home: the board puts the home side on the left (homeFirst). */
+    home: sel.home,
     rival: sel.rival,
     venue: sel.venue,
     lente,
@@ -296,7 +299,7 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
     ga: sel.score?.ga ?? 0,
     live: sel.state === "directo",
     min: sel.minute,
-    aria: `Marcador: Manchester Piti ${sel.score?.gf ?? 0}, ${sel.rival} ${sel.score?.ga ?? 0}`,
+    aria: `Marcador: ${homeFirst(sel.home, `Manchester Piti ${sel.score?.gf ?? 0}`, `${sel.rival} ${sel.score?.ga ?? 0}`).join(", ")}`,
     half: sel.state === "directo" ? ((sel.minute ?? 0) > sel.dur / 2 ? "de la segunda parte" : "de la primera parte") : "Final. El partido entero, jugada a jugada.",
     playedW: Math.round((dm / sel.dur) * 1000) / 10,
     durT: `${sel.dur}′`,
@@ -327,7 +330,7 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
   const act = {
     gf: sel.score?.gf ?? 0,
     ga: sel.score?.ga ?? 0,
-    aria: `Resultado final: Manchester Piti ${sel.score?.gf ?? 0}, ${sel.rival} ${sel.score?.ga ?? 0}`,
+    aria: `Resultado final: ${homeFirst(sel.home, `Manchester Piti ${sel.score?.gf ?? 0}`, `${sel.rival} ${sel.score?.ga ?? 0}`).join(", ")}`,
     final: sel.letter ? `${sel.provisional ? "A falta del acta" : "Final"} · ${{ G: "Victoria", E: "Empate", P: "Derrota" }[sel.letter]}` : "Final",
     goals,
     mvpCls: mvpOpen || !winners.length ? "is-open" : "",

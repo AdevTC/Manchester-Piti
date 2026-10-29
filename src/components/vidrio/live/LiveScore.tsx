@@ -468,7 +468,7 @@ export function LiveScore() {
         </div>
       )}
       <PipWindow pip={activePip} title="Marcador en una ventana aparte" onClose={closePip} bottom={pipBottom(pathname)}>
-        <PipScore big={lines.big} rival={rival} logo={logoOf(logos, rival)} head={pipHead} sub={pipSub} now={now} live={ballRolling} digit={g.digit || undefined} fx={fx} gold={g.sky.gold} cold={g.sky.cold} />
+        <PipScore big={floatLines(float, now, state.match.home).big} rival={rival} logo={logoOf(logos, rival)} home={state.match.home} head={pipHead} sub={pipSub} now={now} live={ballRolling} digit={g.digit || undefined} fx={fx} gold={g.sky.gold} cold={g.sky.cold} />
       </PipWindow>
     </>
   );

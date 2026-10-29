@@ -12,6 +12,7 @@ import { SocialIcon } from "../../../components/vidrio/SocialIcon";
 import { matchVideoHref } from "../../../../functions/src/matchVideo";
 import type { Play } from "./model";
 import { playheadTip, ribbonMarks, ribbonPaths, tardeOf } from "./moviola";
+import { homeFirst } from "../../../lib/derived/words";
 
 export interface HeadProps {
   c: PageCtx;
@@ -77,6 +78,24 @@ export function Head(p: HeadProps) {
 
   // ---- the lens
   const sc = c.score;
+  // (the home side on the left, as a scoreboard reads: away, the rival first and we on the right)
+  const [scL, scR] = homeFirst(c.match.home, sc.us, sc.them);
+  const [left, right] = homeFirst(
+    c.match.home,
+    <div className="vd-team">
+      <img className="vd-team__crest" src="/crest-128.webp" alt="" width={68} height={68} />
+      <b>
+        <span className="pp-long">Manchester Piti</span>
+        <span className="pp-short">Piti</span>
+      </b>
+      <span>{c.match.home === false ? "Fuera" : "En casa"}</span>
+    </div>,
+    <div className="vd-team">
+      <RivalCrest logo={c.rivalLogo} code={c.rivalCode} className="vd-team__crest" />
+      <b>{c.rival}</b>
+      <span>{c.match.home === false ? "En casa" : "Fuera"}</span>
+    </div>,
+  );
   const ours: { key: string; m: number; name: string; later: boolean }[] = [];
   const theirs: { key: string; m: number; later: boolean }[] = [];
   if (played)
@@ -99,6 +118,33 @@ export function Head(p: HeadProps) {
   const tarde = pre ? tardeOf(c.kickMs, duration, c.now, { whistle: fase === "pitido", member: c.viewer.member, meet: p.meet }) : null;
 
   const scorers = played && ours.length + theirs.length > 0;
+  // (each side's goals under its crest: away, the rival's in the left column)
+  const [scoredL, scoredR] = homeFirst(
+    c.match.home,
+    <ul className="pp-scorers__us" aria-label="Goles del Piti">
+      {ours.map((g) => (
+        <li key={g.key} className={g.later ? "is-later" : undefined}>
+          <span className="vd-clock">{g.m}′</span> {g.name}
+        </li>
+      ))}
+    </ul>,
+    <div className="pp-scorers__them">
+      {theirs.length > 0 && (
+        <p className="pp-scorers__rival" role="img" aria-label={`Goles de ${c.rival}: ${theirs.map((g) => g.m).join(", ")}`}>
+          <span className="pp-scorers__rn" aria-hidden="true">
+            {c.rival}
+          </span>
+          <span className="pp-scorers__mins" aria-hidden="true">
+            {theirs.map((g) => (
+              <span key={g.key} className={`vd-clock${g.later ? " is-later" : ""}`}>
+                {g.m}′
+              </span>
+            ))}
+          </span>
+        </p>
+      )}
+    </div>,
+  );
   return (
     <>
       <div className="pp-headrow">
@@ -148,20 +194,13 @@ export function Head(p: HeadProps) {
           <span className="pp-lens__halo" aria-hidden="true" />
           <div className="pp-lens__board">
             <div className="vd-teams pp-teams">
-              <div className="vd-team">
-                <img className="vd-team__crest" src="/crest-128.webp" alt="" width={68} height={68} />
-                <b>
-                  <span className="pp-long">Manchester Piti</span>
-                  <span className="pp-short">Piti</span>
-                </b>
-                <span>{c.match.home === false ? "Fuera" : "En casa"}</span>
-              </div>
+              {left}
               <div className="pp-mid">
                 {played && (
                   <p className="vd-scoreline vd-score pp-score" role="img" aria-label={p.scoreLabel}>
-                    <Digits n={sc.us} />
+                    <Digits n={scL} />
                     <span className="vd-scoreline__sep" aria-hidden="true" />
-                    <Digits n={sc.them} />
+                    <Digits n={scR} />
                   </p>
                 )}
                 {pre && (
@@ -175,11 +214,7 @@ export function Head(p: HeadProps) {
                   </p>
                 )}
               </div>
-              <div className="vd-team">
-                <RivalCrest logo={c.rivalLogo} code={c.rivalCode} className="vd-team__crest" />
-                <b>{c.rival}</b>
-                <span>{c.match.home === false ? "En casa" : "Fuera"}</span>
-              </div>
+              {right}
             </div>
             <p className="vd-status pp-status">
               {live && fase !== "descanso" && <span className="vd-live">En directo</span>}
@@ -193,30 +228,9 @@ export function Head(p: HeadProps) {
               </p>
             )}
             {scorers && (
-              <div className="pp-scorers">
-                <ul className="pp-scorers__us" aria-label="Goles del Piti">
-                  {ours.map((g) => (
-                    <li key={g.key} className={g.later ? "is-later" : undefined}>
-                      <span className="vd-clock">{g.m}′</span> {g.name}
-                    </li>
-                  ))}
-                </ul>
-                <div className="pp-scorers__them">
-                  {theirs.length > 0 && (
-                    <p className="pp-scorers__rival" role="img" aria-label={`Goles de ${c.rival}: ${theirs.map((g) => g.m).join(", ")}`}>
-                      <span className="pp-scorers__rn" aria-hidden="true">
-                        {c.rival}
-                      </span>
-                      <span className="pp-scorers__mins" aria-hidden="true">
-                        {theirs.map((g) => (
-                          <span key={g.key} className={`vd-clock${g.later ? " is-later" : ""}`}>
-                            {g.m}′
-                          </span>
-                        ))}
-                      </span>
-                    </p>
-                  )}
-                </div>
+              <div className={`pp-scorers${c.match.home === false ? " is-away" : ""}`}>
+                {scoredL}
+                {scoredR}
               </div>
             )}
           </div>

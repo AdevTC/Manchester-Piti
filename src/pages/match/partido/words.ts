@@ -2,6 +2,7 @@
 import { countdownParts } from "../../../lib/home";
 import { madridDate } from "../../../lib/derived/madrid";
 import { madridTime } from "../../../lib/derived/madrid";
+import { homeFirst } from "../../../lib/derived/words";
 import type { Fase, ResultWords, Score } from "./model";
 
 const WEEKDAY = new Intl.DateTimeFormat("es-ES", { weekday: "long", timeZone: "Europe/Madrid" });
@@ -155,5 +156,6 @@ export function tabHints(f: Fase, R: ResultWords, kickTime: string, system: stri
   return { partido: partido[f], siete, numeros };
 }
 
-export const scoreLabelOf = (rival: string, sc: Score, opts: { played: boolean; pre: boolean; dragged: boolean; live: boolean; m: number; kickTime: string; word: string }): string =>
-  opts.played ? `Manchester Piti ${sc.us}, ${rival} ${sc.them}${opts.dragged ? `, en el minuto ${opts.m}` : opts.live ? ", en directo" : ""}` : opts.pre ? `Pitido inicial a las ${opts.kickTime}` : opts.word;
+/** The score as the board shows it, the home side first («Pitutis 1, Manchester Piti 2» away). */
+export const scoreLabelOf = (rival: string, sc: Score, opts: { home?: boolean | null; played: boolean; pre: boolean; dragged: boolean; live: boolean; m: number; kickTime: string; word: string }): string =>
+  opts.played ? `${homeFirst(opts.home, `Manchester Piti ${sc.us}`, `${rival} ${sc.them}`).join(", ")}${opts.dragged ? `, en el minuto ${opts.m}` : opts.live ? ", en directo" : ""}` : opts.pre ? `Pitido inicial a las ${opts.kickTime}` : opts.word;

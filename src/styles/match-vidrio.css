@@ -89,6 +89,10 @@
 .pp .pp-scorers__mins{display:flex;flex-wrap:wrap;gap:2px 9px;max-width:230px}
 .pp .pp-scorers__mins .vd-clock{font-size:12.5px;color:var(--vd-g-ink);transition:opacity .3s var(--vd-ease)}
 .pp .pp-scorers__mins .is-later{opacity:.28}
+/* away: the rival's goals in the left column, ours in the right, each leaning to the centre */
+.pp .pp-scorers.is-away .pp-scorers__us{justify-items:start;text-align:left}
+.pp .pp-scorers.is-away .pp-scorers__them,.pp .pp-scorers.is-away .pp-scorers__rival{justify-items:end;text-align:right}
+.pp .pp-scorers.is-away .pp-scorers__mins{justify-content:flex-end}
 .pp .pp-rib .vd-ribbon__mark.is-minor{width:16px;height:16px;opacity:.85}
 .pp .pp-rib .vd-ribbon__mark.is-minor svg{width:11px;height:11px}
 .pp .pp-rib__n{position:absolute;right:-9px;top:-9px;min-width:17px;height:17px;padding:0 3px;box-sizing:border-box;border-radius:9px;background:var(--vd-solid);color:var(--vd-g-ink);font:700 11.5px/17px var(--vd-sans);text-align:center;box-shadow:0 0 0 1px var(--vd-rule2)}

@@ -16,7 +16,7 @@ import { useMatchClock } from "../../hooks/useMatchClock";
 import { useSyncChip } from "../../hooks/useSyncChip";
 import { useTheme } from "../../hooks/useTheme";
 import { dateMillis, nameFor, playerForSeason, useClubData, type ClubMatch } from "../../lib/clubData";
-import { niceName } from "../../lib/derived/words";
+import { homeFirst, niceName } from "../../lib/derived/words";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { madridTime } from "../../lib/derived/madrid";
 import { logoOf, rivalLogos } from "../../lib/derived/rivalLogo";
@@ -547,6 +547,7 @@ export function MatchPage() {
     cancelled,
   });
   const scoreLabel = scoreLabelOf(rival, score, {
+    home: match.home,
     played,
     pre,
     dragged,
@@ -650,8 +651,10 @@ export function MatchPage() {
       aria: `${prev ? "Anterior" : "Siguiente"}: ${jj ? `J${jj}, ` : ""}${x.home === false ? `en casa de ${xr}` : `en casa contra ${xr}`}${when ? `, a las ${when}` : ""}`,
     };
   };
+  // (the home side's crest on the left)
+  const [miniL, miniR] = homeFirst(match.home, <img src="/crest-128.webp" alt="" width={24} height={24} />, <RivalCrest logo={c.rivalLogo} code={c.rivalCode} className="pp-mini__r" />);
   const mini = {
-    score: played ? `${score.us}–${score.them}` : pre ? kickTime : fase === "aplazado" ? word : "Sin acta",
+    score: played ? homeFirst(match.home, score.us, score.them).join("–") : pre ? kickTime : fase === "aplazado" ? word : "Sin acta",
     when: live
       ? dragged
         ? `Viendo el ${minute}′`
@@ -739,9 +742,9 @@ export function MatchPage() {
               aria-label={`Volver arriba: ${scoreLabel}`}
               tabIndex={compact ? 0 : -1}
             >
-              <img src="/crest-128.webp" alt="" width={24} height={24} />
+              {miniL}
               <b className="pp-mini__s">{mini.score}</b>
-              <RivalCrest logo={c.rivalLogo} code={c.rivalCode} className="pp-mini__r" />
+              {miniR}
               <span className="pp-mini__w">
                 {mini.live && <span className="vd-livedot" aria-hidden="true" />}
                 <span className="vd-clock">{mini.when}</span>

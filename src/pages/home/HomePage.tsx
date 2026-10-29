@@ -890,6 +890,7 @@ export function HomePage() {
             rival={pJ.rival}
             code={pJ.code}
             logo={pJ.logo}
+            home={pJ.home}
             note="Las porras de los demás se ven después del pitido."
             initial={porra ?? { us: 1, them: 1 }}
             onSave={(us, them) =>

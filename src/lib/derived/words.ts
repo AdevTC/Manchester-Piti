@@ -29,3 +29,7 @@ export const SCORE_DASH = "\u2060–\u2060";
 
 /** «1–8», «2–1» as one unbreakable word, for running text and titles. */
 export const scoreText = (gf: number | string, ga: number | string): string => `${gf}${SCORE_DASH}${ga}`;
+
+/** The two sides of a scoreboard, left then right: the home team first, so away we go on the right (crests, the
+ *  score's numbers, their labels). `home` undefined counts as at home, as everywhere else. */
+export const homeFirst = <T>(home: boolean | null | undefined, us: T, them: T): [T, T] => (home === false ? [them, us] : [us, them]);

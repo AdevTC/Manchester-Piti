@@ -8,6 +8,7 @@ import type { NotaBadge } from "./notas";
 import { Ic, ShirtImg } from "./Icon";
 import { SunCurve } from "./Drawings";
 import { SocialIcon } from "../../../components/vidrio/SocialIcon";
+import { homeFirst } from "../../../lib/derived/words";
 import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 const crest = "/crest-128.webp";
@@ -53,6 +54,26 @@ const FILTS: [Filt, string][] = [
 export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
   const { jor, lv, sel } = p;
   const { lens, pre, dir, act, pp } = lv;
+  // (the scoreboards put the home side on the left: away, the rival first and we on the right)
+  const usTeam = (
+    <div className="pa-team">
+      <img className="pa-crestimg" src={crest} alt="" width={64} height={64} />
+      <b>Manchester Piti</b>
+      <span>{lens.usWhere}</span>
+    </div>
+  );
+  const themTeam = (
+    <div className="pa-team">
+      <span className="vd-team__crest vd-team__crest--rival pa-crest pa-crest--l" aria-hidden="true">
+        <RivalMark logo={lens.logo}>{lens.ini}</RivalMark>
+      </span>
+      <b className="pa-rival">{lens.rival}</b>
+      <span>{lens.themWhere}</span>
+    </div>
+  );
+  const [teamL, teamR] = homeFirst(lens.home, usTeam, themTeam);
+  const [dirL, dirR] = homeFirst(lens.home, dir.gf, dir.ga);
+  const [actL, actR] = homeFirst(lens.home, act.gf, act.ga);
   const filtI = FILTS.findIndex((f) => f[0] === p.filt);
   const tabI = Math.max(0, lens.tabs.findIndex((t) => t.on));
   return (
@@ -231,23 +252,13 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
           <div className="pa-lb pa-dir">
             <div className="pa-col pa-dir__score">
               <div className="pa-teams">
-                <div className="pa-team">
-                  <img className="pa-crestimg" src={crest} alt="" width={64} height={64} />
-                  <b>Manchester Piti</b>
-                  <span>{lens.usWhere}</span>
-                </div>
+                {teamL}
                 <p className="pa-big pa-big--score" role="status" aria-label={dir.aria}>
-                  <span>{dir.gf}</span>
+                  <span>{dirL}</span>
                   <i aria-hidden="true">–</i>
-                  <span>{dir.ga}</span>
+                  <span>{dirR}</span>
                 </p>
-                <div className="pa-team">
-                  <span className="vd-team__crest vd-team__crest--rival pa-crest pa-crest--l" aria-hidden="true">
-                    <RivalMark logo={lens.logo}>{lens.ini}</RivalMark>
-                  </span>
-                  <b className="pa-rival">{lens.rival}</b>
-                  <span>{lens.themWhere}</span>
-                </div>
+                {teamR}
               </div>
               <p className="pa-dir__min">
                 {dir.live && (
@@ -317,23 +328,13 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
           <div className="pa-lb pa-acta">
             <div className="pa-col pa-acta__score">
               <div className="pa-teams">
-                <div className="pa-team">
-                  <img className="pa-crestimg" src={crest} alt="" width={64} height={64} />
-                  <b>Manchester Piti</b>
-                  <span>{lens.usWhere}</span>
-                </div>
+                {teamL}
                 <p className="pa-big pa-big--score" aria-label={act.aria}>
-                  <span>{act.gf}</span>
+                  <span>{actL}</span>
                   <i aria-hidden="true">–</i>
-                  <span>{act.ga}</span>
+                  <span>{actR}</span>
                 </p>
-                <div className="pa-team">
-                  <span className="vd-team__crest vd-team__crest--rival pa-crest pa-crest--l" aria-hidden="true">
-                    <RivalMark logo={lens.logo}>{lens.ini}</RivalMark>
-                  </span>
-                  <b className="pa-rival">{lens.rival}</b>
-                  <span>{lens.themWhere}</span>
-                </div>
+                {teamR}
               </div>
               <p className="pa-final">{act.final}</p>
               <ol className="pa-goals" aria-label="Los goles">

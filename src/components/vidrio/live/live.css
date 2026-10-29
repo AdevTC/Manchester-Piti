@@ -81,7 +81,8 @@ body:has(.vd-livesheet) .vd-float__hint{opacity:0}
 
 /* the score's own window (PiP, or the in-page glass window) */
 .vd-pipscore{display:flex;align-items:center;gap:14px;min-width:0;width:100%}
-.vd-pipscore img{width:44px;height:44px;border-radius:50%;flex:none}
+/* (our crest only: the rival's escudo fills its own ring, RivalMark) */
+.vd-pipscore>img{width:44px;height:44px;border-radius:50%;flex:none}
 
 @media (prefers-reduced-motion:reduce){
   .vd-livesheet{animation:none}

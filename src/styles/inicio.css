@@ -43,6 +43,9 @@
 .in .pp-rib .vd-ribbon__mark.is-minor svg{width:11px;height:11px}
 .in .pp-scorers .vd-clock{font-size:12.5px;color:var(--vd-g-ink)}
 .in .pp-scorers__them li{color:var(--vd-rival)}
+/* away: the rival's goals in the left column, ours in the right, each leaning to the centre */
+.in .pp-scorers.is-away .pp-scorers__us{justify-items:start;text-align:left}
+.in .pp-scorers.is-away .pp-scorers__them{justify-items:end;text-align:right}
 @keyframes pp-goal{0%{filter:drop-shadow(0 0 0 rgba(255,198,89,0))}30%{filter:drop-shadow(0 0 26px rgba(255,198,89,.9))}100%{filter:drop-shadow(0 10px 28px rgba(140,190,240,.32))}}
 .in .pp-mov{position:relative;margin-top:12px}
 .in .pp-mov__k{display:none;margin:0 0 2px;gap:8px;align-items:baseline;font-size:13px;color:var(--vd-g-ink2)}
