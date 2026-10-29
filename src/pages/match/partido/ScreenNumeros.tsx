@@ -7,6 +7,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import type { AnalysisFilters } from "../../../../functions/src/narrated/types";
 import { StatsChartsPanel } from "../../../components/celeste/StatsChartsPanel";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 import { dateMillis, formatDate, isCompleted, type ClubMatch } from "../../../lib/clubData";
 import { useStandings } from "../../../lib/useStandings";
 import { rivalDossier, rivalKey } from "../../../lib/derived/rival";
@@ -164,7 +165,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                 </div>
                 <p className="ppn-offriv">
                   <span className="ppn-crest" aria-hidden="true">
-                    {c.rivalCode}
+                    <RivalMark logo={c.rivalLogo}>{c.rivalCode}</RivalMark>
                   </span>
                   <span>
                     {c.off === "aplazado"
@@ -181,7 +182,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
               <section className="ppn-sec ppn-rival" aria-labelledby="ppn-rival-h">
                 <div className="ppn-rival__id">
                   <span className="ppn-crest ppn-crest--big" aria-hidden="true">
-                    {c.rivalCode}
+                    <RivalMark logo={c.rivalLogo}>{c.rivalCode}</RivalMark>
                   </span>
                   <div>
                     <span className="ppn-kick">El rival</span>
@@ -541,7 +542,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
               <section className="ppn-sec ppn-record" aria-labelledby="ppn-rec-h">
                 <div className="ppn-rival__id">
                   <span className="ppn-crest" aria-hidden="true">
-                    {c.rivalCode}
+                    <RivalMark logo={c.rivalLogo}>{c.rivalCode}</RivalMark>
                   </span>
                   <div>
                     <span className="ppn-kick">El rival</span>

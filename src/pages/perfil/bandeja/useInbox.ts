@@ -18,6 +18,7 @@ import { useMatchTurns } from "../../../lib/useRotaTurns";
 import { useNoticeReads, type NoticeReads } from "../../../lib/noticeReads";
 import { pushChoiceKey, pushChoiceOf, subscribePushChoice, type Topic } from "../../../lib/push";
 import { scoreOf } from "../../../lib/partidos";
+import { logoOf, rivalLogos } from "../../../lib/derived/rivalLogo";
 import { dateMillis, isVisibleMatch, matchPhase } from "../../../../functions/src/matchEngine";
 import { readTuMaqueta } from "../../../components/vidrio/tu/maqueta";
 import type { TuIconName } from "../../../components/vidrio/tu/ui";
@@ -58,6 +59,8 @@ export interface StackView {
   j: number | null;
   rival: string;
   ini: string;
+  /** The rival's escudo (rivalLogos). */
+  logo?: string;
   title: string;
   res: Res;
   gf: number;
@@ -134,6 +137,7 @@ export function useInbox(): Inbox {
   // ---------- the matches
   const visible = useMemo(() => matches.filter(isVisibleMatch).sort((a, b) => dateMillis(a.date) - dateMillis(b.date)), [matches]);
   const byId = useMemo(() => new Map(matches.map((m) => [m.id, m])), [matches]);
+  const logos = useMemo(() => rivalLogos(matches), [matches]);
   const nextMatch = visible.find((m) => ["scheduled", "playing"].includes(matchPhase(m, now))) ?? null;
   const next: NextMatch | null = nextMatch ? { id: nextMatch.id, j: jornadaOf(matches, nextMatch), at: dateMillis(nextMatch.date), home: nextMatch.home ?? null, rival: nextMatch.rival?.trim() || "el rival", dur: durationOf(nextMatch) } : null;
   const nameOf = (id: string, seasonId?: string) => nameFor(players.find((p) => p.id === id), seasonId);
@@ -348,6 +352,7 @@ export function useInbox(): Inbox {
       j: m ? jornadaOf(matches, m) : null,
       rival,
       ini: rivalIni(rival, (m as { rivalInitials?: string } | undefined)?.rivalInitials),
+      logo: m ? logoOf(logos, m.rival) : undefined,
       title: res ? `Manchester Piti ${gf}–${ga} ${rival}` : rival,
       res,
       gf,

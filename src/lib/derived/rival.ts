@@ -7,15 +7,9 @@ import type { ClubMatch } from "../clubData";
 import { dateMillis, isCompleted } from "../../../functions/src/matchEngine";
 import { opponentInitials, teamAnalysis } from "../clubAnalytics";
 import { isGuestId } from "./guests";
+import { rivalKey } from "./rivalLogo";
 
-/** The one spelling of a rival's name the meetings are grouped by. */
-export const rivalKey = (name: string): string =>
-  name
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
+export { rivalKey };
 
 /** A rival as a match names it («Rival» when it names none, as the stats page always grouped it). */
 const rivalOf = (m: Pick<ClubMatch, "rival">): string => m.rival || "Rival";

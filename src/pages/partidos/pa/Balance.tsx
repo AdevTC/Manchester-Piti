@@ -4,6 +4,7 @@
 import type { CSSProperties, KeyboardEvent, MouseEvent, Ref } from "react";
 import type { Facet, balanceView } from "./views";
 import { Ic, ShirtImg } from "./Icon";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 type BV = ReturnType<typeof balanceView>;
 
@@ -282,7 +283,7 @@ export function Balance({ balBox, ...p }: BalanceProps) {
                   <li key={r.rival} className={`pa-fmx__r ${r.cls}`}>
                     <span className="pa-fmx__t">
                       <span className="pa-tbl__crest is-rival" aria-hidden="true">
-                        {r.ini}
+                        <RivalMark logo={r.logo}>{r.ini}</RivalMark>
                       </span>
                       <b>{r.rival}</b>
                     </span>

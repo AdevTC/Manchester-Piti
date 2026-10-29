@@ -24,6 +24,7 @@ import { currentSeasonId, mvpWinners } from "../../lib/vestuario";
 import { useMvpResults, usePorraStandings } from "../vestuario/live";
 import { seasonStrip, stripStateOf } from "../../lib/derived/vidrio/strip";
 import { votesClosedAt } from "../../lib/derived/mvpOf";
+import { rivalLogos } from "../../lib/derived/rivalLogo";
 import { matchPhase } from "../../../functions/src/matchEngine";
 import { niceName } from "../../lib/derived/words";
 import { leaguePhrase } from "../partidos/vidrio/model";
@@ -490,7 +491,8 @@ export function NumerosPage() {
 
   const othersAt = useMemo(() => sq.others.map((S) => ({ S, moment: momentOf(S) })), [sq.others]);
   const today = TODAY.format(now);
-  const env: Env = useMemo(() => ({ nd, S: sq.S, moment, others: othersAt, viewer, catalog, demo: useDemo, today }), [nd, sq.S, moment, othersAt, viewer, catalog, useDemo, today]);
+  const logos = useMemo(() => rivalLogos(matches), [matches]);
+  const env: Env = useMemo(() => ({ nd, S: sq.S, moment, others: othersAt, viewer, catalog, demo: useDemo, today, logos }), [nd, sq.S, moment, othersAt, viewer, catalog, useDemo, today, logos]);
   // the view's handlers call the latest actions (they close over this render's state), so the view itself is rebuilt
   // only when the state or the data change, not on every render of the page
   const actRef = useRef(act);

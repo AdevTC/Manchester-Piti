@@ -27,6 +27,7 @@ import { useMvpResults } from "../vestuario/live";
 import { shownMinute } from "../../lib/partidos";
 import { useMatchWeatherHourly } from "../../lib/weather";
 import { seasonStrip } from "../../lib/derived/vidrio/strip";
+import { rivalLogos } from "../../lib/derived/rivalLogo";
 import { niceName } from "../../lib/derived/words";
 import { clockTime, leaguePhrase } from "./vidrio/model";
 import { useCartelShare } from "./vidrio/cartelShare";
@@ -211,6 +212,7 @@ export function PartidosPage() {
 
   // ── the season at now
   const strip = useMemo(() => seasonStrip(matches, seasonId, now), [matches, seasonId, now]);
+  const logos = useMemo(() => rivalLogos(matches), [matches]);
   const liveSeg = strip.segments.find((s) => s.state === "directo") ?? null;
   const liveMinute = liveSeg ? shownMinute(liveSeg.match, now) : null;
   const url = urlState(screen, search);
@@ -251,8 +253,9 @@ export function PartidosPage() {
           return { open, votes: open ? (r?.total ?? null) : null, of: open && typeof r?.eligible === "number" && r.eligible > 0 ? r.eligible : null, closes: typeof m.voteClosesAt === "number" ? m.voteClosesAt : null, winners: open ? [] : mvpWinners(m, r, now) };
         },
         fcOf: (m) => (m.id === fcFor && hourly ? hourly.hours.map((h) => ({ h: clockTime(h.at), t: h.temp, ko: h.kickoff })) : null),
+        logos,
       }),
-    [strip, now, liveMinute, mvpResults, fcFor, hourly],
+    [strip, now, liveMinute, mvpResults, fcFor, hourly, logos],
   );
   const ms = se.matches;
   const picks = useMemo(() => picksRaw ?? parsePicks(url.ysi, ms), [picksRaw, url.ysi, ms]);

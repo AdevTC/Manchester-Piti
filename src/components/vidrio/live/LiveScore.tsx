@@ -14,7 +14,7 @@
 // liveDock.setLive lights the chrome's dot on «Partidos». The installed app's icon carries our goals while the
 // ball rolls (useScoreBadge). Screen readers hear each change once (one polite live region), never the ticking
 // minute. Client only, never on its own match page (it lands there).
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import { useRouterState } from "@tanstack/react-router";
 import { nameFor, useClubData, type ClubMatch } from "../../../lib/clubData";
@@ -55,6 +55,7 @@ import { LiveSheet, type RsvpAnswer } from "./LiveSheet";
 import { LivePlays } from "./LivePlays";
 import { PipScore } from "./PipScore";
 import { useScoreBadge } from "./useScoreBadge";
+import { logoOf, rivalLogos } from "../../../lib/derived/rivalLogo";
 import "../../../styles/vidrio/reading.css";
 import "./live.css";
 
@@ -289,6 +290,7 @@ export function LiveScore() {
   const shown = !!state && !landed && !hidden;
   const lensHere = dock.mode === "lens";
   const rival = state ? state.match.rival?.trim() || "Rival" : "Rival";
+  const logos = useMemo(() => rivalLogos(matches), [matches]);
 
   // hidden until the next goal: the capsule keeps the score beside «Partidos»
   const chipScore = hidden && state && (ballRolling || state.kind === "final") ? `${gf}–${ga}` : "";
@@ -466,7 +468,7 @@ export function LiveScore() {
         </div>
       )}
       <PipWindow pip={activePip} title="Marcador en una ventana aparte" onClose={closePip} bottom={pipBottom(pathname)}>
-        <PipScore big={lines.big} rival={rival} head={pipHead} sub={pipSub} now={now} live={ballRolling} digit={g.digit || undefined} fx={fx} gold={g.sky.gold} cold={g.sky.cold} />
+        <PipScore big={lines.big} rival={rival} logo={logoOf(logos, rival)} head={pipHead} sub={pipSub} now={now} live={ballRolling} digit={g.digit || undefined} fx={fx} gold={g.sky.gold} cold={g.sky.cold} />
       </PipWindow>
     </>
   );

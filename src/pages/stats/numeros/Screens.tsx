@@ -8,6 +8,7 @@ import type { NuView } from "./view";
 import { I, Q, Shirt } from "./bits";
 import { WorkspaceTable } from "./WorkspaceTable";
 import { StatsChartsPanel } from "../../../components/celeste/StatsChartsPanel";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 type V = NuView;
 type NumOf = (id: string) => number | "";
@@ -1002,7 +1003,7 @@ function RivalButton({ r, sheet }: { r: RivRow; sheet?: boolean }) {
   return (
     <button type="button" className={`nu-rivb ${sheet ? "" : r.cls}`.trim()} onClick={r.pick} aria-pressed={sheet ? undefined : r.on} aria-haspopup={sheet ? "dialog" : undefined}>
       <span className="vd-team__crest vd-team__crest--rival nu-rivb__crest" aria-hidden="true">
-        {r.ini}
+        <RivalMark logo={r.logo}>{r.ini}</RivalMark>
       </span>
       <span className="nu-rivb__t">
         <b>{r.rival}</b>
@@ -1119,7 +1120,7 @@ export function Rivales({ v, grow, onClose }: { v: V; grow: boolean; onClose: ()
       <aside className="nu-reg nu-reg--side nu-dossier" aria-label={`${r.d.rival}, el cara a cara`}>
         <div className="nu-dossier__top">
           <span className="vd-team__crest vd-team__crest--rival nu-dossier__crest" aria-hidden="true">
-            {r.d.ini}
+            <RivalMark logo={r.d.logo}>{r.d.ini}</RivalMark>
           </span>
           <div>
             <h3 className="nu-h3">{r.d.rival}</h3>

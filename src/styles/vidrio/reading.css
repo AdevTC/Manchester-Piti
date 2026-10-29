@@ -36,6 +36,8 @@
 .vd-team{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;min-width:0}
 .vd-team__crest{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.25),0 10px 30px -10px var(--vd-glow)}
 img.vd-team__crest{object-fit:cover}
+/* A rival's escudo inside any crest ring (RivalMark): fills the ring, round like it */
+.vd-rivlogo{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
 .vd-team__crest--rival{background:radial-gradient(circle at 35% 30%,#3a4f7c,#16244a);font-weight:800;font-variation-settings:'wdth' 110;font-size:21px;letter-spacing:.02em;color:#fff}
 :root[data-theme="light"] .vd-team__crest--rival{background:radial-gradient(circle at 35% 30%,#fff,#d8e6f5);color:var(--vd-marino)}
 .vd-team b{font-weight:680;font-variation-settings:'wdth' 94;font-size:18px;letter-spacing:-.015em;line-height:1.1;color:var(--vd-g-ink)}

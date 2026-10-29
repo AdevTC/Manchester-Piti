@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Kit } from "../../../components/jersey3d/kitStill";
 import { scoreText } from "../../../lib/derived/words";
 import { PI, Tee } from "./ui";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 function Sheet({ id, cls, title, sub, closeLabel, onClose, children }: { id: string; cls: string; title: string; sub?: string; closeLabel: string; onClose: () => void; children: ReactNode }) {
   const close = useRef<HTMLButtonElement | null>(null);
@@ -39,7 +40,7 @@ function Sheet({ id, cls, title, sub, closeLabel, onClose, children }: { id: str
   );
 }
 
-export function PorraSheet({ sub, rival, code, note, initial, onSave, onClose }: { sub: string; rival: string; code: string; note: string; initial: { us: number; them: number }; onSave: (us: number, them: number) => Promise<void>; onClose: () => void }) {
+export function PorraSheet({ sub, rival, code, logo, note, initial, onSave, onClose }: { sub: string; rival: string; code: string; logo?: string; note: string; initial: { us: number; them: number }; onSave: (us: number, them: number) => Promise<void>; onClose: () => void }) {
   const [d, setD] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -78,7 +79,7 @@ export function PorraSheet({ sub, rival, code, note, initial, onSave, onClose }:
         </span>
         <div className="in-porra__s">
           <span className="vd-team__crest vd-team__crest--rival in-porra__or" aria-hidden="true">
-            {code}
+            <RivalMark logo={logo}>{code}</RivalMark>
           </span>
           <b>{rival}</b>
           <div className="in-step">

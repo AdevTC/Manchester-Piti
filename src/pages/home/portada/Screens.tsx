@@ -10,6 +10,7 @@ import { JUG_FILTERS } from "./screenModel";
 import { PlayLi, TaskTile } from "./Portada";
 import { PageLink } from "./links";
 import { PI, Seg, Tee } from "./ui";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 export function SubHead({ cap, onBack }: { cap: CapView; onBack: (e: React.MouseEvent) => void }) {
   const ref = useRef<HTMLAnchorElement | null>(null);
@@ -25,7 +26,7 @@ export function SubHead({ cap, onBack }: { cap: CapView; onBack: (e: React.Mouse
         <b className="in-cap__s">{cap.score}</b>
         {cap.code && (
           <span className="in-cap__r" aria-hidden="true">
-            {cap.code}
+            <RivalMark logo={cap.logo}>{cap.code}</RivalMark>
           </span>
         )}
         {cap.when && (

@@ -3,6 +3,7 @@ import { longSeasonFixture } from "../../../lib/derived/vidrio/fixtures";
 import { seasonStrip } from "../../../lib/derived/vidrio/strip";
 import { focusOf, keyEvents, ourLine, seasonOf, simulate, stretches, tableOf, type PMatch } from "./season";
 import { presetPicks, winSizeFor } from "./views";
+import { rivalLogos } from "../../../lib/derived/rivalLogo";
 
 const F = longSeasonFixture();
 const at = (now: number) => seasonOf({ segments: seasonStrip(F.matches, F.seasonId, now).segments, now, liveMinute: 23, mvpOf: () => null });
@@ -17,6 +18,16 @@ describe("the season the PA- screens read", () => {
     expect(se.matches.filter((m) => m.state === "aplazado").map((m) => m.j)).toEqual([9, 20]);
     expect(se.open).toHaveLength(10);
     expect(se.focus?.j).toBe(17);
+  });
+
+  it("every meeting with a rival carries the escudo an acta saved, the ones still to play too", () => {
+    const j17 = F.matches.find((x) => x.id === "j17")!;
+    const matches = F.matches.map((m) => (m.id === "j17" ? { ...m, rivalLogoUrl: "https://piti.test/escudos/x.jpg" } : m));
+    const se = seasonOf({ segments: seasonStrip(matches, F.seasonId, F.now).segments, now: F.now, liveMinute: 23, mvpOf: () => null, logos: rivalLogos(matches) });
+    const theirs = se.matches.filter((m) => m.rival === j17.rival);
+    expect(theirs.length).toBeGreaterThan(1);
+    expect(theirs.every((m) => m.logo === "https://piti.test/escudos/x.jpg")).toBe(true);
+    expect(se.matches.filter((m) => m.rival !== j17.rival).every((m) => m.logo === undefined)).toBe(true);
   });
 
   it("the focus: the acta of the last jornada stays in front until the day before the next one", () => {

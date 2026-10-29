@@ -8,6 +8,7 @@ import type { NotaBadge } from "./notas";
 import { Ic, ShirtImg } from "./Icon";
 import { SunCurve } from "./Drawings";
 import { SocialIcon } from "../../../components/vidrio/SocialIcon";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 const crest = "/crest-128.webp";
 
@@ -182,7 +183,7 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
               {pre.open && p.rsvp}
               <div className="pa-h2h">
                 <span className="vd-team__crest vd-team__crest--rival pa-crest" aria-hidden="true">
-                  {lens.ini}
+                  <RivalMark logo={lens.logo}>{lens.ini}</RivalMark>
                 </span>
                 <p>
                   <b>{pre.h2hT}</b>
@@ -242,7 +243,7 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
                 </p>
                 <div className="pa-team">
                   <span className="vd-team__crest vd-team__crest--rival pa-crest pa-crest--l" aria-hidden="true">
-                    {lens.ini}
+                    <RivalMark logo={lens.logo}>{lens.ini}</RivalMark>
                   </span>
                   <b className="pa-rival">{lens.rival}</b>
                   <span>{lens.themWhere}</span>
@@ -328,7 +329,7 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
                 </p>
                 <div className="pa-team">
                   <span className="vd-team__crest vd-team__crest--rival pa-crest pa-crest--l" aria-hidden="true">
-                    {lens.ini}
+                    <RivalMark logo={lens.logo}>{lens.ini}</RivalMark>
                   </span>
                   <b className="pa-rival">{lens.rival}</b>
                   <span>{lens.themWhere}</span>

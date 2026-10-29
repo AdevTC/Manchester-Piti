@@ -8,6 +8,7 @@ import { MatchLink } from "./links";
 import { Lens, useLiveDock } from "../../../components/vidrio";
 import type { LensView, MovView } from "./model";
 import { PI } from "./ui";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 export interface LensActions {
   seek: (m: number) => void;
@@ -69,7 +70,7 @@ export function InicioLens({ lens, mov, playing, fx, acts, actaId, live }: { len
             <div className="vd-team">
               {lens.code ? (
                 <span className="vd-team__crest vd-team__crest--rival" aria-hidden="true">
-                  {lens.code}
+                  <RivalMark logo={lens.logo}>{lens.code}</RivalMark>
                 </span>
               ) : (
                 <span className="vd-team__crest vd-team__crest--rival" aria-hidden="true" />
@@ -264,7 +265,7 @@ function Ultimo({ mov, actaId, onCampo }: { mov: MovView; actaId: string | null;
           <span aria-hidden="true">{l.score}</span>
         </p>
         <span className="in-last__or" aria-hidden="true">
-          {l.code}
+          <RivalMark logo={l.logo}>{l.code}</RivalMark>
         </span>
         <p className="in-last__t">
           <b>{l.title}</b>

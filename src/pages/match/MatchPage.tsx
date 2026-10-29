@@ -19,6 +19,7 @@ import { dateMillis, nameFor, playerForSeason, useClubData, type ClubMatch } fro
 import { niceName } from "../../lib/derived/words";
 import { jornadaOf } from "../../lib/derived/jornada";
 import { madridTime } from "../../lib/derived/madrid";
+import { logoOf, rivalLogos } from "../../lib/derived/rivalLogo";
 import { scoreboardOf } from "../../lib/derived/scoreboard";
 import { shownMinute } from "../../lib/partidos";
 import { isVisibleMatch } from "../../../functions/src/matchEngine";
@@ -163,6 +164,7 @@ export function MatchPage() {
   const { id: matchId, screen: urlScreen } = placeOf(location.pathname, search);
   const base = `/partidos/${encodeURIComponent(matchId)}`;
   const { matches, players, loading, error } = useClubData();
+  const logos = useMemo(() => rivalLogos(matches), [matches]);
   const { seasons } = useSeason();
   const clockNow = useMatchClock(matches);
   const { user, profile } = useAuth();
@@ -583,6 +585,7 @@ export function MatchPage() {
     floodAt: (m: number) => floodAtMs(kickMs + m * 60_000),
     rival,
     rivalCode: scoreboardOf(match).initials,
+    rivalLogo: logoOf(logos, match.rival),
     jornada,
     kit,
     captain,
@@ -738,7 +741,7 @@ export function MatchPage() {
             >
               <img src="/crest-128.webp" alt="" width={24} height={24} />
               <b className="pp-mini__s">{mini.score}</b>
-              <RivalCrest logo={null} code={c.rivalCode} className="pp-mini__r" />
+              <RivalCrest logo={c.rivalLogo} code={c.rivalCode} className="pp-mini__r" />
               <span className="pp-mini__w">
                 {mini.live && <span className="vd-livedot" aria-hidden="true" />}
                 <span className="vd-clock">{mini.when}</span>

@@ -176,7 +176,7 @@ export function Head(p: HeadProps) {
                 )}
               </div>
               <div className="vd-team">
-                <RivalCrest logo={c.match.rivalLogoUrl} code={c.rivalCode} className="vd-team__crest" />
+                <RivalCrest logo={c.rivalLogo} code={c.rivalCode} className="vd-team__crest" />
                 <b>{c.rival}</b>
                 <span>{c.match.home === false ? "En casa" : "Fuera"}</span>
               </div>

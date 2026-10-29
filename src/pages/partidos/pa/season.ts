@@ -9,6 +9,7 @@ import { isPendingDup, eventMinute } from "../../../../functions/src/matchEngine
 import { sunPosition, type LightKey } from "../../../lib/derived/sun";
 import type { StripSegment } from "../../../lib/derived/vidrio/strip";
 import { venueName } from "../../../lib/derived/venue";
+import { logoOf } from "../../../lib/derived/rivalLogo";
 import { daysBetween, lightLine, paintGradient, paintOf, rivalInitials, type PaintKey } from "../vidrio/model";
 
 export type PState = "jugado" | "directo" | "hoy" | "proximo" | "aplazado" | "pendiente";
@@ -65,6 +66,8 @@ export interface PMatch {
   match: ClubMatch;
   rival: string;
   ini: string;
+  /** The rival's escudo (the newest acta against them that saved one). */
+  logo?: string;
   home: boolean;
   at: number;
   venue: string;
@@ -156,12 +159,14 @@ export interface SeasonInputs {
   mvpOf: (m: ClubMatch) => Mvp | null;
   /** The hourly forecast of a match, when known. */
   fcOf?: (m: ClubMatch) => Raw["fc"];
+  /** Every rival's escudo (rivalLogos of all the matches, any season). */
+  logos?: ReadonlyMap<string, string>;
 }
 
 const DAY = 86_400_000;
 
 /** The season at `now`: every dated, not-cancelled jornada of the strip. */
-export function seasonOf({ segments, now, liveMinute, mvpOf, fcOf }: SeasonInputs): PSeason {
+export function seasonOf({ segments, now, liveMinute, mvpOf, fcOf, logos }: SeasonInputs): PSeason {
   const matches: PMatch[] = [];
   segments.forEach((s, i) => {
     if (s.state === "suspendido" || s.at === null) return;
@@ -177,6 +182,7 @@ export function seasonOf({ segments, now, liveMinute, mvpOf, fcOf }: SeasonInput
       match: m,
       rival: s.rival,
       ini: rivalInitials(s.rival, m.rivalInitials),
+      logo: logoOf(logos, s.rival),
       home: s.home,
       at: s.at,
       venue: venueName(m.venue || "") || "CDM Palomeras",

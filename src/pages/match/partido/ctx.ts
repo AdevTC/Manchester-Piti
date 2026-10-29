@@ -70,6 +70,8 @@ export interface PageCtx {
   floodAt: (m: number) => number;
   rival: string;
   rivalCode: string;
+  /** The rival's escudo (rivalLogos: the newest acta against them that saved one). */
+  rivalLogo?: string;
   jornada: number | null;
   kit: Kit;
   captain: string | null;

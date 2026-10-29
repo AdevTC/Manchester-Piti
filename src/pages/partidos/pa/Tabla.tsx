@@ -8,6 +8,7 @@ import type { Letter, PMatch } from "./season";
 import type { Preset, tablaView } from "./views";
 import { Ic } from "./Icon";
 import { PointsPath, PositionLine } from "./Drawings";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 type TV = ReturnType<typeof tablaView>;
 
@@ -176,7 +177,7 @@ export function Tabla(p: TablaProps) {
                       </span>
                       <span role="cell" className="t">
                         <span className={`pa-tbl__crest ${r.us ? "is-us" : "is-rival"}`} aria-hidden="true">
-                          {r.ini}
+                          <RivalMark logo={r.logo}>{r.ini}</RivalMark>
                         </span>
                         <span className="pa-tbl__name">{r.team}</span>
                         {r.prov && <span className="vd-vh">, provisional</span>}
@@ -230,7 +231,7 @@ export function Tabla(p: TablaProps) {
                     {tb.near.map((n) => (
                       <li key={n.team}>
                         <span className="pa-tbl__crest is-rival" aria-hidden="true">
-                          {n.ini}
+                          <RivalMark logo={n.logo}>{n.ini}</RivalMark>
                         </span>
                         <span>
                           <b>{n.team}</b>
@@ -297,7 +298,7 @@ export function Tabla(p: TablaProps) {
                       </span>
                       <span role="cell" className="t">
                         <span className="pa-tbl__crest is-rival" aria-hidden="true">
-                          {r.ini}
+                          <RivalMark logo={r.logo}>{r.ini}</RivalMark>
                         </span>
                         <span className="pa-tbl__name">{r.team}</span>
                       </span>

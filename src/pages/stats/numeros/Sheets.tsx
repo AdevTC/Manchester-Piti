@@ -7,6 +7,7 @@ import type { NuState, NuView } from "./view";
 import { I } from "./bits";
 import { A, CardNumbers, RivalFacts, RivalGames } from "./Screens";
 import { Shirt } from "./bits";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 type V = NuView;
 const css = (o: Record<string, string | number>) => o as CSSProperties;
@@ -265,7 +266,7 @@ export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef,
       <Sheet id="nu-s-rv" sheetRef={sheetRef}>
         <header className="nu-sheet__head">
           <span className="vd-team__crest vd-team__crest--rival nu-dossier__crest" aria-hidden="true">
-            {d.ini}
+            <RivalMark logo={d.logo}>{d.ini}</RivalMark>
           </span>
           <div className="nu-sheet__who">
             <h2 id="nu-s-rv">{d.rival}</h2>

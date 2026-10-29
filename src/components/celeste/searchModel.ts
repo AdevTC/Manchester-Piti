@@ -16,6 +16,7 @@ import { scoreOf } from "../../lib/partidos";
 import { scoreText, niceName } from "../../lib/derived/words";
 import { madridTime, MONTHS_SHORT, madridDate } from "../../lib/derived/madrid";
 import { calendarOrder, jornadaNumbers } from "../../lib/derived/jornada";
+import { logoOf, rivalLogos } from "../../lib/derived/rivalLogo";
 import { nameFor } from "../../lib/derived/names";
 import { positionText } from "../../lib/positions";
 import { clubHashPath, vestuarioHashPath } from "../../lib/legacyUrls";
@@ -172,6 +173,8 @@ export interface SrEntry {
   res?: Res;
   /** A rival's initials. */
   ini?: string;
+  /** A rival's escudo (rivalLogos), shown instead of the initials. */
+  logo?: string;
   /** Its keyboard shortcut («g h», «N»: the sala's), shown as a key cap and in aria-keyshortcuts. */
   keys?: string;
   /** With `empty` (searchView's options): false keeps it off the empty field. */
@@ -201,6 +204,8 @@ export interface SrGame {
   /** Its jornada (null: a friendly). */
   j: number | null;
   rival: string;
+  /** The rival's escudo (rivalLogos). */
+  logo?: string;
   res: Res | null;
   /** «1–8» (unbreakable). */
   score: string;
@@ -303,10 +308,11 @@ export function buildEntries({ viewer, dia, players, games, next, vote }: SrInpu
     });
   }
 
-  const rivals = new Map<string, { name: string; n: number; G: number; E: number; P: number; list: string[] }>();
+  const rivals = new Map<string, { name: string; logo?: string; n: number; G: number; E: number; P: number; list: string[] }>();
   for (const g of games) {
     const key = fold(g.rival).trim();
     const r = rivals.get(key) ?? { name: g.rival, n: 0, G: 0, E: 0, P: 0, list: [] };
+    r.logo ??= g.logo;
     if (g.res) {
       r.n++;
       r[g.res]++;
@@ -317,7 +323,7 @@ export function buildEntries({ viewer, dia, players, games, next, vote }: SrInpu
   for (const r of rivals.values()) {
     const rec = r.n ? [r.G ? pl(r.G, "victoria", "victorias") : "", r.E ? pl(r.E, "empate", "empates") : "", r.P ? pl(r.P, "derrota", "derrotas") : ""].filter(Boolean).join(", ") : "Aún sin jugar";
     const href = `/estadisticas/rivales?rival=${rivalSlug(r.name)}`;
-    out.push({ id: `r:${r.name}`, kind: "rival", title: r.name, detail: `Rival · ${rec}`, kw: `${r.name} rival equipo`, ini: initials(r.name), pv: { line: `${rec}.`, list: r.list.join(" · "), url: href }, go: { to: "href", href } });
+    out.push({ id: `r:${r.name}`, kind: "rival", title: r.name, detail: `Rival · ${rec}`, kw: `${r.name} rival equipo`, ini: initials(r.name), logo: r.logo, pv: { line: `${rec}.`, list: r.list.join(" · "), url: href }, go: { to: "href", href } });
   }
 
   const sees = (w: Who) => w === "all" || ((w === "card" || w === "member") && member) || (w === "player" && k === "jugador") || (w === "cap" && captain);
@@ -372,6 +378,7 @@ const OUR_GOAL = new Set(["goal", "goal_penalty", "goal_freekick"]);
  *  cancelled; the squad by dorsal). `now` sets what is played, live or to come. */
 export function seasonData(input: { matches: readonly ClubMatch[]; players: readonly SrPlayerDoc[]; seasonId: string; now: number }): { players: SrPlayer[]; games: SrGame[]; next?: { j: number | null } } {
   const { seasonId, now } = input;
+  const logos = rivalLogos(input.matches);
   const calendar = input.matches.filter((m) => isVisibleMatch(m) && m.seasonId === seasonId && (m as { published?: boolean }).published !== false && m.status !== "cancelled").sort(calendarOrder);
   const numbers = jornadaNumbers(calendar);
   const squad = input.players.filter((p) => p.seasons?.includes(seasonId));
@@ -403,6 +410,7 @@ export function seasonData(input: { matches: readonly ClubMatch[]; players: read
       id: m.id,
       j: numbers.get(m.id) ?? null,
       rival: m.rival?.trim() || "Rival",
+      logo: logoOf(logos, m.rival),
       res: done ? (gf > ga ? "G" : gf < ga ? "P" : "E") : null,
       score: scoreText(gf, ga),
       live,

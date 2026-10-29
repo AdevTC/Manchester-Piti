@@ -24,6 +24,7 @@ import { useMatchWeather } from "../../lib/weather";
 import { matchdayOf, viewerRoleOf, type MatchdayModel } from "../../lib/derived/matchday";
 import { mvpVoteOpen } from "../../lib/derived/memberWindows";
 import { jornadaOf as jornadaOfMatch } from "../../lib/derived/jornada";
+import { logoOf, rivalLogos } from "../../lib/derived/rivalLogo";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { mapsUrl, venueName } from "../../lib/derived/venue";
 import { isEveningKickoff, madridDate, madridTime } from "../../lib/derived/madrid";
@@ -234,6 +235,7 @@ export function HomePage() {
   // (one read of the match per minute while live; once after)
   const P: Partido | null = useMemo(() => (pm ? partidoOf(pm, niceOf, liveMinute ?? undefined) : null), [pm, liveMinute, squad]); // eslint-disable-line react-hooks/exhaustive-deps -- niceOf follows squad
   const jOf = (m: ClubMatch) => jornadaOfMatch(matches, m.id);
+  const logos = useMemo(() => rivalLogos(matches), [matches]);
   const fixture = (m: ClubMatch | null): Fixture | null => {
     if (!m) return null;
     const at = dateMillis(m.date);
@@ -243,6 +245,7 @@ export function HomePage() {
       j: jOf(m),
       rival: m.rival?.trim() || "Rival",
       code: crestCode(m),
+      logo: logoOf(logos, m.rival),
       home: m.home !== false,
       kickoff: ok ? at : null,
       dayLong: ok ? dayLongOf(at) : "Fecha por confirmar",
@@ -886,6 +889,7 @@ export function HomePage() {
             sub={`${pJ.j ? `J${pJ.j} · ` : ""}${pJ.home ? "en Palomeras" : `en casa de ${pJ.rival}`} · se cierra con el pitido`}
             rival={pJ.rival}
             code={pJ.code}
+            logo={pJ.logo}
             note="Las porras de los demás se ven después del pitido."
             initial={porra ?? { us: 1, them: 1 }}
             onSave={(us, them) =>

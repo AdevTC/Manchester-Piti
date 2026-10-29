@@ -9,6 +9,7 @@ import type { AnalysisFilters, MetricResult } from "../../../../functions/src/na
 import { NU_GLOSS, NU_MET, NU_METRICS } from "./glossary";
 import type { CatRow } from "./catalog";
 import { tonightWord, TonightWord } from "../../../lib/derived/madrid";
+import { logoOf } from "../../../lib/derived/rivalLogo";
 import { clock, dec, list, pct, posWith, result, slug, strip, table, type Moment, type ND, type NMatch, type NSeasonData, type PRow, type Se, type TRow } from "./nd";
 
 export const PLACES = ["temporada", "jugadores", "campo", "juego", "rivales", "records"] as const;
@@ -102,6 +103,8 @@ export interface Env {
   demo: boolean;
   /** The date stamp of the JSON export. */
   today: string;
+  /** Every rival's escudo (rivalLogos of all the matches). */
+  logos?: ReadonlyMap<string, string>;
 }
 
 /** «1 partido marcando», never «1 partidos marcando». */
@@ -1036,7 +1039,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     .map((r) => {
       const nx = r.next;
       return {
-        key: r.rival, rival: r.rival, ini: ini(r.rival), pj: r.pj, rec: r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Aún sin jugar",
+        key: r.rival, rival: r.rival, ini: ini(r.rival), logo: logoOf(env.logos, r.rival), pj: r.pj, rec: r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Aún sin jugar",
         letters: r.games.map((m) => {
           const x = result(m) ?? "e";
           return { key: m.id, l: x.toUpperCase(), cls: `vd-form__l--${x}` };
@@ -1055,7 +1058,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     RR.games.forEach((m) => m.goals.forEach((g) => (scorers[g[0]] = (scorers[g[0]] || 0) + 1)));
     const bw = RR.games.filter((m) => (m.gf ?? 0) > (m.ga ?? 0)).sort((a, b) => (b.gf ?? 0) - (b.ga ?? 0) - ((a.gf ?? 0) - (a.ga ?? 0)))[0];
     return {
-      rival: RR.rival, ini: ini(RR.rival),
+      rival: RR.rival, ini: ini(RR.rival), logo: logoOf(env.logos, RR.rival),
       rec: RR.pj ? `${RR.pj}${RR.pj === 1 ? " partido" : " partidos"} · ${RR.g}G ${RR.e}E ${RR.p}P · ${RR.gf}–${RR.ga}` : `Aún no hemos jugado contra ${RR.rival}.`,
       games: RR.games.map((m) => ({
         key: m.id, j: `J${m.j}`, day: m.day, res: fmtRes(m), cls: `is-${result(m) ?? "e"}`, where: m.home ? "En casa" : "Fuera",

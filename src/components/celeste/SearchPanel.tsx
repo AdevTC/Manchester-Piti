@@ -10,6 +10,7 @@ import { useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardE
 import { readRecent, rememberSearch, RECENT_KEY } from "../../lib/recentSearches";
 import { KitStillContext } from "../jersey3d/kitStill";
 import { TuIcon, TuLayer } from "../vidrio/tu/ui";
+import { RivalMark } from "../vidrio/RivalMark";
 import { countText, fold, goLabel, nextScope, SCOPES, searchView, type SrEntry, type SrOptions, type SrScope, type SrViewerKind } from "./searchModel";
 import "./search.css";
 
@@ -267,7 +268,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
                           </span>
                         ) : e.kind === "rival" ? (
                           <span className="tu-sr__rv" aria-hidden="true">
-                            {e.ini}
+                            <RivalMark logo={e.logo}>{e.ini}</RivalMark>
                           </span>
                         ) : (
                           <span className="tu-sr__ic" aria-hidden="true">
@@ -389,7 +390,7 @@ export function SearchPanel({ entries, viewer, onChoose, onClose, initial, onSta
               )}
               {pv.kind === "rival" && (
                 <span className="tu-sr__rv tu-sr__rv--big" aria-hidden="true">
-                  {pv.ini}
+                  <RivalMark logo={pv.logo}>{pv.ini}</RivalMark>
                 </span>
               )}
               {pv.kind !== "jugador" && pv.kind !== "partido" && pv.kind !== "rival" && (

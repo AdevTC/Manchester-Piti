@@ -6,6 +6,7 @@ import { useContext, type AnchorHTMLAttributes, type MouseEvent, type ReactNode 
 import { useRouter } from "@tanstack/react-router";
 import { VIcon, type VIconName } from "../../../components/vidrio";
 import { KitStillContext, type Kit } from "../../../components/jersey3d/kitStill";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 const S = { fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round" } as const;
 const EXTRA = {
@@ -58,12 +59,11 @@ export function Tee({ kit, num, className = "", gold }: { kit: Kit; num?: string
   );
 }
 
-/** The rival's crest: its logo, else its initials in a ring. */
+/** The rival's crest: its escudo, else its initials, in a ring. */
 export function RivalCrest({ logo, code, className }: { logo?: string | null; code: string; className: string }) {
-  if (logo) return <img className={className} src={logo} alt="" />;
   return (
     <span className={`${className} vd-team__crest--rival`} aria-hidden="true">
-      {code}
+      <RivalMark logo={logo}>{code}</RivalMark>
     </span>
   );
 }

@@ -223,6 +223,7 @@ export function lensView(se: PSeason, sel: PMatch, asked: Lente | null, ctx: Ctx
   const lens = {
     j: sel.j,
     ini: sel.ini,
+    logo: sel.logo,
     rival: sel.rival,
     venue: sel.venue,
     lente,
@@ -424,6 +425,7 @@ export function tablaView(se: PSeason, st: TbState, ctx: Ctx) {
       .map((m) => (m.score ? `${m.state === "directo" ? "ahora " : ""}${scoreT(m)}` : m.state === "aplazado" ? "aplazado" : `J${m.j}`))
       .join(" · ");
   const iniOf = (team: string) => ms.find((m) => sameTeam(m.rival, team))?.ini ?? team.slice(0, 2).toUpperCase();
+  const logoOf = (team: string) => ms.find((m) => sameTeam(m.rival, team))?.logo;
   const provJ = (() => {
     const extra = ms.filter((m) => m.state === "jugado" && S?.jornada != null && m.j > S.jornada);
     return extra.length ? extra[extra.length - 1].j : lastPlayedJ;
@@ -444,6 +446,7 @@ export function tablaView(se: PSeason, st: TbState, ctx: Ctx) {
       pts: r.pts,
       us: r.us,
       ini: r.us ? "MP" : iniOf(r.team),
+      logo: r.us ? undefined : logoOf(r.team),
       cls: [r.us ? "is-us" : "", r.prov ? "is-prov" : "", r.sim ? "is-sim" : "", qn && r.team.toLowerCase().includes(qn) ? "is-found" : ""].filter(Boolean).join(" "),
       prov: !!(r.prov || r.sim),
       provTag: !r.us && !!(r.prov || r.sim),
@@ -501,7 +504,7 @@ export function tablaView(se: PSeason, st: TbState, ctx: Ctx) {
           .slice(0, 4)
           .map((r) => {
             const nx = ms.find((m) => sameTeam(m.rival, r.team) && isOpen(m));
-            return { team: r.team, ini: iniOf(r.team), s: `${r.pts} pts · ${r.pos}º`, d: nx ? `J${nx.j}${nx.state === "aplazado" ? ", aplazado" : `, ${nx.home ? "en casa" : "fuera"}`}` : "Ya jugados" };
+            return { team: r.team, ini: iniOf(r.team), logo: logoOf(r.team), s: `${r.pts} pts · ${r.pos}º`, d: nx ? `J${nx.j}${nx.state === "aplazado" ? ", aplazado" : `, ${nx.home ? "en casa" : "fuera"}`}` : "Ya jugados" };
           })
       : [];
   const maxPts = ourL.pts + openMs.length * 3;
@@ -536,7 +539,7 @@ export function tablaView(se: PSeason, st: TbState, ctx: Ctx) {
     if (us2.prov || us2.sim) posSeries.push({ j: (posSeries[posSeries.length - 1]?.j ?? 0) + 1, p: us2.pos });
   }
   const pubDate = S?.updatedAt ? `el ${longDay(S.updatedAt)}` : "";
-  const ghost: ({ us: true; tag: string; pj: number; g: number; e: number; p: number; gf: number; gc: number; dg: string; pts: number } | { us: false; team: string; ini: string; vt: string; cls: string; l: string; lc: string; vs: string })[] = [
+  const ghost: ({ us: true; tag: string; pj: number; g: number; e: number; p: number; gf: number; gc: number; dg: string; pts: number } | { us: false; team: string; ini: string; logo?: string; vt: string; cls: string; l: string; lc: string; vs: string })[] = [
     { us: true, tag: isLive ? "Si acaba así" : "Lo nuestro", pj: ourL.pj, g: ourL.g, e: ourL.e, p: ourL.p, gf: ourL.gf, gc: ourL.gc, dg: signed(ourL.gf - ourL.gc), pts: ourL.pts },
   ];
   const seen = new Set<string>();
@@ -548,6 +551,7 @@ export function tablaView(se: PSeason, st: TbState, ctx: Ctx) {
       us: false,
       team: m.rival,
       ini: m.ini,
+      logo: m.logo,
       vt: `pa-row-${slugW(m.rival)}`,
       cls: qn && m.rival.toLowerCase().includes(qn) ? "is-found" : "",
       l: m.score && m.letter ? m.letter : `J${m.j}`,
@@ -812,7 +816,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
     mins: [] as { id: string; n: string; name: string; v: string; stints: { x: number; w: number }[] }[],
     stretch: [] as { u: number; d: number }[],
     whenAria: "",
-    mx: [] as { rival: string; ini: string; cls: string; legs: { j: number; cls: string; l: string; lc: string; t: string; aria: string }[] }[],
+    mx: [] as { rival: string; ini: string; logo?: string; cls: string; legs: { j: number; cls: string; l: string; lc: string; t: string; aria: string }[] }[],
   };
   const growTo = (n: number, what: string, lim = capN) => {
     if (n > lim || st.all) {
@@ -957,6 +961,7 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
       return {
         rival: rv,
         ini: gs[0].ini,
+        logo: gs[0].logo,
         cls: picked && picked.rival === rv ? "is-sel" : "",
         legs: gs.map((m) => ({
           j: m.j,

@@ -2,6 +2,7 @@
 // item answered in place, a notice row with its «⋯», a match's stack with its timeline (what they do: actions.ts).
 import { type CSSProperties } from "react";
 import { DotsMenu, TuIcon, type MenuItem } from "../../../components/vidrio/tu/ui";
+import { RivalMark } from "../../../components/vidrio/RivalMark";
 import { relativeTime } from "../../../lib/derived/notices";
 import type { Notice } from "../../../lib/derived/notices";
 import { capital } from "../../../lib/derived/words";
@@ -178,7 +179,7 @@ export function MatchStack({ x, inbox, a, exp, onToggle }: { x: StackView; inbox
     <section className={cls} aria-label={`${j} · ${x.title}`}>
       <div className="tu-ms__head">
         <span className="tu-ms__rv" aria-hidden="true">
-          {x.ini}
+          <RivalMark logo={x.logo}>{x.ini}</RivalMark>
         </span>
         <div className="tu-ms__t">
           <p className="tu-ms__k">

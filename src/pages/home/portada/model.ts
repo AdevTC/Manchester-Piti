@@ -22,6 +22,8 @@ export interface Fixture {
   rival: string;
   /** The rival's crest letters («OR»). */
   code: string;
+  /** The rival's escudo, when an acta saved one (rivalLogos). */
+  logo?: string;
   home: boolean;
   kickoff: number | null;
   /** «Domingo 18 de octubre». */
@@ -125,6 +127,7 @@ export interface LensView {
   kicker: string;
   rival: string;
   code: string;
+  logo?: string;
   usWhere: string;
   themWhere: string;
   face: "score" | "time" | "word";
@@ -182,6 +185,7 @@ export function lensOf(c: Ctx): LensView {
     kicker: F ? `${jOf(F) ? `${jOf(F)} · ` : ""}${F.dayLong} · ${F.competition}` : "Manchester Piti",
     rival,
     code: F?.code ?? "",
+    logo: F?.logo,
     usWhere: F ? (F.home ? "En casa" : "Fuera") : "",
     themWhere: F ? (F.home ? "Fuera" : "En casa") : "",
     face: faceKind,
@@ -302,7 +306,7 @@ export interface MovView {
   // «La tarde»
   tarde: TardeView | null;
   // «El último»
-  last: { when: string; score: string; code: string; aria: string; title: string; sub: string } | null;
+  last: { when: string; score: string; code: string; logo?: string; aria: string; title: string; sub: string } | null;
   still: { icon: "cal" | "mesa"; t: string; d: string } | null;
 }
 
@@ -438,6 +442,7 @@ export function movOf(c: Ctx, tarde: TardeView | null, playing: boolean): MovVie
             when: `${J ? `${J} · ` : ""}${c.M.dayLong}`,
             score: scoreText(scE.us, scE.them),
             code: c.M.code,
+            logo: c.M.logo,
             aria: `Manchester Piti ${scE.us}, ${rival} ${scE.them}`,
             title: `${scE.us > scE.them ? "Ganamos" : scE.us < scE.them ? "Perdimos" : "Empatamos"} ante ${rival}`,
             sub: `${c.M.home ? "En casa" : "Fuera"} · el acta ya está publicada`,
@@ -644,6 +649,7 @@ export const POSN: Record<string, string> = { POR: "portero", LI: "lateral izqui
 export interface CapView {
   score: string;
   code: string;
+  logo?: string;
   word: boolean;
   when: string;
   live: boolean;
@@ -669,6 +675,7 @@ export function capOf(c: Ctx): CapView {
   return {
     score,
     code: F?.code ?? "",
+    logo: F?.logo,
     word: f === "aplazado" || f === "pendiente" || !F,
     when: live ? (dragged ? `Viendo el ${c.m}′` : f === "descanso" ? "Descanso" : `${c.edge}′`) : semana && c.P ? `${J ? `${J} · ` : ""}final` : f === "final" || f === "acta" ? (dragged ? `Viendo el ${c.m}′` : "Final") : pre ? (f === "pitido" ? "A punto" : "Hoy") : "",
     live: live && f !== "descanso" && !dragged,
