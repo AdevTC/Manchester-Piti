@@ -2,8 +2,8 @@
 // B-ACTA-03), as its board (part-partido-acta.html § narración): left, the coverage (Parcial · Completa), the real
 // playing time said aloud against the match's duration with «Ajustar la duración del partido» (A-PAR-02: one datum,
 // never changed behind the captain's back), the coverage notes, «Importar una narración» (copy the prompt and the
-// context, a .json up to 900 KB or pasted, «Revisar importación» → the review with its doubts, «Incorporar al
-// borrador»), the coverage rules and the working sources, the private history; right, the observations of the
+// context, a .json up to 900 KB or pasted, the review opens by itself (kept for the match while the sala is open) with its doubts, «Incorporar al
+// acta»), the coverage rules and the working sources, the private history; right, the observations of the
 // analysis (filters, edit in its row, «Borrar» with «Deshacer») and the acta's actions (filter, 30 a page, «Añadir
 // acción» with its form, «Quitar» with «Deshacer»). Everything edits the same acta buffer as «Lo apuntado»: it is
 // saved with the acta. The narration's logic is today's (lib/narration, functions/src/narrated).
@@ -30,6 +30,28 @@ import { useSheetSession, type SheetSession } from "./sheetSession";
 import "../../partidos/analysis-editor.css";
 import "./acta.css";
 
+/** The import kept for a match in this tab (sessionStorage; nothing when it can't be read). */
+function readImport(key: string): { text: string; file: string } {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(key) ?? "null") as unknown;
+    if (v && typeof v === "object" && typeof (v as { text?: unknown }).text === "string") {
+      const o = v as { text: string; file?: unknown };
+      return { text: o.text, file: typeof o.file === "string" ? o.file : "" };
+    }
+  } catch {
+    /* (private mode, blocked storage: it only lives on this screen) */
+  }
+  return { text: "", file: "" };
+}
+function writeImport(key: string, text: string, file: string) {
+  try {
+    if (text.trim()) sessionStorage.setItem(key, JSON.stringify({ text, file }));
+    else sessionStorage.removeItem(key);
+  } catch {
+    /* (as above) */
+  }
+}
+
 export function NarracionScreen() {
   const s = useSheetSession();
   const go = useSalaGo();
@@ -54,8 +76,13 @@ function Narration({ s }: { s: SheetSession }) {
   const sheet = s.sheet;
   const update = s.update;
   const info = (id: string) => ({ name: s.info(id).name, number: s.info(id).number });
-  const [text, setText] = useState("");
-  const [fileName, setFileName] = useState("");
+  // (what was pasted or uploaded stays for this match while the sala is open: changing station doesn't lose it)
+  const importKey = `mp_narr_import_${matchId}`;
+  const [text, setText] = useState(() => readImport(importKey).text);
+  const [fileName, setFileName] = useState(() => readImport(importKey).file);
+  /** A paste, an upload or a restored import: review it by itself (not a correction made inside the review). */
+  const autoReview = useRef(!!readImport(importKey).text);
+  useEffect(() => writeImport(importKey, text, fileName), [importKey, text, fileName]);
   const [context, setContext] = useState("");
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState<ReturnType<typeof previewNarration> | null>(null);
@@ -131,6 +158,15 @@ function Narration({ s }: { s: SheetSession }) {
       say((e as Error).message);
     }
   };
+  // a paste or an upload opens its review by itself (a short pause while typing)
+  useEffect(() => {
+    if (!autoReview.current || !text.trim()) return;
+    const t = window.setTimeout(() => {
+      autoReview.current = false;
+      importPreview();
+    }, 350);
+    return () => window.clearTimeout(t);
+  });
   const apply = () => {
     if (event) return say("Guarda o cancela la acción que estás editando antes de incorporar la importación.");
     try {
@@ -144,8 +180,8 @@ function Narration({ s }: { s: SheetSession }) {
       setPreview(null);
       setText("");
       setFileName("");
-      status.show({ tag: "Importación", message: "Análisis incorporado al borrador · se guarda con el acta" });
-      say("");
+      status.show({ tag: "Importación", message: "Ya está en el acta · falta «Guardar borrador»" });
+      say("Ya está en el acta (goles, tarjetas, cambios y observaciones). Guárdalo con «Guardar borrador», abajo, para que no se pierda.");
     } catch (e) {
       say((e as Error).message);
     }
@@ -332,6 +368,7 @@ function Narration({ s }: { s: SheetSession }) {
                   if (!f) return;
                   if (f.size > 900_000) return status.show({ tone: "error", message: "Archivo demasiado grande (máximo 900 KB)." });
                   void f.text().then((v) => {
+                    autoReview.current = true;
                     setText(v);
                     setFileName(f.name);
                     setPreview(null);
@@ -346,6 +383,7 @@ function Narration({ s }: { s: SheetSession }) {
                 className="vd-input"
                 value={text}
                 onChange={(e) => {
+                  autoReview.current = true;
                   setText(e.target.value);
                   setPreview(null);
                 }}

@@ -1,6 +1,6 @@
 // The acta's stations in the real sala (the frame, the match's layout, the stations): Acta, Publicar, Después,
 // Narración and Historial over the fixture club (test/adminKit), with the callables mocked.
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../../lib/clubApi";
@@ -527,6 +527,20 @@ describe("Narración", () => {
     expect(screen.getByText(/^Ojo: la duración del partido es 50 min/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ajustar la duración del partido" }));
     expect(screen.getByText(/^Y la duración del partido sigue en 52 min/)).toBeInTheDocument();
+  });
+
+  it("a pasted import is reviewed by itself and is still there after changing station", async () => {
+    sessionStorage.clear();
+    setAdminData(adminFixture({ published: fullJ1() }));
+    open("/admin/partidos/m6/acta/narracion");
+    const box = await screen.findByPlaceholderText("Pega aquí el análisis JSON generado en el chat");
+    fireEvent.change(box, { target: { value: "{ no es json" } });
+    // (no «Revisar importación» pressed: the review runs on its own)
+    expect(await screen.findByText(/No se puede leer el archivo de acciones/)).toBeInTheDocument();
+    cleanup();
+    open("/admin/partidos/m6/acta/narracion");
+    expect(await screen.findByPlaceholderText("Pega aquí el análisis JSON generado en el chat")).toHaveValue("{ no es json");
+    sessionStorage.clear();
   });
 
   it("ACTA-16: the observations filter by kind and by state (Todas · Dudas · Anuladas)", async () => {

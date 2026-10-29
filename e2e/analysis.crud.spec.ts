@@ -23,18 +23,18 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await expect(review.getByText("1 correcciones", { exact: true })).toBeVisible();
   await expect(review.locator(".ae-review-diff")).toContainText("AntesPablo");
   await expect(review.locator(".ae-review-diff")).toContainText("AhoraMarcos");
-  await expect(review.getByRole("button", { name: "Incorporar al borrador" })).toBeDisabled();
+  await expect(review.getByRole("button", { name: "Incorporar al acta" })).toBeDisabled();
   await review.getByRole("button", { name: "Revisar Pase · 5′" }).click();
   const form = editor.getByRole("group", { name: "Editar acción detallada" });
   await form.getByRole("combobox", { name: "Receptor", exact: true }).selectOption("preview-player-3");
   await form.getByText("Más detalle: envío, contacto, posesión, coordenadas y origen", { exact: true }).click();
   await form.getByLabel("Fragmento o referencia de origen").fill("Marcos se la pasa a Pablo");
-  await expect(review.getByRole("button", { name: "Incorporar al borrador" })).toBeDisabled();
+  await expect(review.getByRole("button", { name: "Incorporar al acta" })).toBeDisabled();
   await form.getByRole("button", { name: "Guardar acción" }).click();
   await review.getByLabel("Resolución de la duda 1").fill("Era Pablo; jugada y fragmento corregidos.");
   await review.getByRole("button", { name: "Guardar resolución" }).click();
-  await review.getByRole("button", { name: "Incorporar al borrador" }).click();
-  await expect(page.getByText("Análisis incorporado al borrador · se guarda con el acta")).toBeVisible();
+  await review.getByRole("button", { name: "Incorporar al acta" }).click();
+  await expect(page.getByText("Ya está en el acta · falta «Guardar borrador»")).toBeVisible();
   // (Narración carries the acta's foot: the same acta)
   await page.locator(".sac-foot").getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByText(/Acta .* corregida · web al día/)).toBeVisible();

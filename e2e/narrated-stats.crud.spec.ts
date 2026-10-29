@@ -63,8 +63,8 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await editor.getByRole("button", { name: "Revisar importación" }).click();
     const review = editor.getByRole("region", { name: "Revisión de la importación" });
     await expect(review.getByRole("region", { name: "Observaciones detalladas" })).toContainText("3 observaciones del análisis");
-    await review.getByRole("button", { name: "Incorporar al borrador" }).click();
-    await expect(page.getByText("Análisis incorporado al borrador · se guarda con el acta")).toBeVisible();
+    await review.getByRole("button", { name: "Incorporar al acta" }).click();
+    await expect(page.getByText("Ya está en el acta · falta «Guardar borrador»")).toBeVisible();
     await expect(editor.getByRole("region", { name: "Observaciones detalladas" })).toContainText("3 observaciones del análisis");
     // (only a draft so far: «Ir a publicar», then «Publicar el acta» says what it does)
     await page.locator(".sac-foot").getByRole("button", { name: "Ir a publicar", exact: true }).click();

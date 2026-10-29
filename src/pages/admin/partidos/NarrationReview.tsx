@@ -52,6 +52,6 @@ export function NarrationReview({ preview, info, onEdit, onResolve, onEditObserv
     {preview.format === 'piti-actions/v2' && unresolved.length > 0 && <p>Las dudas de detalles quedan guardadas como pendientes; los hechos independientes pueden incorporarse.</p>}
     <p>{preview.errors.length ? "Resuelve las dudas y los errores antes de incorporar el análisis." : "La secuencia es válida. Reimportar los mismos ids no duplica jugadas."}</p>
     {(editing || observationEditing) && <p role="status">Guarda o cancela la acción que estás editando antes de incorporar la importación.</p>}
-    <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" disabled={preview.errors.length > 0 || editing || observationEditing} onClick={onApply}>Incorporar al borrador</button>
+    <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" disabled={preview.errors.length > 0 || editing || observationEditing} onClick={onApply}>Incorporar al acta</button>
   </section>;
 }
