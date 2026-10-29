@@ -1,14 +1,16 @@
 // One match's value for each player of ours who played it: what every action of his was worth, in goals, from
 // the narration (when the match has one; la mesa's events otherwise) and the acta, and what happened with the team
 // while he was on the pitch. The acta decides the counts (goals, assists, cards, penalties); the narration adds
-// what happened around them. Pure, memoized per match object and F7 calibration (the season gives it: xgFactor).
-// The numbers are in ./constants; the season turns these values into notas (./season).
+// what happened around them. Each player is placed in his fixed position (./fixed). Pure, memoized per match object
+// and calibrations (the season gives them: xgFactor, keeperFactor). The numbers are in ./constants; the season turns
+// these values into notas (./season).
 import { mergedObservations } from "../narrated/observations.js";
 import { kindOf, passComplete, quantity } from "../narrated/operators.js";
 import { DEFAULT_ANALYSIS_PROFILE, type Observation } from "../narrated/types.js";
 import { isPosCode, lineOf, POSITIONS, type Line, type PosCode } from "../positions.js";
 import { isGuestId } from "../guests.js";
 import { durationOf, type RatingMatch } from "./types.js";
+import { fixedPositions } from "./fixed.js";
 import * as K from "./constants.js";
 
 export type Group = "ataque" | "pase" | "defensa" | "porteria" | "errores" | "disciplina";
@@ -17,7 +19,11 @@ export interface Item {
   group: Group;
   n: number;
   value: number;
+  /** A one-off event of the acta (goals, assists, penalties, cards, errors that end in a goal, goals prevented). */
+  acta?: true;
 }
+/** The acta's goals, the ones the scorer's position weighs (GOAL_WEIGHTS). */
+export const GOAL_LABELS: ReadonlySet<string> = new Set(["Gol", "Gol de penalti"]);
 export interface PlusMinusRaw {
   /** Minutes on and off the pitch, and the xG for and against while on / off. */
   on: number;
@@ -35,9 +41,7 @@ export interface TeamOnPitch {
   on: number;
   /** Our goals while he was on, his own left out. */
   for: number;
-  /** The rival's danger while he was on: each of their shots on target at its goal probability with a normal keeper
-   *  (each goal itself, when the narration does not tell their shots), what he caused himself (his error, his penalty,
-   *  his own goal) left out. */
+  /** The goals against while he was on, what he caused himself (his error, his penalty, his own goal) left out. */
   against: number;
   /** The whole match counted the same way, his own left out too (a short stint is pulled toward it). */
   matchFor: number;
@@ -46,7 +50,10 @@ export interface TeamOnPitch {
 export interface PlayerMatchValue {
   /** His minutes (the acta's; null when it does not know them: then the match gives him no nota). */
   minutes: number | null;
-  /** His minutes by line and by position this match, as shares (empty when the acta does not say where he played). */
+  /** His fixed position (./fixed: where he started, or first came on; null when the acta cannot place him). */
+  position: PosCode | null;
+  /** His line and position: the fixed one whole; without it, his minutes by line and position as shares (empty when
+   *  the acta does not say where he played). */
   lines: Partial<Record<Line, number>>;
   roles: Partial<Record<Role, number>>;
   /** The narration's actions (the volume of play: scaled by the match's narration volume, compared per 50′) and the
@@ -56,6 +63,10 @@ export interface PlayerMatchValue {
   narrBad: number;
   actaGood: number;
   actaBad: number;
+  /** The narration's actions by family (how many, and their good and bad value): the position weighs them. */
+  families: Partial<Record<Group, { n: number; good: number; bad: number }>>;
+  /** What his goals were worth (the acta's): the position weighs them. */
+  goals: number;
   items: Item[];
   team: TeamOnPitch;
   plusMinus: PlusMinusRaw | null;
@@ -65,9 +76,8 @@ export interface MatchValue {
   narrated: boolean;
   /** Both teams' recorded actions per 50′: how much of the match the narration tells (not who had the ball). */
   volume: number;
-  /** The whole match as TeamOnPitch counts it: our goals and the rival's danger (`expected`: their shots on target at
-   *  their chances with a normal keeper; else the goals themselves). */
-  team: { for: number; against: number; expected: boolean };
+  /** The whole match as TeamOnPitch counts it: our goals and theirs. */
+  team: { for: number; against: number };
   players: Map<string, PlayerMatchValue>;
 }
 
@@ -136,50 +146,74 @@ const isNarrated = (ours: readonly Observation[]) => ours.filter((o) => o.facts.
  *  from the acta's events). */
 const shotsTold = (obs: readonly Observation[], team: "us" | "opponent") => obs.some((o) => o.team === team && kindOf(o) === "shot" && o.facts.legacyType === undefined);
 
-const tallies = new WeakMap<RatingMatch, { goals: number; xg: number }>();
-/** A narrated match's non-penalty shots of both teams, for the F7 calibration: their goals and their chances by the
- *  professional table (a match without a narration tells no shots: none). */
-export function shotTally(m: RatingMatch): { goals: number; xg: number } {
+/** One side's non-penalty shots in a match: their goals and chances by the professional table, and of those on target
+ *  the goals and the keeper's table probabilities. */
+export interface SideTally {
+  goals: number;
+  xg: number;
+  onTargetGoals: number;
+  onTargetProb: number;
+}
+type Tally = Record<"us" | "opponent", SideTally>;
+const tallies = new WeakMap<RatingMatch, Tally>();
+/** A narrated match's non-penalty shots, side by side, for the calibrations (a side whose shots the narration does not
+ *  tell gives none: its goals alone would inflate them). */
+export function shotTally(m: RatingMatch): Tally {
   let t = tallies.get(m);
   if (!t) {
-    t = { goals: 0, xg: 0 };
+    const side = (): SideTally => ({ goals: 0, xg: 0, onTargetGoals: 0, onTargetProb: 0 });
+    t = { us: side(), opponent: side() };
     const obs = observationsOf(m);
-    // (a side's goals only with its misses: la mesa's or the acta's goals alone would inflate the calibration)
     const told = { us: shotsTold(obs, "us"), opponent: shotsTold(obs, "opponent") };
     if (isNarrated(obs.filter(isOurAction)))
       for (const o of obs) {
-        if (!isShot(o) || o.facts.penalty === true || o.facts.ownGoal === true || !told[o.team === "us" ? "us" : "opponent"]) continue;
-        t.xg += quantity(o) * shotXg(o.facts);
-        if (isGoal(o)) t.goals += quantity(o);
+        const team = o.team === "us" ? "us" : "opponent";
+        if (!isShot(o) || o.facts.penalty === true || o.facts.ownGoal === true || !told[team]) continue;
+        const q = quantity(o);
+        t[team].xg += q * shotXg(o.facts);
+        if (isGoal(o)) t[team].goals += q;
+        if (isGoal(o) || savedOrHeld(o)) {
+          t[team].onTargetProb += q * keeperProb(o.facts);
+          if (isGoal(o)) t[team].onTargetGoals += q;
+        }
       }
     tallies.set(m, t);
   }
   return t;
 }
-/** The F7 calibration of the chances over these matches: the table × (goals + XG_PRIOR_GOALS) / (Σ its chances +
- *  XG_PRIOR_GOALS), so it starts at the table and moves with the season's shots (1,31 after the J1). */
-export function xgFactor(games: readonly RatingMatch[]): number {
-  let goals = 0;
-  let xg = 0;
-  for (const m of games) {
-    const t = shotTally(m);
-    goals += t.goals;
-    xg += t.xg;
-  }
-  return (goals + K.XG_PRIOR_GOALS) / (xg + K.XG_PRIOR_GOALS);
+/** The mean of each side's (goals + prior) / (Σ expected + prior) over these matches. */
+function calibration(games: readonly RatingMatch[], goals: (s: SideTally) => number, expected: (s: SideTally) => number, prior: number): number {
+  const factor = (team: "us" | "opponent") => {
+    let g = 0;
+    let e = 0;
+    for (const m of games) {
+      g += goals(shotTally(m)[team]);
+      e += expected(shotTally(m)[team]);
+    }
+    return (g + prior) / (e + prior);
+  };
+  return (factor("us") + factor("opponent")) / 2;
 }
+/** The F7 calibration of the chances over these matches: the table × the mean of each side's (goals + XG_PRIOR_GOALS) /
+ *  (Σ its chances + XG_PRIOR_GOALS), so it starts at the table and moves with the season's shots. */
+export const xgFactor = (games: readonly RatingMatch[]): number =>
+  calibration(games, (s) => s.goals, (s) => s.xg, K.XG_PRIOR_GOALS);
+/** The keeper's calibration: the same over the shots on target and the keeper's table probabilities. */
+export const keeperFactor = (games: readonly RatingMatch[]): number =>
+  calibration(games, (s) => s.onTargetGoals, (s) => s.onTargetProb, K.KEEPER_PRIOR_GOALS);
 
-const memo = new WeakMap<RatingMatch, Map<number, MatchValue>>();
-/** `xg`: the F7 calibration of the chances (xgFactor over the season up to the acta; 1 is the professional table). */
-export function matchValue(m: RatingMatch, xg = 1): MatchValue {
-  let byXg = memo.get(m);
-  if (!byXg) memo.set(m, (byXg = new Map()));
-  let v = byXg.get(xg);
-  if (!v) byXg.set(xg, (v = compute(m, xg)));
+const memo = new WeakMap<RatingMatch, Map<string, MatchValue>>();
+/** `xg` and `keeper`: the season's calibrations up to the acta (xgFactor, keeperFactor; 1 is the professional table). */
+export function matchValue(m: RatingMatch, xg = 1, keeper = 1): MatchValue {
+  let byCal = memo.get(m);
+  if (!byCal) memo.set(m, (byCal = new Map()));
+  const key = `${xg}|${keeper}`;
+  let v = byCal.get(key);
+  if (!v) byCal.set(key, (v = compute(m, xg, keeper)));
   return v;
 }
 
-function compute(m: RatingMatch, xg: number): MatchValue {
+function compute(m: RatingMatch, xg: number, keeper: number): MatchValue {
   const duration = durationOf(m);
   const profile = m.analysis?.profile ?? DEFAULT_ANALYSIS_PROFILE;
   const rows = Object.entries(m.ledger ?? {}).filter(([id, r]) => r?.played === true && !isGuestId(id));
@@ -191,14 +225,17 @@ function compute(m: RatingMatch, xg: number): MatchValue {
     for (let j = at.get(o)! - 1; j >= 0; j--) if (match(obs[j])) return obs[j];
     return undefined;
   };
+  /** A shot on target's goal probability with a normal keeper, calibrated with the season. */
+  const kp = (f: Observation["facts"]) => Math.min(K.KEEPER_PROB_MAX, keeperProb(f) * keeper);
+  const kpUnknown = Math.min(K.KEEPER_PROB_MAX, K.KEEPER_GOAL_PROB.unknown * keeper);
   const ours = obs.filter(isOurAction);
   const narrated = isNarrated(ours);
   // (both teams': a side that has the ball makes more actions, the match is not told in more detail for it)
   const theirActions = obs.filter((o) => o.team === "opponent" && ACTIONS.has(kindOf(o)));
   const volume = (([...ours, ...theirActions].reduce((s, o) => s + quantity(o), 0)) * 50) / duration;
 
-  const acc = new Map<string, { narrGood: number; narrBad: number; actaGood: number; actaBad: number; items: Map<string, Item> }>();
-  for (const id of ids) acc.set(id, { narrGood: 0, narrBad: 0, actaGood: 0, actaBad: 0, items: new Map() });
+  const acc = new Map<string, { narrGood: number; narrBad: number; actaGood: number; actaBad: number; families: PlayerMatchValue["families"]; items: Map<string, Item> }>();
+  for (const id of ids) acc.set(id, { narrGood: 0, narrBad: 0, actaGood: 0, actaBad: 0, families: {}, items: new Map() });
   /** `fromNarration`: the volume of play, scaled later by the narration's volume and compared per 50′; else a
    *  one-off event, counted whole. */
   const add = (id: string | undefined, label: string, group: Group, value: number, fromNarration = true, n = 1) => {
@@ -208,7 +245,13 @@ function compute(m: RatingMatch, xg: number): MatchValue {
     else if (fromNarration) a.narrBad += value;
     else if (value > 0) a.actaGood += value;
     else a.actaBad += value;
-    const it = a.items.get(label) ?? { label, group, n: 0, value: 0 };
+    if (fromNarration) {
+      const f = (a.families[group] ??= { n: 0, good: 0, bad: 0 });
+      f.n += n;
+      if (value > 0) f.good += value;
+      else f.bad += value;
+    }
+    const it = a.items.get(label) ?? { label, group, n: 0, value: 0, ...(fromNarration ? {} : { acta: true as const }) };
     it.n += n;
     it.value += value;
     a.items.set(label, it);
@@ -300,7 +343,7 @@ function compute(m: RatingMatch, xg: number): MatchValue {
   };
   const saveProb = (s: Observation) => {
     const shot = lastBefore(s, (x) => x.team === "opponent" && isShot(x));
-    return shot ? keeperProb(shot.facts) : K.KEEPER_GOAL_PROB.unknown;
+    return shot ? kp(shot.facts) : kpUnknown;
   };
   const closes = (o: Observation) =>
     kindOf(o) === "restart" ||
@@ -596,13 +639,13 @@ function compute(m: RatingMatch, xg: number): MatchValue {
       for (const o of obs) {
         // (shots on target: a miss or the woodwork is no save, a penalty's either)
         if (o.team !== "opponent" || !isShot(o) || o.facts.ownGoal === true || !(isGoal(o) || savedOrHeld(o))) continue;
-        face(keeperAt(minuteOf(o)), o.facts.penalty === true ? K.PENALTY_GOAL : isGoal(o) ? keeperProb(o.facts) : keeperProb(o.facts) * creditOf(o), isGoal(o), o.facts.penalty === true, quantity(o));
+        face(keeperAt(minuteOf(o)), o.facts.penalty === true ? K.PENALTY_GOAL : isGoal(o) ? kp(o.facts) : kp(o.facts) * creditOf(o), isGoal(o), o.facts.penalty === true, quantity(o));
       }
     } else {
       // la mesa: his saves and the goals, without the shots' detail
       for (const o of obs) {
-        if (o.team === "us" && kindOf(o) === "save" && o.actorId) face(keepers.some((k) => k.id === o.actorId) ? o.actorId : null, o.facts.penalty === true ? K.PENALTY_GOAL : K.KEEPER_GOAL_PROB.unknown, false, o.facts.penalty === true, quantity(o));
-        else if (isOpponentGoal(o)) face(keeperAt(minuteOf(o)), o.facts.penalty === true ? K.PENALTY_GOAL : K.KEEPER_GOAL_PROB.unknown, true, o.facts.penalty === true, quantity(o));
+        if (o.team === "us" && kindOf(o) === "save" && o.actorId) face(keepers.some((k) => k.id === o.actorId) ? o.actorId : null, o.facts.penalty === true ? K.PENALTY_GOAL : kpUnknown, false, o.facts.penalty === true, quantity(o));
+        else if (isOpponentGoal(o)) face(keeperAt(minuteOf(o)), o.facts.penalty === true ? K.PENALTY_GOAL : kpUnknown, true, o.facts.penalty === true, quantity(o));
       }
     }
     for (const [id, f] of faced) add(id, "Goles evitados", "porteria", ((f.exp - f.conc) * f.n) / (f.n + K.KEEPER_SHRINK_SHOTS), false, f.n);
@@ -613,17 +656,10 @@ function compute(m: RatingMatch, xg: number): MatchValue {
     if (extra > 0) add(id, "Penalti parado", "porteria", extra * K.PENALTY_GOAL, false, extra);
   }
 
-  // the team while each one was on the pitch: our goals, and the rival's danger — each shot on target at its goal
-  // probability with a normal keeper (his saves are his goals prevented), or each goal itself when the narration
-  // does not tell their shots or misses goals; what the narration does not place in time, in proportion to the minutes
-  const expected = theirShots && tally;
-  const threats: { o: Observation | null; minute: number | null; p: number }[] = [];
-  for (const o of obs) {
-    const q = quantity(o);
-    if (isGoalAgainst(o)) threats.push({ o, minute: minuteOf(o), p: q * (!expected || o.facts.ownGoal === true ? 1 : o.facts.penalty === true ? K.PENALTY_GOAL : keeperProb(o.facts)) });
-    else if (expected && o.team === "opponent" && kindOf(o) === "shot" && savedOrHeld(o)) threats.push({ o, minute: minuteOf(o), p: q * (o.facts.penalty === true ? K.PENALTY_GOAL : keeperProb(o.facts) * creditOf(o)) });
-  }
-  const toldAgainst = obs.filter(isGoalAgainst).reduce((s, o) => s + quantity(o), 0);
+  // the team while each one was on the pitch: our goals and theirs (the keeper's shot-stopping is apart, in his goals
+  // prevented); what the narration does not place in time, or the goals it misses, in proportion to the minutes
+  const threats: { o: Observation | null; minute: number | null; p: number }[] = obs.filter(isGoalAgainst).map((o) => ({ o, minute: minuteOf(o), p: quantity(o) }));
+  const toldAgainst = threats.reduce((s, t) => s + t.p, 0);
   if (typeof m.goalsAgainst === "number" && m.goalsAgainst > toldAgainst) threats.push({ o: null, minute: null, p: m.goalsAgainst - toldAgainst });
   const goalsFor = obs.filter(isGoalFor).map((o) => ({ minute: minuteOf(o), n: quantity(o), by: o.team === "us" ? o.actorId : undefined }));
   const toldFor = goalsFor.reduce((s, g) => s + g.n, 0);
@@ -651,20 +687,28 @@ function compute(m: RatingMatch, xg: number): MatchValue {
     ? obs.filter((o) => isShot(o) && o.facts.ownGoal !== true && minuteOf(o) !== null).map((o) => ({ minute: minuteOf(o)!, ours: o.team === "us", xg: shotXg(o.facts) * quantity(o) }))
     : [];
 
+  const fixed = fixedPositions(m);
   const players = new Map<string, PlayerMatchValue>();
   for (const [id, r] of rows) {
     const a = acc.get(id)!;
+    const position = fixed.get(id) ?? null;
     const lines: Partial<Record<Line, number>> = {};
     const roles: Partial<Record<Role, number>> = {};
-    let total = 0;
-    for (const [code, min] of Object.entries(r.positionsPlayed ?? {}))
-      if (isPosCode(code) && typeof min === "number" && min > 0) {
-        lines[lineOf(code)] = (lines[lineOf(code)] ?? 0) + min;
-        roles[roleOf(code)] = (roles[roleOf(code)] ?? 0) + min;
-        total += min;
-      }
-    for (const l of Object.keys(lines) as Line[]) lines[l] = lines[l]! / total;
-    for (const p of Object.keys(roles) as Role[]) roles[p] = roles[p]! / total;
+    if (position) {
+      lines[lineOf(position)] = 1;
+      roles[roleOf(position)] = 1;
+    } else {
+      // (the acta cannot place his start: his minutes in each position)
+      let total = 0;
+      for (const [code, min] of Object.entries(r.positionsPlayed ?? {}))
+        if (isPosCode(code) && typeof min === "number" && min > 0) {
+          lines[lineOf(code)] = (lines[lineOf(code)] ?? 0) + min;
+          roles[roleOf(code)] = (roles[roleOf(code)] ?? 0) + min;
+          total += min;
+        }
+      for (const l of Object.keys(lines) as Line[]) lines[l] = lines[l]! / total;
+      for (const p of Object.keys(roles) as Role[]) roles[p] = roles[p]! / total;
+    }
     let plusMinus: PlusMinusRaw | null = null;
     const stints = r.stints ?? [];
     if (narrated && stints.length) {
@@ -681,18 +725,22 @@ function compute(m: RatingMatch, xg: number): MatchValue {
     }
     const known = typeof r.minutes === "number" && Number.isFinite(r.minutes);
     const minutes = known ? (typeof r.secondsPlayed === "number" && Number.isFinite(r.secondsPlayed) ? r.secondsPlayed / 60 : r.minutes) : null;
+    const items = [...a.items.values()];
     players.set(id, {
       minutes,
+      position,
       lines,
       roles,
       narrGood: a.narrGood,
       narrBad: a.narrBad,
       actaGood: a.actaGood,
       actaBad: a.actaBad,
-      items: [...a.items.values()],
+      families: a.families,
+      goals: items.filter((it) => GOAL_LABELS.has(it.label)).reduce((s, it) => s + it.value, 0),
+      items,
       team: teamOf(id, r, minutes),
       plusMinus,
     });
   }
-  return { narrated, volume, team: { for: toldFor + missingFor, against: threats.reduce((s, t) => s + t.p, 0), expected }, players };
+  return { narrated, volume, team: { for: toldFor + missingFor, against: threats.reduce((s, t) => s + t.p, 0) }, players };
 }

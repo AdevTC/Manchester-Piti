@@ -2,9 +2,10 @@
 // (how much it changes our chance of scoring and the rival's), unless said otherwise. The decisions and why are
 // in docs/medias.md; a change here is a new MODEL_VERSION.
 
-/** v3 (2026-10-27): the volume of play by its rate and the one-off events whole, each position against its own,
- *  the team while he was on the pitch, the F7 chances; frozen with its acta (./frozen) like v2. */
-export const MODEL_VERSION = "piti-media-v3";
+/** v4 (2026-10-29): each player rated in his fixed position (where he starts, or first comes on); the families of
+ *  actions weigh by what that position usually does, the goals by the position (the Fantasy's proportions); the F7
+ *  and keeper calibrations weigh both sides the same; the team part counts the goals. Frozen with its acta (./frozen). */
+export const MODEL_VERSION = "piti-media-v4";
 
 // ── the match nota (0–10) and the season numbers
 /** A normal match. */
@@ -15,8 +16,15 @@ export const NOTE_SCALE = 0.65;
 export const MIN_RATED_MINUTES = 10;
 /** Within a match: minutes of his position's normal added to his volume of play, so a short stint does not explode. */
 export const CUSHION_MINUTES = 10;
-/** A position's normal starts from the team's (a keeper's from zero) with this many minutes, until it has more. */
+/** A position's normal starts from the team's (a keeper's from zero) with this many minutes, until it has more; so do
+ *  its weights (POSITION_WEIGHT_RANGE). */
 export const POSITION_PRIOR_MINUTES = 200;
+/** Each family of actions (shooting and dribbling, passing and creating, defending) weighs, in a position, its rate of
+ *  that family over the team's — what the position usually does counts more —, kept in this range. */
+export const POSITION_WEIGHT_RANGE = [2 / 3, 1.5] as const;
+/** A goal by the scorer's position, in the Fantasy Premier League's proportions (goal by a keeper 10, defender 6,
+ *  midfielder 5, forward 4 points). */
+export const GOAL_WEIGHTS = { POR: 2.5, DEF: 1.5, MED: 1.25, DEL: 1 } as const;
 /** From here a match counts whole in GLOBAL and FOR; below, in proportion (15′ = half a match). */
 export const FULL_MATCH_MINUTES = 30;
 /** GLOBAL starts from this many matches of NOTE_BASE; FOR from FORM_CUSHION. */
@@ -35,8 +43,9 @@ export const TIER_PLATA = 65;
 export const GLOBAL_BANDS = [55, 62, 68, TIER_ORO] as const;
 
 // ── the team while he was on the pitch (in nota points per goal above what a normal match gives in his minutes)
-/** [against, for] by line: the goals against weigh on the back, the goals for on the front; the keeper's saves
- *  are already his goals prevented. A player the acta does not place weighs as a midfielder. */
+/** [against, for] by line: the goals against weigh on the back, the goals for on the front (as the Fantasy charges the
+ *  goals conceded to keepers and defenders); the keeper's shot-stopping is apart, in his goals prevented. A player the
+ *  acta does not place weighs as a midfielder. */
 export const TEAM_WEIGHTS = { POR: [0.05, 0], DEF: [0.15, 0.05], MED: [0.1, 0.1], DEL: [0.05, 0.15] } as const;
 /** A short stint is pulled toward the whole match's with this many of its minutes (the ridge of the adjusted plus-minus). */
 export const TEAM_CUSHION_MINUTES = 25;
@@ -49,7 +58,8 @@ export const ZONE_INDEX: Readonly<Record<string, number>> = { own_area: 0, own_t
 // ── shots
 /** A shot's chance by the professional table; in F7 it is calibrated with the season (XG_PRIOR_GOALS). */
 export const XG = { area: 0.12, outside: 0.04, head: 0.08, directFreekick: 0.05, unknown: 0.08 } as const;
-/** The F7 calibration: the table × (goals + this) / (Σ its chances + this), over the season's non-penalty shots of both teams. */
+/** The F7 calibration: the table × (goals + this) / (Σ its chances + this) over the season's non-penalty shots, one
+ *  factor per side and their mean (so that neither our keeper nor our finishing sets it alone). */
 export const XG_PRIOR_GOALS = 10;
 export const ON_TARGET_BONUS = 0.02;
 export const GOAL_VALUE = 1;
@@ -57,8 +67,12 @@ export const ASSIST_BONUS = 0.3;
 /** A penalty's goal probability (Opta 0.79, StatsBomb 0.78; the F7 one, 9 m to a 6×2 goal, has the same angles);
  *  its net cost or gain is this minus the danger already there. */
 export const PENALTY_GOAL = 0.78;
-/** A shot on target's goal probability for the keeper: in the area, header, from outside, unknown (la mesa). */
+/** A shot on target's goal probability for the keeper: in the area, header, from outside, unknown (la mesa); × the
+ *  season's keeper calibration, (goals + KEEPER_PRIOR_GOALS) / (Σ these + KEEPER_PRIOR_GOALS) over the shots on target,
+ *  one factor per side and their mean (our keeper's own shots never set it alone), at most KEEPER_PROB_MAX. */
 export const KEEPER_GOAL_PROB = { area: 0.5, head: 0.35, outside: 0.25, unknown: 0.42 } as const;
+export const KEEPER_PRIOR_GOALS = 10;
+export const KEEPER_PROB_MAX = 0.95;
 /** A big chance (only with the club's declared criterion, bigChanceCriterion): created +, missed − (Sofascore). */
 export const BIG_CHANCE = 0.1;
 

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../../lib/clubApi";
 import type { ClubMatch } from "../../../../lib/clubData";
 import { DEFAULT_ANALYSIS_PROFILE } from "../../../../../functions/src/narrated/types";
+import { MODEL_VERSION } from "../../../../lib/rating/constants";
 import { adminFixture, fixtureDrafts, fixturePublished, mountAdmin, setAdminData } from "../../../../test/adminKit";
 import { draftKey } from "../../acta/localDraft";
 import { fromMatch, setMinute, sig } from "../../acta/sheetModel";
@@ -90,7 +91,7 @@ const fullJ1 = (over: Partial<ClubMatch> = {}) =>
       { id: "d", type: "goal", minute: 30, playerId: "huberoski" },
       { id: "e", type: "opponent_goal", minute: 40 },
     ],
-    notas: { model: "piti-media-v3", rival: 1, players: { erik: { nota: 8.6, minutes: 50, weight: 1, narrated: false }, adrian: { nota: 7.4, minutes: 50, weight: 1, narrated: false }, evans: { nota: 6.2, minutes: 50, weight: 1, narrated: false } } },
+    notas: { model: MODEL_VERSION, rival: 1, players: { erik: { nota: 8.6, minutes: 50, weight: 1, narrated: false }, adrian: { nota: 7.4, minutes: 50, weight: 1, narrated: false }, evans: { nota: 6.2, minutes: 50, weight: 1, narrated: false } } },
     ...over,
   });
 

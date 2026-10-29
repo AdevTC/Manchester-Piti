@@ -292,7 +292,8 @@ export async function publishSheet(input: PublishRequest) {
     let notasProblem: string | null = finished && !seasonGames ? "no se ha podido leer la temporada" : null;
     if (finished && seasonGames && !(input.promote && notas))
       try {
-        const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players };
+        // (with the lineup it keeps: where each one started, his fixed position)
+        const self: RatingMatch = { ...publicSheet, id: input.id, date: sheet.date, status: "finished", events: publicNarrationEvents(sheet.events), ledger: ledger.players, ...(lineup ? { lineup } : {}) };
         // (a correction keeps the rival's factor and normal match of the first publication, while it is the same rival
         // and season)
         const kept = old.get("rival") === sheet.rival && old.get("seasonId") === sheet.seasonId ? parseStoredNotas(old.get("notas")) : null;

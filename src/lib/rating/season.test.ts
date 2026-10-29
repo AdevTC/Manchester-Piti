@@ -112,6 +112,40 @@ describe("a match's nota", () => {
   });
 });
 
+describe("his fixed position weighs his actions", () => {
+  /** Shots from outside the area by `by` (worth their chance). */
+  const shots = (count: number, by: string, from = 0): Observation[] => Array.from({ length: count }, (_, i) => ({ id: `s${by}${from + i}`, kind: "shot", team: "us", actorId: by, order: 700 + from + i, validity: "valid", facts: { outsideArea: true } }));
+  /** A told match where the centre-back wins ten balls and the striker shoots ten times. */
+  const game = (j: number) => told({ d: row(50, { positionsPlayed: { DFC: 50 } }), f: row(50, { positionsPlayed: { DC: 50 } }) }, [...recoveries(10, "d", 10 * j), ...shots(10, "f", 10 * j)], { starters: ["d", "f"] });
+  it("each family by what his position usually does: its rate over the team's, pulled to it with 200′, between ×2/3 and ×1,5", () => {
+    const games = [game(0), game(1), game(2)];
+    // the team: 5 of each per 50′; the centre-back's tackling (30 + 200′ of the team's) / (150′ + 200′), his shooting none
+    const { weights } = ratedMatch(games[2], games);
+    expect(weights.get("d")).toEqual({ ataque: expect.closeTo(2 / 3, 10), pase: 1, defensa: expect.closeTo(10 / 7, 10), goal: 1.5 });
+    expect(weights.get("f")).toEqual({ ataque: expect.closeTo(10 / 7, 10), pase: 1, defensa: expect.closeTo(2 / 3, 10), goal: 1 });
+    // a longer season moves it further, up to ×1,5
+    const ten = Array.from({ length: 10 }, (_, j) => game(j));
+    expect(ratedMatch(ten[9], ten).weights.get("d")!.defensa).toBe(1.5);
+  });
+  it("the acta's ficha gets the weights his nota used: his fixed position's, or the mix of his positions by minutes", () => {
+    const games = [game(0), game(1), game(2)];
+    // one the acta cannot place at the start: half his minutes at centre-back, half up front
+    const mixed = told({ d: row(50, { positionsPlayed: { DFC: 50 } }), f: row(50, { positionsPlayed: { DC: 50 } }), x: row(50, { positionsPlayed: { DFC: 25, DC: 25 } }) }, [], {});
+    const all = [...games, mixed];
+    const { weights } = ratedMatch(mixed, all);
+    const d = weights.get("d")!, f = weights.get("f")!;
+    expect(weights.get("x")).toEqual({ ataque: expect.closeTo((d.ataque + f.ataque) / 2, 10), pase: 1, defensa: expect.closeTo((d.defensa + f.defensa) / 2, 10), goal: 1.25 });
+  });
+  it("a goal weighs by the position he started in, in the Fantasy's proportions (keeper ×2,5, defender ×1,5, midfielder ×1,25, forward ×1)", () => {
+    // d started at centre-back and played more at striker after a swap; f the other way round
+    const m = match({ d: row(50, { goals: 1, positionsPlayed: { DFC: 20, DC: 30 } }), f: row(50, { goals: 1, positionsPlayed: { DC: 20, DFC: 30 } }) }, { starters: ["d", "f"], goalsFor: 2, events: [{ id: "s", type: "position_swap", playerId: "d", inPlayerId: "f", minute: 20 }] });
+    const r = seasonRatings([m]);
+    // a normal match is 1 goal a side per 50′: each had the other's goal for and none against (weighed by his line)
+    expect(r.noteOf(m.id, "d")!.nota).toBeCloseTo(6.5 + 1.5 / 0.65 + 0.15, 10);
+    expect(r.noteOf(m.id, "f")!.nota).toBeCloseTo(6.5 + 1 / 0.65 + 0.05, 10);
+  });
+});
+
 describe("the team while he was on the pitch", () => {
   it("the goals against weigh on the back, the goals for on the front, against a normal match of the season", () => {
     // 0–0 and then 0–4: a normal match has 1 goal a side per 50′

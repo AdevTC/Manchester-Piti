@@ -8,6 +8,8 @@ export interface RatingMatch extends NarratedMatch {
   competition?: string;
   /** The notas its acta froze (./frozen: read with storedNotasOf). */
   notas?: unknown;
+  /** The seven its lineup put on the pitch (matches/{id}.lineup; read by ./fixed). */
+  lineup?: unknown;
 }
 
 /** One team of the league table (`standings/{seasonId}`), as the rival's strength reads it. */
