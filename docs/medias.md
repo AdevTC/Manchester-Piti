@@ -1,10 +1,11 @@
 # Medias: GLOBAL, FOR y la nota de cada partido
 
-GLOBAL es el número de la carta del perfil, los cromos de la pizarra, la ficha de jugador, «¿Quién ha venido?» de la mesa y el cromo del admin. Todos lo leen del mismo cálculo (`src/lib/seasonRating.ts`), con los mismos partidos y la misma clasificación, así que nunca difieren. Modelo `piti-media-v3` (27 de octubre de 2026): la revisión de `v2` en tres pasadas, con fuentes y con lo que vio el usuario en la J1; la nota se sigue congelando con su acta.
+GLOBAL es el número de la carta del perfil, los cromos de la pizarra, la ficha de jugador, «¿Quién ha venido?» de la mesa y el cromo del admin. Todos lo leen del mismo cálculo (`src/lib/seasonRating.ts`), con los mismos partidos y la misma clasificación, así que nunca difieren. Modelo `piti-media-v4` (29 de octubre de 2026): la `v3` (27 de octubre, la revisión de `v2` en tres pasadas, con fuentes y con lo que vio el usuario en la J1) revisada con la J2. Cada jugador se valora en un puesto fijo, como propusieron los del equipo, y cada familia de acciones pesa por el oficio de ese puesto. Los goles van en las proporciones del Fantasy, las calibraciones F7 y del portero pesan igual a los dos equipos y la parte del equipo cuenta los goles de verdad. La nota se sigue congelando con su acta.
 
 El código está en `functions/src/rating/` (la web lo lee por `src/lib/rating/`; las funciones lo usan para congelar las notas al publicar el acta):
 
 - `constants.ts`: todos los números del modelo.
+- `fixed.ts`: el puesto fijo de cada jugador en cada partido.
 - `values.ts`: lo que vale cada acción de un partido y lo que pasó con el equipo mientras cada uno estaba en el campo.
 - `season.ts`: notas, GLOBAL y FOR.
 - `rival.ts`: la fuerza del rival y sus goles.
@@ -16,25 +17,62 @@ Cambiar un número es cambiar el modelo: sube `MODEL_VERSION` y actualiza esta p
 
 Cada acción vale lo que cambia, en goles, la probabilidad de marcar o de encajar (VAEP, xT, g+). La nota suma tres partes:
 
-1. **Lo que se repite** (pases, controles, recuperaciones, despejes, bloqueos…: lo que cuenta la narración) se pasa a **cada 50′**, con un colchón de 10′ de lo normal en su puesto, y se compara con **lo normal en su puesto**:
-   - Lo normal es lo que hicieron los otros que jugaron ese puesto en la temporada hasta ese partido, sin contarle a él, por minutos (Σ valor / Σ minutos). Un puesto es la línea y el centro o la banda (`positions.ts`): un central con los centrales, un lateral con los laterales, un interior con los interiores.
-   - Lo normal de un puesto parte de la media del equipo con 200′, hasta que tiene muestra. Si jugó en varios puestos, cuenta cada uno por sus minutos. Si el acta no dice dónde jugó, se le compara con el equipo.
+1. **Lo que se repite** (pases, controles, recuperaciones, despejes, bloqueos…: lo que cuenta la narración) se pasa a **cada 50′**, con un colchón de 10′ de lo normal en su puesto, y se compara con **lo normal en su puesto fijo** (abajo), cada familia de acciones con el peso que le da ese puesto:
+   - Lo normal es lo que hicieron los otros que jugaron ese puesto en la temporada hasta ese partido, sin contarle a él, por minutos (Σ valor / Σ minutos), con los pesos de ese puesto. Un puesto es la línea y el centro o la banda (`positions.ts`): un central con los centrales, un lateral con los laterales, un interior con los interiores.
+   - Lo normal de un puesto parte de la media del equipo con 200′, hasta que tiene muestra. Si el acta no permite fijarle un puesto, cuenta cada uno de los suyos por sus minutos; si no dice dónde jugó, se le compara con el equipo.
    - **El portero cuenta tal cual**: lo normal de un portero solo lo fijan otros porteros, partiendo de cero. Sin otro portero, lo que hace cuenta entero.
    - **Un partido sin narración** (solo acta y mesa) cuenta casi nada del juego: lo poco que apunta la mesa cuenta tal cual, sin compararlo con los partidos narrados ni fijar lo normal de nadie.
 2. **Lo que pasa una vez** (goles, asistencias, penaltis, tarjetas, goles en propia, errores que acaban en gol y los goles evitados del portero) cuenta **entero**: no se pasa a 50′ ni se compara con la media de un solo partido. Un gol vale lo mismo en 10′ que en 50′ y no mueve la nota de nadie más.
+   - **Un gol pesa por su puesto fijo**, en las proporciones del Fantasy de la Premier (10 puntos el del portero, 6 el del defensa, 5 el del medio y 4 el del delantero): ×2,5 el del portero, ×1,5 el del defensa, ×1,25 el del medio y ×1 el del delantero. Un gol de penalti, sus +0,22 con el mismo peso.
+   - Lo demás (asistencias, penaltis, tarjetas, errores) pesa igual en todos los puestos, como en el Fantasy.
+   - Medir los goles contra lo normal de su puesto quedó descartado: un compañero que marca te bajaría la nota.
 3. **Lo que pasó con el equipo mientras estaba en el campo** (abajo), en puntos de nota.
 
-**Nota = 6,5 + (lo que se repite + lo que pasa una vez) / 0,65 + la parte del equipo**, entre 0 y 10. **6,5 es un partido normal** y **0,65 goles son un punto**: la escala es fija, así que una nota no depende de las de los demás (la dispersión de la J1 con todo es 0,575). Con menos de 10′ no hay nota.
+**Nota = 6,5 + (lo que se repite + lo que pasa una vez) / 0,65 + la parte del equipo**, entre 0 y 10. **6,5 es un partido normal** y **0,65 goles son un punto**: la escala es fija, así que una nota no depende de las de los demás. Con menos de 10′ no hay nota.
+
+### El puesto fijo
+
+En cada partido, cada jugador se valora en **un puesto fijo**: donde empieza o, si sale del banquillo, donde entra por primera vez. Lo propusieron los del equipo para que los cambios no mezclen puestos: si entra un delantero y el medio pasa a la banda, cada uno se sigue valorando en el puesto en el que empezó.
+
+- **Donde empieza**: la alineación del partido (`matches/{id}.lineup`, la que fija la pizarra oficial antes de empezar). Sin ella, los puestos de salida con los que los cambios del acta reproducen sus minutos en cada puesto (`positionsPlayed`).
+- **Donde entra**: quien entra ocupa el sitio de quien sale, o el que dejó vacío una roja. Un «Cambio de sitio» intercambia dos sitios, pero no cambia el puesto fijo de nadie.
+- Ese puesto decide **todo** lo que depende del puesto: lo normal con lo que se le compara, el peso de cada familia de sus acciones, el de sus goles y el de la parte del equipo.
+- Si el acta no permite saber dónde empezó, cuentan sus minutos en cada puesto, como en la `v3`. Pasa con un invitado en el siete (el acta guardada solo tiene socios) y con quien entra por él. También con un cambio de sitio justo en el descanso sin alineación, porque las dos salidas reproducen igual los minutos.
+
+### El oficio de cada puesto
+
+Las acciones de la narración se agrupan en tres familias:
+
+- **Ataque**: remates, regates, conducciones, la ocasión clarísima fallada y las ocasiones de la mesa.
+- **Pase**: pases de todo tipo, centros, pases clave, recepciones y controles, pérdidas, saques del portero y la ocasión clarísima creada.
+- **Defensa**: recuperaciones, intercepciones, entradas, duelos, presiones, despejes y bloqueos.
+
+Cada familia pesa en un puesto **por lo que ese puesto suele hacer**, su oficio. El peso es el ritmo de las acciones valoradas de esa familia en el puesto entre el del equipo, cada 50′, en los partidos narrados de la temporada hasta el acta. Cada valor cuenta una: un pase clave suma el pase y el pase clave.
+
+- El ritmo del puesto se acerca al del equipo con 200′, hasta que tiene muestra.
+- El peso va de ×2/3 a ×1,5.
+- Así la defensa de un central y el remate de un delantero cuentan más, y lo que su puesto apenas hace, menos.
+- El portero (×1) y lo demás (portería, errores, disciplina) cuentan tal cual.
+- Lo normal de cada puesto se calcula con sus propios pesos, también lo que pone el equipo hasta que el puesto tiene muestra: el juego del equipo valorado como lo valora ese puesto.
+
+Pesos tras la J2, en ataque / pase / defensa:
+
+| Puesto | Ataque | Pase | Defensa |
+| --- | --- | --- | --- |
+| Central | ×0,70 | ×0,90 | ×1,08 |
+| Interior | ×1,17 | ×1,08 | ×0,94 |
+| Mediocentro | ×1,08 | ×1,11 | ×1,07 |
+| Punta | ×1,27 | ×1,00 | ×0,88 |
 
 ### El equipo con él en el campo
 
 - **A favor**: los goles nuestros mientras estaba en el campo, sin los suyos.
-- **En contra**: el peligro del rival mientras estaba, cada remate a puerta por su probabilidad de gol con un portero normal (área 0,50, cabeza 0,35, fuera 0,25, penalti 0,78; un remate fuera o al palo, nada). Así los de campo no pagan las paradas o los fallos del portero, y el portero no paga dos veces (lo suyo va en los goles evitados). Si la narración no cuenta los remates del rival (la mesa solo apunta sus goles, palos y penaltis fallados) o le faltan goles, cuenta cada gol entero.
+- **En contra**: los goles del rival mientras estaba en el campo, como los cobra el Fantasy a porteros y defensas. Con el peligro esperado de la `v3`, unos 2 goles de la J2 no eran de nadie. El tiro a tiro del portero va aparte, en sus goles evitados.
 - Lo que causó él (su error que acaba en gol, su penalti, su gol en propia) ya le cuenta aparte: no vuelve a contarle aquí, ni al acercarlo al partido entero.
-- Lo que la narración no sitúa en el tiempo (o un acta sin tramos) cuenta en proporción a sus minutos.
+- Lo que la narración no sitúa en el tiempo (o un acta sin tramos), y los goles del acta que no narra, cuentan en proporción a sus minutos.
 - **Un rato corto se acerca al partido entero**: (lo suyo + 25′ del partido) × minutos / (minutos + 25), como el encogimiento del plus-minus ajustado.
 - Se compara con **lo normal en sus minutos**: los goles por equipo cada 50′ de la temporada hasta ese partido (los dos equipos). Con una clasificación que tenga goles, lo que marca ese rival por partido (lo que solemos encajar) y lo que encaja (lo que solemos marcar), con 2 partidos de la media de la liga.
-- **Pesos** (puntos de nota por gol por encima de lo normal, en contra / a favor), por los minutos en cada línea:
+- **Pesos** (puntos de nota por gol por encima de lo normal, en contra / a favor), por la línea de su puesto fijo (sin él, por sus minutos en cada línea):
 
 | Línea | En contra | A favor |
 | --- | --- | --- |
@@ -47,7 +85,7 @@ Sin puesto en el acta, pesa como un medio. Sofascore y Flashscore dan entre 0,75
 
 ### La nota congelada
 
-La nota se calcula **al publicar el acta**, con los partidos de la temporada **hasta ese día** (lo normal de cada puesto, la calibración F7, el volumen de narración y lo normal de un partido salen de ellos) y la fuerza del rival en la clasificación de ese día. Se guarda con el acta (`matches/{id}.notas`: cada nota, el modelo, el factor del rival y, si la clasificación lo dio, lo normal contra ese rival) y **solo cambia si se corrige esa acta**; la corrección conserva el factor del rival y lo normal de la primera publicación. Lo que pase después (otras jornadas, la clasificación) ya no la mueve.
+La nota se calcula **al publicar el acta**, con los partidos de la temporada **hasta ese día** (de ellos salen lo normal y el peso de cada puesto, las calibraciones F7 y del portero, el volumen de narración y lo normal de un partido) y la fuerza del rival en la clasificación de ese día. Se guarda con el acta (`matches/{id}.notas`: cada nota, el modelo, el factor del rival y, si la clasificación lo dio, lo normal contra ese rival) y **solo cambia si se corrige esa acta**; la corrección conserva el factor del rival y lo normal de la primera publicación. Lo que pase después (otras jornadas, la clasificación) ya no la mueve.
 
 - La guardan `saveMatchSheet` y la publicación de la mesa (`publishSheet`); nadie más puede escribirla.
 - Un acta sin notas de este modelo (publicada antes, o si el cálculo falló al publicar) se calcula igual en la web, con su temporada hasta ella. `functions/scripts/backfill-notas.mjs` las congela en las actas ya publicadas.
@@ -73,7 +111,7 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 
 | Acción | Valor |
 | --- | --- |
-| Gol | +1,0 (el remate que es gol no suma aparte) |
+| Gol | +1,0 × el peso de su puesto (×2,5 portero, ×1,5 defensa, ×1,25 medio, ×1 delantero); el remate que es gol no suma aparte |
 | Asistencia | +0,3 + el pase clave (+0,08 × F7 si la narración no lo valoró ya) |
 | Remate | su ocasión × F7 (área 0,12, cabeza 0,08, falta directa 0,05, fuera 0,04), +0,02 a puerta o al palo |
 | Pase clave | la ocasión del remate que crea × F7 (0,08 sin remate enlazado) |
@@ -93,7 +131,7 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 | Entrada ganada / neutra / fallada | +0,04 / +0,02 / −0,02 |
 | Duelo ganado / perdido / le superan | +0,01 / −0,01 / −0,04 (lo que gana el regate) |
 | Presión con éxito | +0,01 |
-| Portero: goles evitados | (Σ probabilidad de gol de cada remate a puerta recibido − goles encajados) × n / (n + 15), con n los remates a puerta. Área 0,50, cabeza 0,35, fuera 0,25, penalti 0,78 (fuera o al palo no es parada); mesa 0,42 |
+| Portero: goles evitados | (Σ probabilidad de gol de cada remate a puerta recibido − goles encajados) × n / (n + 15), con n los remates a puerta. Área 0,50, cabeza 0,35, fuera 0,25 y mesa 0,42, × la calibración del portero (como mucho 0,95); penalti 0,78 (fuera o al palo no es parada) |
 | Portero: balón atrapado | +0,06 (una recuperación en el área propia) si el rival amenazaba; +0,01 tras un despeje rival o un pase nuestro |
 | Portero: centro atrapado / salida / puñetazo | +0,06 / +0,08 (fallada −0,02) / como un despeje |
 | Portero: saque bueno / fallado | +0,004 / −0,03 × (acierto en saques de puerta / acierto en raso) |
@@ -107,7 +145,14 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 | Gol en propia | −0,8 |
 | Ocasión de la mesa (solo sin narración) | +0,08 × F7 |
 
-**Calibración F7**: la tabla de ocasiones es la de los profesionales (0,09–0,13 por remate sin penalti). En fútbol 7 se marca más: la tabla se multiplica por (goles + 10) / (Σ ocasiones + 10), con los remates sin penalti de los dos equipos en los partidos narrados de la temporada hasta el acta. De cada equipo, solo si la narración cuenta sus remates (sus goles sin sus fallos la inflarían). Parte de la tabla y se recalibra sola cada jornada. Tras la J1: ×1,31.
+**Calibración F7**: la tabla de ocasiones es la de los profesionales (0,09–0,13 por remate sin penalti). En fútbol 7 se marca más, así que la tabla se multiplica por la media de los dos equipos de (goles + 10) / (Σ ocasiones + 10):
+
+- Cuentan los remates sin penalti de cada equipo en los partidos narrados de la temporada hasta el acta.
+- Cada equipo pesa lo mismo, para que los muchos remates de uno no fijen la calibración del otro. En la J2, los 54 remates del Pitutis (×2,75) pesaban casi el doble que nuestros 30 (×1,34).
+- Un equipo cuyos remates no cuenta la narración se queda en la tabla (×1): sus goles sin sus fallos la inflarían.
+- Parte de la tabla y se recalibra sola cada jornada: ×1,17 tras la J1 y ×1,35 tras la J2.
+
+**Calibración del portero**: la probabilidad de gol de un remate a puerta con un portero normal (área 0,50, cabeza 0,35, fuera 0,25, mesa 0,42) se multiplica igual, por la media de los dos equipos de (goles + 10) / (Σ probabilidades + 10), con sus remates a puerta sin penalti. Queda como mucho en 0,95. Así no la fijan los remates contra nuestro portero (27 de los 35 a puerta en la J2): ×1,01 tras la J1 y ×1,10 tras la J2.
 
 **Penaltis (opción A)**, al 0,78 (Opta 0,79, StatsBomb 0,78, Wyscout 0,76; el de fútbol 7, a 9 m de una portería de 6×2, se ve con el mismo ángulo que el de 11 m):
 
@@ -146,15 +191,15 @@ El acta decide los recuentos: goles, asistencias, tarjetas y penaltis. La narrac
 ## Lo que no cuenta
 
 - **Los votos MVP**: la votación cierra días después, contaría dos veces lo mismo y admite voto estratégico. El MVP sigue como atributo de la carta, estrella y medallas.
-- **El marcador como tal**: un gol vale siempre lo mismo. Lo que pasó con el equipo cuenta por los minutos de cada uno en el campo, no por el resultado final.
+- **El marcador como tal**: un gol vale lo mismo con 0–0 que con 5–0. Lo que pasó con el equipo cuenta por los minutos de cada uno en el campo, no por el resultado final.
 
 ## Pendiente de calibrar y de pedir
 
-- Con la temporada: P(gol de penalti) = 0,78; las probabilidades de gol de los remates a puerta para el portero, con los remates de los dos equipos; los pesos de la parte del equipo.
+- Con la temporada: P(gol de penalti) = 0,78; los pesos de la parte del equipo; el rango del oficio (×2/3 a ×1,5) y sus 200′ de colchón.
 - En la J11: la prueba de mitades del plus-minus; que la media de los porteros no quede por encima de 6,5 (si pasa, fijar su referencia con la temporada).
 - Pedir a la narración: la colocación del remate a puerta (o «parada de mérito» / «imparable»: necesita un dato y números nuevos) y la clasificación con goles. Desde el 27 de octubre de 2026 el prompt (`alwaysRecord` en `src/lib/narrationPrompt.ts`) ya pide los pases que entran en el área, los puñetazos y salidas del portero y las zonas; las reglas de esta página los valoran cuando llegan.
 - La ocasión clarísima: desde el 27 de octubre de 2026 el perfil por defecto (`piti-narration` v2, en `functions/src/narrated/types.ts`) declara como `bigChanceCriterion` el criterio de Opta, el que aplica Sofascore: «Ocasión clarísima (Opta) v1: situación en la que se espera razonablemente que el jugador marque, normalmente un mano a mano con el portero o un remate desde muy cerca, con el camino a la portería despejado y poca o moderada presión sobre el rematador. Los penaltis siempre lo son.» El prompt de un partido nuevo la pide con ese texto. Un análisis ya guardado conserva el perfil con el que se narró, así que la J1, narrada antes, no cambia. Un penalti no suma por esta regla: ya cuenta como penalti.
 
 ## Fuentes
 
-Sofascore (cómo se calcula la nota); The Analyst / Opta (definiciones: error frente a duelo perdido; penaltis); ASA (goals added: el pase medio ≈ 0; porteros); KU Leuven (xT frente a VAEP); StatsBomb (ajuste por posesión; estudio de 2024 sobre las rojas); FBref / Opta (xG por posesión); FPL y LaLiga Fantasy (puntos por goles encajados); Relevo (puntos del portero); normativa de fútbol 7 de Euskadi (penalti a 9 m); ESMP 2025 (Sofascore y Flashscore: ganar frente a perder); Gelade y Hvattum 2020, Kharrat et al. (plus-minus).
+Sofascore (cómo se calcula la nota); The Analyst / Opta (definiciones: error frente a duelo perdido; penaltis); ASA (goals added: el pase medio ≈ 0; porteros); KU Leuven (xT frente a VAEP); StatsBomb (ajuste por posesión; su artículo de 2013 sobre las rojas y las ocasiones manifiestas, «DOGSO»); FBref / Opta (xG por posesión); FPL (puntos por gol según el puesto, temporada 2026/27: premierleague.com/news/2174909) y LaLiga Fantasy (puntos por goles encajados); Relevo (puntos del portero); normativa de fútbol 7 de Euskadi (penalti a 9 m); ESMP 2025 (Sofascore y Flashscore: ganar frente a perder); Gelade y Hvattum 2020, Kharrat et al. (plus-minus).

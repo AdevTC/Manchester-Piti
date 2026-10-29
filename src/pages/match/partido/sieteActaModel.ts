@@ -7,8 +7,8 @@ import type { Participation } from "../../../../functions/src/matchEngine";
 import type { TechnicalStats } from "../../../../functions/src/matchAnalysis";
 import { isPosCode, lineOf, positionLabel, type Line } from "../../../lib/positions";
 import { notaBand, notaText, type NotaBand } from "../../../lib/rating/semaforo";
-import type { Group, MatchValue, Role } from "../../../lib/rating/values";
-import { notesMean, type MatchNote, type TeamPart } from "../../../lib/rating/season";
+import { GOAL_LABELS, type Group, type Item, type MatchValue, type Role } from "../../../lib/rating/values";
+import { FAMILIES, notesMean, type Family, type MatchNote, type PositionWeights, type TeamPart } from "../../../lib/rating/season";
 import { FORM_CUSHION, FORM_MATCHES, NOTE_SCALE } from "../../../lib/rating/constants";
 import { andList as and, type ChangeGroup, type Lineup, type Play, type PosSeg, type Spot, type Stint, type Tag } from "./model";
 import type { Person, Viewer } from "./ctx";
@@ -106,6 +106,14 @@ export function actaPlayers(I: PlayersInput): ActaPlayer[] {
     const b = notaBand(nota);
     const lines = I.values?.players.get(id)?.lines ?? {};
     const roles = I.values?.players.get(id)?.roles ?? {};
+    // (in goal for most of his minutes, by the acta: his fixed position may be another, rated as it rates him)
+    let goalMin = 0;
+    let allMin = 0;
+    for (const [code, min] of Object.entries(row?.positionsPlayed ?? {}))
+      if (typeof min === "number") {
+        allMin += min;
+        if (code === "POR") goalMin += min;
+      }
     const slot = I.lineup.slots.find((s) => s.id === id);
     return {
       id,
@@ -123,7 +131,7 @@ export function actaPlayers(I: PlayersInput): ActaPlayer[] {
       cap: id === I.captain,
       mvp: mvp.has(id),
       guest: id.startsWith("guest:"),
-      keeper: (lines.POR ?? 0) >= 0.5,
+      keeper: allMin > 0 ? goalMin >= allMin / 2 : (lines.POR ?? 0) >= 0.5,
       line: positionText(roles),
       stats: {
         goals: row?.goals ?? 0,
@@ -500,6 +508,8 @@ export interface FichaView {
   seasNote: string;
   jj: { key: string; j: string; rival: string; nota: string; band: NotaBand; cls: string; label: string }[];
   groups: { key: string; name: string; v: string; dir: "is-pos" | "is-neg"; w: number; items: string }[];
+  /** How his position weighed his actions («De central, …»; empty when the acta cannot place him). */
+  weightsText: string;
   lineShort: string;
   go: string;
   href: string | null;
@@ -507,12 +517,25 @@ export interface FichaView {
 }
 const GROUP_NAME: Record<Group, string> = { ataque: "Ataque", pase: "Pase", defensa: "Defensa", porteria: "Portería", errores: "Errores", disciplina: "Disciplina" };
 const one = (n: number) => n.toLocaleString("es", { maximumFractionDigits: 1 });
-/** «A favor 1 y en contra 6,2 (lo que se esperaba con un portero normal); en un partido normal, 3,9 cada uno en sus
- *  minutos»: what happened with him on the pitch, and what his nota measures it from. */
-export function teamItems(on: { on: number; for: number; against: number }, t: TeamPart, expected: boolean, duration: number): string {
+/** «A favor 1 y en contra 6; en un partido normal, 3,9 cada uno en sus minutos»: what happened with him on the pitch,
+ *  and what his nota measures it from. */
+export function teamItems(on: { on: number; for: number; against: number }, t: TeamPart, duration: number): string {
   const normal = Math.abs(t.normalFor - t.normalAgainst) < 0.05 ? `${one(t.normalFor)} cada uno` : `${one(t.normalFor)} a favor y ${one(t.normalAgainst)} en contra`;
   // (a stint short of the whole match is pulled toward it: say so, or the sign may not follow from these figures)
-  return `Con él en el campo, a favor ${one(on.for)} y en contra ${one(on.against)}${expected ? " (lo que se esperaba con un portero normal)" : ""}; en un partido normal, ${normal} en sus minutos${on.on < duration ? ". En un rato corto también cuenta el partido entero" : ""}`;
+  return `Con él en el campo, a favor ${one(on.for)} y en contra ${one(on.against)}; en un partido normal, ${normal} en sus minutos${on.on < duration ? ". En un rato corto también cuenta el partido entero" : ""}`;
+}
+
+const ROLE_ONE: Record<Role, string> = { POR: "portero", "DEF-centro": "central", "DEF-banda": "lateral", "MED-centro": "mediocentro", "MED-banda": "interior", "DEL-centro": "punta", "DEL-banda": "extremo" };
+const FAMILY_NAME: Record<Family, string> = { ataque: "el ataque", pase: "el pase", defensa: "la defensa" };
+const times = (n: number) => `×${n.toLocaleString("es", { maximumFractionDigits: 2 })}`;
+/** «De central, el ataque le cuenta ×0,7, el pase ×0,9 y la defensa ×1,08; un gol suyo, ×1,5»: how his fixed
+ *  position weighs his actions (what it usually does counts more); placed by his minutes, the mix of his positions';
+ *  empty when the acta does not say where he played. */
+export function weightsText(roles: readonly Role[], w: PositionWeights | null): string {
+  if (!roles.length || !w) return "";
+  const fam = FAMILIES.filter((g) => Math.abs(w[g] - 1) >= 0.005);
+  const head = fam.length ? `${and(fam.map((g, i) => `${FAMILY_NAME[g]}${i === 0 ? " le cuenta" : ""} ${times(w[g])}`))}, por lo que suele hacer ${roles.length === 1 ? "su puesto" : "cada uno"}` : "sus acciones cuentan tal cual";
+  return `${roles.length === 1 ? `De ${ROLE_ONE[roles[0]]}` : `Por sus minutos de ${and(roles.map((r) => ROLE_ONE[r]))}`}, ${head}; un gol suyo, ${times(w.goal)}.`;
 }
 
 export interface FichaInput {
@@ -527,6 +550,8 @@ export interface FichaInput {
   /** His minutes by position from the acta's ledger (when the seven isn't published). */
   positionsPlayed: Partial<Record<string, number>> | null;
   provisionalMinutes: number;
+  /** How his fixed position weighs his actions (ratedMatch; absent: as they are). */
+  weights?: PositionWeights | null;
 }
 export function fichaOf(I: FichaInput): FichaView {
   const { p } = I;
@@ -562,8 +587,12 @@ export function fichaOf(I: FichaInput): FichaView {
     p.keeper ? { l: "Paradas", v: String(st.saves), s: "" } : { l: "A puerta", v: String(st.shotsOnTarget), s: st.shots ? `de ${plural(st.shots, "remate", "remates")}` : "" },
     p.keeper ? { l: "Despejes", v: String(st.clearances), s: "" } : { l: "Recuperaciones", v: String(st.recoveries), s: "" },
   ];
-  // what his actions were worth, by kind; and the team with him on the pitch, its part of his nota in goals too
-  const items = I.values?.players.get(p.id)?.items ?? [];
+  // what his actions were worth, by kind, as his position weighs them (each family of the narration, his goals); and
+  // the team with him on the pitch, its part of his nota in goals too
+  const pv = I.values?.players.get(p.id);
+  const w = I.weights ?? null;
+  const weightOf = (it: Item) => (!w ? 1 : it.acta ? (GOAL_LABELS.has(it.label) ? w.goal : 1) : (FAMILIES as readonly string[]).includes(it.group) ? w[it.group as Family] : 1);
+  const items = (pv?.items ?? []).map((it) => ({ ...it, value: it.value * weightOf(it) }));
   const sums = new Map<Group, { sum: number; items: typeof items }>();
   for (const it of items) {
     const g = sums.get(it.group) ?? { sum: 0, items: [] };
@@ -571,6 +600,7 @@ export function fichaOf(I: FichaInput): FichaView {
     g.items.push(it);
     sums.set(it.group, g);
   }
+  const roles = Object.keys(pv?.roles ?? {}) as Role[];
   const rows = [...sums.entries()].map(([group, g]) => {
     const its = [...g.items].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
     const txt = its
@@ -579,8 +609,8 @@ export function fichaOf(I: FichaInput): FichaView {
       .join(" · ");
     return { key: group as string, name: GROUP_NAME[group] ?? group, sum: g.sum, items: `${txt}${its.length > 5 ? ` · y ${its.length - 5} más` : ""}` };
   });
-  const on = I.values?.players.get(p.id)?.team;
-  if (I.team && on && p.nota !== null) rows.push({ key: "equipo", name: "Equipo", sum: I.team.value * NOTE_SCALE, items: teamItems(on, I.team, I.values?.team.expected ?? false, I.duration) });
+  const on = pv?.team;
+  if (I.team && on && p.nota !== null) rows.push({ key: "equipo", name: "Equipo", sum: I.team.value * NOTE_SCALE, items: teamItems(on, I.team, I.duration) });
   const maxAbs = Math.max(0.0001, ...rows.map((g) => Math.abs(g.sum)));
   const groups = rows
     .sort((a, b) => Math.abs(b.sum) - Math.abs(a.sum))
@@ -634,6 +664,7 @@ export function fichaOf(I: FichaInput): FichaView {
     seasNote,
     jj,
     groups,
+    weightsText: p.nota !== null ? weightsText(roles, w) : "",
     lineShort: p.line.replace(/, según sus minutos en cada sitio$/, ""),
     go: p.me ? "Ver mi página" : "Ver su página",
     href: p.guest ? null : `/jugadores/${encodeURIComponent(p.id)}`,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyParticipation, type Participation } from "../../../functions/src/matchEngine";
 import { DEFAULT_ANALYSIS_PROFILE, type Observation } from "../../../functions/src/narrated/types";
 import type { ClubMatch } from "../clubData";
-import { matchValue, xgFactor } from "./values";
+import { keeperFactor, matchValue, xgFactor } from "./values";
 
 // One match's values, rule by rule (docs/medias.md): each action of ours in goals, from the narration and the acta,
 // and the team while each one was on the pitch.
@@ -270,13 +270,13 @@ describe("discipline and the narration's judgement", () => {
 });
 
 describe("the team while he was on the pitch", () => {
-  it("our goals while he was on (his own left out) and the rival's danger: each shot on target at its chance with a normal keeper", () => {
+  it("our goals and theirs while he was on (his own left out); the keeper's shot-stopping is apart, in his goals prevented", () => {
     const ledger = { a: row(25, { stints: [{ from: 0, to: 25 }] }), b: row(50, { goals: 1, stints: [{ from: 0, to: 50 }] }), k: row(50, { positionsPlayed: { POR: 50 }, stints: [{ from: 0, to: 50 }] }) };
     const m = match([o("goal", { goal: true }, { actorId: "b", ...at(10) }), them("shot", { onTarget: true }, at(20)), them("goal", { goal: true, outsideArea: true }, at(40))], ledger, { goalsFor: 1, goalsAgainst: 1 });
-    expect(of(m).team).toEqual({ on: 25, for: 1, against: 0.5, matchFor: 1, matchAgainst: 0.75 });
-    // the scorer's goal is not his again, not even in the whole match; the goal from outside, a 25 % chance
-    expect(of(m, "b").team).toEqual({ on: 50, for: 0, against: 0.75, matchFor: 0, matchAgainst: 0.75 });
-    expect(matchValue(m).team).toEqual({ for: 1, against: 0.75, expected: true });
+    expect(of(m).team).toEqual({ on: 25, for: 1, against: 0, matchFor: 1, matchAgainst: 1 });
+    // the scorer's goal is not his again, not even in the whole match; their shot that did not go in is no goal
+    expect(of(m, "b").team).toEqual({ on: 50, for: 0, against: 1, matchFor: 0, matchAgainst: 1 });
+    expect(matchValue(m).team).toEqual({ for: 1, against: 1 });
   });
   it("what he caused himself is not his again: his error, his penalty, his own goal", () => {
     const ledger = { a: row(50, { penaltyCommitted: 1, stints: [{ from: 0, to: 50 }] }), b: row(50, { stints: [{ from: 0, to: 50 }] }) };
@@ -293,7 +293,7 @@ describe("the team while he was on the pitch", () => {
   it("la mesa's woodwork or missed penalty is no narration of the rival's shots: their goals count whole, its saves stay the keeper's", () => {
     const keeper = { k: row(50, { positionsPlayed: { POR: 50 }, stints: [{ from: 0, to: 50 }] }), a: row(50, { stints: [{ from: 0, to: 50 }] }) };
     const m = match([], keeper, { goalsAgainst: 1, events: [{ id: "w", type: "opponent_woodwork", minute: 5 }, { id: "s", type: "save", playerId: "k", minute: 8, outcome: "held" }, { id: "g", type: "opponent_goal", minute: 10 }] });
-    expect(matchValue(m).team).toMatchObject({ against: 1, expected: false });
+    expect(matchValue(m).team).toEqual({ for: 0, against: 1 });
     // the la mesa branch: one save and one goal at 0,42 each
     expect(item(m, "Goles evitados", "k")).toMatchObject({ n: 2, value: expect.closeTo(((0.84 - 1) * 2) / 17, 6) });
   });
@@ -309,13 +309,25 @@ describe("the match itself", () => {
     expect(matchValue(told).volume).toBe(50);
     expect(item(told, "Ocasión")).toBeUndefined();
   });
-  it("the F7 calibration: the table × (goals + 10) / (chances + 10) over the narrated non-penalty shots of both teams", () => {
+  it("the F7 calibration: the table × the mean of each side's (goals + 10) / (chances + 10) over the narrated non-penalty shots", () => {
     const shots = [o("goal", { goal: true }), o("shot", {}), them("goal", { goal: true, outsideArea: true }), them("shot", { bodyPart: "head" }), them("goal", { goal: true, penalty: true }), ...ours(30)];
-    expect(xgFactor([match(shots)])).toBeCloseTo((2 + 10) / (0.12 + 0.12 + 0.04 + 0.08 + 10), 10);
+    // each side weighs the same: one side's many shots do not set the other's
+    expect(xgFactor([match(shots)])).toBeCloseTo((11 / (0.12 + 0.12 + 10) + 11 / (0.04 + 0.08 + 10)) / 2, 10);
     expect(xgFactor([match([o("goal", { goal: true })])])).toBe(1);
-    // a side whose shots the narration does not tell (only the acta's goals) stays out: its goals without its misses
+    // a side whose shots the narration does not tell (only the acta's goals) stays at the table: its goals without its misses
     const goalsOnly = match([o("shot", {}), ...ours(30)], { a: row(50), b: row(50) }, { goalsAgainst: 2, events: [{ id: "g1", type: "opponent_goal", minute: 10 }, { id: "g2", type: "opponent_goal", minute: 20 }] });
-    expect(xgFactor([goalsOnly])).toBeCloseTo(10 / 10.12, 10);
+    expect(xgFactor([goalsOnly])).toBeCloseTo((10 / 10.12 + 1) / 2, 10);
+  });
+  it("the keepers' calibration: the mean of each side's (goals + 10) / (the keeper's table + 10) over the shots on target; it scales that table, up to 0,95", () => {
+    // ours: a goal in the area (0,5) and a header saved (0,35); theirs: a goal from outside (0,25), a miss is no shot on target
+    const shots = [o("goal", { goal: true }), o("shot", { onTarget: true, bodyPart: "head" }), them("goal", { goal: true, outsideArea: true }), them("shot", { outcome: "off_target" }), ...ours(30)];
+    expect(keeperFactor([match(shots)])).toBeCloseTo((11 / (0.5 + 0.35 + 10) + 11 / (0.25 + 10)) / 2, 10);
+    expect(keeperFactor([match([o("goal", { goal: true })])])).toBe(1);
+    const keeper = { k: row(50, { positionsPlayed: { POR: 50 } }), a: row(50) };
+    const faced = match([them("shot", { onTarget: true }), them("shot", { onTarget: true }), them("goal", { goal: true })], keeper, { goalsAgainst: 1 });
+    const prevented = (factor: number) => matchValue(faced, 1, factor).players.get("k")!.items.find((i) => i.label === "Goles evitados")!.value;
+    expect(prevented(1.2)).toBeCloseTo(((0.6 * 3 - 1) * 3) / 18, 10);
+    expect(prevented(2)).toBeCloseTo(((0.95 * 3 - 1) * 3) / 18, 10);
   });
   it("his minutes are the acta's (its seconds first); unknown minutes give null; guests are not rated", () => {
     const m = match([], { a: row(50, { secondsPlayed: 2950 }), b: { ...row(0), minutes: undefined as unknown as number }, "guest:x": row(50) });
@@ -323,10 +335,23 @@ describe("the match itself", () => {
     expect(of(m, "b").minutes).toBeNull();
     expect(matchValue(m).players.has("guest:x")).toBe(false);
   });
-  it("his lines and positions this match, as shares of the minutes the acta places", () => {
+  it("his line and position are his fixed position's, whole: where he started (./fixed)", () => {
+    const m = match([], { a: row(50, { positionsPlayed: { DFC: 20, MC: 30 } }), b: row(50, { positionsPlayed: { MC: 20, DFC: 30 } }) }, { starters: ["a", "b"], events: [{ id: "s", type: "position_swap", playerId: "a", inPlayerId: "b", minute: 20 }] });
+    expect(of(m)).toMatchObject({ position: "DFC", lines: { DEF: 1 }, roles: { "DEF-centro": 1 } });
+    expect(of(m, "b")).toMatchObject({ position: "MC", lines: { MED: 1 }, roles: { "MED-centro": 1 } });
+  });
+  it("when the acta cannot place his start: his lines and positions as shares of the minutes it places", () => {
     const p = of(match([], { a: row(50, { positionsPlayed: { DFC: 30, LI: 5, MC: 10, MCD: 5 } }) }));
+    expect(p.position).toBeNull();
     expect(p.lines).toEqual({ DEF: 0.7, MED: 0.3 });
     expect(p.roles).toEqual({ "DEF-centro": 0.6, "DEF-banda": 0.1, "MED-centro": 0.3 });
+  });
+  it("the narration's actions by family, for the position to weigh them, and what his goals were worth (the acta's)", () => {
+    const p = of(match([o("recovery"), o("interception"), o("loss")], { a: row(50, { goals: 2, goalPenalty: 1 }), b: row(50) }));
+    expect(p.families).toEqual({ defensa: { n: 2, good: expect.closeTo(0.07, 10), bad: 0 }, pase: { n: 1, good: 0, bad: expect.closeTo(-0.03, 10) } });
+    // a goal and a penalty scored: 1 + 0,22, never in a family
+    expect(p.goals).toBeCloseTo(1.22, 10);
+    expect(p.items.filter((i) => i.acta).map((i) => i.label).sort()).toEqual(["Gol", "Gol de penalti"]);
   });
   it("plus-minus: the xG for and against with him on and off, narrated matches with his stints only", () => {
     const ledger = { a: row(25, { stints: [{ from: 0, to: 25 }] }), b: row(50, { stints: [{ from: 0, to: 50 }] }) };

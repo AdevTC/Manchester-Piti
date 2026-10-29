@@ -70,7 +70,8 @@ export function SieteActa({ c }: { c: PageCtx }) {
   );
   const table = useMemo(() => (standings ? [standings] : NO_STANDINGS), [standings]);
   const ratings = useMemo(() => seasonRatings(ratingMatches(seasonGames), table), [seasonGames, table]);
-  // (this match as its notas are rated: its values at the season's F7 calibration, and each one's team part)
+  // (this match as its notas are rated: its values at the season's calibrations, each one's team part and how his
+  // fixed position weighs his actions)
   const rated = useMemo(() => ratedMatch(match, ratingMatches(seasonGames), table), [match, seasonGames, table]);
   const values = rated.values;
   const mvpIds = useMemo(() => mvpWinners(match, c.mvp, c.now), [match, c.mvp, c.now]);
@@ -378,6 +379,7 @@ export function SieteActa({ c }: { c: PageCtx }) {
       published,
       positionsPlayed: (ledger?.[fp.id]?.positionsPlayed as Partial<Record<string, number>> | undefined) ?? null,
       provisionalMinutes: PROVISIONAL_MINUTES,
+      weights: rated.weights.get(fp.id) ?? null,
     });
   }, [fp, ratings, tl.groups, values, rated, match.id, games, D, published, ledger]);
   const neighbour = (dir: 1 | -1) => {
@@ -700,6 +702,7 @@ export function SieteActa({ c }: { c: PageCtx }) {
                   <section className="sn-cs">
                     <h4>De dónde sale</h4>
                     <p className="sn-small">Lo que sumaron y restaron sus acciones y el equipo con él en el campo, en goles: 0,65 son un punto de nota. Lo que se repite cuenta cada 50 minutos, comparado {card.lineShort}; goles, penaltis, tarjetas y errores que acaban en gol, enteros.</p>
+                    {card.weightsText && <p className="sn-small">{card.weightsText}</p>}
                     <ul className="sn-src">
                       {card.groups.map((g) => (
                         <li key={g.key}>

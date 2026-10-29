@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { ClubMatch, MatchEvent } from "../../../lib/clubData";
+import type { ClubMatch, MatchEvent, Participation } from "../../../lib/clubData";
 import type { MatchNote } from "../../../lib/rating/season";
+import type { MatchValue, PlayerMatchValue } from "../../../lib/rating/values";
 import { lineupOf, playsOf, timelineOf } from "./model";
 import type { Person, Viewer } from "./ctx";
-import { actaPlayers, benchRows, cambiosRows, cambiosSub, fichaOf, headOf, positionText, rankRows, seasonLineOf, swarmOf, teamItems, tokensAt, type ActaPlayer } from "./sieteActaModel";
+import { actaPlayers, benchRows, cambiosRows, cambiosSub, fichaOf, headOf, positionText, rankRows, seasonLineOf, swarmOf, teamItems, tokensAt, weightsText, type ActaPlayer } from "./sieteActaModel";
 
 // A published acta with a lineup from the pizarra: a change at 12:17, two at the break with a recolocación, and a
 // «Cambio de sitio» alone in the second half.
@@ -89,6 +90,14 @@ describe("the players and the pitch", () => {
     expect(m.marks.map((k) => k.text)).toEqual(["41′"]);
     expect(m.label).toContain("Nota 8,4, muy buena");
   });
+  it("a keeper by the acta's minutes in goal, whatever position rates him", () => {
+    // Fer started up front and kept goal for most of the match
+    const ledger = { f: { minutes: 50, positionsPlayed: { DC: 10, POR: 40 } } } as unknown as Record<string, Participation>;
+    const values = { players: new Map([["f", { lines: { DEL: 1 }, roles: { "DEL-centro": 1 } }]]) } as unknown as MatchValue;
+    const withLedger = actaPlayers({ lineup, stints: tl.stints, posSegs: tl.posSegs, ledger, people, viewer, captain: "c", mvpIds: ["m"], notaOf: (id) => NOTAS[id] ?? null, values, duration: 50 });
+    expect(withLedger.find((p) => p.id === "f")!.keeper).toBe(true);
+    expect(withLedger.find((p) => p.id === "f")!.line).toBe("con los puntas");
+  });
   it("the bench: who came on, with his nota and the night's marks", () => {
     const rows = benchRows(P, plays, 50);
     expect(rows.map((r) => r.id)).toEqual(["b", "h"]);
@@ -98,8 +107,8 @@ describe("the players and the pitch", () => {
     expect(positionText({ "DEF-banda": 1 })).toBe("con los laterales");
     expect(positionText({ "DEF-centro": 0.5, "MED-centro": 0.5 })).toBe("con centrales y mediocentros, según sus minutos en cada sitio");
     expect(positionText({})).toBe("con todo el equipo");
-    expect(teamItems({ on: 43, for: 1, against: 6.16 }, { value: -0.62, for: 0.32, against: 6.16, normalFor: 3.87, normalAgainst: 3.87 }, true, 50)).toBe("Con él en el campo, a favor 1 y en contra 6,2 (lo que se esperaba con un portero normal); en un partido normal, 3,9 cada uno en sus minutos. En un rato corto también cuenta el partido entero");
-    expect(teamItems({ on: 50, for: 1, against: 8 }, { value: -0.7, for: 1, against: 8, normalFor: 4.5, normalAgainst: 4.5 }, false, 50)).toBe("Con él en el campo, a favor 1 y en contra 8; en un partido normal, 4,5 cada uno en sus minutos");
+    expect(teamItems({ on: 43, for: 1, against: 6 }, { value: -0.62, for: 0.32, against: 6.16, normalFor: 3.87, normalAgainst: 3.87 }, 50)).toBe("Con él en el campo, a favor 1 y en contra 6; en un partido normal, 3,9 cada uno en sus minutos. En un rato corto también cuenta el partido entero");
+    expect(teamItems({ on: 50, for: 1, against: 8 }, { value: -0.7, for: 1, against: 8, normalFor: 4.5, normalAgainst: 4.5 }, 50)).toBe("Con él en el campo, a favor 1 y en contra 8; en un partido normal, 4,5 cada uno en sus minutos");
   });
 });
 
@@ -147,6 +156,35 @@ describe("la ficha", () => {
     expect(h.whereNote).toBe("Salió desde el banquillo. En el 26′ entró y se puso de mediocentro.");
     const l = fichaOf({ p: by("l"), groups: tl.groups, values: null, team: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150 });
     expect(l.whereNote).toBe("Empezó de lateral izquierdo. En el 36′ pasó a lateral derecho.");
+  });
+  it("what his actions were worth as his fixed position weighs them (each family, his goals), and the weights in a line", () => {
+    const pv = {
+      minutes: 50,
+      position: "DFC",
+      lines: { DEF: 1 },
+      roles: { "DEF-centro": 1 },
+      items: [
+        { label: "Recuperación", group: "defensa", n: 2, value: 0.06 },
+        { label: "Remate a puerta", group: "ataque", n: 1, value: 0.14 },
+        { label: "Gol", group: "ataque", n: 1, value: 1, acta: true },
+        { label: "Asistencia", group: "ataque", n: 1, value: 0.3, acta: true },
+      ],
+      team: { on: 50, for: 1, against: 0, matchFor: 1, matchAgainst: 0 },
+    } as unknown as PlayerMatchValue;
+    const values = { narrated: true, volume: 100, team: { for: 1, against: 0 }, players: new Map([["m", pv]]) } as MatchValue;
+    const weights = { ataque: 0.7, pase: 1, defensa: 1.2, goal: 1.5 };
+    const f = fichaOf({ p: by("m"), groups: tl.groups, values, team: null, season: null, duration: 50, published: true, positionsPlayed: null, provisionalMinutes: 150, weights });
+    // the shot ×0,7 and his goal ×1,5; the assist as it is (only goals weigh by the position)
+    expect(f.groups.map((g) => [g.name, g.v, g.items])).toEqual([
+      ["Ataque", "+1,90", "Gol +1,50 · Asistencia +0,30 · Remate a puerta +0,10"],
+      ["Defensa", "+0,07", "Recuperación ×2 +0,07"],
+    ]);
+    expect(f.weightsText).toBe("De central, el ataque le cuenta ×0,7 y la defensa ×1,2, por lo que suele hacer su puesto; un gol suyo, ×1,5.");
+    expect(weightsText(["POR"], { ataque: 1, pase: 1, defensa: 1, goal: 2.5 })).toBe("De portero, sus acciones cuentan tal cual; un gol suyo, ×2,5.");
+    // the acta cannot say where he started: the mix of his positions, by his minutes
+    expect(weightsText(["DEF-centro", "MED-centro"], { ataque: 0.9, pase: 1, defensa: 1.1, goal: 1.4 })).toBe("Por sus minutos de central y mediocentro, el ataque le cuenta ×0,9 y la defensa ×1,1, por lo que suele hacer cada uno; un gol suyo, ×1,4.");
+    // nor where he played: no weights to tell
+    expect(weightsText([], weights)).toBe("");
   });
   it("his season with this match: GLOBAL before and after, the jornadas around it", () => {
     const note = (matchId: string, nota: number): MatchNote => ({ matchId, date: 0, rival: "R", nota, minutes: 50, weight: 1, narrated: true });

@@ -1,9 +1,11 @@
 // The season's numbers from each match's values (./values): every player's nota in every match (0–10, 6,5 a
 // normal match), GLOBAL (his notas' mean × 10 over a cushion of SEASON_CUSHION matches of 6,5) and FOR (the same
-// over his last FORM_MATCHES). A nota adds up, in goals over NOTE_SCALE: his volume of play per 50′ against the
-// normal of his position (the others who played it, his own matches left out), his one-off events whole, and what
-// happened with the team while he was on the pitch against a normal match. A match counts whole from
-// FULL_MATCH_MINUTES and in proportion below; without narration it counts half.
+// over his last FORM_MATCHES). Each player is rated in his fixed position (where he starts, or first comes on). A nota
+// adds up, in goals over NOTE_SCALE: his volume of play per 50′ against the normal of his position (the others who
+// played it, his own matches left out), each family of actions weighed by what his position usually does; his
+// one-off events whole, his goals weighed by his position; and what happened with the team while he was on the
+// pitch against a normal match. A match counts whole from FULL_MATCH_MINUTES and in proportion below; without
+// narration it counts half.
 // Every nota is «congelada»: rated when its acta is published, with the season's matches up to that one and the
 // rival's strength in that day's table, and stored with the acta (./frozen); only a correction of that acta rates
 // it again. An acta without stored notas of this model is rated here the same way. Pure.
@@ -11,7 +13,7 @@ import { dateMillis } from "../matchEngine.js";
 import type { Line } from "../positions.js";
 import { durationOf, type Normal, type RatingMatch, type StandingsLike } from "./types.js";
 import * as K from "./constants.js";
-import { matchValue, xgFactor, type Item, type MatchValue, type PlayerMatchValue, type Role } from "./values.js";
+import { keeperFactor, matchValue, xgFactor, type Group, type Item, type MatchValue, type PlayerMatchValue, type Role } from "./values.js";
 import { NO_RIVAL, NO_RIVAL_GOALS, rivalFactor, rivalGoals, type RivalFactor } from "./rival.js";
 import { storedNotasOf, type StoredNotas } from "./frozen.js";
 
@@ -110,12 +112,22 @@ export function teamPart(pv: PlayerMatchValue, normal: Normal, duration: number)
   return { value: -wAgainst * (ga - normalAgainst) + wFor * (gf - normalFor), for: gf, against: ga, normalFor, normalAgainst };
 }
 
+/** The families of actions a position weighs (the rest of his play counts as it is). */
+export const FAMILIES = ["ataque", "pase", "defensa"] as const;
+export type Family = (typeof FAMILIES)[number];
+/** How a position weighs each family of actions, and a goal of its own. */
+export type PositionWeights = Record<Family, number> & { goal: number };
+const SAME: PositionWeights = { ataque: 1, pase: 1, defensa: 1, goal: 1 };
+
 interface Entry {
   pid: string;
   match: RatingMatch;
   minutes: number;
-  /** His volume of play and his one-off events, in goals (after the narration volume and the rival). */
-  vol: number;
+  /** The narration's volume factor and the rival's (good × f, bad ÷ f). */
+  k: number;
+  f: number;
+  pv: PlayerMatchValue;
+  /** His one-off events, in goals (after the rival), his goals weighed by his position. */
   ev: number;
   roles: Partial<Record<Role, number>>;
   narrated: boolean;
@@ -174,13 +186,22 @@ function seasonUpTo(match: RatingMatch, games: readonly RatingMatch[]): RatingMa
 interface Rated {
   notes: Map<string, Map<string, MatchNote>>;
   values: Map<string, MatchValue>;
+  /** How each position weighs each family and a goal of its own. */
+  weightsOf: (role: Role) => PositionWeights;
 }
-/** Every player's nota in each of `ordered` (play order), with the F7 calibration of their shots: his volume of
- *  play per 50′ against his position's normal over these matches (his own left out), his events whole and his team
- *  part; `rival` gives each match's factor, `normal` its normal match. */
+/** A goal's weight for a player of these lines (GOAL_WEIGHTS; one the acta does not place, as it is). */
+const goalWeight = (lines: Partial<Record<Line, number>>) => {
+  const shares = Object.entries(lines) as [Line, number][];
+  return shares.length ? shares.reduce((s, [l, share]) => s + share * K.GOAL_WEIGHTS[l], 0) : 1;
+};
+
+/** Every player's nota in each of `ordered` (play order), with the season's calibrations (F7 chances, keepers): his
+ *  volume of play per 50′ against his position's normal over these matches (his own left out), each family weighed by
+ *  his position, his events whole and his team part; `rival` gives each match's factor, `normal` its normal match. */
 function rate(ordered: readonly RatingMatch[], rival: RivalFactor, normal: (m: RatingMatch) => Normal): Rated {
   const xg = xgFactor(ordered);
-  const values = new Map(ordered.map((m) => [m.id, matchValue(m, xg)]));
+  const keeper = keeperFactor(ordered);
+  const values = new Map(ordered.map((m) => [m.id, matchValue(m, xg, keeper)]));
   const refVolume = median(ordered.filter((m) => values.get(m.id)!.narrated).map((m) => values.get(m.id)!.volume));
   const entries: Entry[] = [];
   for (const m of ordered) {
@@ -190,31 +211,73 @@ function rate(ordered: readonly RatingMatch[], rival: RivalFactor, normal: (m: R
     const usual = normal(m);
     for (const [pid, pv] of mv.players) {
       if (pv.minutes === null || pv.minutes <= 0) continue;
-      entries.push({ pid, match: m, minutes: pv.minutes, vol: k * (pv.narrGood * f + pv.narrBad / f), ev: pv.actaGood * f + pv.actaBad / f, roles: pv.roles, narrated: mv.narrated, team: teamPart(pv, usual, durationOf(m)).value });
+      const ev = pv.actaGood * f + pv.actaBad / f + (goalWeight(pv.lines) - 1) * pv.goals * f;
+      entries.push({ pid, match: m, minutes: pv.minutes, k, f, pv, ev, roles: pv.roles, narrated: mv.narrated, team: teamPart(pv, usual, durationOf(m)).value });
     }
   }
+
+  // how each position weighs each family: its rate of the family's actions over the team's (narrated, outfield), the
+  // position's pulled to the team's with POSITION_PRIOR_MINUTES, kept in POSITION_WEIGHT_RANGE — what a position
+  // usually does counts more in it (a centre-back's defending, a striker's shooting); the keeper's as they are
+  const rated = entries.filter((e) => e.minutes >= K.MIN_RATED_MINUTES);
+  const told = rated.filter((e) => e.narrated);
+  const count = (e: Entry, g: Group) => e.pv.families[g]?.n ?? 0;
+  const outfield = (e: Entry) => Object.entries(e.roles).filter(([r]) => r !== "POR") as [Role, number][];
+  const teamMinutes = told.reduce((s, e) => s + outfield(e).reduce((t, [, share]) => t + share * e.minutes, 0), 0);
+  const teamRate = Object.fromEntries(FAMILIES.map((g) => [g, teamMinutes > 0 ? (told.reduce((s, e) => s + outfield(e).reduce((t, [, share]) => t + share * count(e, g), 0), 0) * 50) / teamMinutes : 0])) as Record<Family, number>;
+  const weights = new Map<Role, PositionWeights>();
+  const weightsOf = (role: Role): PositionWeights => {
+    let w = weights.get(role);
+    if (!w) {
+      w = { ...SAME, goal: role === "POR" ? K.GOAL_WEIGHTS.POR : K.GOAL_WEIGHTS[role.split("-")[0] as Line] };
+      if (role !== "POR") {
+        let minutes = 0;
+        for (const e of told) minutes += (e.roles[role] ?? 0) * e.minutes;
+        for (const g of FAMILIES) {
+          if (!(teamRate[g] > 0)) continue;
+          const n = told.reduce((s, e) => s + (e.roles[role] ?? 0) * count(e, g), 0);
+          const rate = ((n + (K.POSITION_PRIOR_MINUTES * teamRate[g]) / 50) * 50) / (minutes + K.POSITION_PRIOR_MINUTES);
+          w[g] = Math.max(K.POSITION_WEIGHT_RANGE[0], Math.min(K.POSITION_WEIGHT_RANGE[1], rate / teamRate[g]));
+        }
+      }
+      weights.set(role, w);
+    }
+    return w;
+  };
+  /** His volume of play with a position's weights (with these roles' shares: his own, or one position's). */
+  const volOf = (e: Entry, roles: Partial<Record<Role, number>> = e.roles) => {
+    const shares = Object.entries(roles) as [Role, number][];
+    const weight = (g: Group) => (FAMILIES.includes(g as Family) && shares.length ? shares.reduce((s, [r, share]) => s + share * weightsOf(r)[g as Family], 0) : 1);
+    let v = 0;
+    for (const [g, fam] of Object.entries(e.pv.families) as [Group, { good: number; bad: number }][]) v += weight(g) * (fam.good * e.f + fam.bad / e.f);
+    return e.k * v;
+  };
 
   // each player against the others who played his position (a full-back against the full-backs; his own matches
   // left out): their volume per 50′ over their minutes there, from the team's with POSITION_PRIOR_MINUTES of it —
   // a keeper's from zero (only other keepers set a keeper's normal). A match without narration tells almost none of
   // the play: its few actions count as they are, never against the narrated ones nor setting anybody's normal
-  const rated = entries.filter((e) => e.minutes >= K.MIN_RATED_MINUTES);
   const reference = new Map<string, (roles: Partial<Record<Role, number>>) => number>();
   const referenceFor = (pid: string) => {
     let ref = reference.get(pid);
     if (ref) return ref;
     const pool = rated.filter((e) => e.pid !== pid && e.narrated);
     const minutes = pool.reduce((s, e) => s + e.minutes, 0);
-    const team = minutes > 0 ? (pool.reduce((s, e) => s + e.vol, 0) * 50) / minutes : 0;
+    const team = minutes > 0 ? (pool.reduce((s, e) => s + volOf(e), 0) * 50) / minutes : 0;
+    // (a position's normal with that position's weights, its prior too: the team's play as that position weighs it)
     const position = (r: Role) => {
       let v = 0;
       let w = 0;
+      let all = 0;
       for (const e of pool) {
+        const vr = volOf(e, { [r]: 1 });
+        all += vr;
         const share = e.roles[r] ?? 0;
-        v += share * e.vol;
+        if (!share) continue;
+        v += share * vr;
         w += share * e.minutes;
       }
-      const prior = r === "POR" ? 0 : team;
+      const prior = r === "POR" || minutes <= 0 ? 0 : (all * 50) / minutes;
       return ((v + (K.POSITION_PRIOR_MINUTES * prior) / 50) * 50) / (w + K.POSITION_PRIOR_MINUTES);
     };
     const cache = new Map<Role, number>();
@@ -234,7 +297,7 @@ function rate(ordered: readonly RatingMatch[], rival: RivalFactor, normal: (m: R
     const mu = e.narrated ? referenceFor(e.pid)(e.roles) : 0;
     // (his volume per 50′ with CUSHION_MINUTES of his position's normal: a short stint is pulled to it, not to zero;
     // what happens once counts whole)
-    const dev = ((e.vol + (mu * K.CUSHION_MINUTES) / 50) * 50) / (e.minutes + K.CUSHION_MINUTES) - mu + e.ev;
+    const dev = ((volOf(e) + (mu * K.CUSHION_MINUTES) / 50) * 50) / (e.minutes + K.CUSHION_MINUTES) - mu + e.ev;
     let of = notes.get(e.match.id);
     if (!of) notes.set(e.match.id, (of = new Map()));
     of.set(e.pid, {
@@ -247,7 +310,7 @@ function rate(ordered: readonly RatingMatch[], rival: RivalFactor, normal: (m: R
       narrated: e.narrated,
     });
   }
-  return { notes, values };
+  return { notes, values, weightsOf };
 }
 
 /**
@@ -275,14 +338,26 @@ export function frozenNotas(match: RatingMatch, games: readonly RatingMatch[], s
 }
 
 /** A match as its notas are rated, for the page that explains them (the acta's ficha): what every action was worth
- *  (with the F7 calibration of its season up to it) and each player's team part. */
-export function ratedMatch(match: RatingMatch, games: readonly RatingMatch[], standings: readonly StandingsLike[] = NO_STANDINGS): { values: MatchValue; team: Map<string, TeamPart> } {
+ *  (with the calibrations of its season up to it), each player's team part and how his position weighs his actions. */
+export function ratedMatch(match: RatingMatch, games: readonly RatingMatch[], standings: readonly StandingsLike[] = NO_STANDINGS): { values: MatchValue; team: Map<string, TeamPart>; weights: Map<string, PositionWeights> } {
   const upTo = seasonUpTo(match, games);
-  const values = matchValue(match, xgFactor(upTo));
-  const usual = storedNotasOf(match)?.normal ?? (standings.length ? rivalGoals(standings, upTo)(match) : null) ?? seasonNormal(upTo);
+  const table = standings.length ? rivalFactor(standings, upTo) : NO_RIVAL;
+  const goals = standings.length ? rivalGoals(standings, upTo) : NO_RIVAL_GOALS;
+  const usual = storedNotasOf(match)?.normal ?? goals(match) ?? seasonNormal(upTo);
+  const r = rate(upTo, (g) => storedNotasOf(g)?.rival ?? table(g), (g) => (g.id === match.id ? usual : goals(g)) ?? seasonNormal(upTo));
+  const values = r.values.get(match.id) ?? matchValue(match, xgFactor(upTo), keeperFactor(upTo));
   const team = new Map<string, TeamPart>();
-  for (const [pid, pv] of values.players) team.set(pid, teamPart(pv, usual, durationOf(match)));
-  return { values, team };
+  const weights = new Map<string, PositionWeights>();
+  for (const [pid, pv] of values.players) {
+    team.set(pid, teamPart(pv, usual, durationOf(match)));
+    // (his fixed position's; placed by his minutes, each position's by its share, as his nota weighs them)
+    const roles = Object.entries(pv.roles) as [Role, number][];
+    if (!roles.length) continue;
+    const w = { ...SAME, goal: goalWeight(pv.lines) };
+    for (const g of FAMILIES) w[g] = roles.reduce((s, [role, share]) => s + share * r.weightsOf(role)[g], 0);
+    weights.set(pid, w);
+  }
+  return { values, team, weights };
 }
 
 function compute(games: readonly RatingMatch[], standings: readonly StandingsLike[]): SeasonRatings {
