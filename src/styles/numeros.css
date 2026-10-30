@@ -902,3 +902,6 @@ html[data-theme="light"]{background:#d9e9f8}
 @container (min-width:760px){
   .nu-tem>.nu-reg,.nu-jug>.nu-reg,.nu-campo>.nu-reg,.nu-juego>.nu-reg,.nu-riv>.nu-reg,.nu-two>.nu-reg,.nu-tem__side>.nu-reg{align-content:start}
 }
+/* phone and tablet: the page scrolls, so a grown window's body is no scroll box of its own (one that ends up a pixel too wide
+   held every vertical swipe on it: overscroll-behavior:contain, and only the page's edge still scrolled) */
+@container nu-page (max-width:1099px){.nu-grow .vd-grow__body{overflow:visible;overscroll-behavior:auto}}

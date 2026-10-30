@@ -5,7 +5,7 @@ import { byPosition, chartPositions } from "../../../lib/chartPositions";
 import type { ClubMatch } from "../../../lib/clubData";
 import { AnalysisInsightEvidence } from "../AnalysisInsightEvidence";
 import { MetricState } from "../MetricState";
-import { chartNumber } from "./format";
+import { chartNumber, counted } from "./format";
 import { ChartHero, ChartHow, ChartKpis, ChartSeg, type ChartProps } from "./parts";
 import "./tramos.css";
 
@@ -46,7 +46,7 @@ export function PassMatrixChart({ matches, people, filters = {}, onInspect, mode
     <ChartKpis label="Cifras de la matriz" items={[{ label: "Pases registrados", value: chartNumber.format(data.attempts) }, { label: "Emisores", value: String(senders.length) }, { label: "Receptores", value: String(receivers.length) }, { label: "Sin pareja identificable", value: chartNumber.format(data.unattributed) }]}/>
     <div className="gt-matrix">
       {toolbar}
-      {(data.unattributed > 0 || data.pending > 0) && <p className="gc-note">{data.unattributed} pases sin pareja identificable · {data.pending} pendientes de clasificación. No se asignan a una conexión ni se convierten en ceros.</p>}
+      {(data.unattributed > 0 || data.pending > 0) && <p className="gc-note">{counted(data.unattributed, "pase", "pases")} sin pareja identificable · {counted(data.pending, "pendiente", "pendientes")} de clasificación. No se asignan a una conexión ni se convierten en ceros.</p>}
       <div className="gt-mscroll" role="region" tabIndex={0} aria-label="Matriz de pases; desliza para ver más receptores">
         <table className="gt-mt" aria-label="Matriz dirigida de pases">
           <caption className="vd-vh">Emisor en filas, receptor en columnas · {mode === "volume" ? "pases completados" : "acierto sobre resultados conocidos"}</caption>
@@ -54,7 +54,7 @@ export function PassMatrixChart({ matches, people, filters = {}, onInspect, mode
           <tbody>{senders.map(sender => <tr key={sender.id}><th scope="row" className={chosen?.from === sender.id ? "is-cross" : undefined}>{head(sender)}</th>{receivers.map(receiver => {
             const key = JSON.stringify([sender.id, receiver.id]); const cell = byPair.get(key); const result = cell?.[mode]; const value = workspaceMetricValue(result);
             const cross = !!chosen && (chosen.from === sender.id || chosen.to === receiver.id); const heat = value == null ? 0 : value / max;
-            return <td key={receiver.id} className={cross ? "is-cross" : undefined}>{!cell ? <span className="gt-diag" aria-label={sender.id === receiver.id ? "Mismo jugador" : "Jugadores de actas distintas"}>{sender.id === receiver.id ? "·" : "-"}</span> : <button type="button" className={`gt-cell${heat > .55 ? " is-hot" : ""}${value === 0 ? " gt-cell--zero" : ""}`} style={{ "--h": heat } as CSSProperties} aria-pressed={chosen === cell} aria-label={`${sender.name} a ${receiver.name}: ${formatWorkspaceMetric(result, true)}${mode === "volume" ? " completados" : " de acierto"}. ${cell.completed} completados, ${cell.failed} fallidos, ${cell.unknown} sin resultado. Ver jugadas`} onClick={() => setSelection(key)}><strong>{formatWorkspaceMetric(result)}</strong><small>{mode === "volume" ? `${cell.attempts} int.` : `${cell.completed}/${cell.completed + cell.failed}`}</small>{result && result.status === "partial" && <em className="gt-cell__st">Parcial</em>}</button>}</td>;
+            return <td key={receiver.id} className={cross ? "is-cross" : undefined}>{!cell ? <span className="gt-diag"><span aria-hidden="true">{sender.id === receiver.id ? "·" : "-"}</span><span className="vd-vh">{sender.id === receiver.id ? "Mismo jugador" : "Jugadores de actas distintas"}</span></span> : <button type="button" className={`gt-cell${heat > .55 ? " is-hot" : ""}${value === 0 ? " gt-cell--zero" : ""}`} style={{ "--h": heat } as CSSProperties} aria-pressed={chosen === cell} aria-label={`${sender.name} a ${receiver.name}: ${formatWorkspaceMetric(result, true)}${mode === "volume" ? value === 1 ? " completado" : " completados" : " de acierto"}. ${counted(cell.completed, "completado", "completados")}, ${counted(cell.failed, "fallido", "fallidos")}, ${cell.unknown} sin resultado. Ver jugadas`} onClick={() => setSelection(key)}><strong>{formatWorkspaceMetric(result)}</strong><small>{mode === "volume" ? `${cell.attempts} int.` : `${cell.completed}/${cell.completed + cell.failed}`}</small>{result && result.status === "partial" && <em className="gt-cell__st">Parcial</em>}</button>}</td>;
           })}<td className="gt-mt__tot">{give.get(sender.id) ?? 0}</td></tr>)}</tbody>
           <tfoot><tr><th scope="row">Recibe</th>{receivers.map(p => <td key={p.id} className="gt-mt__tot">{get.get(p.id) ?? 0}</td>)}<td/></tr></tfoot>
         </table>

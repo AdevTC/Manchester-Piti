@@ -1,5 +1,6 @@
 import { useContext, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import { KitStillContext } from "../../jersey3d/kitStill";
+import { counted } from "./format";
 import { boxPercent, chordPath, curvePath, PITCH_BOX, RING_BOX, ringLabel, shirtSize, type NetworkView, type PlacedNode } from "../../../lib/passNetworkLayout";
 
 export interface DrawNode { id: string; name: string; num?: string; sent: number; received: number }
@@ -49,7 +50,7 @@ export function PassNetworkDrawing({ uid, view, nodes, placed, edges, maxComplet
         <rect x="14" y="14" width="372" height="532" rx="8"/><line x1="14" y1="280" x2="386" y2="280"/><circle cx="200" cy="280" r="46"/>
         <rect x="104" y="14" width="192" height="84"/><rect x="152" y="14" width="96" height="30"/><rect x="104" y="462" width="192" height="84"/><rect x="152" y="516" width="96" height="30"/>
       </g> : <circle className="pn-zone" cx={RING_BOX.cx} cy={RING_BOX.cy} r={RING_BOX.R}/>}
-      <g>{drawn.map(g => <path key={g.e.key} d={g.d} pathLength={1} className={`pn-edge${g.cls ? ` ${g.cls}` : ""}`} style={{ stroke: `url(#${g.gid})`, strokeWidth: `${g.w}px`, opacity: g.o, markerEnd: `url(#${mk(g.marker)})` }}><title>{`${names.get(g.e.from)} → ${names.get(g.e.to)}: ${g.e.completed} pases completados${g.e.failed ? `, ${g.e.failed} fallidos` : ""}`}</title></path>)}</g>
+      <g>{drawn.map(g => <path key={g.e.key} d={g.d} pathLength={1} className={`pn-edge${g.cls ? ` ${g.cls}` : ""}`} style={{ stroke: `url(#${g.gid})`, strokeWidth: `${g.w}px`, opacity: g.o, markerEnd: `url(#${mk(g.marker)})` }}><title>{`${names.get(g.e.from)} → ${names.get(g.e.to)}: ${counted(g.e.completed, "pase completado", "pases completados")}${g.e.failed ? `, ${counted(g.e.failed, "fallido", "fallidos")}` : ""}`}</title></path>)}</g>
       <g>{placed.map(p => { const on = p.id === node || !!pair && (pair.from === p.id || pair.to === p.id); return <circle key={p.id} className={`pn-halo${on ? " is-on" : node && !mates.has(p.id) && p.id !== node ? " is-dim" : ""}`} cx={r1(p.X)} cy={r1(p.Y)} r={r1(p.r * 2.2)} fill={`url(#${uid}-halo)`}/>; })}</g>
     </svg>
     {campo && <span className="pn-attack" aria-hidden="true">Atacamos hacia arriba</span>}
@@ -60,7 +61,7 @@ export function PassNetworkDrawing({ uid, view, nodes, placed, edges, maxComplet
         const { px, py } = boxPercent(view, p), s = shirtSize(p.r), on = n.id === node, mate = mates.has(n.id);
         const lit = on || !!pair && (pair.from === n.id || pair.to === n.id);
         const label = campo ? null : ringLabel(p);
-        return <button key={n.id} type="button" className={`pn-nb${lit ? " is-on" : ""}${node && !on && !mate ? " is-dim" : ""}${mate ? " is-mate" : ""}`} style={{ left: `${px}%`, top: `${py}%` }} aria-pressed={on} aria-label={`Resaltar a ${n.name}: ${n.sent} pases dados y ${n.received} recibidos`} onClick={pick(n.id)} onKeyDown={key(n.id)}>
+        return <button key={n.id} type="button" className={`pn-nb${lit ? " is-on" : ""}${node && !on && !mate ? " is-dim" : ""}${mate ? " is-mate" : ""}`} style={{ left: `${px}%`, top: `${py}%` }} aria-pressed={on} aria-label={`Resaltar a ${n.name}: ${counted(n.sent, "pase dado", "pases dados")} y ${counted(n.received, "recibido", "recibidos")}`} onClick={pick(n.id)} onKeyDown={key(n.id)}>
           <NetShirt num={n.num} size={s} rival={rival} className="pn-nb__shirt"/>
           {label ? <span className={`pn-nb__lab pn-nb__lab--${label.anchor}`} style={{ left: `calc(50% + ${label.lx}px)`, top: `calc(50% + ${label.ly}px)` }}>{n.name}</span>
             : <span className="pn-nb__name" style={{ top: `calc(50% + ${r1(s * 0.68 + 2)}px)` }}>{n.name}</span>}

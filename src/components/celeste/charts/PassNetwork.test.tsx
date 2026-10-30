@@ -22,7 +22,7 @@ describe("Red de pases", () => {
   it("supports keyboard highlighting, keeps the pair list and opens the pair evidence", () => {
     render(<PassNetworkView matches={[match]} people={people}/>);
     const node = within(network()).getByRole("button", { name: /Resaltar a Álex/ });
-    expect(node).toHaveAccessibleName("Resaltar a Álex: 1 pases dados y 1 recibidos");
+    expect(node).toHaveAccessibleName("Resaltar a Álex: 1 pase dado y 1 recibido");
     fireEvent.keyDown(node, { key: "Enter" });
     expect(node).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Resaltar conexiones de" })).toHaveValue("a");
@@ -77,9 +77,9 @@ describe("Red de pases", () => {
     expect(detail).toHaveTextContent("2/2 con resultado conocido");
     expect(within(detail).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(expect.arrayContaining(["/partidos/m/numeros", "/partidos/second-match/numeros"]));
     view.rerender(<PassNetworkView matches={[second, first]} people={people} filters={{ period: 1 }}/>);
-    expect(screen.getByRole("button", { name: "Álex a Bruno: 1 pases completados. Ver jugadas" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Álex a Bruno: 1 pase completado. Ver jugadas" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Bruno a Álex/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Álex a Bruno: 1 pases completados. Ver jugadas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Álex a Bruno: 1 pase completado. Ver jugadas" }));
     const firstHalfDetail = screen.getByRole("region", { name: "Jugadas de la conexión elegida" });
     expect(firstHalfDetail).toHaveTextContent("1/2 con resultado conocido");
     expect(within(firstHalfDetail).getByText("Fallido")).toBeVisible();

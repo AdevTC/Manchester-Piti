@@ -2,7 +2,7 @@ import { CatalogLoadState, type CatalogLoadStatus } from "./CatalogLoadState";
 // «Números»: the sheets over the open screen (NU- boards) — «Busca o pregunta», each «?», «Qué números ver»,
 // «¿Y si…?», a player's numbers, a rival's dossier and a statistic's card. The scrim and Esc close them; the page
 // gives the focus back.
-import type { CSSProperties, ReactNode, Ref } from "react";
+import { useEffect, type CSSProperties, type ReactNode, type Ref } from "react";
 import type { NuState, NuView } from "./view";
 import { I } from "./bits";
 import { A, CardNumbers, RivalFacts, RivalGames } from "./Screens";
@@ -25,6 +25,18 @@ function Sheet({ id, wide, className, children, sheetRef }: { id: string; wide?:
       {children}
     </section>
   );
+}
+/** The page behind a sheet stays still, but only while a sheet is really there: a player or a rival the sample no
+ *  longer has (another season, data still arriving) draws none, and the page stayed locked with nothing to close. */
+function PageLock() {
+  useEffect(() => {
+    const html = document.documentElement;
+    html.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = "";
+    };
+  }, []);
+  return null;
 }
 function SegRow({ label, opts, i }: { label: string; opts: { t: string; on: boolean; pick: () => void }[]; i: number }) {
   return (
@@ -329,6 +341,7 @@ export function Sheets({ v, st, onClose, openSearch, infoScope, numOf, sheetRef,
   if (!body) return null;
   return (
     <>
+      <PageLock />
       <div className="nu-scrim" onClick={onClose} aria-hidden="true" />
       {body}
     </>

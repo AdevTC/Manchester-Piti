@@ -20,4 +20,8 @@ describe("chart positions", () => {
     const numbers: Record<string, number> = { dc: 9, gk: 1, none: 4 };
     expect(["dc", "none", "gk"].sort(byPosition(pos, id => numbers[id]))).toEqual(["gk", "dc", "none"]);
   });
+  it("puts players without a dorsal after the numbered ones of the same line", () => {
+    const dorsals: Record<string, number | null | string> = { blank: "", none: null, one: 1, nine: 9 };
+    expect(["blank", "nine", "none", "one"].sort(byPosition(new Map(), id => dorsals[id]))).toEqual(["one", "nine", "blank", "none"]);
+  });
 });

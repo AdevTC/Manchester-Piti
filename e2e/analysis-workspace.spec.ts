@@ -204,7 +204,7 @@ test("Números · las gráficas conservan la mitad y la tabla personalizada cons
     await expect(charts.getByRole("button", { name: /^2.ª parte · 0′–5′:/ }).first().locator("strong")).toHaveText("2");
     await charts.getByRole("button", { name: "Matriz", exact: true }).click();
     await expect(charts.getByRole("table", { name: "Matriz dirigida de pases" })).toBeVisible();
-    await expect(charts.getByRole("button", { name: /^Pablo E2E a Dani:.*1 completados, 0 fallidos, 0 sin resultado/ })).toBeVisible();
+    await expect(charts.getByRole("button", { name: /^Pablo E2E a Dani:.*1 completado, 0 fallidos, 0 sin resultado/ })).toBeVisible();
     await charts.getByRole("button", { name: "Remates", exact: true }).click();
     const shots = charts.getByRole("list", { name: "Remates por resultado" });
     await expect(shots.getByRole("button", { name: /^Remates/ }).locator("strong")).toHaveText("1");
@@ -287,7 +287,7 @@ test("Números · varios partidos combinan sus reglas de pase en tabla y gráfic
     await charts.getByRole("button", { name: "Barras", exact: true }).click();
     await expect(charts.getByRole("button", { name: /^2.ª parte · 0′–5′:/ }).first().locator("strong")).toHaveText("4");
     await charts.getByRole("button", { name: "Matriz", exact: true }).click();
-    await expect(charts.getByRole("button", { name: /^Dani a Pablo E2E:.*1 completados, 0 fallidos, 0 sin resultado/ })).toBeVisible();
+    await expect(charts.getByRole("button", { name: /^Dani a Pablo E2E:.*1 completado, 0 fallidos, 0 sin resultado/ })).toBeVisible();
     await page.reload();
     await expect(charts.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
     await expect(charts.locator(".gc-kpis")).toContainText("2 pases completados");

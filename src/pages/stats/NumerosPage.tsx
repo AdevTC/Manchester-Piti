@@ -544,18 +544,14 @@ export function NumerosPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
-  // a sheet locks the page behind it and takes the focus
+  // a sheet takes the focus (it locks the page behind it itself: Sheets' PageLock, only while one is drawn)
   useEffect(() => {
     if (!st.sheet) return;
-    document.documentElement.style.overflow = "hidden";
     const t = window.setTimeout(() => {
       const s = sheetRef.current;
       (s?.querySelector<HTMLElement>(".nu-find__in") ?? s)?.focus({ preventScroll: true });
     }, 40);
-    return () => {
-      window.clearTimeout(t);
-      document.documentElement.style.overflow = "";
-    };
+    return () => window.clearTimeout(t);
   }, [st.sheet]);
 
   // ── the phone's slim time line: once the time bar scrolls away, a one-line summary sticks with the tabs
@@ -588,9 +584,15 @@ export function NumerosPage() {
     measure();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
+    // the rail grows by the slim line right after it was measured: without a look at its new height the stuck title
+    // of a grown window (and its «Cerrar») sat 48 px under it until the next scroll
+    const sized = typeof ResizeObserver === "function" ? new ResizeObserver(() => onScroll()) : null;
+    const railEl = pageRef.current?.querySelector<HTMLElement>(".nu-rail");
+    if (railEl) sized?.observe(railEl);
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      sized?.disconnect();
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
@@ -807,7 +809,7 @@ export function NumerosPage() {
               ) : st.place === "campo" ? (
                 <Campo v={v} numOf={numOf} />
               ) : st.place === "juego" ? (
-                <Juego v={v} catalogLoad={catalogLoad} catalogPaused={!!st.sheet} grow={st.grow === "mesa" || st.grow === "catalogo" || st.grow === "graficas" ? st.grow : null} onClose={() => grow(null)} onInspect={(metricId, playerId) => { if (playerId) { const next = { ...stRef.current, jug: [playerId] }; stRef.current = next; setSt(next); } open("metric", metricId); }} />
+                <Juego v={v} loading={loading} catalogLoad={catalogLoad} catalogPaused={!!st.sheet} grow={st.grow === "mesa" || st.grow === "catalogo" || st.grow === "graficas" ? st.grow : null} onClose={() => grow(null)} onInspect={(metricId, playerId) => { if (playerId) { const next = { ...stRef.current, jug: [playerId] }; stRef.current = next; setSt(next); } open("metric", metricId); }} />
               ) : st.place === "rivales" ? (
                 <Rivales v={v} grow={st.grow === "rivales"} onClose={() => grow(null)} />
               ) : (

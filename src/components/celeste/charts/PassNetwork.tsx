@@ -10,7 +10,7 @@ import { autoThreshold, pitchLayout, ringLayout, strongestPair, type NetworkView
 import { AnalysisInsightEvidence } from "../AnalysisInsights";
 import { MetricState } from "../MetricState";
 import { ChartHero, ChartHow, ChartKpis, ChartStage, ChartViews, type ChartProps } from "./parts";
-import { chartNumber, chartPercent } from "./format";
+import { chartNumber, chartPercent, counted } from "./format";
 import { NetShirt, PassNetworkDrawing, type DrawEdge, type DrawNode } from "./PassNetworkDrawing";
 import "./pass-network.css";
 
@@ -78,7 +78,7 @@ export function PassNetworkView({ matches, people, filters = {}, onInspect }: Ch
   ];
   const notes = <>
     {rival && data.matchCount > 1 && <p className="gc-note">Los jugadores rivales se mantienen separados por partido: un mismo dorsal no identifica a la misma persona en dos actas.</p>}
-    {(data.unattributed > 0 || data.pending > 0) && <p className="gc-note">En total, {data.unattributed} intentos no tienen pareja identificable; pueden ser completados, fallidos o sin resultado. {data.pending} pendientes de clasificación. La red solo representa pases completados entre dos jugadores identificados.</p>}
+    {(data.unattributed > 0 || data.pending > 0) && <p className="gc-note">En total, {data.unattributed === 1 ? "1 intento no tiene" : `${chartNumber.format(data.unattributed)} intentos no tienen`} pareja identificable; pueden ser completados, fallidos o sin resultado.{data.pending > 0 && ` ${counted(data.pending, "pendiente", "pendientes")} de clasificación.`} La red solo representa pases completados entre dos jugadores identificados.</p>}
   </>;
 
   if (!nodes.length) {
@@ -129,7 +129,7 @@ export function PassNetworkView({ matches, people, filters = {}, onInspect }: Ch
         <h4 className="gc-sh">{me ? `Conexiones de ${me.name}` : "Quién se encuentra"}</h4>
         <p className="gc-note">De quien pasa a quien recibe. Elige una pareja para ver sus jugadas.</p>
         <ol className="gc-rows pn-pairs" aria-label="Conexiones de la red">{listed.map(e => <li key={e.key}>
-          <button type="button" className="gc-row" aria-pressed={e === pair} aria-label={`${nameOf(e.from)} a ${nameOf(e.to)}: ${e.completed} pases completados. Ver jugadas`} onClick={() => setPair(e === pair ? "" : e.key)}>
+          <button type="button" className="gc-row" aria-pressed={e === pair} aria-label={`${nameOf(e.from)} a ${nameOf(e.to)}: ${counted(e.completed, "pase completado", "pases completados")}. Ver jugadas`} onClick={() => setPair(e === pair ? "" : e.key)}>
             <span className="gc-row__t">{nameOf(e.from)}<i className="pn-arrow" aria-hidden="true">→</i>{nameOf(e.to)}</span>
             <b className="gc-row__n">{e.completed}<small>{e.completed + e.failed ? `${e.completed}/${e.completed + e.failed} con resultado` : "pases"}</small></b>
             <span className="gc-row__bar" aria-hidden="true"><i style={{ width: `${Math.round(e.completed / maxCompleted * 100)}%` }}/></span>

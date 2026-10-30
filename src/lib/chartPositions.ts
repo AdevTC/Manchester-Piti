@@ -39,6 +39,7 @@ export function chartPositions(matches: readonly ClubMatch[]): Map<string, Chart
 /** Portero first, punta last (by the main position's depth), then by dorsal: the order of a team sheet. */
 export function byPosition(positions: ReadonlyMap<string, ChartPosition>, numberOf: (id: string) => number | string | null | undefined) {
   const depth = (id: string) => { const p = positions.get(id); return p ? -POSITIONS[p.main].y : 1; };
-  const dorsal = (id: string) => { const n = Number(numberOf(id)); return Number.isFinite(n) ? n : 999; };
+  // (no dorsal goes last: Number(null) and Number("") are 0, which put a player without one before the #1)
+  const dorsal = (id: string) => { const raw = numberOf(id); const n = raw == null || raw === "" ? NaN : Number(raw); return Number.isFinite(n) ? n : 999; };
   return (a: string, b: string) => depth(a) - depth(b) || dorsal(a) - dorsal(b) || a.localeCompare(b);
 }

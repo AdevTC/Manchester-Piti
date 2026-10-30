@@ -64,7 +64,9 @@
 :root[data-theme="light"] .gc-root .pn-key i.k-grad{border-image:linear-gradient(90deg,rgba(44,106,158,.3),var(--vd-marino)) 1}
 
 /* the side: pair ranking, player card, picker */
-.gc-root .pn-pairs{margin-top:12px;max-height:420px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.gc-root .pn-pairs{margin-top:12px;max-height:420px;overflow:auto;scrollbar-width:thin}
+/* one column (phone, narrow window): the list grows with the page instead of holding the finger in its own scroll */
+@container gc (max-width:859px){.gc-root .pn-pairs{max-height:none;overflow:visible}}
 .gc-root .pn-arrow{font-style:normal;color:var(--vd-ink2);margin:0 6px}
 .gc-root .vd-btn.pn-more{margin-top:10px;min-height:44px}
 .gc-root .pn-pick{display:grid;gap:6px;margin-top:16px;font-size:12.5px;color:var(--vd-ink2)}

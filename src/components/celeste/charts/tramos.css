@@ -88,7 +88,9 @@
 .gc-root .gt-matrix{margin-top:20px}
 .gc-root .gt-mtools{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:12px}
 .gc-root .gt-mtools>.vd-seg{flex:0 1 300px}
-.gc-root .gt-mscroll{max-width:100%;max-height:min(620px,78vh);overflow:auto;border:1px solid var(--vd-rule);border-radius:18px;overscroll-behavior:contain}
+.gc-root .gt-mscroll{max-width:100%;max-height:min(620px,78vh);overflow:auto;border:1px solid var(--vd-rule);border-radius:18px;overscroll-behavior-x:contain}
+/* one column: the matrix slides sideways only; a vertical swipe on it moves the page (it filled the screen and held it) */
+@container gc (max-width:859px){.gc-root .gt-mscroll{max-height:none}}
 .gc-root .gt-mt{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
 .gc-root .gt-mt th{position:sticky;top:0;z-index:2;padding:10px 6px;min-width:62px;font-weight:600;text-align:center;background:var(--vd-solid);border-bottom:1px solid var(--vd-rule);vertical-align:bottom}
 .gc-root .gt-mt th b{display:block;font-size:13.5px;font-weight:760;font-variant-numeric:tabular-nums}

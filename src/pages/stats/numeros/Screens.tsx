@@ -851,11 +851,11 @@ export function Campo({ v, numOf }: { v: V; numOf: NumOf }) {
 }
 
 // ===================== El juego =====================
-export function Juego({ v, grow, onClose, onInspect, catalogLoad = { error: false, retry: () => {} }, catalogPaused = false }: { catalogLoad?: CatalogLoadStatus; catalogPaused?: boolean; v: V; grow: "mesa" | "catalogo" | "graficas" | null; onClose: () => void; onInspect?: (metricId: string, playerId?: string) => void }) {
+export function Juego({ v, grow, onClose, onInspect, catalogLoad = { error: false, retry: () => {} }, catalogPaused = false, loading = false }: { catalogLoad?: CatalogLoadStatus; catalogPaused?: boolean; loading?: boolean; v: V; grow: "mesa" | "catalogo" | "graficas" | null; onClose: () => void; onInspect?: (metricId: string, playerId?: string) => void }) {
   const g = v.juego;
   const context = <div className="nu-ctx" role="group" aria-label="Contexto de las jugadas"><Seg label="Equipo" opts={g.teamOpts} i={g.teamI} n={2} /><Seg label="Parte" opts={g.parteOpts} i={g.parteI} n={3} /></div>;
   if (grow === "mesa") return <GrowWin id="nu-g-mesa" title="Todos los números, a tu medida" onClose={onClose} table>{context}<WorkspaceTable w={v.ws} /></GrowWin>;
-  if (grow === "graficas") return <GrowWin id="nu-g-graficas" title="Gráficas del juego" onClose={onClose}>{context}<StatsChartsPanel matches={v.analysis.matches} filters={v.analysis.filters} people={v.scope.people.map(p => ({id:p.key, name:p.t, number:p.n}))} onInspect={onInspect} /></GrowWin>;
+  if (grow === "graficas") return <GrowWin id="nu-g-graficas" title="Gráficas del juego" onClose={onClose}>{context}<StatsChartsPanel matches={v.analysis.matches} filters={v.analysis.filters} people={v.scope.people.map(p => ({id:p.key, name:p.t, number:p.n}))} onInspect={onInspect} loading={loading} /></GrowWin>;
   if (grow === "catalogo") return <GrowWin id="nu-g-cat" title="Una ficha para cada estadística" onClose={onClose}>{context}<CatalogView c={v.cat} load={catalogLoad} paused={catalogPaused} /></GrowWin>;
   return (
     <>

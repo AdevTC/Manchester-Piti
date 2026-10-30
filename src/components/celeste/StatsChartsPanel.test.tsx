@@ -43,9 +43,9 @@ describe("shared chart panel", () => {
     expect(detail).toHaveTextContent("2/2 con resultado conocido");
     expect(within(detail).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(expect.arrayContaining(["/partidos/m/numeros", "/partidos/second-match/numeros"]));
     view.rerender(<StatsChartsPanel matches={[second, first]} people={people} filters={{ period: 1 }}/>);
-    expect(screen.getByRole("button", { name: "Álex a Bruno: 1 pases completados. Ver jugadas" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Álex a Bruno: 1 pase completado. Ver jugadas" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Bruno a Álex/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Álex a Bruno: 1 pases completados. Ver jugadas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Álex a Bruno: 1 pase completado. Ver jugadas" }));
     const firstHalfDetail = screen.getByRole("region", { name: "Jugadas de la conexión elegida" });
     expect(firstHalfDetail).toHaveTextContent("1/2 con resultado conocido");
     expect(within(firstHalfDetail).getByText("Fallido")).toBeVisible();
@@ -71,6 +71,22 @@ describe("shared chart panel", () => {
     expect(screen.queryByRole("button", { name: /^1\.ª parte ·/ })).not.toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("group", { name: "Vistas de esta gráfica" })).getByRole("button", { name: "Matriz" }));
     expect(screen.getByRole("table", { name: "Matriz dirigida de pases" })).toBeVisible();
+  });
+  it("says the charts are loading while the page's data is on its way, not that there is nothing to draw", () => {
+    const view = render(<StatsChartsPanel matches={[]} people={people} loading/>);
+    expect(screen.getByRole("status")).toHaveTextContent("Cargando las jugadas…");
+    expect(screen.queryByRole("heading", { name: "Aún no se puede dibujar la red" })).not.toBeInTheDocument();
+    view.rerender(<StatsChartsPanel matches={[match]} people={people} loading={false}/>);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
+  });
+  it("tells the span of the sample: the moviola's cut, a half, whole matches", () => {
+    const view = render(<StatsChartsPanel matches={[match]} people={people} filters={{ toSecond: 23 * 60 }}/>);
+    expect(screen.getByText(/hasta el 23′/)).toBeVisible();
+    view.rerender(<StatsChartsPanel matches={[match, { ...match, id: "other" }]} people={people}/>);
+    expect(screen.getByText(/partidos enteros/)).toBeVisible();
+    view.rerender(<StatsChartsPanel matches={[match]} people={people} filters={{ period: 2 }}/>);
+    expect(screen.getByText(/2\.ª parte/)).toBeVisible();
   });
   it("shows shot evidence and forwards the catalogue metric with the current selection", () => {
     const inspect = vi.fn();

@@ -106,4 +106,8 @@ describe("goals on the tramo timeline", () => {
       ["them", "Gol de Pitutis · 2.ª parte, 0′ 40″"],
     ]);
   });
+  it("names an unnamed rival «del rival» instead of leaving a hole in the label", () => {
+    const match = game("m", [goal("opponent", 350, 350, { period: 2, team: "opponent" })]);
+    expect(goalMarks([match], {}, columns([match]), () => "Álex", () => "").map(g => g.label)).toEqual(["Gol del rival · 2.ª parte, 0′ 30″"]);
+  });
 });

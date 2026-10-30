@@ -23,7 +23,8 @@ export function TramosChart({ matches, people, filters = {}, onInspect, view, me
   const [sidePick, setSidePick] = useState<TramoSide | null>(null);
   const meta = TRAMO_METRICS[metric] ?? TRAMO_METRICS["067"];
   const long = INSIGHT_METRICS.find(m => m.id === metric)?.label ?? "Pases intentados";
-  const ourFilters = useMemo<AnalysisFilters>(() => ({ ...filters, team: filters.team === "opponent" ? undefined : filters.team }), [filters]);
+  // (with the rival chosen, a player selection is not the sample: the rest of the panel reads every match then too)
+  const ourFilters = useMemo<AnalysisFilters>(() => filters.team === "opponent" ? { ...filters, team: undefined, playerIds: undefined } : filters, [filters]);
   const theirFilters = useMemo<AnalysisFilters>(() => ({ ...filters, team: "opponent", playerIds: undefined }), [filters]);
   // The rival is read in the same matches as the Piti side, so a player's selection never compares other games.
   const sample = useMemo(() => selectAnalysisMatches(matches, ourFilters) as ClubMatch[], [matches, ourFilters]);
@@ -33,8 +34,8 @@ export function TramosChart({ matches, people, filters = {}, onInspect, view, me
   const plural = new Set(sample.map(m => m.id)).size !== 1;
   const rival = plural ? "Los rivales" : sample[0]?.rival ?? "El rival";
   const names = useMemo(() => new Map(people.map(p => [p.id, p.name])), [people]);
-  const rivals = useMemo(() => new Map(sample.map(m => [m.id, m.rival ?? "el rival"])), [sample]);
-  const goals = useMemo(() => view === "pulse" ? goalMarks(sample, filters, layout.cols, id => names.get(id), id => rivals.get(id) ?? "el rival") : [], [view, sample, filters, layout, names, rivals]);
+  const rivals = useMemo(() => new Map(sample.map(m => [m.id, m.rival?.trim() ?? ""])), [sample]);
+  const goals = useMemo(() => view === "pulse" ? goalMarks(sample, filters, layout.cols, id => names.get(id), id => rivals.get(id) ?? "") : [], [view, sample, filters, layout, names, rivals]);
   const { cols } = layout;
   const selected = cols.find(c => c.key === selection) ?? cols[0];
   const barSide: TramoSide = filters.team === "opponent" ? "them" : "us";
@@ -45,7 +46,7 @@ export function TramosChart({ matches, people, filters = {}, onInspect, view, me
   const timeline = side === "us" ? us : them;
 
   const picker = <ChartSeg label="Qué ver por tramos" opts={metricOpts} value={metric} onPick={onMetric} className="gt-metrics"/>;
-  const notes = <>{us.omittedMatches > 0 && <p className="gc-note">{us.omittedMatches} {us.omittedMatches === 1 ? "partido sin límites de tiempo suficientes: no se le asignan tramos." : "partidos sin límites de tiempo suficientes: no se les asignan tramos."}</p>}{timeline.uncertainActions > 0 && <p className="gc-note">Hay {timeline.uncertainActions} acciones sin un instante exacto. Las que no pueden ubicarse dentro de un tramo quedan pendientes; no se reparten entre tramos.</p>}</>;
+  const notes = <>{us.omittedMatches > 0 && <p className="gc-note">{us.omittedMatches} {us.omittedMatches === 1 ? "partido sin límites de tiempo suficientes: no se le asignan tramos." : "partidos sin límites de tiempo suficientes: no se les asignan tramos."}</p>}{timeline.uncertainActions > 0 && <p className="gc-note">{timeline.uncertainActions === 1 ? "Hay 1 acción sin un instante exacto." : `Hay ${chartNumber.format(timeline.uncertainActions)} acciones sin un instante exacto.`} Las que no pueden ubicarse dentro de un tramo quedan pendientes; no se reparten entre tramos.</p>}</>;
   if (!cols.length || !selected) return <>{picker}{notes}<div className="gc-empty"><h4>No hay tramos comparables en esta selección</h4><p>Hace falta conocer los límites de juego y la participación en el período elegido. No se sustituyen por minutos estimados.</p></div></>;
 
   const total = (s: TramoSide) => {

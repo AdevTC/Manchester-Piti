@@ -49,6 +49,11 @@ export function ChartHow({ children }: { children: ReactNode }) {
   return <details className="gc-how"><summary>Cómo leer esta gráfica</summary><div className="gc-how__body">{children}</div></details>;
 }
 
+/** While the actas are on their way: the stage keeps its place and says it is coming (not «no data»). */
+export function ChartLoading() {
+  return <div className="gc-loading" role="status"><span className="gc-loading__glow" aria-hidden="true"/><p><b>Cargando las jugadas…</b> <span>Las gráficas salen en cuanto llegan las actas.</span></p></div>;
+}
+
 /** Chart on the left, its reading on the right from the container's 860 px; one column below. */
 export function ChartStage({ chart, side, wide = false }: { chart: ReactNode; side?: ReactNode; wide?: boolean }) {
   return <div className={`gc-stage${wide || !side ? " gc-stage--wide" : ""}`}><div className="gc-chart">{chart}</div>{side && <div className="gc-side">{side}</div>}</div>;

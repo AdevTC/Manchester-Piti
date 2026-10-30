@@ -102,7 +102,7 @@ export function goalMarks(matches: readonly NarratedMatch[], filters: AnalysisFi
     const frac = Math.min(.92, Math.max(.08, ((from + to) / 2 - col.from) / Math.max(1, col.to - col.from)));
     const scorer = side === "us" && e.team === "us" && e.facts.ownGoal !== true && e.actorId ? names(e.actorId) : undefined;
     const when = `${period ? `${period}.ª parte, ` : ""}${from === to ? clock(from) : `entre ${clock(from)} y ${clock(to)}`}`;
-    marks.push({ key: e.evidenceId, side, x: Math.min(col.x + col.w * .92, col.x + col.w * frac + (k - 1) * Math.min(2.2, col.w / 4)), label: side === "us" ? `Gol del Piti${scorer ? `, de ${scorer}` : ""} · ${when}` : `Gol de ${rivalOf(e.matchId)} · ${when}` });
+    marks.push({ key: e.evidenceId, side, x: Math.min(col.x + col.w * .92, col.x + col.w * frac + (k - 1) * Math.min(2.2, col.w / 4)), label: side === "us" ? `Gol del Piti${scorer ? `, de ${scorer}` : ""} · ${when}` : `${rivalOf(e.matchId) ? `Gol de ${rivalOf(e.matchId)}` : "Gol del rival"} · ${when}` });
   }
   return marks;
 }
