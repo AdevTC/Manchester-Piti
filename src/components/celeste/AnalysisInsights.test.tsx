@@ -84,6 +84,17 @@ describe("interactive analysis charts", () => {
     fireEvent.click(within(screen.getByRole("group", { name: "De quién son las jugadas" })).getByRole("button", { name: "Del rival" }));
     expect(detail).toHaveTextContent("Rival local · Pases intentados"); expect(detail).toHaveTextContent("1′ 40″"); expect(detail).not.toHaveTextContent("0′ 10″");
   });
+  it("draws a rival with data in too few tramos as its points and stops comparing tramo by tramo", () => {
+    const thin: ClubMatch = { ...match, analysis: { ...match.analysis!, observations: [...match.analysis!.observations,
+      { id: "theirs", kind: "pass", team: "opponent", opponentId: "9", order: 4, period: 1, time: { from: 100, to: 100, precision: "exact" }, facts: { outcome: "complete", opponentReceiverId: "10" } },
+    ], coverage: [{ family: "*", team: "us", state: "complete" }, { family: "*", team: "opponent", state: "partial" }] } };
+    const { container } = render(<AnalysisInsights matches={[thin]} people={people}/>);
+    expect(screen.getByRole("heading", { name: "El mejor tramo del Piti en pases intentados: 1.ª parte · 0′–5′" })).toBeVisible();
+    expect(screen.getByText("De Rival local solo hay dato en 1 de 3 tramos, así que no se comparan tramo a tramo.")).toBeVisible();
+    expect(screen.getByText(/Rival local, hacia abajo \(dato en 1 de 3 tramos\)/)).toBeVisible();
+    expect(container.querySelectorAll(".gt-stem--them")).toHaveLength(1);
+    expect(container.querySelectorAll(".gt-area--them")).toHaveLength(0);
+  });
   it("orders the matrix by position from the goalkeeper or by passes given", () => {
     const sheet: ClubMatch = { ...match, ledger: { a: { stints: [], minutes: 10, positionsPlayed: { DC: 10 } }, b: { stints: [], minutes: 10, positionsPlayed: { POR: 10 } } } as unknown as ClubMatch["ledger"] };
     render(<AnalysisInsights matches={[sheet]} people={people}/>);

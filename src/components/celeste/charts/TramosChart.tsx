@@ -49,12 +49,18 @@ export function TramosChart({ matches, people, filters = {}, onInspect, view, me
   const notes = <>{us.omittedMatches > 0 && <p className="gc-note">{us.omittedMatches} {us.omittedMatches === 1 ? "partido sin límites de tiempo suficientes: no se le asignan tramos." : "partidos sin límites de tiempo suficientes: no se les asignan tramos."}</p>}{timeline.uncertainActions > 0 && <p className="gc-note">{timeline.uncertainActions === 1 ? "Hay 1 acción sin un instante exacto." : `Hay ${chartNumber.format(timeline.uncertainActions)} acciones sin un instante exacto.`} Las que no pueden ubicarse dentro de un tramo quedan pendientes; no se reparten entre tramos.</p>}</>;
   if (!cols.length || !selected) return <>{picker}{notes}<div className="gc-empty"><h4>No hay tramos comparables en esta selección</h4><p>Hace falta conocer los límites de juego y la participación en el período elegido. No se sustituyen por minutos estimados.</p></div></>;
 
+  const known = (s: TramoSide) => cols.filter(c => tramoValue(c, s) != null).length;
+  // A side with a backed value in under half the tramos (the rival's losses are hardly ever narrated) is drawn as its
+  // points alone, and the pulse stops comparing tramo by tramo: a ribbon of hatches and stray boxes read as broken.
+  const thin = (["us", "them"] as const).filter(s => known(s) * 2 < cols.length);
+  const rivalLow = plural ? "los rivales" : rival;
   const total = (s: TramoSide) => {
     let any = false, sum = 0, n = 0, d = 0;
     for (const c of cols) { const r = c[s]?.result; const v = tramoValue(c, s); if (!r || v == null) continue; any = true; sum += v; n += r.numerator ?? 0; d += r.denominator ?? 0; }
     return !any ? "-" : meta.pct ? d ? `${chartNumber.format(n / d * 100)}%` : "-" : chartNumber.format(sum);
   };
-  const kpis = [{ label: `${long} · Manchester Piti`, value: total("us") }, { label: `${long} · ${rival}`, value: total("them") }, { label: "Tramos de 5 minutos", value: String(cols.length) }, { label: us.matchCount === 1 ? "Partido" : "Partidos", value: String(us.matchCount) }];
+  const only = (s: TramoSide) => thin.includes(s) ? ` (${known(s)} de ${cols.length} tramos)` : "";
+  const kpis = [{ label: `${long} · Manchester Piti${only("us")}`, value: total("us") }, { label: `${long} · ${rival}${only("them")}`, value: total("them") }, { label: "Tramos de 5 minutos", value: String(cols.length) }, { label: us.matchCount === 1 ? "Partido" : "Partidos", value: String(us.matchCount) }];
   const peak = (s: TramoSide) => cols.filter(c => tramoValue(c, s) != null).reduce<TramoCol | null>((p, c) => !p || better(tramoValue(c, s)!, tramoValue(p, s)!) ? c : p, null);
 
   let hero: string, heroP: string, story: string;
@@ -65,6 +71,15 @@ export function TramosChart({ matches, people, filters = {}, onInspect, view, me
     hero = avg == null ? `${long}, tramo a tramo` : `${barSide === "us" ? "El Piti" : rival}: ${fmt(avg)} de media por tramo`;
     heroP = hi && lo ? `Pico en ${segLabel(hi.c)} (${fmt(hi.v)}); el tramo más bajo, ${segLabel(lo.c)} (${fmt(lo.v)}).` : "";
     story = avg == null ? "Ningún tramo tiene un dato respaldado todavía." : `Media de los tramos con dato: ${fmt(avg)}. El último tramo de cada parte puede ser más corto.`;
+  } else if (thin.length) {
+    const full = (["us", "them"] as const).find(s => !thin.includes(s));
+    const pk = full ? peak(full) : null;
+    hero = !full || !pk ? `${long}, tramo a tramo`
+      : full === "us" ? meta.low ? `El Piti pierde menos balones en ${segLabel(pk)}` : `El mejor tramo del Piti en ${long.toLowerCase()}: ${segLabel(pk)}`
+      : meta.low ? `${rival} ${plural ? "pierden" : "pierde"} menos balones en ${segLabel(pk)}` : `El mejor tramo de ${rivalLow} en ${long.toLowerCase()}: ${segLabel(pk)}`;
+    heroP = `${thin.map(s => `${s === "us" ? "Del Piti" : `De ${rivalLow}`} solo hay dato en ${known(s)} de ${cols.length} tramos`).join(" y ")}, así que no se comparan tramo a tramo.`;
+    const a = tramoValue(selected, "us"), b = tramoValue(selected, "them");
+    story = a != null && b != null ? `En este tramo: ${fmt(a)} el Piti, ${fmt(b)} ${rivalLow}.` : "Este tramo no tiene dato respaldado de los dos equipos.";
   } else {
     const both = cols.filter(c => tramoValue(c, "us") != null && tramoValue(c, "them") != null);
     const wins = both.filter(c => better(tramoValue(c, "us")!, tramoValue(c, "them")!)).length;
@@ -86,7 +101,7 @@ export function TramosChart({ matches, people, filters = {}, onInspect, view, me
     {view === "pulse" && <ChartSeg label="De quién son las jugadas" opts={[{ value: "us", label: "Jugadas del Piti" }, { value: "them", label: "Del rival" }] as const} value={side} onPick={setSidePick}/>}
   </section>;
 
-  const chart = <>{picker}{notes}{view === "pulse" ? <Pulse uid={uid} layout={layout} cols={cols} selected={selected} goals={goals} pct={!!meta.pct} long={long} rival={rival} metric={metric} onPick={setSelection}/> : <Bars uid={uid} layout={layout} cols={cols} selected={selected} side={barSide} pct={!!meta.pct} long={long} team={teamName(barSide)} metric={metric} fmt={fmt} onPick={setSelection}/>}</>;
+  const chart = <>{picker}{notes}{view === "pulse" ? <Pulse uid={uid} layout={layout} cols={cols} selected={selected} goals={goals} thin={thin} counts={{ us: known("us"), them: known("them") }} pct={!!meta.pct} long={long} rival={rival} metric={metric} onPick={setSelection}/> : <Bars uid={uid} layout={layout} cols={cols} selected={selected} side={barSide} pct={!!meta.pct} long={long} team={teamName(barSide)} metric={metric} fmt={fmt} onPick={setSelection}/>}</>;
 
   return <>
     <ChartHero title={hero}>{heroP || undefined}</ChartHero>
@@ -114,9 +129,11 @@ const Ticks = ({ cols }: { cols: TramoCol[] }) => <div className="gt-ticks" aria
 const Hatch = ({ id }: { id: string }) => <pattern id={id} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line className="gt-hatch-line" x1="0" y1="0" x2="0" y2="4"/></pattern>;
 const Ball = () => <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M12 7.5l3.6 2.6-1.4 4.2H9.8L8.4 10.1z" fill="currentColor"/><path d="M12 3v4.5M15.6 10.1l4.6-1.6M14.2 14.3l2.7 3.9M9.8 14.3l-2.7 3.9M8.4 10.1L3.8 8.5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>;
 
-function Pulse({ uid, layout, cols, selected, goals, pct, long, rival, metric, onPick }: PlotProps & { goals: ReturnType<typeof goalMarks>; rival: string }) {
+function Pulse({ uid, layout, cols, selected, goals, thin, counts, pct, long, rival, metric, onPick }: PlotProps & { goals: ReturnType<typeof goalMarks>; thin: readonly TramoSide[]; counts: Record<TramoSide, number>; rival: string }) {
   const max = pct ? 100 : Math.max(1, ...cols.flatMap(c => [tramoValue(c, "us") ?? 0, tramoValue(c, "them") ?? 0]));
   const y = (v: number, s: TramoSide) => 50 - (s === "us" ? 1 : -1) * H * v / max;
+  const full = (["us", "them"] as const).filter(s => !thin.includes(s));
+  const scarce = (s: TramoSide) => thin.includes(s) ? ` (dato en ${counts[s]} de ${cols.length} tramos)` : "";
   return <>
     <div className="gt-scroll" role="region" tabIndex={0} aria-label="Pulso por tramos; desliza si no cabe">
       <div className="gt-plotwrap" style={plotStyle(layout)}>
@@ -127,21 +144,22 @@ function Pulse({ uid, layout, cols, selected, goals, pct, long, rival, metric, o
               <linearGradient id={`${uid}-gt`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="gt-gt0"/><stop offset="1" className="gt-gt1"/></linearGradient></defs>
             {[10, 30, 70, 90].map(g => <line key={g} className="gt-grid" x1="0" y1={g} x2="100" y2={g}/>)}
             <rect className="gt-selband" x={selected.x} y="0" width={selected.w} height="100"/>
-            <g key={metric}>{(["us", "them"] as const).flatMap(s => ribbon(cols, s, max, H).map((a, i) => <g key={`${s}${i}`}><path d={a.d} className={`gt-area gt-area--${s}`} fill={`url(#${uid}-${s === "us" ? "gu" : "gt"})`}/><path d={a.l} className={`gt-aline gt-aline--${s}`}/></g>))}</g>
-            {cols.flatMap(c => (["us", "them"] as const).filter(s => tramoValue(c, s) == null).map(s => <rect key={c.key + s} className="gt-miss" fill={`url(#${uid}-h)`} x={c.x + c.w * .3} width={c.w * .4} y={s === "us" ? 46 : 50} height="4"/>))}
+            <g key={metric}>{full.flatMap(s => ribbon(cols, s, max, H).map((a, i) => <g key={`${s}${i}`}><path d={a.d} className={`gt-area gt-area--${s}`} fill={`url(#${uid}-${s === "us" ? "gu" : "gt"})`}/><path d={a.l} className={`gt-aline gt-aline--${s}`}/></g>))}</g>
+            {thin.flatMap(s => cols.flatMap(c => { const v = tramoValue(c, s); return v == null ? [] : [<line key={c.key + s} className={`gt-stem gt-stem--${s}`} x1={c.x + c.w / 2} x2={c.x + c.w / 2} y1="50" y2={y(v, s)}/>]; }))}
+            {cols.flatMap(c => full.filter(s => tramoValue(c, s) == null).map(s => <rect key={c.key + s} className="gt-miss" fill={`url(#${uid}-h)`} x={c.x + c.w * .3} width={c.w * .4} y={s === "us" ? 46 : 50} height="4"/>))}
             <line className="gt-axis" x1="0" y1="50" x2="100" y2="50"/>
           </svg>
           {cols.flatMap(c => (["us", "them"] as const).flatMap(s => { const v = tramoValue(c, s); return v == null ? [] : [<span key={c.key + s} className={`gt-pdot gt-pdot--${s}${c === selected ? " is-on" : ""}`} style={{ left: `${c.x + c.w / 2}%`, top: `${y(v, s)}%` }} aria-hidden="true"/>]; }))}
           <Frame layout={layout}>{cols.map(c => {
             const a = tramoValue(c, "us"), b = tramoValue(c, "them");
-            return <button key={c.key} type="button" className="gt-pcol" style={{ left: `${c.x}%`, width: `${c.w}%` }} aria-pressed={c === selected} aria-label={`${segLabel(c)}: Manchester Piti ${formatWorkspaceMetric(c.us?.result, true)}, ${rival} ${formatWorkspaceMetric(c.them?.result, true)}. Ver jugadas`} onClick={() => onPick(c.key)}><strong className="gt-pcol__u" style={{ top: `calc(${a == null ? 46 : y(a, "us")}% - 20px)` }}>{formatWorkspaceMetric(c.us?.result)}</strong><span className="gt-pcol__t" style={{ top: `calc(${b == null ? 54 : y(b, "them")}% + 2px)` }}>{formatWorkspaceMetric(c.them?.result)}</span></button>;
+            return <button key={c.key} type="button" className="gt-pcol" style={{ left: `${c.x}%`, width: `${c.w}%` }} aria-pressed={c === selected} aria-label={`${segLabel(c)}: Manchester Piti ${formatWorkspaceMetric(c.us?.result, true)}, ${rival} ${formatWorkspaceMetric(c.them?.result, true)}. Ver jugadas`} onClick={() => onPick(c.key)}>{(a != null || !thin.includes("us")) && <strong className="gt-pcol__u" style={{ top: `calc(${a == null ? 46 : y(a, "us")}% - 20px)` }}>{formatWorkspaceMetric(c.us?.result)}</strong>}{(b != null || !thin.includes("them")) && <span className="gt-pcol__t" style={{ top: `calc(${b == null ? 54 : y(b, "them")}% + 2px)` }}>{formatWorkspaceMetric(c.them?.result)}</span>}</button>;
           })}</Frame>
-          {goals.map(g => <span key={g.key} className={`gt-goal gt-goal--${g.side}`} style={{ left: `${g.x}%` }} role="img" aria-label={g.label}><Ball/></span>)}
+          {goals.map(g => <span key={g.key} className={`gt-goal gt-goal--${g.side}`} style={{ left: `clamp(10px, ${g.x}%, calc(100% - 10px))` }} role="img" aria-label={g.label}><Ball/></span>)}
         </div>
         <Ticks cols={cols}/>
       </div>
     </div>
-    <p className="gc-legend"><span><i className="gc-sw gt-sw--us"/>Manchester Piti, hacia arriba</span><span><i className="gc-sw gt-sw--them"/>{rival}, hacia abajo</span><span><i className="gc-sw gt-sw--gold"/>Gol nuestro</span><span><i className="gc-sw gt-sw--goalthem"/>Gol del rival</span><span><i className="gc-sw gt-sw--miss"/>Sin dato respaldado</span></p>
+    <p className="gc-legend"><span><i className="gc-sw gt-sw--us"/>Manchester Piti, hacia arriba{scarce("us")}</span><span><i className="gc-sw gt-sw--them"/>{rival}, hacia abajo{scarce("them")}</span><span><i className="gc-sw gt-sw--gold"/>Gol nuestro</span><span><i className="gc-sw gt-sw--goalthem"/>Gol del rival</span>{full.length > 0 && <span><i className="gc-sw gt-sw--miss"/>Sin dato respaldado</span>}</p>
   </>;
 }
 

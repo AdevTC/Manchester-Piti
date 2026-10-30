@@ -905,3 +905,9 @@ html[data-theme="light"]{background:#d9e9f8}
 /* phone and tablet: the page scrolls, so a grown window's body is no scroll box of its own (one that ends up a pixel too wide
    held every vertical swipe on it: overscroll-behavior:contain, and only the page's edge still scrolled) */
 @container nu-page (max-width:1099px){.nu-grow .vd-grow__body{overflow:visible;overscroll-behavior:auto}}
+/* the page's floating layers are children of .vd-pg, whose ground rule (vidrio-paginas.css: .vd-pg>:where(…){position:relative;
+   z-index:1}) weighs the same and loads after this sheet in production: the season sheet, its scrim and the toast fell
+   into the flow at the foot of the page (off-screen on a desktop's fixed frame) under a z-index of 1 */
+.nu>.nu-toast{position:fixed;z-index:60}
+.nu>.nu-scrim{position:fixed;z-index:70}
+.nu>.nu-sheet{position:fixed;z-index:71}

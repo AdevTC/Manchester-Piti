@@ -18,6 +18,11 @@
 .gc-root .gt-aline{fill:none;stroke-width:2;vector-effect:non-scaling-stroke;animation:gt-reveal 1.1s var(--vd-ease) both}
 .gc-root .gt-aline--us{stroke:var(--vd-hielo)}
 .gc-root .gt-aline--them{stroke:var(--vd-rival)}
+/* a side with too few tramos: each value on its own stem from the axis instead of a broken ribbon */
+.gc-root .gt-stem{stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round}
+.gc-root .gt-stem--us{stroke:var(--vd-hielo)}
+.gc-root .gt-stem--them{stroke:var(--vd-rival)}
+:root[data-theme="light"] .gc-root .gt-stem--us{stroke:var(--vd-marino)}
 @keyframes gt-reveal{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 .gc-root .gt-gu0{stop-color:#eaf3fc;stop-opacity:.8}.gc-root .gt-gu1{stop-color:#6cabdd;stop-opacity:.1}
 .gc-root .gt-gt0{stop-color:#f08a7e;stop-opacity:.08}.gc-root .gt-gt1{stop-color:#f08a7e;stop-opacity:.6}
