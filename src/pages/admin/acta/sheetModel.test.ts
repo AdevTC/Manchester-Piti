@@ -118,6 +118,19 @@ describe("the acta's sheet model", () => {
     expect(goalRows(s)[0].minute).toBeUndefined();
   });
 
+  it("counts possible duplicate goals once until confirmed, and never after removal", () => {
+    const s = j7();
+    const duplicate = { ...s.events[0], id: "duplicate", dupOf: "g1" };
+    const pending = upsertEvent(s, duplicate);
+    expect(score(pending)).toEqual({ gf: 3, ga: 1 });
+    expect(score(upsertEvent(s, { ...duplicate, dupOk: false }))).toEqual({ gf: 3, ga: 1 });
+    const confirmed = upsertEvent(pending, { ...duplicate, dupOk: true });
+    expect(score(confirmed)).toEqual({ gf: 4, ga: 1 });
+    expect(score(removeEvent(confirmed, duplicate.id))).toEqual({ gf: 3, ga: 1 });
+    const rival = upsertEvent(s, { id: "rival-duplicate", type: "opponent_goal", minute: 18, dupOf: "r1" });
+    expect(score(rival)).toEqual({ gf: 3, ga: 1 });
+  });
+
   it("other events, by minute; changing the season empties lineup and events", () => {
     let s = upsertEvent(j7(), { id: "c1", type: "substitution", minute: 30, playerId: "tello", inPlayerId: "kevin" });
     s = upsertEvent(s, { id: "y1", type: "yellow_card", minute: 22, playerId: "eguzquiza" });
@@ -160,6 +173,21 @@ describe("the acta's sheet model", () => {
 });
 
 describe("toPayload (what saveMatchSheet receives)", () => {
+  it("keeps pending duplicates for review without counting them or losing open goals on reload", () => {
+    const current = j7();
+    const duplicate = { ...current.events[0], id: "duplicate", dupOf: "g1" };
+    const s = upsertEvent(current, duplicate);
+    const saved = toPayload(s, true, nameOf);
+    expect(saved).toMatchObject({ ok: true, sheet: { goalsFor: 3, goalsAgainst: 1 } });
+    if (!saved.ok) return;
+    expect(saved.sheet.events).toContainEqual(duplicate);
+    const restored = fromMatch(saved.sheet);
+    expect(score(restored)).toEqual({ gf: 3, ga: 1 });
+    expect(restored.events).toContainEqual(duplicate);
+    expect(goalRows(restored).filter(row => row.open)).toHaveLength(1);
+    expect(toPayload(restored, true, nameOf)).toEqual(saved);
+  });
+
   it("a draft keeps the score and drops what the backend can't store yet", () => {
     const s = addRivalGoal(j7(), "r2").sheet;
     const p = toPayload(s, true, nameOf);

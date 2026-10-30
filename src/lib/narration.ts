@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { eventSchema } from "../../functions/src/eventSchema";
-import { calculateLedger, type MatchEvent, type MatchSheet } from "../../functions/src/matchEngine";
+import { calculateLedger, isPendingDup, type MatchEvent, type MatchSheet } from "../../functions/src/matchEngine";
 import { actionProblem } from "../../functions/src/matchAnalysis";
+import { score } from "../pages/admin/acta/sheetModel";
 
 const questionSchema = z.union([z.string().max(400), z.object({
   question: z.string().min(1).max(400), playerIds: z.array(z.string()).max(30).default([]),
@@ -33,6 +34,22 @@ export interface NarrationChange {
   before?: MatchEvent;
   after: MatchEvent;
   fields: { key: keyof MatchEvent; before: MatchEvent[keyof MatchEvent]; after: MatchEvent[keyof MatchEvent] }[];
+}
+// Only an incomplete on-pitch sequence can be kept for later correction. Unknown identities,
+// malformed times, initial assignments and other validation failures remain blocking.
+const sequenceIssue = (message: string) => /^Minuto [\d.]+: (?:el autor de la acción no estaba en el campo|el receptor no estaba en el campo|el cambio necesita un jugador en campo y otro disponible en el banquillo|el jugador no está disponible en el campo|el asistente debe ser otro jugador en campo)\.$/.test(message);
+export function narrationSequenceReview(sheet: MatchSheet) {
+  const ledger = calculateLedger(sheet, false, { allowUnattributedGoals: true });
+  const called = new Set([...sheet.starters, ...sheet.bench]);
+  const identityErrors: string[] = [];
+  for (const event of sheet.events) {
+    const refs = [event.playerId, event.receiverId, event.assistPlayerId, event.inPlayerId];
+    if (refs.some(id => id && !called.has(id))) identityErrors.push(`Acción ${event.id}: todos los jugadores deben pertenecer a la convocatoria.`);
+    if (event.playerId && event.playerId === event.inPlayerId) identityErrors.push(`Acción ${event.id}: quien entra y quien sale deben ser jugadores distintos.`);
+    if (event.playerId && event.playerId === event.assistPlayerId) identityErrors.push(`Acción ${event.id}: el goleador no puede ser su propio asistente.`);
+  }
+  const validationErrors = [...new Set([...ledger.errors, ...identityErrors])];
+  return { ledger, validationErrors, blockingErrors: validationErrors.filter(error => !sequenceIssue(error)), sequenceErrors: ledger.errors.filter(sequenceIssue) };
 }
 /** Stable ids make re-import idempotent; the backend also compares the match revision at publication. */
 export function previewNarration(text: string, matchId: string, sheet: MatchSheet) {
@@ -81,9 +98,12 @@ export function previewNarration(text: string, matchId: string, sheet: MatchShee
   narrationSourcesSchema.parse([...sources.values()]);
   const next = { ...sheet, events: [...merged.values()], analysisCoverage: b.coverage, analysisNotes: b.notes, ...(analysis ? { analysis } : {}), ...(sources.size ? { narrationSources: [...sources.values()] } : {}) };
   if (new TextEncoder().encode(JSON.stringify(next)).byteLength > 800000) throw new Error('El análisis y sus fuentes son demasiado grandes para un acta. Reduce los fragmentos.');
-  const ledger = calculateLedger(next, false, { allowUnattributedGoals: true });
-  const errors = [...questions.filter((q, index) => !q.resolution?.trim() && (!rich || index < b.unresolved.length)).map(q => q.question), ...ledger.errors];
-  return { sheet: { ...next, goalsFor: ledger.goalsFor, goalsAgainst: ledger.goalsAgainst }, errors, validationErrors: ledger.errors, baseFingerprint: JSON.stringify(sheet),
+  const { validationErrors, blockingErrors } = narrationSequenceReview(next);
+  const { gf, ga } = score({ events: next.events.filter(event => !isPendingDup(event)) });
+  const questionErrors = questions.filter((q, index) => !q.resolution?.trim() && (!rich || index < b.unresolved.length)).map(q => q.question);
+  const errors = [...questionErrors, ...validationErrors];
+  const canImportWithIncidents = validationErrors.length > 0 && !blockingErrors.length && !questionErrors.length;
+  return { sheet: { ...next, goalsFor: gf, goalsAgainst: ga }, errors, validationErrors, canImportWithIncidents, baseFingerprint: JSON.stringify(sheet),
     format: b.format, observationChanges, sources: rich ? b.sources : [], questions, changes, added: changes.filter(c => c.kind === "added").length,
     updated: changes.filter(c => c.kind === "updated").length, unchanged: changes.filter(c => c.kind === "unchanged").length,
     unknownTime: b.events.filter(e => e.timingUnknown).length };

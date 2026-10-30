@@ -8,7 +8,7 @@ import { isAnalysisAction } from "../../../../functions/src/matchAnalysis";
 //   · toPayload() serialises for saveMatchSheet: incomplete goals without minute leave the events (the
 //     stored score keeps counting them, fromMatch() puts them back as open rows), anything else that the
 //     backend would reject is reported as an error before calling it.
-import { dateMillis, EVENT_LABELS, type EventType, type MatchEvent, type MatchSheet } from "../../../../functions/src/matchEngine";
+import { dateMillis, EVENT_LABELS, isPendingDup, type EventType, type MatchEvent, type MatchSheet } from "../../../../functions/src/matchEngine";
 import { opponentInitials } from "../../../lib/clubAnalytics";
 import { reconcileEventPeriods, synchronizeCanonicalAnalysis } from "../../../../functions/src/narrated/editing";
 import { isYouTubeUrl } from "../../../../functions/src/matchVideo";
@@ -92,8 +92,7 @@ export function defaultSheet(seasonId = "", over: Partial<MatchSheet> = {}): Mat
 export function fromMatch(m: MatchLike, note = ""): MatchSheet {
   const status = m.status ?? (typeof m.goalsFor === "number" ? "finished" : "scheduled");
   const events: MatchEvent[] = (m.events ?? []).map((e, i) => clean({ ...e, id: e.id || `legacy-${i}` }));
-  const ours = events.filter(isOurGoal).length;
-  const theirs = events.filter(isRivalGoal).length;
+  const { gf: ours, ga: theirs } = score({ events });
   const gf = typeof m.goalsFor === "number" ? m.goalsFor : 0;
   const ga = typeof m.goalsAgainst === "number" ? m.goalsAgainst : 0;
   const used = new Set(events.map((e) => e.id));
@@ -148,11 +147,12 @@ function clean(e: MatchEvent): MatchEvent {
   return out;
 }
 
-/** The score, from the goals written down (complete or not). */
+/** The score, from the goals written down (complete or not); possible duplicates await review. */
 export function score(sheet: Pick<MatchSheet, "events">): { gf: number; ga: number } {
   let gf = 0;
   let ga = 0;
   for (const e of sheet.events) {
+    if (isPendingDup(e)) continue;
     if (isOurGoal(e)) gf++;
     else if (isRivalGoal(e)) ga++;
   }

@@ -2,7 +2,7 @@
 // numbered by jornada, the acta review («¿Cuadra?» — the checks MatchEditor's save and the backend's
 // saveMatchSheet apply, extracted), the convocatoria state, RSVP counts, the content gaps, and the
 // Hoy overview (Por hacer + the rail counters). Router-, React- and Firebase-free.
-import { calculateLedger, dateMillis, matchPhase, type MatchEvent } from "../../../../functions/src/matchEngine";
+import { calculateLedger, dateMillis, isPendingDup, matchPhase, type MatchEvent } from "../../../../functions/src/matchEngine";
 import type { ClubMatch } from "../../../lib/clubData";
 import { proposalState } from "../../../lib/positionsEdit";
 import { calendarOrder, jornadaNumbers } from "../../../lib/derived/jornada";
@@ -193,7 +193,7 @@ export function reviewActa(sheet: SheetLike, roster: readonly string[], now: num
   const ga = sheet.goalsAgainst ?? 0;
   const named = ledger.goalsFor;
   const missingScorers = Math.max(0, gf - named);
-  const ourGoals = events.filter((e) => GOAL_TYPES.has(e.type));
+  const ourGoals = events.filter((e) => GOAL_TYPES.has(e.type) && !isPendingDup(e));
   const assisted = ourGoals.filter((e) => e.assistPlayerId).length;
   const rival = (sheet.rival ?? "").trim();
   const items: CheckItem[] = [];
@@ -232,7 +232,9 @@ export function reviewActa(sheet: SheetLike, roster: readonly string[], now: num
   }
   // the ledger's other errors (the seven-starters rule is the convocatoria's)
   const ledgerErrors = ledger.errors.filter((e) => e !== "Selecciona exactamente 7 titulares.");
-  if (ledgerErrors.length) items.push({ key: "eventos", tone: "warn", title: "Revisa los eventos", detail: ledgerErrors[0] });
+  const pendingDuplicates = finished ? events.filter(isPendingDup).length : 0;
+  if (pendingDuplicates) ledgerErrors.unshift(`Hay ${plural(pendingDuplicates, "posible duplicado", "posibles duplicados")} sin resolver. Confirma en La mesa si son la misma jugada o dos distintas antes de publicar.`);
+  if (ledgerErrors.length) items.push({ key: "eventos", tone: "warn", title: pendingDuplicates ? "Revisa los posibles duplicados" : "Revisa los eventos", detail: ledgerErrors[0] });
   if (finished) {
     items.push({ key: "asistencias", tone: "info", title: `${assisted} de ${ourGoals.length} goles con asistencia`, detail: ourGoals.some(e=>e.assistReviewed===false) ? "Revisa las asistencias pendientes de los goles rápidos antes de publicar." : "Confirma en Publicar los goles sin asistencia que queden por revisar." });
     if (convOk && !ledgerErrors.length) items.push({ key: "minutos", tone: "ok", title: "Minutos calculados", detail: "Salen de la convocatoria y los cambios." });

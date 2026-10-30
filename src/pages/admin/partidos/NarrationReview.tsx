@@ -17,7 +17,7 @@ const PERSON_FIELDS = new Set(["playerId", "receiverId", "assistPlayerId", "inPl
 export function NarrationReview({ preview, info, onEdit, onResolve, onEditObservation, onApply, editing = false }: {
   preview: ReturnType<typeof previewNarration>; info: (id: string) => PlayerInfo;
   onEditObservation?: (observation: Observation) => void;
-  onEdit: (event: MatchEvent) => void; onResolve: (index: number, resolution: string) => void; onApply: () => void; editing?: boolean;
+  onEdit: (event: MatchEvent) => void; onResolve: (index: number, resolution: string) => void; onApply: (allowIncidents?: boolean) => void; editing?: boolean;
 }) {
   const [observationEditing, setObservationEditing] = useState(false);
   const [filter, setFilter] = useState("changes");
@@ -50,8 +50,9 @@ export function NarrationReview({ preview, info, onEdit, onResolve, onEditObserv
     {changes.length > limit && <button className="vd-btn vd-glass vd-press vd-btn--sm" type="button" onClick={() => setLimit(n => n + 30)}>Ver 30 acciones más ({changes.length - limit} pendientes)</button>}
     {!!preview.observationChanges.length && onEditObservation && <NarratedObservations observations={preview.observationChanges.map(c => c.after)} changes={preview.observationChanges} sources={preview.sources} nameOf={id => info(id).name} onSave={onEditObservation} onEditingChange={setObservationEditing} />}
     {preview.format === 'piti-actions/v2' && unresolved.length > 0 && <p>Las dudas de detalles quedan guardadas como pendientes; los hechos independientes pueden incorporarse.</p>}
-    <p>{preview.errors.length ? "Resuelve las dudas y los errores antes de incorporar el análisis." : "La secuencia es válida. Reimportar los mismos ids no duplica jugadas."}</p>
+    <p>{preview.canImportWithIncidents ? "Puedes conservar esta secuencia incompleta en el borrador y corregir los cambios después. Los minutos serán provisionales y no podrás publicar el acta hasta resolver las incidencias." : preview.errors.length ? "Resuelve las dudas y los errores antes de incorporar el análisis." : "La secuencia es válida. Reimportar los mismos ids no duplica jugadas."}</p>
     {(editing || observationEditing) && <p role="status">Guarda o cancela la acción que estás editando antes de incorporar la importación.</p>}
-    <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" disabled={preview.errors.length > 0 || editing || observationEditing} onClick={onApply}>Incorporar al acta</button>
+    <button type="button" className="vd-btn vd-glass vd-press vd-btn--pri" disabled={preview.errors.length > 0 || editing || observationEditing} onClick={() => onApply()}>Incorporar al acta</button>
+    {preview.canImportWithIncidents && <button type="button" className="vd-btn vd-glass vd-press" disabled={editing || observationEditing} onClick={() => onApply(true)}>Incorporar al borrador con incidencias</button>}
   </section>;
 }

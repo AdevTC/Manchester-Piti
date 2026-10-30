@@ -14,7 +14,7 @@ import { eventSchema } from "../../../../../functions/src/eventSchema";
 import type { Observation } from "../../../../../functions/src/narrated/types";
 import { analysisProblem } from "../../../../../functions/src/narrated/schema";
 import { addNarratedObservation, editNarratedObservation, emptyNarratedAnalysis, removeNarratedObservation } from "../../../../../functions/src/narrated/editing";
-import { correctNarrationEvent, correctNarrationObservation, narrationContext, previewNarration, resolveNarrationQuestion } from "../../../../lib/narration";
+import { correctNarrationEvent, correctNarrationObservation, narrationContext, narrationSequenceReview, previewNarration, resolveNarrationQuestion } from "../../../../lib/narration";
 import { newId, removeEvent, restoreEvent, sig, upsertEvent } from "../../acta/sheetModel";
 import { AnalysisSettings } from "../../partidos/AnalysisSettings";
 import { NarratedObservations } from "../../partidos/NarratedObservations";
@@ -61,7 +61,7 @@ export function NarracionScreen() {
     <section className="sac sac-acta" aria-label="El análisis narrado">
       <ActaNav on="narracion" />
       <div className="sac-sheet-body">
-        <Narration s={s} />
+        <Narration key={s.match.id} s={s} />
         {/* (the same acta as «Lo apuntado»: saved from here too) */}
         <ActaFoot s={s} onPublishTo={() => go(`/admin/partidos/${s.match.id}/publicar`)} />
       </div>
@@ -100,6 +100,7 @@ function Narration({ s }: { s: SheetSession }) {
   const [filter, setFilter] = useState("");
   const [page, setPage] = useState(0);
   const roster = [...sheet.starters, ...sheet.bench].map((id) => ({ id, ...info(id) }));
+  const sequenceErrors = useMemo(() => narrationSequenceReview(sheet).sequenceErrors, [sheet]);
   const actions = useMemo(() => sheet.events.filter((e) => isAnalysisAction(e.type)), [sheet.events]);
   const list = useMemo(() => actions.filter((e) => !filter || e.type === filter), [actions, filter]);
   const pages = Math.max(1, Math.ceil(list.length / 30));
@@ -150,6 +151,7 @@ function Narration({ s }: { s: SheetSession }) {
     say("");
   };
   const importPreview = () => {
+    autoReview.current = false;
     try {
       setPreview(previewNarration(text, matchId, sheet));
       say("");
@@ -167,11 +169,11 @@ function Narration({ s }: { s: SheetSession }) {
     }, 350);
     return () => window.clearTimeout(t);
   });
-  const apply = () => {
+  const apply = (allowIncidents = false) => {
     if (event) return say("Guarda o cancela la acción que estás editando antes de incorporar la importación.");
     try {
       const fresh = previewNarration(text, matchId, sheet);
-      if (fresh.errors.length) return setPreview(fresh);
+      if (fresh.errors.length && !(allowIncidents && fresh.canImportWithIncidents)) return setPreview(fresh);
       if (preview?.baseFingerprint !== fresh.baseFingerprint) {
         setPreview(fresh);
         return say("El borrador ha cambiado durante la revisión. Comprueba la comparación actualizada antes de incorporarla.");
@@ -180,8 +182,8 @@ function Narration({ s }: { s: SheetSession }) {
       setPreview(null);
       setText("");
       setFileName("");
-      status.show({ tag: "Importación", message: "Ya está en el acta · falta «Guardar borrador»" });
-      say("Ya está en el acta (goles, tarjetas, cambios y observaciones). Guárdalo con «Guardar borrador», abajo, para que no se pierda.");
+      status.show({ tag: "Importación", message: fresh.errors.length ? "Ya está en el borrador con incidencias · falta «Guardar borrador»" : "Ya está en el acta · falta «Guardar borrador»" });
+      say(fresh.errors.length ? "Conservamos las jugadas con incidencias. Pulsa «Guardar borrador», abajo, y corrige la secuencia antes de publicar." : "Ya está en el acta (goles, tarjetas, cambios y observaciones). Guárdalo con «Guardar borrador», abajo, para que no se pierda.");
     } catch (e) {
       say((e as Error).message);
     }
@@ -271,6 +273,19 @@ function Narration({ s }: { s: SheetSession }) {
           <h2 className="sc-h2">Análisis narrado · {s.j}</h2>
           <p className="sc-p">Herramienta de experto: el partido acción a acción tal como lo cuenta la narración. El acta de cada domingo (goles, tarjetas, cambios) está en «Lo apuntado».</p>
         </header>
+
+        {sequenceErrors.length > 0 && (
+          <div className="sac-bar" role="alert">
+            <p className="sac-bar__t">
+              <b>Minutos provisionales</b>
+              <span>Faltan cambios o hay acciones fuera de la secuencia de jugadores en campo. Puedes guardar el borrador; no se puede publicar el acta hasta corregirlo.</span>
+            </p>
+            <details>
+              <summary>Ver {sequenceErrors.length} incidencias de la secuencia</summary>
+              <ul className="sac-bar__list">{sequenceErrors.map((error, i) => <li key={i}>{error}</li>)}</ul>
+            </details>
+          </div>
+        )}
 
         <section className="sc-sec sac-sec" aria-labelledby="sac-cov-t">
           <h3 className="sc-h3" id="sac-cov-t">

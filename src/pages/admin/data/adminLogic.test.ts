@@ -132,6 +132,17 @@ describe("reviewActa («¿Cuadra?»)", () => {
     expect(loose.unassigned).toBe(1);
     expect(loose.items.find((i) => i.key === "convocatoria")?.title).toBe("Hay 1 jugador sin asignar");
   });
+  it("does not declare a finished acta ready until possible duplicates are resolved", () => {
+    const full = { ...draft7, events: [...draft7.events, goal("g3", 46, "p3")] };
+    const duplicate = { ...full.events[0], id: "duplicate", dupOf: "g1" };
+    const pending = reviewActa({ ...full, events: [...full.events, duplicate] }, ROSTER, NOW);
+    expect(pending).toMatchObject({ cuadra: false, goalsFor: 3, named: 3, missingScorers: 0, assisted: 2, ours: 3 });
+    expect(pending.items.find(item => item.key === "eventos")).toMatchObject({ tone: "warn", title: "Revisa los posibles duplicados", detail: expect.stringContaining("1 posible duplicado") });
+    expect(pending.steps.find(step => step.key === "publicar")?.summary).toBe("pendiente");
+    const confirmed = reviewActa({ ...full, goalsFor: 4, events: [...full.events, { ...duplicate, dupOk: true }] }, ROSTER, NOW);
+    expect(confirmed).toMatchObject({ cuadra: true, goalsFor: 4, named: 4, assisted: 3, ours: 4 });
+    expect(reviewActa(full, ROSTER, NOW).cuadra).toBe(true);
+  });
   it("asks to mark a played match as finished", () => {
     const r = reviewActa(published[1], ROSTER, NOW);
     expect(r.items[0]).toMatchObject({ key: "encuentro", tone: "warn", title: "Márcalo como finalizado" });
