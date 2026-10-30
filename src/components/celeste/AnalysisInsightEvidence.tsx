@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { DEFAULT_ANALYSIS_PROFILE, type AnalysisFilters, type MetricResult } from "../../../functions/src/narrated/types";
-import { isPass, passComplete } from "../../../functions/src/narrated/operators";
+import { isGoal, isPass, passComplete } from "../../../functions/src/narrated/operators";
 import { insightEvidence } from "../../lib/analysisInsights";
 import { workspaceMetricValue, type WorkspacePerson } from "../../lib/analysisWorkspace";
 import { formatDate, type ClubMatch } from "../../lib/clubData";
@@ -22,7 +22,7 @@ export function AnalysisInsightEvidence({ matches, people, result }: { matches: 
     const name = (id: string) => event.team === "opponent" ? names.get(JSON.stringify([event.matchId, id])) ?? names.get(id) : names.get(id);
     const profile = match?.analysis?.profile ?? DEFAULT_ANALYSIS_PROFILE;
     const completion = isPass(event, profile) ? passComplete(event, profile) : undefined;
-    const outcome = completion === true ? "Completado" : completion === false ? "Fallido" : OUTCOMES[String(event.facts.outcome)] ?? "Resultado sin precisar";
+    const outcome = isGoal(event) ? event.facts.ownGoal === true ? "Gol en propia puerta" : "Gol" : completion === true ? "Completado" : completion === false ? "Fallido" : OUTCOMES[String(event.facts.outcome)] ?? "Resultado sin precisar";
     return <li key={event.evidenceId}><span className="ai-event-time">{event.period ? `${event.period}.ª · ` : ""}{event.time ? `${event.time.precision === "approximate" ? "≈" : ""}${clock(event.time.from)}${event.time.to !== event.time.from ? `–${clock(event.time.to)}` : ""}` : "Sin minuto"}</span><div><b>{LABELS[event.aggregate?.kind ?? event.kind] ?? "Jugada"} · {actor ? name(actor) ?? "Jugador no identificado" : event.team === "opponent" ? "El rival" : "El Piti"}{destination ? ` → ${name(destination) ?? "Receptor no identificado"}` : ""}</b><small>{outcome}{event.quantity && event.quantity > 1 ? ` · ${event.quantity} acciones agrupadas` : ""}</small>{match && <Link to="/partidos/$matchId/numeros" params={{ matchId: match.id }} search={{}}>Abrir partido · {formatDate(match.date)} · {match.rival ?? "Rival"} ↗</Link>}</div></li>;
   })}</ol>}{rows.length > limit && <div className="gc-actions"><button type="button" className="vd-glass vd-btn vd-press ai-btn" onClick={() => setLimit(previous => previous + 12)}>Ver más jugadas ({limit}/{rows.length})</button></div>}</div>;
 }

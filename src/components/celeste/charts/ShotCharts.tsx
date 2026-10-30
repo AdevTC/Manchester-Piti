@@ -54,20 +54,20 @@ export function ShotGoal({ rows, counts, people, rival, pick, onPick, them }: Co
 
 /* ---------- Embudo ---------- */
 
-interface Block { kind: "all" | "parado" | "gol" | "fuera" | "bloqueado" | "nd"; n: number; label: string; x: number; w: number; pick?: ShotPick; of?: number }
+interface Block { kind: "all" | "parado" | "gol" | "madera" | "fuera" | "bloqueado" | "nd"; n: number; label: string; x: number; w: number; pick?: ShotPick; of?: number }
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const ribbon = (sx: number, sw: number, x: number, w: number) => `M${r1(sx)} 0C${r1(sx)} 22 ${r1(x)} 22 ${r1(x)} 44L${r1(x + w)} 44C${r1(x + w)} 22 ${r1(sx + sw)} 22 ${r1(sx + sw)} 0Z`;
 
 export function ShotFunnel({ figures, pick, onPick, them }: Common & { figures: FunnelFigures }) {
   const gid = svgId(useId());
-  const { total, onTarget, off, blocked, unknown, goals, saved } = figures;
+  const { total, onTarget, woodwork, off, blocked, unknown, goals, saved } = figures;
   const T = Math.max(1, total), gap = 1.2;
-  const parts: Block[] = ([["all", onTarget, "A puerta", { kind: "metric", id: "030" }], ["fuera", off, "Fuera", { kind: "metric", id: "031" }], ["bloqueado", blocked, "Bloqueados", { kind: "metric", id: "032" }], ["nd", unknown, "Sin precisar", { kind: "cat", cat: "nd" }]] as const).filter(p => p[1] > 0).map(([kind, n, label, choice]) => ({ kind, n, label, pick: choice, x: 0, w: 0 }));
+  const parts: Block[] = ([["all", onTarget, "A puerta", { kind: "metric", id: "030" }], ["madera", woodwork, "A la madera", { kind: "funnel", cat: "madera" }], ["fuera", off, "Fuera", { kind: "funnel", cat: "fuera" }], ["bloqueado", blocked, "Bloqueados", { kind: "funnel", cat: "bloqueado" }], ["nd", unknown, "Sin precisar", { kind: "funnel", cat: "nd" }]] as const).filter(p => p[1] > 0).map(([kind, n, label, choice]) => ({ kind, n, label, pick: choice, x: 0, w: 0 }));
   const avail = 100 - gap * Math.max(0, parts.length - 1);
   const rib1: { d: string; cls: string }[] = [];
   let x = 0, src = 0, door: [number, number] = [0, 0];
   for (const p of parts) { p.x = x; p.w = avail * p.n / T; const sw = 100 * p.n / T; rib1.push({ d: ribbon(src, sw, x, p.w), cls: "" }); if (p.label === "A puerta") door = [x, p.w]; src += sw; x += p.w + gap; }
-  const kids: Block[] = onTarget > 0 ? ([["gol", goals, them ? "Goles del rival" : "Goles", { kind: "metric", id: "015" }], ["parado", saved, "Parados", { kind: "cat", cat: "parado" }]] as const).filter(k => k[1] > 0).map(([kind, n, label, choice]) => ({ kind, n, label, pick: choice, x: 0, w: 0, of: onTarget })) : [];
+  const kids: Block[] = onTarget > 0 ? ([["gol", goals, them ? "Goles del rival" : "Goles", { kind: "funnel", cat: "gol" }], ["parado", saved, "Parados", { kind: "funnel", cat: "parado" }]] as const).filter(k => k[1] > 0).map(([kind, n, label, choice]) => ({ kind, n, label, pick: choice, x: 0, w: 0, of: onTarget })) : [];
   const rib2: { d: string; cls: string }[] = [];
   { const g2 = kids.length > 1 ? gap : 0, span = Math.max(door[1], 44), av = span - g2; let xx = Math.max(0, Math.min(door[0] + door[1] / 2 - span / 2, 100 - span)), ss = door[0];
     for (const k of kids) { k.x = xx; k.w = av * k.n / onTarget; const sw = door[1] * k.n / onTarget; rib2.push({ d: ribbon(ss, sw, xx, k.w), cls: k.kind === "gol" && !them ? "is-gold" : "" }); xx += k.w + g2; ss += sw; } }
@@ -86,7 +86,7 @@ export function ShotFunnel({ figures, pick, onPick, them }: Common & { figures: 
     <div className="gs-ic__row">{parts.map(block)}</div>
     {kids.length > 0 && <><svg className="gs-ic__rib" viewBox="0 0 100 44" preserveAspectRatio="none" aria-hidden="true">{rib2.map(r => <path key={r.d} d={r.d} fill={r.cls ? `url(#${gid}-g)` : fill}/>)}</svg>
       <div className="gs-ic__row">{kids.map(block)}</div></>}
-    <p className="gs-ickey">Remates {total} → a puerta {onTarget} · fuera {off} · bloqueados {blocked}{unknown ? ` · sin precisar ${unknown}` : ""} → goles {goals}{saved ? ` · parados ${saved}` : ""}. Gol por tiro a puerta: {chartPercent(goals, onTarget)}.</p>
+    <p className="gs-ickey">Remates {total} → a puerta {onTarget} · madera {woodwork} · fuera {off} · bloqueados {blocked}{unknown ? ` · sin precisar ${unknown}` : ""} → goles {goals}{saved ? ` · parados ${saved}` : ""}. Gol por tiro a puerta: {chartPercent(goals, onTarget)}.</p>
   </div>;
 }
 
@@ -110,7 +110,7 @@ export function ShotMinutes({ timeline, people, rival, pick, onPick }: Common & 
     <p className="gs-tl__lab gs-tl__lab--them"><span>{rival}</span><span>{line(timeline.them)}</span></p>
     <div className="gs-ticks" aria-hidden="true">{timeline.ticks.map((t, i) => <span key={i} style={{ left: `${t.x}%` }}>{chartClock(t.second)}</span>)}</div>
     <p className="gc-legend"><span><i className="gc-sw gs-sw gs-sw--gol" aria-hidden="true"/>Gol nuestro</span><span><i className="gc-sw gs-sw gs-sw--gol is-them" aria-hidden="true"/>Gol del rival</span><span><i className="gc-sw gs-sw gs-sw--fill" aria-hidden="true"/>Dentro del área o sin precisar</span><span><i className="gc-sw gs-sw gs-sw--ring" aria-hidden="true"/>Desde fuera del área</span></p>
-    {timeline.skipped > 0 && <p className="gc-note">{timeline.skipped} {timeline.skipped === 1 ? "remate no se dibuja" : "remates no se dibujan"}: sin minuto o con un intervalo de más de diez minutos.</p>}
+    {timeline.skipped > 0 && <p className="gc-note">{timeline.skipped} {timeline.skipped === 1 ? "remate no se dibuja" : "remates no se dibujan"}: sin tiempo fiable dentro de su parte, sin límites de parte registrados o con un intervalo de más de diez minutos. Siguen incluidos en los totales.</p>}
   </div>;
 }
 
@@ -132,7 +132,7 @@ export function ShotWho({ rows, pick, onPick, them }: Common & { rows: readonly 
         <span className="gs-who__name">{row.key === UNKNOWN_SHOOTER ? <span className="vd-shirt gs-who__shirt" style={{ "--s": "30px" } as CSSProperties} aria-hidden="true"><b>·</b></span> : <Shirt number={row.number}/>}<span className={them ? "gs-who__rival" : undefined}>{row.name}</span></span>
         <span className="gs-who__bar" aria-hidden="true">{SEG_ORDER.filter(k => row.counts[k]).map(k => <i key={k} className={`gs-wseg gs-wseg--${k}`} style={{ width: `${r1(row.counts[k] / max * 100)}%` }}/>)}</span>
         <span className="gs-who__n">{row.total}</span>
-        <span className="gs-who__sub">{whoSummary(row.counts)}</span>
+        <span className="gs-who__sub">{whoSummary(row.counts, totalShots(row.rows.filter(shot => shot.onTarget || shot.outcome === "gol")))}</span>
       </button></li>; })}</ol>
     <p className="gc-legend"><span><i className="gc-sw gs-wsw gs-wseg--gol" aria-hidden="true"/>Gol</span><span><i className="gc-sw gs-wsw gs-wseg--parado" aria-hidden="true"/>Parado</span><span><i className="gc-sw gs-wsw gs-wseg--madera" aria-hidden="true"/>A la madera</span><span><i className="gc-sw gs-wsw gs-wseg--bloqueado" aria-hidden="true"/>Bloqueado</span><span><i className="gc-sw gs-wsw gs-wseg--fuera" aria-hidden="true"/>Fuera</span>{rows.some(row => row.counts.nd) && <span><i className="gc-sw gs-wsw gs-wseg--nd" aria-hidden="true"/>Sin precisar</span>}</p>
   </>;

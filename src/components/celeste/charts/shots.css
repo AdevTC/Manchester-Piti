@@ -73,6 +73,7 @@
 .gc-root .gs-icb--all{background:color-mix(in srgb,var(--gs-us) 75%,transparent)}
 .gc-root .gs-icb--gol{background:var(--gs-gold)}
 .gc-root .gs-icb--parado{background:color-mix(in srgb,var(--gs-us) 55%,transparent)}
+.gc-root .gs-icb--madera{background:transparent;border:2px solid var(--vd-ink2);color:var(--vd-ink)}
 .gc-root .gs-icb--fuera{background:transparent;border:1.5px solid var(--vd-rule2);color:var(--vd-ink)}
 .gc-root .gs-icb--bloqueado{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--vd-ink) 22%,transparent) 0 6px,transparent 6px 11px);border:1.5px solid var(--vd-rule2);color:var(--vd-ink)}
 .gc-root .gs-icb--nd{background:transparent;border:1.5px dashed var(--vd-rule2);color:var(--vd-ink2)}
@@ -80,7 +81,7 @@
 .gc-root .gs-icb.is-them.gs-icb--all{background:color-mix(in srgb,var(--gs-them) 75%,transparent)}
 .gc-root .gs-icb.is-them.gs-icb--gol{background:var(--gs-them)}
 .gc-root .gs-icb.is-them.gs-icb--parado{background:color-mix(in srgb,var(--gs-them) 50%,transparent)}
-.gc-root .gs-icb.is-them.gs-icb--fuera,.gc-root .gs-icb.is-them.gs-icb--bloqueado,.gc-root .gs-icb.is-them.gs-icb--nd{color:var(--vd-ink)}
+.gc-root .gs-icb.is-them.gs-icb--madera,.gc-root .gs-icb.is-them.gs-icb--fuera,.gc-root .gs-icb.is-them.gs-icb--bloqueado,.gc-root .gs-icb.is-them.gs-icb--nd{color:var(--vd-ink)}
 .gc-root .gs-icb.is-narrow{padding:0;align-items:center}
 .gc-root .gs-icb.is-narrow>span,.gc-root .gs-icb.is-narrow>small{display:none}
 .gc-root .gs-icb[aria-pressed="true"]{box-shadow:0 0 0 2px var(--vd-ink-strong)}

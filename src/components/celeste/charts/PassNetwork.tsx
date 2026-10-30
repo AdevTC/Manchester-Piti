@@ -1,6 +1,8 @@
 import { useId, useMemo, useState } from "react";
+import { evaluateNarrated } from "../../../../functions/src/narrated/engine";
+import type { MetricResult } from "../../../../functions/src/narrated/types";
 import { buildPassingNetwork } from "../../../lib/statsCharts";
-import { formatWorkspaceMetric, selectAnalysisMatches } from "../../../lib/analysisWorkspace";
+import { formatWorkspaceMetric, selectAnalysisMatches, workspaceMetricValue } from "../../../lib/analysisWorkspace";
 import type { PassConnection } from "../../../lib/analysisInsights";
 import { byPosition, chartPositions, type ChartPosition } from "../../../lib/chartPositions";
 import { POSITIONS } from "../../../lib/positions";
@@ -42,6 +44,13 @@ export function PassNetworkView({ matches, people, filters = {}, onInspect }: Ch
   const hasPositions = nodes.some(n => positions.has(n.id));
   const view: NetworkView = hasPositions ? viewPick : "circulo";
   const node = byId.has(picked) ? picked : "";
+  // A player's accuracy includes passes with an unidentified recipient. The network's
+  // cells intentionally omit those passes, so they cannot supply his personal total.
+  const playerMetrics = useMemo(() => {
+    if (!node || rival) return new Map<string, MetricResult>();
+    const scope = { ...filters, playerIds: [node] };
+    return new Map(evaluateNarrated(selectAnalysisMatches(sample, scope), scope, ["001", "070"]).map(result => [result.id, result]));
+  }, [node, rival, sample, filters]);
   const pair = chosen.filterKey === filterKey ? edges.find(e => e.key === chosen.pair) : undefined;
   const setPair = (key: string) => setChosen({ filterKey, pair: key });
   const pickNode = (id: string) => { setPicked(id); setPair(""); };
@@ -116,7 +125,7 @@ export function PassNetworkView({ matches, people, filters = {}, onInspect }: Ch
         {notes}
       </>}
       side={<div className="pn-side">
-        {me && <PlayerCard me={me} rival={rival} position={positions.get(me.id)} seconds={secondsIn(sample, me.id)} period={!!filters.period} edges={edges} cells={data.cells} nameOf={nameOf} onClear={() => pickNode("")}/>}
+        {me && <PlayerCard me={me} rival={rival} position={positions.get(me.id)} participation={playerMetrics.get("001")} accuracy={playerMetrics.get("070")} period={!!filters.period} edges={edges} cells={data.cells} nameOf={nameOf} onClear={() => pickNode("")}/>}
         <h4 className="gc-sh">{me ? `Conexiones de ${me.name}` : "Quién se encuentra"}</h4>
         <p className="gc-note">De quien pasa a quien recibe. Elige una pareja para ver sus jugadas.</p>
         <ol className="gc-rows pn-pairs" aria-label="Conexiones de la red">{listed.map(e => <li key={e.key}>
@@ -155,12 +164,8 @@ export function PassNetworkView({ matches, people, filters = {}, onInspect }: Ch
   </div>;
 }
 
-function secondsIn(sample: readonly ChartProps["matches"][number][], id: string) {
-  return sample.reduce((s, m) => { const p = m.ledger?.[id]; return s + (!p ? 0 : typeof p.secondsPlayed === "number" ? p.secondsPlayed : typeof p.minutes === "number" ? p.minutes * 60 : 0); }, 0);
-}
-
-function PlayerCard({ me, rival, position, seconds, period, edges, cells, nameOf, onClear }: {
-  me: { id: string; name: string; number?: number | string | null; sent: number; received: number }; rival: boolean; position: ChartPosition | undefined; seconds: number; period: boolean;
+function PlayerCard({ me, rival, position, participation, accuracy, period, edges, cells, nameOf, onClear }: {
+  me: { id: string; name: string; number?: number | string | null; sent: number; received: number }; rival: boolean; position: ChartPosition | undefined; participation: MetricResult | undefined; accuracy: MetricResult | undefined; period: boolean;
   edges: readonly Edge[]; cells: readonly PassConnection[]; nameOf: (id: string) => string; onClear: () => void;
 }) {
   const own = cells.filter(c => c.from === me.id);
@@ -168,8 +173,8 @@ function PlayerCard({ me, rival, position, seconds, period, edges, cells, nameOf
   const partner = new Map<string, number>();
   for (const e of edges) { const other = e.from === me.id ? e.to : e.to === me.id ? e.from : ""; if (other) partner.set(other, (partner.get(other) ?? 0) + e.completed); }
   const best = [...partner].sort((a, b) => b[1] - a[1])[0];
-  const minutes = Math.round(seconds / 60);
-  const role = `${position ? POSITIONS[position.main].name : rival ? "Rival" : "Jugador"}${minutes ? ` · ${minutes}′ en el campo` : ""}`;
+  const minutes = workspaceMetricValue(participation);
+  const role = `${position ? POSITIONS[position.main].name : rival ? "Rival" : "Jugador"}${minutes != null ? ` · ${chartNumber.format(minutes)}′ en el campo` : rival ? "" : " · Minutos sin determinar"}`;
   return <div className="pn-card">
     <div className="pn-card__top">
       <NetShirt num={me.number == null ? undefined : String(me.number)} size={46} rival={rival}/>
@@ -179,8 +184,8 @@ function PlayerCard({ me, rival, position, seconds, period, edges, cells, nameOf
     <dl className="pn-card__stats">
       <div><dt>Pases que da</dt><dd>{me.sent}</dd></div>
       <div><dt>Pases que recibe</dt><dd>{me.received}</dd></div>
-      <div><dt>Acierto con resultado conocido</dt><dd>{chartPercent(c, c + x)}</dd></div>
-      {period ? <div><dt>Pases dados en la parte</dt><dd>{me.sent}</dd></div> : <div><dt>Pases dados por cada 10′</dt><dd>{seconds ? chartNumber.format(me.sent / (seconds / 600)) : "-"}</dd></div>}
+      <div><dt>{rival ? "Acierto entre parejas identificadas" : "Acierto con resultado conocido"}</dt><dd>{rival ? chartPercent(c, c + x) : formatWorkspaceMetric(accuracy)}</dd></div>
+      {period ? <div><dt>Pases dados en la parte</dt><dd>{me.sent}</dd></div> : <div><dt>Pases dados por cada 10′</dt><dd>{minutes != null && minutes > 0 ? chartNumber.format(me.sent / (minutes / 10)) : "-"}</dd></div>}
     </dl>
     <p className="pn-story">{best ? <>Su socio es <b>{nameOf(best[0])}</b>: {passes(best[1])} entre los dos, en las dos direcciones.</> : "Aún sin parejas con pases completados."}</p>
   </div>;

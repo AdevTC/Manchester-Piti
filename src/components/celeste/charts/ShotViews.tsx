@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { MetricResult } from "../../../../functions/src/narrated/types";
 import { formatWorkspaceMetric, workspaceMetricValue } from "../../../lib/analysisWorkspace";
-import { SHOT_OUTCOME_MANY, SHOT_OUTCOME_METRIC, SHOT_OUTCOME_ONE, UNKNOWN_SHOOTER, buildShotOutcomes, buildShotTimeline, funnelFigures, rivalLabel, shotsByPlayer, totalShots, type ShotRow } from "../../../lib/shotOutcomes";
+import { SHOT_OUTCOME_MANY, SHOT_OUTCOME_METRIC, SHOT_OUTCOME_ONE, UNKNOWN_SHOOTER, buildShotOutcomes, buildShotTimeline, funnelFigures, funnelOutcome, rivalLabel, shotsByPlayer, totalShots, type ShotRow } from "../../../lib/shotOutcomes";
 import { AnalysisInsightEvidence } from "../AnalysisInsights";
 import { MetricState } from "../MetricState";
 import { ChartHero, ChartHow, ChartKpis, ChartStage, ChartViews, type ChartProps, type ChartSegOpt } from "./parts";
@@ -34,7 +34,7 @@ export function ShotViews({ matches, people, filters = {}, onInspect }: ChartPro
   const shooters = useMemo(() => shotsByPlayer(data.rows, people, them, rival), [data.rows, people, them, rival]);
   const pool: readonly ShotRow[] = timeline ? [...timeline.us, ...timeline.them] : data.rows;
   // A choice that the new sample no longer holds falls back to all the shots instead of leaking old plays.
-  const pick: ShotPick = rawPick.kind === "shot" && !pool.some(row => row.event.evidenceId === rawPick.id) || rawPick.kind === "cat" && !data.counts[rawPick.cat] || rawPick.kind === "who" && !shooters.some(row => row.key === rawPick.key) ? DEFAULT_PICK : rawPick;
+  const pick: ShotPick = rawPick.kind === "shot" && !pool.some(row => row.event.evidenceId === rawPick.id) || (rawPick.kind === "cat" && !data.counts[rawPick.cat] || rawPick.kind === "funnel" && !data.rows.some(row => funnelOutcome(row) === rawPick.cat)) || rawPick.kind === "who" && !shooters.some(row => row.key === rawPick.key) ? DEFAULT_PICK : rawPick;
   const choose = (next: View) => { setView(next); setPick(previous => previous.kind === "metric" ? previous : DEFAULT_PICK); };
 
   const total = data.value("029") ?? data.total;
@@ -51,7 +51,7 @@ export function ShotViews({ matches, people, filters = {}, onInspect }: ChartPro
     else {
       const head = `${plural(goals, "gol", "goles")} en ${plural(total, "remate", "remates")}${goals ? `: uno de cada ${chartNumber.format(total / goals)}` : ""}`;
       const onTarget = data.value("030");
-      hero = { title: them ? `${rival}: ${head}` : head, text: `${fmt(onTarget)} a puerta (${chartPercent(onTarget ?? 0, total)}), ${fmt(data.value("032"))} bloqueados y ${fmt(data.value("031"))} fuera.${!them && top.length ? ` ${top[0].name} remata ${top[0].total === 1 ? "una vez" : `${top[0].total} veces`}.` : ""}` };
+      hero = { title: them ? `${rival}: ${head}` : head, text: `${fmt(onTarget)} a puerta (${onTarget == null ? "sin precisar" : chartPercent(onTarget, total)}), ${fmt(data.value("032"))} bloqueados y ${fmt(data.value("031"))} fuera.${!them && top.length ? ` ${top[0].name} remata ${top[0].total === 1 ? "una vez" : `${top[0].total} veces`}.` : ""}` };
     }
   }
   const kpis = view === "minutos" && timeline ? [
@@ -68,6 +68,7 @@ export function ShotViews({ matches, people, filters = {}, onInspect }: ChartPro
 
   const maxBar = Math.max(1, ...data.chart.bars.map(bar => workspaceMetricValue(bar.result) ?? 0));
   const outside = totalShots(data.rows.filter(row => row.outside));
+  const located = totalShots(data.rows.filter(row => row.outside != null));
   const side = <>
     <h4 className="gc-sh">Cómo terminan</h4>
     <ol className="gc-rows gs-mlist" aria-label="Remates por resultado">{data.chart.bars.map(bar => { const value = workspaceMetricValue(bar.result); return <li key={bar.id}>
@@ -79,8 +80,9 @@ export function ShotViews({ matches, people, filters = {}, onInspect }: ChartPro
     <dl className="gs-rates">
       <div className="gs-rate"><dt>de los remates, a puerta</dt><dd>{data.value("030") == null ? "-" : chartPercent(data.value("030")!, total)}</dd></div>
       <div className="gs-rate"><dt>de los remates, gol</dt><dd>{data.rows.length ? chartPercent(goals, total) : "-"}</dd></div>
-      <div className="gs-rate"><dt>desde fuera del área</dt><dd>{data.rows.length ? chartPercent(outside, data.total) : "-"}</dd></div>
+      <div className="gs-rate"><dt>desde fuera, con zona conocida</dt><dd>{chartPercent(outside, located)}</dd></div>
     </dl>
+    {located < data.total && <p className="gc-note">Zona registrada en {located} de {data.total} remates; los demás no se suponen dentro del área.</p>}
   </>;
 
   return <div className="gs">
@@ -90,10 +92,10 @@ export function ShotViews({ matches, people, filters = {}, onInspect }: ChartPro
     <ChartStage chart={chart} side={view === "minutos" ? undefined : side}/>
     <ShotDetail pick={pick} data={data} pool={pool} shooters={shooters} them={them} rival={rival} matches={matches} people={people} filters={filters} onInspect={onInspect} onClose={() => setPick(DEFAULT_PICK)}/>
     <ChartHow>{view === "porteria" ? <><p>Cada punto es un remate, colocado en la zona de cómo acabó: dentro de la red los goles, abajo los parados, sobre los palos los que dieron en la madera, delante el muro de los bloqueados y fuera de la portería los que se fueron fuera.</p><p>La zona dice cómo acabó, no por dónde entró: la narración no guarda el punto exacto. Un remate que tocó la madera y acabó en gol se dibuja como gol. Los puntos sin resultado claro van abajo a la izquierda, como «sin precisar».</p></>
-      : view === "embudo" ? <p>De arriba abajo, cómo se va quedando por el camino cada remate: primero si va a puerta, fuera o lo bloquean; después, de los que van a puerta, cuántos acaban en gol. El ancho de cada bloque es su parte del total. Las cifras son las del catálogo de estadísticas de esta selección.</p>
-      : view === "minutos" ? <p>Los dos equipos en la misma línea de tiempo: arriba los remates del Piti, abajo los del rival. Cada punto se coloca en la mitad del intervalo que dio la narración (un remate entre el 3′ y el 4′ va en el 3′ 30″), contado desde el inicio de su parte. Con varios partidos se superponen en el mismo reloj. Los del rival no siguen el filtro de jugadores.</p>
+      : view === "embudo" ? <p>De arriba abajo, cómo se va quedando por el camino cada remate: primero si va a puerta, da en la madera sin ir a puerta, sale fuera o lo bloquean; después, de los que van a puerta, cuántos acaban en gol. El ancho de cada bloque es su parte del total. Cada remate ocupa una sola rama: un gol o una parada que toca el palo sigue en «a puerta».</p>
+      : view === "minutos" ? <p>Los dos equipos en la misma línea de tiempo: arriba los remates del Piti, abajo los del rival. Cada punto se coloca en la mitad del intervalo que dio la narración (un remate entre el 3′ y el 4′ va en el 3′ 30″), contado desde el inicio de su parte. Con varios partidos se superponen en el mismo reloj. Solo se dibujan tiempos fiables dentro de partes con límites registrados. Los del rival incluyen esos mismos partidos, sin restringir quién remata.</p>
       : <p>{them ? "En las actas del rival casi nunca consta quién remata: sus remates se agrupan en una sola fila." : "Los remates de cada jugador, partidos por cómo acabaron. La barra más larga es quien más remata; el dorado, los goles. Toca un jugador para ver sus remates uno a uno."}</p>}
-      <p>Las cifras de «Cómo terminan» son las del catálogo y se solapan; en el dibujo cada remate cuenta una sola vez, con este orden: gol, madera, parado, bloqueado y fuera.</p>
+      <p>Las cifras de «Cómo terminan» son las del catálogo y se solapan; en la portería y las barras por jugador cada remate cuenta una sola vez, con este orden: gol, madera, parado, bloqueado y fuera.</p>
     </ChartHow>
   </div>;
 }
@@ -115,14 +117,14 @@ function ShotDetail({ pick, data, pool, shooters, them, rival, matches, people, 
     </section>;
   }
   const base = data.result("029");
-  const rows = pick.kind === "shot" ? pool.filter(row => row.event.evidenceId === pick.id) : pick.kind === "cat" ? data.rows.filter(row => row.outcome === pick.cat) : shooters.find(row => row.key === pick.key)?.rows ?? [];
+  const rows = pick.kind === "shot" ? pool.filter(row => row.event.evidenceId === pick.id) : pick.kind === "cat" ? data.rows.filter(row => row.outcome === pick.cat) : pick.kind === "funnel" ? data.rows.filter(row => funnelOutcome(row) === pick.cat) : shooters.find(row => row.key === pick.key)?.rows ?? [];
   const n = totalShots(rows);
   const result: MetricResult = { ...base, value: n, status: "complete", observed: n, pending: 0, evidenceEventIds: rows.map(row => row.event.evidenceId) };
   const first = rows[0];
   const head = pick.kind === "shot" && first ? { k: "Remate elegido", title: `${SHOT_OUTCOME_ONE[first.outcome]}${first.outside ? " · desde fuera del área" : ""}`, value: shotTime(first), why: `${shooterName(first, people, rival)}. La zona del dibujo es cómo acabó, no por dónde fue.` }
-    : pick.kind === "cat" ? { k: them ? rival : "Manchester Piti", title: SHOT_OUTCOME_MANY[pick.cat], value: String(n), why: "Remates dibujados en esta zona. Un remate cuenta una sola vez en el dibujo, aunque en las cifras del catálogo pueda estar en varias categorías." }
+    : pick.kind === "cat" || pick.kind === "funnel" ? { k: them ? rival : "Manchester Piti", title: SHOT_OUTCOME_MANY[pick.cat], value: String(n), why: "Remates dibujados en esta zona. Un remate cuenta una sola vez en el dibujo, aunque en las cifras del catálogo pueda estar en varias categorías." }
     : { k: "Remates de", title: shooters.find(row => row.key === (pick.kind === "who" ? pick.key : ""))?.name ?? "", value: String(n), why: "" };
-  const metric = pick.kind === "cat" ? SHOT_OUTCOME_METRIC[pick.cat] : undefined;
+  const metric = pick.kind === "cat" || pick.kind === "funnel" ? SHOT_OUTCOME_METRIC[pick.cat] : undefined;
   const player = pick.kind === "who" && !them && pick.key !== UNKNOWN_SHOOTER ? pick.key : undefined;
   return <section className="gc-detail" aria-label="Remates elegidos">
     <header className="gc-detail__head"><div><p className="gc-detail__k">{head.k}</p><h4>{head.title}</h4></div><div className="gc-detail__val"><strong>{head.value}</strong></div></header>

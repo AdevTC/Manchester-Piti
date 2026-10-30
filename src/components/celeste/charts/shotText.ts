@@ -3,7 +3,7 @@ import { SHOT_OUTCOME_ONE, type ShotCounts, type ShotOutcome, type ShotRow } fro
 import { chartClock } from "./format";
 
 /** What the chart has chosen: a catalogue metric (the side list), one shot, a drawn category or a shooter. */
-export type ShotPick = { kind: "metric"; id: string } | { kind: "shot"; id: string } | { kind: "cat"; cat: ShotOutcome } | { kind: "who"; key: string };
+export type ShotPick = { kind: "metric"; id: string } | { kind: "shot"; id: string } | { kind: "cat"; cat: ShotOutcome } | { kind: "funnel"; cat: ShotOutcome } | { kind: "who"; key: string };
 
 /** «1.ª · 23′ 10″» for a shot, as the plays list writes it. */
 export function shotTime(row: ShotRow): string {
@@ -16,7 +16,6 @@ export function shooterName(row: ShotRow, people: readonly WorkspacePerson[], ri
 }
 export const shotLabel = (row: ShotRow, people: readonly WorkspacePerson[], rival: string) => `${SHOT_OUTCOME_ONE[row.outcome]} · ${shooterName(row, people, rival)} · ${shotTime(row)}${row.outside ? " · desde fuera del área" : ""}`;
 
-export function whoSummary(c: ShotCounts): string {
-  const onTarget = c.gol + c.parado;
+export function whoSummary(c: ShotCounts, onTarget: number): string {
   return [c.gol ? `${c.gol} ${c.gol === 1 ? "gol" : "goles"}` : "", `${onTarget} a puerta`, c.bloqueado ? `${c.bloqueado} ${c.bloqueado === 1 ? "bloqueado" : "bloqueados"}` : "", c.fuera ? `${c.fuera} fuera` : ""].filter(Boolean).join(" · ");
 }

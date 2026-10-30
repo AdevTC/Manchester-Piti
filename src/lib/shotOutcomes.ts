@@ -14,7 +14,7 @@ export const SHOT_OUTCOME_MANY: Record<ShotOutcome, string> = { gol: "Goles", ma
 /** The catalogue metric behind each drawn category (parado is «a puerta» minus goals, so it points at 030). */
 export const SHOT_OUTCOME_METRIC: Partial<Record<ShotOutcome, string>> = { gol: "015", madera: "033", parado: "030", bloqueado: "032", fuera: "031" };
 
-export interface ShotRow { event: ScopedObservation; outcome: ShotOutcome; outside: boolean; count: number; shooter?: string }
+export interface ShotRow { event: ScopedObservation; outcome: ShotOutcome; onTarget: boolean; outside?: boolean; count: number; shooter?: string }
 export type ShotCounts = Record<ShotOutcome, number>;
 type ShotChart = ReturnType<typeof buildShotChart>;
 
@@ -41,7 +41,7 @@ export function buildShotOutcomes(matches: readonly NarratedMatch[], filters: An
   const sets = new Map(chart.bars.map(bar => [bar.id as string, new Set(bar.result.evidenceEventIds)]));
   const shots = results.get("029")!;
   const events = shots.evidenceEventIds.length ? insightEvidence(selectAnalysisMatches(matches, filters), shots.evidenceEventIds) : [];
-  const rows = events.map(event => ({ event, outcome: classifyShot(event.evidenceId, sets), outside: event.facts.outsideArea === true, count: quantity(event), shooter: event.team === "us" ? event.actorId : undefined }));
+  const rows = events.map(event => ({ event, outcome: classifyShot(event.evidenceId, sets), onTarget: sets.get("030")?.has(event.evidenceId) ?? false, outside: typeof event.facts.outsideArea === "boolean" ? event.facts.outsideArea : event.facts.zone === "opponent_area" ? false : undefined, count: quantity(event), shooter: event.team === "us" ? event.actorId : undefined }));
   return { chart, rows, counts: countShots(rows), total: totalShots(rows), value: id => workspaceMetricValue(results.get(id)), result: id => results.get(id)! };
 }
 
@@ -86,13 +86,14 @@ export function goalDots(rows: readonly ShotRow[]): GoalDot[] {
 
 /* ---------- Embudo ---------- */
 
-export interface FunnelFigures { total: number; onTarget: number; off: number; blocked: number; unknown: number; goals: number; saved: number }
-/** The funnel uses the catalogue's figures (029, 030, 031, 032); goals are the shots that ended in goal (015's evidence
- *  inside the sample, so an own goal of theirs, which is no shot of ours, stays out); «sin precisar» is what none explains. */
+export interface FunnelFigures { total: number; onTarget: number; woodwork: number; off: number; blocked: number; unknown: number; goals: number; saved: number }
+/** Each funnel branch is disjoint. A goal or saved shot that also hits the post stays on target;
+ *  only the remaining woodwork shots belong to the woodwork branch. */
+export const funnelOutcome = (row: ShotRow): ShotOutcome => row.outcome === "gol" ? "gol" : row.onTarget ? "parado" : row.outcome;
 export function funnelFigures(data: ShotOutcomes): FunnelFigures {
-  const v = (id: string) => data.value(id) ?? 0;
-  const total = data.value("029") ?? data.total, onTarget = v("030"), off = v("031"), blocked = v("032"), goals = data.counts.gol;
-  return { total, onTarget, off, blocked, unknown: Math.max(0, total - onTarget - off - blocked), goals, saved: Math.max(0, onTarget - goals) };
+  const counts = emptyCounts();
+  for (const row of data.rows) counts[funnelOutcome(row)] += row.count;
+  return { total: data.total, onTarget: counts.gol + counts.parado, woodwork: counts.madera, off: counts.fuera, blocked: counts.bloqueado, unknown: counts.nd, goals: counts.gol, saved: counts.parado };
 }
 
 /* ---------- Minutos: both teams on one clock ---------- */
@@ -105,24 +106,25 @@ export interface ShotTimeline {
 }
 const MAX_INTERVAL = 600;
 
-/** Each shot sits at the middle of its narrated interval, measured from its own period's start; intervals longer
- *  than ten minutes are not drawn (they are counted in `skipped`). The rival side drops the page's player filter. */
+/** Each shot sits at the middle of its reliable narrated interval, relative to its recorded period.
+ *  Missing boundaries or times are kept in the totals, never replaced by a nominal clock. Both teams
+ *  use the matches in which the selected players participated; the rival has no individual filter. */
 export function buildShotTimeline(matches: readonly NarratedMatch[], filters: AnalysisFilters = {}): ShotTimeline {
-  const usFilters: AnalysisFilters = { ...filters, team: "us" };
+  const usFilters: AnalysisFilters = { ...filters, team: "us", playerIds: filters.team === "opponent" ? undefined : filters.playerIds };
   const themFilters: AnalysisFilters = { ...filters, team: "opponent", playerIds: undefined };
-  const us = buildShotOutcomes(matches, usFilters).rows, them = buildShotOutcomes(matches, themFilters).rows;
-  const ctx = prepareNarrated(selectAnalysisMatches(matches, { ...filters, playerIds: undefined }), { ...filters, playerIds: undefined });
-  const starts = new Map<string, number>(); const lens = new Map<number, number>();
-  const nominal = (period: number) => (ctx.matches[0]?.profile.periodMinutes[period - 1] ?? 25) * 60;
-  const seen = [...us, ...them].map(row => row.event.period).filter((p): p is number => typeof p === "number" && p > 0);
-  const periods = filters.period != null ? [filters.period] : [...new Set([1, 2, ...seen])].sort((a, b) => a - b).slice(0, 8);
-  for (const prepared of ctx.matches) for (const period of periods) {
+  const sample = selectAnalysisMatches(matches, usFilters);
+  const us = buildShotOutcomes(sample, usFilters).rows, them = buildShotOutcomes(sample, themFilters).rows;
+  const ctx = prepareNarrated(sample, { ...filters, playerIds: undefined });
+  const ranges = new Map<string, { from: number; to: number }>(); const lens = new Map<number, number>();
+  const seen = ctx.matches.flatMap(m => m.events.map(event => event.period)).filter((p): p is number => typeof p === "number" && p > 0);
+  const candidates = filters.period != null ? [filters.period] : [...new Set([1, 2, ...seen])].sort((a, b) => a - b).slice(0, 8);
+  for (const prepared of ctx.matches) for (const period of candidates) {
     const range = periodInterval({ ...ctx, filters: { ...ctx.filters, period } }, prepared);
-    const start = range?.from ?? prepared.profile.periodMinutes.slice(0, period - 1).reduce((s, m) => s + m * 60, 0);
-    starts.set(`${prepared.match.id}:${period}`, start);
-    lens.set(period, Math.max(lens.get(period) ?? nominal(period), range ? range.to - range.from : 0));
+    if (!range || !Number.isFinite(range.from) || !Number.isFinite(range.to) || range.from < 0 || range.to <= range.from) continue;
+    ranges.set(JSON.stringify([prepared.match.id, period]), range);
+    lens.set(period, Math.max(lens.get(period) ?? 0, range.to - range.from));
   }
-  for (const period of periods) if (!lens.has(period)) lens.set(period, nominal(period));
+  const periods = candidates.filter(period => lens.has(period));
   const gap = periods.length > 1 ? 3 : 0;
   const totalLen = periods.reduce((s, p) => s + lens.get(p)!, 0) || 1;
   const span = new Map<number, [number, number]>(); let x0 = 0;
@@ -132,9 +134,10 @@ export function buildShotTimeline(matches: readonly NarratedMatch[], filters: An
   const place = (rows: readonly ShotRow[], team: ShotTeam) => {
     for (const row of [...rows].sort(byTime)) {
       const { period, time } = row.event; const sp = period != null ? span.get(period) : undefined;
-      if (!sp || !time || time.to - time.from > MAX_INTERVAL) { skipped += row.count; continue; }
-      const second = Math.max(0, (time.from + time.to) / 2 - (starts.get(`${row.event.matchId}:${period}`) ?? 0));
-      const x = r1(sp[0] + sp[1] * Math.min(1, second / lens.get(period!)!));
+      const range = ranges.get(JSON.stringify([row.event.matchId, period]));
+      if (!sp || !range || !time || time.precision === "approximate" || time.from < range.from || time.to > range.to || time.to < time.from || time.to - time.from > MAX_INTERVAL) { skipped += row.count; continue; }
+      const second = (time.from + time.to) / 2 - range.from;
+      const x = r1(sp[0] + sp[1] * second / lens.get(period!)!);
       for (let i = 0; i < row.count; i++) {
         const bin = `${team}:${Math.round(x / 2.2)}`; const stack = (stacks.get(bin) ?? 0) + 1; stacks.set(bin, stack); maxStack = Math.max(maxStack, stack);
         dots.push({ key: `${team}:${row.event.evidenceId}:${i}`, row, team, period: period!, second, x, stack });

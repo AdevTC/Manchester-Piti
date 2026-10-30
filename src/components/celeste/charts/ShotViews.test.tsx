@@ -64,7 +64,8 @@ describe("Remates (ShotViews)", () => {
     expect(within(funnel).getByRole("button", { name: /^A puerta: 2/ })).toBeVisible();
     expect(funnel).toHaveTextContent("Gol por tiro a puerta: 50 %");
     fireEvent.click(within(funnel).getByRole("button", { name: /^Bloqueados: 1/ }));
-    expect(within(screen.getByRole("list", { name: "Remates por resultado" })).getByRole("button", { name: /^Bloqueados/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("region", { name: "Remates elegidos" })).toHaveTextContent("Bloqueados");
+    expect(screen.getByRole("region", { name: "Remates elegidos" })).toHaveTextContent("Jugadas de esta muestra (1)");
   });
   it("puts both teams on one timeline with the halves labelled", () => {
     render(<ShotViews matches={[rich]} people={people} filters={{ playerIds: ["a"] }}/>);
@@ -104,4 +105,56 @@ describe("Remates (ShotViews)", () => {
     expect(screen.getByRole("heading", { name: "Sin remates en esta selección" })).toBeVisible();
     expect(within(screen.getByRole("list", { name: "Remates por resultado" })).getByRole("button", { name: /^Fuera/ }).querySelector("strong")).toHaveTextContent(/^0$/);
   });
+  it("opens exactly the non-overlapping woodwork and saved branches of the funnel", () => {
+    const game = structuredClone(rich);
+    game.analysis!.observations.find(event => event.id === "goal")!.facts.woodwork = true;
+    game.analysis!.observations.push(
+      { id: "post", kind: "shot", team: "us", actorId: "a", period: 1, order: 10, facts: { outcome: "woodwork" } },
+      { id: "save-post", kind: "shot", team: "us", actorId: "b", period: 1, order: 11, facts: { outcome: "saved", onTarget: true, woodwork: true } },
+    );
+    render(<ShotViews matches={[game]} people={people}/>);
+    fireEvent.click(screen.getByRole("button", { name: "Embudo" }));
+    const funnel = screen.getByRole("group", { name: "De todos los remates a los goles" });
+    expect(within(funnel).getByRole("button", { name: /^A puerta: 3/ })).toBeVisible();
+    expect(within(funnel).queryByRole("button", { name: /^Sin precisar/ })).not.toBeInTheDocument();
+    fireEvent.click(within(funnel).getByRole("button", { name: /^A la madera: 1/ }));
+    expect(screen.getByRole("region", { name: "Remates elegidos" })).toHaveTextContent("Jugadas de esta muestra (1)");
+    fireEvent.click(within(funnel).getByRole("button", { name: /^Parados: 2/ }));
+    expect(screen.getByRole("region", { name: "Remates elegidos" })).toHaveTextContent("Jugadas de esta muestra (2)");
+    fireEvent.click(screen.getByRole("button", { name: "Quién" }));
+    expect(within(screen.getByRole("list", { name: "Remates por jugador" })).getByRole("button", { name: /^Bruno:/ })).toHaveTextContent("1 gol · 3 a puerta");
+  });
+  it("does not invent a zero precision or an inside-area location for an unknown shot", () => {
+    const game = structuredClone(match);
+    game.analysis!.observations.find(event => event.id === "shot")!.facts = {};
+    render(<ShotViews matches={[game]} people={people}/>);
+    expect(screen.getByText(/a puerta \(sin precisar\)/)).toBeVisible();
+    expect(screen.getByText("desde fuera, con zona conocida").nextElementSibling).toHaveTextContent("-");
+    expect(screen.getByText("Zona registrada en 0 de 1 remates; los demás no se suponen dentro del área.")).toBeVisible();
+  });
+  it("states the known-location sample instead of treating unlocated shots as inside the area", () => {
+    render(<ShotViews matches={[rich]} people={people}/>);
+    expect(screen.getByText("desde fuera, con zona conocida").nextElementSibling).toHaveTextContent("100 %");
+    expect(screen.getByText("Zona registrada en 1 de 4 remates; los demás no se suponen dentro del área.")).toBeVisible();
+  });
+  it("labels a canonical goal as a goal without requiring an extra outcome field", () => {
+    const game = structuredClone(match);
+    game.events = [{ id: "canonical-goal", type: "goal", playerId: "a", minute: 12 }];
+    render(<ShotViews matches={[game]} people={people}/>);
+    const detail = screen.getByRole("region", { name: "Jugadas del resultado de remate" });
+    const goal = within(detail).getByText("Gol · Álex").closest("li")!;
+    expect(goal.querySelector("small")).toHaveTextContent(/^Gol$/);
+    expect(goal).not.toHaveTextContent("Resultado sin precisar");
+  });
+  it("keeps unplottable shots in the timeline total with an explanation", () => {
+    const game = structuredClone(rich);
+    game.analysis!.observations = game.analysis!.observations.filter(event => event.kind !== "context");
+    render(<ShotViews matches={[game]} people={people}/>);
+    fireEvent.click(screen.getByRole("button", { name: "Minutos" }));
+    const plot = screen.getByRole("group", { name: "Remates de los dos equipos a lo largo del partido" });
+    expect(within(plot).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByText(/6 remates no se dibujan:/)).toHaveTextContent("sin límites de parte registrados");
+    expect(screen.getByRole("heading", { name: "El Piti remata más: 4 a 2" })).toBeVisible();
+  });
+
 });

@@ -110,6 +110,53 @@ describe("Red de pases", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cerrar detalle" }));
     expect(screen.queryByRole("region", { name: "Jugadas de la conexión elegida" })).not.toBeInTheDocument();
   });
+  it("counts passes without an identified recipient in the player's accuracy", () => {
+    const m = withPositions();
+    m.analysis!.observations.push({ id: "unidentified", kind: "pass", team: "us", actorId: "a", period: 1, order: 5, time: { from: 20, to: 20, precision: "exact" }, facts: { outcome: "failed" } });
+    const second = structuredClone(m); second.id = "second-match";
+    second.analysis!.observations = second.analysis!.observations.filter(e => e.id !== "unidentified");
+    const view = render(<PassNetworkView matches={[m]} people={people}/>);
+    fireEvent.click(within(network()).getByRole("button", { name: /Resaltar a Álex/ }));
+    const accuracy = () => screen.getByText("Acierto con resultado conocido").nextSibling;
+    expect(accuracy()).toHaveTextContent("50%");
+    view.rerender(<PassNetworkView matches={[m, second]} people={people}/>);
+    expect(accuracy()).toHaveTextContent("66,67%");
+    view.rerender(<PassNetworkView matches={[m, second]} people={people} filters={{ period: 2 }}/>);
+    expect(accuracy()).toHaveTextContent("-");
+  });
+  it("clips the player's minutes to each half and to a selected interval", () => {
+    const m = withPositions();
+    m.ledger!.a = { ...m.ledger!.a, minutes: 35, secondsPlayed: 2100, stints: [{ from: 0, to: 10 }, { from: 25, to: 50 }] };
+    m.ledger!.b = { ...m.ledger!.b, stints: [{ from: 0, to: 50 }] };
+    const view = render(<PassNetworkView matches={[m]} people={people}/>);
+    fireEvent.click(within(network()).getByRole("button", { name: /Resaltar a Álex/ }));
+    expect(screen.getByText("Punta · 35′ en el campo")).toBeVisible();
+    view.rerender(<PassNetworkView matches={[m]} people={people} filters={{ period: 1 }}/>);
+    expect(screen.getByText("Punta · 10′ en el campo")).toBeVisible();
+    view.rerender(<PassNetworkView matches={[m]} people={people} filters={{ period: 2 }}/>);
+    expect(screen.getByText("Punta · 25′ en el campo")).toBeVisible();
+    view.rerender(<PassNetworkView matches={[m]} people={people} filters={{ fromSecond: 0, toSecond: 300 }}/>);
+    expect(screen.getByText("Punta · 5′ en el campo")).toBeVisible();
+    expect(screen.getByText("Pases dados por cada 10′").nextSibling).toHaveTextContent("2");
+  });
+  it("does not place historical whole-match minutes into an unknown half or interval", () => {
+    const m = withPositions();
+    const view = render(<PassNetworkView matches={[m]} people={people} filters={{ period: 1 }}/>);
+    fireEvent.click(within(network()).getByRole("button", { name: /Resaltar a Álex/ }));
+    expect(screen.getByText("Punta · Minutos sin determinar")).toBeVisible();
+    expect(screen.queryByText(/50′ en el campo/)).not.toBeInTheDocument();
+    view.rerender(<PassNetworkView matches={[m]} people={people} filters={{ fromSecond: 0, toSecond: 300 }}/>);
+    expect(screen.getByText("Pases dados por cada 10′").nextSibling).toHaveTextContent("-");
+  });
+  it("labels the rival's accuracy as the identified-pair subset", () => {
+    const m = structuredClone(match);
+    m.analysis!.observations.push({ id: "rival-pass", kind: "pass", team: "opponent", opponentId: "9", period: 1, order: 5, facts: { outcome: "complete", opponentReceiverId: "10" } });
+    render(<PassNetworkView matches={[m]} people={people} filters={{ team: "opponent" }}/>);
+    fireEvent.click(within(network()).getAllByRole("button")[0]);
+    expect(screen.getByText("Acierto entre parejas identificadas")).toBeVisible();
+    expect(screen.queryByText("Acierto con resultado conocido")).not.toBeInTheDocument();
+    expect(screen.getByText("Pases dados por cada 10′").nextSibling).toHaveTextContent("-");
+  });
   it("shows missing rival identities honestly", () => {
     render(<PassNetworkView matches={[match]} people={people} filters={{ team: "opponent" }}/>);
     expect(screen.getByRole("heading", { name: "Aún no se puede dibujar la red" })).toBeVisible();

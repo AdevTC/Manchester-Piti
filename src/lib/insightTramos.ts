@@ -67,30 +67,42 @@ export function ribbon(cols: readonly TramoCol[], side: TramoSide, max: number, 
 
 const clock = (second: number) => `${Math.floor(second / 60)}′${second % 60 ? ` ${Math.floor(second % 60)}″` : ""}`;
 
-/** Goals in their tramo, on the part's own clock. Approximate times and windows longer than a tramo are left out. */
+/** Goals on each match's recorded clock. A bounded interval must fit wholly in one
+ * tramo; approximate or out-of-range times never get pinned to a nearby column. */
 export function goalMarks(matches: readonly NarratedMatch[], filters: AnalysisFilters, cols: readonly TramoCol[], names: (id: string) => string | undefined, rivalOf: (matchId: string) => string): GoalMark[] {
   if (!cols.length) return [];
   const ctx = prepareNarrated(matches, { ...filters, team: undefined, playerIds: undefined });
-  const byMatch = new Map(ctx.matches.map(m => [m.match.id, m]));
-  const noParts = cols.every(c => c.period === 0);
+  // Match the timeline's fallback per match, not per selection: a combined view
+  // can contain both recorded halves and a separate clock without known halves.
+  const byMatch = new Map(ctx.matches.map(m => {
+    const periods = filters.period != null ? [filters.period] : Array.from({ length: Math.min(8, Math.max(2, m.profile.periodMinutes.length, ...m.events.map(e => e.period ?? 0))) }, (_, i) => i + 1);
+    const ranges = new Map<number, { from: number; to: number }>();
+    for (const period of periods) {
+      const range = periodInterval({ ...ctx, filters: { ...ctx.filters, period } }, m);
+      if (range && range.to > range.from) ranges.set(period, range);
+    }
+    if (!ranges.size && filters.period == null && m.duration > 0) ranges.set(0, { from: 0, to: m.duration });
+    return [m.match.id, ranges] as const;
+  }));
   const stack = new Map<string, number>();
   const marks: GoalMark[] = [];
   for (const e of ctx.all) {
-    if (!isGoal(e) || !e.time || e.time.precision === "approximate" || e.time.to - e.time.from > 300) continue;
-    const prepared = byMatch.get(e.matchId); if (!prepared) continue;
-    const period = noParts ? 0 : e.period; if (period == null) continue;
-    const start = period === 0 ? 0 : periodInterval({ ...ctx, filters: { ...ctx.filters, period } }, prepared)?.from;
-    if (start == null) continue;
-    const t = e.time.from - start;
-    const inPart = cols.filter(c => c.period === period);
-    const col = inPart.find(c => t >= c.from && t < c.to) ?? [...inPart].reverse().find(c => t >= c.from);
+    if (!isGoal(e) || !e.time || e.time.precision === "approximate") continue;
+    const ranges = byMatch.get(e.matchId); if (!ranges) continue;
+    const period = ranges.has(0) ? 0 : e.period; if (period == null) continue;
+    const range = ranges.get(period); if (!range) continue;
+    if (!Number.isFinite(e.time.from) || !Number.isFinite(e.time.to) || e.time.to < e.time.from || e.time.from < range.from || e.time.to > range.to) continue;
+    const from = e.time.from - range.from, to = e.time.to - range.from, end = range.to - range.from;
+    // Internal boundaries belong to the following tramo; the real final whistle
+    // belongs to this match's last tramo even if another match continues farther.
+    const col = cols.find(c => c.period === period && c.from < end && from >= c.from && (to < c.to || to === end && to <= c.to));
     if (!col) continue;
     const side: TramoSide = e.facts.ownGoal === true ? e.team === "us" ? "them" : "us" : e.team === "us" ? "us" : "them";
     const k = (stack.get(col.key + side) ?? 0) + 1; stack.set(col.key + side, k);
-    const frac = Math.min(.92, Math.max(.08, (t - col.from) / Math.max(1, col.to - col.from)));
+    const frac = Math.min(.92, Math.max(.08, ((from + to) / 2 - col.from) / Math.max(1, col.to - col.from)));
     const scorer = side === "us" && e.team === "us" && e.facts.ownGoal !== true && e.actorId ? names(e.actorId) : undefined;
-    const when = `${period ? `${period}.ª parte, ` : ""}${clock(t)}`;
-    marks.push({ key: e.evidenceId, side, x: Math.min(99, col.x + col.w * frac + (k - 1) * Math.min(2.2, col.w / 4)), label: side === "us" ? `Gol del Piti${scorer ? `, de ${scorer}` : ""} · ${when}` : `Gol de ${rivalOf(e.matchId)} · ${when}` });
+    const when = `${period ? `${period}.ª parte, ` : ""}${from === to ? clock(from) : `entre ${clock(from)} y ${clock(to)}`}`;
+    marks.push({ key: e.evidenceId, side, x: Math.min(col.x + col.w * .92, col.x + col.w * frac + (k - 1) * Math.min(2.2, col.w / 4)), label: side === "us" ? `Gol del Piti${scorer ? `, de ${scorer}` : ""} · ${when}` : `Gol de ${rivalOf(e.matchId)} · ${when}` });
   }
   return marks;
 }
