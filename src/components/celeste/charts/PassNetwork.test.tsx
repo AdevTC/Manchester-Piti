@@ -40,10 +40,10 @@ describe("Red de pases", () => {
     render(<PassNetworkView matches={[match]} people={people}/>);
     expect(screen.getByRole("heading", { name: "Álex y Bruno, la pareja que más se encuentra" })).toBeVisible();
     expect(screen.getByText(/1 pase de Álex a Bruno y 1 de vuelta/)).toBeVisible();
-    const kpis = screen.getByText("pases completados").closest("dl")!;
-    expect(kpis).toHaveTextContent("pases completados2");
-    expect(kpis).toHaveTextContent("conexiones dirigidas2");
-    expect(kpis).toHaveTextContent("partido1");
+    const kpis = screen.getByRole("list", { name: "Cifras de la selección" });
+    expect(kpis).toHaveTextContent("2 pases completados");
+    expect(kpis).toHaveTextContent("2 conexiones dirigidas");
+    expect(kpis).toHaveTextContent("1 partido");
   });
   it("draws on the pitch when the actas give positions and switches to the ring", () => {
     render(<PassNetworkView matches={[withPositions()]} people={people}/>);

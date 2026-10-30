@@ -12,7 +12,7 @@ const press = (run: () => void) => (event: KeyboardEvent) => { if (event.key ===
 
 /* ---------- Portería ---------- */
 
-const ZONE_LABELS: { outcome: ShotOutcome; x: number; y: number }[] = [{ outcome: "gol", x: 50, y: 25 }, { outcome: "parado", x: 50, y: 61 }, { outcome: "fuera", x: 13, y: 86 }, { outcome: "bloqueado", x: 84, y: 92 }, { outcome: "madera", x: 87, y: 12 }];
+const ZONE_LABELS: { outcome: ShotOutcome; x: number; y: number }[] = [{ outcome: "gol", x: 50, y: 31 }, { outcome: "parado", x: 50, y: 58 }, { outcome: "fuera", x: 13, y: 86 }, { outcome: "bloqueado", x: 84, y: 92 }, { outcome: "madera", x: 87, y: 12 }];
 const NET = "M208 94V262M234 94V262M260 94V262M286 94V262M312 94V262M338 94V262M364 94V262M390 94V262M182 118H418M182 142H418M182 166H418M182 190H418M182 214H418M182 238H418M190 70L211.1 94M226 70L240.2 94M262 70L269.3 94M298 70L298.4 94M334 70L327.5 94M370 70L356.6 94M410 70L388.9 94M154 100L182 118M446 100L418 118M154 130L182 142M446 130L418 142M154 160L182 166M446 160L418 166M154 190L182 190M446 190L418 190M154 220L182 214M446 220L418 214M154 250L182 238M446 250L418 238";
 
 export function ShotGoal({ rows, counts, people, rival, pick, onPick, them }: Common & { rows: readonly ShotRow[]; counts: ShotCounts; people: readonly WorkspacePerson[]; rival: string }) {

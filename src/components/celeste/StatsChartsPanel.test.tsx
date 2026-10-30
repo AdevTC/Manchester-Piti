@@ -67,9 +67,9 @@ describe("shared chart panel", () => {
   it("restores timeline and matrix without replacing the page filters", () => {
     render(<StatsChartsPanel matches={[match]} people={people} filters={{ period: 2, playerIds: ["a"] }}/>);
     fireEvent.click(screen.getByRole("button", { name: "Tramos y matriz" }));
-    expect(screen.getByRole("combobox", { name: "Qué ver por tramos" })).toBeVisible();
-    expect(screen.queryByRole("region", { name: "1.ª parte" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Quién conecta con quién" }));
+    expect(screen.getByRole("group", { name: "Qué ver por tramos" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^1\.ª parte ·/ })).not.toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("group", { name: "Vistas de esta gráfica" })).getByRole("button", { name: "Matriz" }));
     expect(screen.getByRole("table", { name: "Matriz dirigida de pases" })).toBeVisible();
   });
   it("shows shot evidence and forwards the catalogue metric with the current selection", () => {

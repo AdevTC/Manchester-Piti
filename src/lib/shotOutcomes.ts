@@ -56,7 +56,7 @@ export function rivalLabel(matches: readonly (NarratedMatch & { rival?: string }
 
 export interface GoalDot { key: string; row: ShotRow; x: number; y: number }
 /** Zones in the 600 × 340 goal drawing: [x, y, width, height]. */
-const ZONES: Partial<Record<ShotOutcome, [number, number, number, number]>> = { gol: [176, 104, 248, 66], parado: [176, 196, 248, 60], bloqueado: [168, 298, 264, 30], nd: [24, 290, 110, 40] };
+const ZONES: Partial<Record<ShotOutcome, [number, number, number, number]>> = { gol: [176, 124, 248, 56], parado: [176, 214, 248, 52], bloqueado: [168, 298, 264, 30], nd: [24, 290, 110, 40] };
 const POSTS: [number, number][] = [[154, 140], [446, 140], [300, 70], [154, 200], [446, 200], [230, 70], [370, 70], [154, 110], [446, 110], [262, 70], [338, 70], [154, 240], [446, 240]];
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const byTime = (a: ShotRow, b: ShotRow) => a.event.matchId.localeCompare(b.event.matchId) || (a.event.period ?? 0) - (b.event.period ?? 0) || (a.event.time?.from ?? 0) - (b.event.time?.from ?? 0) || a.event.order - b.event.order;

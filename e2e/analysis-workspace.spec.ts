@@ -190,18 +190,19 @@ test("Números · las gráficas conservan la mitad y la tabla personalizada cons
     await expect(page).toHaveURL(/\/estadisticas\/juego\/graficas\?/);
     const charts = page.getByRole("region", { name: "Gráficas del juego", exact: true });
     await expect(charts.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
-    await expect(charts.locator(".sc-meta")).toContainText("4 pases completados");
+    await expect(charts.locator(".gc-kpis")).toContainText("4 pases completados");
     await charts.getByRole("button", { name: "Pablo E2E a Dani: 2 pases completados. Ver jugadas", exact: true }).click();
     await expect(charts.getByRole("region", { name: "Jugadas de la conexión elegida" })).toContainText("2/2 con resultado conocido");
     await page.getByRole("radiogroup", { name: "Parte" }).getByRole("radio", { name: "2ª parte" }).click();
-    await expect(charts.locator(".sc-meta")).toContainText("1 pases completados");
+    await expect(charts.locator(".gc-kpis")).toContainText("1 pases completados");
     expect(new URL(page.url()).searchParams.get("parte")).toBe("2");
     await page.reload();
-    await expect(charts.locator(".sc-meta")).toContainText("1 pases completados");
+    await expect(charts.locator(".gc-kpis")).toContainText("1 pases completados");
     await charts.getByRole("button", { name: "Tramos y matriz", exact: true }).click();
-    await charts.getByRole("combobox", { name: "Qué ver por tramos" }).selectOption("067");
-    await expect(charts.getByRole("region", { name: "Barras de 2.ª parte", exact: true }).getByRole("button").first().locator("strong")).toHaveText("2");
-    await charts.getByRole("button", { name: "Quién conecta con quién", exact: true }).click();
+    await charts.getByRole("group", { name: "Qué ver por tramos" }).getByRole("button", { name: "Pases intentados", exact: true }).click();
+    await charts.getByRole("button", { name: "Barras", exact: true }).click();
+    await expect(charts.getByRole("button", { name: /^2.ª parte · 0′–5′:/ }).first().locator("strong")).toHaveText("2");
+    await charts.getByRole("button", { name: "Matriz", exact: true }).click();
     await expect(charts.getByRole("table", { name: "Matriz dirigida de pases" })).toBeVisible();
     await expect(charts.getByRole("button", { name: /^Pablo E2E a Dani:.*1 completados, 0 fallidos, 0 sin resultado/ })).toBeVisible();
     await charts.getByRole("button", { name: "Remates", exact: true }).click();
@@ -278,17 +279,18 @@ test("Números · varios partidos combinan sus reglas de pase en tabla y gráfic
     await expect(charts.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
     for (const expected of [{ label: "Todo", count: 5 }, { label: "1ª parte", count: 3 }, { label: "2ª parte", count: 2 }]) {
       await part.getByRole("radio", { name: expected.label, exact: true }).click();
-      await expect(charts.locator(".sc-meta")).toContainText(`${expected.count} pases completados`);
+      await expect(charts.locator(".gc-kpis")).toContainText(`${expected.count} pases completados`);
       await expect(charts.getByText("Aún no se puede dibujar la red", { exact: true })).toHaveCount(0);
     }
     await charts.getByRole("button", { name: "Tramos y matriz", exact: true }).click();
-    await charts.getByRole("combobox", { name: "Qué ver por tramos" }).selectOption("067");
-    await expect(charts.getByRole("region", { name: "Barras de 2.ª parte", exact: true }).getByRole("button").first().locator("strong")).toHaveText("4");
-    await charts.getByRole("button", { name: "Quién conecta con quién", exact: true }).click();
+    await charts.getByRole("group", { name: "Qué ver por tramos" }).getByRole("button", { name: "Pases intentados", exact: true }).click();
+    await charts.getByRole("button", { name: "Barras", exact: true }).click();
+    await expect(charts.getByRole("button", { name: /^2.ª parte · 0′–5′:/ }).first().locator("strong")).toHaveText("4");
+    await charts.getByRole("button", { name: "Matriz", exact: true }).click();
     await expect(charts.getByRole("button", { name: /^Dani a Pablo E2E:.*1 completados, 0 fallidos, 0 sin resultado/ })).toBeVisible();
     await page.reload();
     await expect(charts.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
-    await expect(charts.locator(".sc-meta")).toContainText("2 pases completados");
+    await expect(charts.locator(".gc-kpis")).toContainText("2 pases completados");
     await charts.screenshot({ path: testInfo.outputPath("analysis-multi-match-profiles.png") });
   } finally { await f.cleanup(); }
 });
