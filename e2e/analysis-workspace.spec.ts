@@ -23,7 +23,7 @@ async function createOwnDocument(path: string, data: Record<string, unknown>) {
 
 /** The optional local pass reads the existing large demo without authentication, writes or reseeding.
  * Normal CI uses unique matches on the loopback demo emulators and deletes only those matches. */
-async function fixture(): Promise<Fixture> {
+async function fixture({ mixedPassProfiles = false }: { mixedPassProfiles?: boolean } = {}): Promise<Fixture> {
   if (readOnlyDemo) {
     const module = await import(pathToFileURL(resolve(".emulator-data/narrated-demo-fixture.mjs")).href);
     const f = module.buildDemoFixture();
@@ -45,6 +45,7 @@ async function fixture(): Promise<Fixture> {
     { id: "shot-second", kind: "shot", team: "us", actorId: players[2], order: 8, period: 2, time: { from: 1620, to: 1620, precision: "exact" }, facts: { outcome: "off_target", onTarget: false } },
     ...[1, 2].map(period => ({ id: `period-${period}`, kind: "context" as const, team: "us" as const, order: 10 + period, period, facts: { intervalStart: (period - 1) * 1500, intervalEnd: period * 1500 } })),
   ];
+  if (mixedPassProfiles) observations[0].facts.deflected = true;
   const sheet = { version: 2, revision: 0, seasonId, rival: `Tabla local ${stamp}`, competition: "Amistoso", date: Date.now() - 86400000, duration: 50, durationSeconds: 3000, venue: "Prueba local", home: true, status: "finished", starters: players.slice(0, 7), bench: players.slice(7), notCalled: [], events: [], goalsFor: 0, goalsAgainst: 0, report: "Partido ficticio para comprobar tablas y filtros.", analysis: { version: 2, revision: 0, profile: structuredClone(DEFAULT_ANALYSIS_PROFILE), observations, coverage: [{ family: "pass", team: "us", state: "complete" }, { family: "shot", team: "us", state: "complete" }, { family: "goal", team: "us", state: "complete" }, { family: "lineup", team: "us", state: "complete" }, { family: "substitution", team: "us", state: "complete" }] } };
   const created: string[] = [];
   const createdDocs: string[] = [];
@@ -60,7 +61,17 @@ async function fixture(): Promise<Fixture> {
     }
     await callFunction(token, "saveMatchSheet", { id, sheet, draft: false }); created.push(id);
     const additional = { ...observations[0], id: "other-failed", receiverId: undefined, intendedReceiverId: players[2], facts: { outcome: "failed" } };
-    await callFunction(token, "saveMatchSheet", { id: otherId, sheet: { ...sheet, rival: otherRival, analysis: { ...sheet.analysis, observations: [additional] } }, draft: false }); created.push(otherId);
+    const otherProfile = structuredClone(sheet.analysis.profile);
+    if (mixedPassProfiles) otherProfile.passes.deflection = "retain";
+    const otherObservations: Observation[] = mixedPassProfiles ? [
+      // Reused local IDs must remain independent between matches. These deflected
+      // deliveries count as complete only under this second match's own policy.
+      { id: "a", kind: "pass", team: "us", actorId: players[3], receiverId: players[1], order: 1, period: 1, time: { from: 50, to: 50, precision: "exact" }, facts: { outcome: "complete", deflected: true } },
+      { id: "b", kind: "pass", team: "us", actorId: players[1], receiverId: players[3], order: 2, period: 2, time: { from: 1530, to: 1530, precision: "exact" }, facts: { outcome: "complete", deflected: true } },
+      { ...additional, id: "c", order: 3, period: 2, time: { from: 1540, to: 1540, precision: "exact" } },
+      ...observations.filter(o => o.kind === "context"),
+    ] : [additional];
+    await callFunction(token, "saveMatchSheet", { id: otherId, sheet: { ...sheet, rival: otherRival, analysis: { ...sheet.analysis, profile: otherProfile, observations: otherObservations } }, draft: false }); created.push(otherId);
     return { id, seasonId: sheet.seasonId, observations, participantCount: 7, player: { id: players[3], name: "Pablo E2E" }, other: { id: otherId, rival: otherRival }, cleanup };
   } catch (error) { await cleanup(); throw error; }
 }
@@ -230,5 +241,54 @@ test("Números · las gráficas conservan la mitad y la tabla personalizada cons
     await expect(header).toHaveAttribute("aria-sort", "descending");
     expect(await noOverflow(page)).toBe(true);
     await workspace.screenshot({ path: testInfo.outputPath("analysis-custom-table-mobile.png") });
+  } finally { await f.cleanup(); }
+});
+
+test("Números · varios partidos combinan sus reglas de pase en tabla y gráficas por parte", async ({ page, baseURL }, testInfo) => {
+  test.skip(readOnlyDemo, "Esta regresión usa sólo sus fixtures sintéticos propios.");
+  test.setTimeout(100_000);
+  expect(new URL(baseURL!).hostname).toBe("127.0.0.1");
+  const f = await fixture({ mixedPassProfiles: true });
+  try {
+    const selected = `${f.id},${f.other!.id}`;
+    await page.goto(`/estadisticas/juego?temporada=${f.seasonId}&partidos=${selected}`);
+    const workspace = await openTable(page);
+    const part = page.getByRole("radiogroup", { name: "Parte" });
+    // Sum the passes and their outcomes, never average the two match percentages.
+    for (const expected of [
+      { label: "Todo", attempts: "9", complete: "5", failed: "4", accuracy: "55,56%" },
+      { label: "1ª parte", attempts: "5", complete: "3", failed: "2", accuracy: "60%" },
+      { label: "2ª parte", attempts: "4", complete: "2", failed: "2", accuracy: "50%" },
+    ]) {
+      await part.getByRole("radio", { name: expected.label, exact: true }).click();
+      await expect(totalOf(workspace, 1)).toHaveText(expected.attempts);
+      await expect(totalOf(workspace, 2)).toHaveText(expected.complete);
+      await expect(totalOf(workspace, 3)).toHaveText(expected.failed);
+      await expect(totalOf(workspace, 4)).toHaveText(expected.accuracy);
+    }
+    await part.getByRole("radio", { name: "Todo", exact: true }).click();
+    const dani = workspace.getByRole("row").filter({ hasText: /Dani/ });
+    await expect(dani.getByRole("cell").nth(1)).toHaveText("3");
+    await expect(dani.getByRole("cell").nth(2)).toHaveText("1");
+    await expect(dani.getByRole("cell").nth(4)).toHaveText("33,33%");
+    await workspace.getByRole("button", { name: "Cerrar", exact: true }).click();
+
+    await page.getByRole("button", { name: /^Gráficas del juego/ }).click();
+    const charts = page.getByRole("region", { name: "Gráficas del juego", exact: true });
+    await expect(charts.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
+    for (const expected of [{ label: "Todo", count: 5 }, { label: "1ª parte", count: 3 }, { label: "2ª parte", count: 2 }]) {
+      await part.getByRole("radio", { name: expected.label, exact: true }).click();
+      await expect(charts.locator(".sc-meta")).toContainText(`${expected.count} pases completados`);
+      await expect(charts.getByText("Aún no se puede dibujar la red", { exact: true })).toHaveCount(0);
+    }
+    await charts.getByRole("button", { name: "Tramos y matriz", exact: true }).click();
+    await charts.getByRole("combobox", { name: "Qué ver por tramos" }).selectOption("067");
+    await expect(charts.getByRole("region", { name: "Barras de 2.ª parte", exact: true }).getByRole("button").first().locator("strong")).toHaveText("4");
+    await charts.getByRole("button", { name: "Quién conecta con quién", exact: true }).click();
+    await expect(charts.getByRole("button", { name: /^Dani a Pablo E2E:.*1 completados, 0 fallidos, 0 sin resultado/ })).toBeVisible();
+    await page.reload();
+    await expect(charts.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
+    await expect(charts.locator(".sc-meta")).toContainText("2 pases completados");
+    await charts.screenshot({ path: testInfo.outputPath("analysis-multi-match-profiles.png") });
   } finally { await f.cleanup(); }
 });

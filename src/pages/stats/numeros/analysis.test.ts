@@ -56,6 +56,24 @@ describe("Números · shared acta calculations", () => {
     expect(numerosActions([m], { team: "opponent", period: 2 }).teams.opponent.passesFailed).toBe(1);
   });
 
+  it("includes added-time actions and exact final-whistle events without inventing an extra bin", () => {
+    const m = match(); m.duration = 51; m.durationSeconds = 3060;
+    m.analysis!.observations.push(
+      observation("added-pass", 2, { outcome: "complete" }, { time: { from: 3020, to: 3020, precision: "exact" } }),
+      observation("added-goal", 2, { goal: true }, { kind: "goal", time: { from: 3060, to: 3060, precision: "exact" } }),
+    );
+    const second = numerosActions([m], { team: "us", period: 2 });
+    expect(second.tramos).toHaveLength(11);
+    expect(second.tramos[10]).toMatchObject({ pas: 1, pok: 1, sh: 1 });
+    expect(second.goalBins.us[10]).toBe(1);
+    expect(second.unplaced).toBe(0);
+    expect(numerosActions([m], { team: "us", period: 1 }).tramos[10].pas).toBe(0);
+    const exact = match();
+    exact.analysis!.observations.push(observation("final-goal", 2, { goal: true }, { kind: "goal", time: { from: 3000, to: 3000, precision: "exact" } }));
+    const normal = numerosActions([exact], { team: "us" });
+    expect(normal.tramos).toHaveLength(10);
+    expect(normal.goalBins.us[9]).toBe(1);
+  });
   it("does not invent a half for an unlabelled interval and keeps catalogue uncertainty", () => {
     const m = match(); m.analysis!.observations.push(observation("unknown-half", 1, { outcome: "complete" }, { period: undefined }));
     expect(numerosActions([m], { team: "us" }).teams.us.passes).toBe(8);
@@ -115,6 +133,22 @@ describe("Números · period-aware table, catalogue and detail", () => {
     expect(v.ws.foot.find(c => c.key === "070")?.v).toBe("75%");
     expect(v.ws.rows.reduce((sum, r) => sum + Number(r.cells.find(c => c.key === "067")?.v || 0), 0)).toBe(3);
     expect(v.ws.totalLabel).toContain("sin jugador");
+  });
+  it("compares both teams' shots without letting the team filter fabricate zero for the other side", async () => {
+    const m = match();
+    m.analysis!.observations.push(
+      observation("own-shot", 2, { outcome: "off_target" }, { kind: "shot", actorId: "a" }),
+      observation("rival-shot", 2, { outcome: "off_target" }, { kind: "shot", team: "opponent", actorId: undefined }),
+    );
+    const own = await view({}, [m]);
+    expect(own.juego.tramos[5].label).toContain("1 remates nuestros y 1 del rival");
+    expect(own.juego.tramos[5].v).toBe(4);
+    const rival = await view({ team: "them" }, [m]);
+    expect(rival.juego.tramos[5].label).toContain("1 remates nuestros y 1 del rival");
+    expect(rival.juego.tramos[5].v).toBe(1);
+    const player = await view({ jug: ["a"] }, [m]);
+    expect(player.juego.tramos[5].label).toContain("1 remates de los jugadores seleccionados");
+    expect(player.juego.tramos[5].label).not.toContain("0 del rival");
   });
   it("calculates a catalogue metric outside the old 16 tiles and exposes confirmed zeros as selectable", async () => {
     const v = await view({ sheet: "metric", sheetId: "068" });

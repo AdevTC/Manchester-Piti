@@ -36,6 +36,23 @@ describe("configurable analysis workspace", () => {
     expect(selected.rows.map(r => r.person.id)).toEqual(["p2"]);
     expect(selected.total.get("070")?.value).toBeCloseTo(100 / 3);
   });
+  it("keeps players from one or both matches and pools each acta's pass policy", () => {
+    const a = match("a", [observation("deflected", "p1", "complete", 10, { facts: { outcome: "complete", deflected: true } }), observation("only-first", "p2")], { starters: ["p1", "p2"], bench: [] });
+    const b = match("b", [observation("deflected", "p1", "complete", 10, { facts: { outcome: "complete", deflected: true } }), observation("plain", "p1"), observation("only-second", "p3", "failed")], { starters: ["p1", "p3"], bench: [] });
+    b.analysis!.profile.passes.deflection = "retain";
+    for (const sample of [[a, b], [b, a]]) {
+      const w = buildAnalysisWorkspace(sample, people, {}, ["067", "068", "069", "070"]);
+      expect(w.rows.map(r => r.person.id)).toEqual(["p1", "p2", "p3"]);
+      expect([...w.total.values()].map(r => r.value)).toEqual([5, 3, 2, 60]);
+      expect(w.rows[0].results.get("070")).toMatchObject({ numerator: 2, denominator: 3, status: "complete" });
+      expect(w.rows[0].results.get("067")?.value).toBe(3);
+      expect(w.rows[1].results.get("070")?.value).toBe(100);
+      expect(w.rows[2].results.get("070")?.value).toBe(0);
+      expect(sortAnalysisRows(w.rows, "070").map(r => r.person.id)).toEqual(["p2", "p1", "p3"]);
+      const selected = buildAnalysisWorkspace(sample, people, { playerIds: ["p1"], period: 1 }, ["070"]);
+      expect(selected.total.get("070")).toMatchObject({ numerator: 2, denominator: 3 });
+    }
+  });
   it("keeps contextual metrics out of player cells and keeps opponent rows empty", () => {
     const m = match("m1", [observation("o", "", "complete", 10, { team: "opponent", actorId: undefined, opponentId: "rival" })]);
     const w = buildAnalysisWorkspace([m], people, {}, ["016", "384", "385", "388", "389", "386"]);

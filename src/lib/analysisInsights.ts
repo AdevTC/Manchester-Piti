@@ -121,14 +121,20 @@ export function buildPassMatrix(matches: readonly NarratedMatch[], people: reado
   const pending = base.pending;
   const pairs = new Map<string, { from: string; to: string; events: ScopedObservation[] }>();
   let unattributed = 0;
+  const opponentMatches = new Map<string, string>();
+  // Opponent identifiers belong to their acta (often just a shirt number). Only
+  // our roster IDs identify the same player across different matches.
+  const personKey = (event: ScopedObservation, id: string) => event.team === "opponent" && selected.length > 1 ? JSON.stringify([event.matchId, id]) : id;
   for (const event of passes) {
     const success = passComplete(event, profiles.get(event.matchId)!);
     const actor = event.team === "opponent" ? event.opponentId : event.actorId;
     const receiver = event.team === "opponent" ? typeof event.facts.opponentReceiverId === "string" ? event.facts.opponentReceiverId : undefined : success === true ? event.receiverId : event.intendedReceiverId ?? event.receiverId;
     if (!actor || !receiver) { unattributed += quantity(event); continue; }
     if (actor === receiver) { unattributed += quantity(event); continue; }
-    const key = JSON.stringify([actor, receiver]);
-    const pair = pairs.get(key) ?? { from: actor, to: receiver, events: [] };
+    const from = personKey(event, actor), to = personKey(event, receiver);
+    if (event.team === "opponent") { opponentMatches.set(from, event.matchId); opponentMatches.set(to, event.matchId); }
+    const key = JSON.stringify([from, to]);
+    const pair = pairs.get(key) ?? { from, to, events: [] };
     pair.events.push(event); pairs.set(key, pair);
   }
   const participantIds = filters.team === "opponent" ? [] : buildAnalysisWorkspace(selected, people, filters, []).rows.map(r => r.person.id);
@@ -141,7 +147,7 @@ export function buildPassMatrix(matches: readonly NarratedMatch[], people: reado
   const fullyAssigned = base.status === "complete" && !unattributed && !pending;
   const cells: PassConnection[] = [];
   for (const from of senderIds) for (const to of receiverIds) {
-    if (from === to) continue;
+    if (from === to || filters.team === "opponent" && selected.length > 1 && opponentMatches.get(from) !== opponentMatches.get(to)) continue;
     const events = pairs.get(JSON.stringify([from, to]))?.events ?? [];
     let completed = 0, failed = 0, unknown = 0;
     for (const e of events) { const success = passComplete(e, profiles.get(e.matchId)!); if (success === true) completed += quantity(e); else if (success === false) failed += quantity(e); else unknown += quantity(e); }

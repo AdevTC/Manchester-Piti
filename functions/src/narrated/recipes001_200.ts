@@ -2,7 +2,7 @@
 import {
   and, before, clipIntervals, count, difference, eq, exactTime, hasKnownParticipation, intervalIntersection,
   intervalSeconds, isGoal, isKind, isPass, isShot, kindOf, mean,
-  missing, num, numericParameter, opposite, parameter, passComplete, playerIntervals,
+  missing, num, numericParameter, opposite, parameter, passComplete, profileForObservation, playerIntervals,
   periodInterval, quantity, quotient, ratioOf, sum, withEvents,
 } from './operators.js';
 import type { MetricCalculation, MetricContext, MetricRecipe, Predicate, PreparedMatch, ScopedObservation } from './operators.js';
@@ -15,7 +15,7 @@ const flag = (base: Predicate, key: string): Predicate => attr(base, key, true);
 const subtype = (base: Predicate, value: string): Predicate => attr(base, 'subtype', value);
 const complete: Predicate = e => e.facts.outcome == null || ['pending', 'unknown'].includes(String(e.facts.outcome)) ? undefined : ['complete', 'completed', 'success', 'won'].includes(String(e.facts.outcome));
 const failed: Predicate = e => e.facts.outcome == null || ['pending', 'unknown'].includes(String(e.facts.outcome)) ? undefined : ['failed', 'lost'].includes(String(e.facts.outcome));
-const pass = (ctx: MetricContext): Predicate => e => isPass(e, ctx.profile);
+const pass = (ctx: MetricContext): Predicate => e => isPass(e, profileForObservation(ctx, e));
 const cross: Predicate = subtype(K('pass'), 'cross');
 const normalGoal: Predicate = e => isGoal(e) && e.facts.ownGoal !== true && e.facts.shootout !== true;
 const shot: Predicate = e => isShot(e) && e.facts.ownGoal !== true && e.facts.shootout !== true;
@@ -197,9 +197,9 @@ function assists(ctx: MetricContext, depth = 1): MetricCalculation {
     }
     let previous = goal; let last: ScopedObservation | undefined;
     for (let step = 0; step < depth; step++) {
-      const candidates = (ctx.matches.find(m => m.match.id === goal.matchId)?.events ?? ctx.all).filter(e => e.matchId === goal.matchId && e.team === goal.team && isPass(e, ctx.profile) && (previous.links?.pass === e.id || step === 0 && e.links?.shot === goal.id));
+      const candidates = (ctx.matches.find(m => m.match.id === goal.matchId)?.events ?? ctx.all).filter(e => e.matchId === goal.matchId && e.team === goal.team && isPass(e, profileForObservation(ctx, e)) && (previous.links?.pass === e.id || step === 0 && e.links?.shot === goal.id));
       last = candidates.length === 1 ? candidates[0] : undefined;
-      if (!last || passComplete(last, ctx.profile) !== true || last.facts.continuity !== true || last.facts.deflected === true || last.facts.rebound === true || last.receiverId !== previous.actorId) { last = undefined; break; }
+      if (!last || passComplete(last, profileForObservation(ctx, last)) !== true || last.facts.continuity !== true || last.facts.deflected === true || last.facts.rebound === true || last.receiverId !== previous.actorId) { last = undefined; break; }
       previous = last;
     }
     if (last && playerSelected(ctx, last.actorId)) credited.set(`${goal.matchId}:${goal.id}:${depth}`, last);
@@ -239,7 +239,7 @@ function interventions(ctx: MetricContext, inArea = false): MetricCalculation {
     const certainContact = e.facts.intervention === true || e.facts.intervention !== false && isKind(e, 'pass', 'reception', 'carry', 'shot', 'goal', 'distribution', 'clearance', 'interception', 'save');
     if (certainContact && playerSelected(ctx, e.actorId)) contacts.push(e);
     // A known completed delivery to B certifies B's reception even when there is no separate event.
-    if (isPass(e, ctx.profile) && passComplete(e, ctx.profile) === true && e.receiverId && playerSelected(ctx, e.receiverId)) {
+    if (isPass(e, profileForObservation(ctx, e)) && passComplete(e, profileForObservation(ctx, e)) === true && e.receiverId && playerSelected(ctx, e.receiverId)) {
       const facts: Observation['facts'] = { ...e.facts, intervention: true };
       delete facts.interventionId; delete facts.zone;
       if (typeof e.facts.destinationZone === 'string') facts.zone = e.facts.destinationZone;
@@ -250,7 +250,7 @@ function interventions(ctx: MetricContext, inArea = false): MetricCalculation {
     e => typeof e.facts.interventionId === 'string' ? e.facts.interventionId : `${e.links?.action ?? (isKind(e, 'reception') ? e.links?.pass : undefined) ?? e.id}:${e.actorId ?? 'team'}`);
 }
 function receiverContext(ctx: MetricContext, intended: boolean): MetricContext {
-  return withEvents(ctx, ctx.all.filter(e => e.team === ctx.team && isPass(e, ctx.profile) && playerSelected(ctx, intended ? e.intendedReceiverId : e.receiverId)));
+  return withEvents(ctx, ctx.all.filter(e => e.team === ctx.team && isPass(e, profileForObservation(ctx, e)) && playerSelected(ctx, intended ? e.intendedReceiverId : e.receiverId)));
 }
 function retention(ctx: MetricContext, base: Predicate): MetricCalculation {
   const window = numericParameter(ctx, 'retentionSeconds');
@@ -378,15 +378,15 @@ export const recipes001_200: Record<string, MetricRecipe> = {
   '046': ctx => count(ctx, flag(shot, 'bigChance'), 'shot'),
   '047': ctx => count(ctx, e => and(shotMiss(e), eq(e, 'bigChance', true)), 'shot'),
   '067': ctx => count(ctx, pass(ctx), 'pass'),
-  '068': ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile)), 'pass'),
-  '069': ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile) == null ? undefined : !passComplete(e, ctx.profile)), 'pass'),
-  '070': ctx => ratioOf(ctx, e => passComplete(e, ctx.profile), pass(ctx), 'pass'),
+  '068': ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e))), 'pass'),
+  '069': ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)) == null ? undefined : !passComplete(e, profileForObservation(ctx, e))), 'pass'),
+  '070': ctx => ratioOf(ctx, e => passComplete(e, profileForObservation(ctx, e)), pass(ctx), 'pass'),
   '071': ctx => count(ctx, attr(pass(ctx), 'distanceBand', 'short'), 'pass'),
   '072': ctx => count(ctx, attr(pass(ctx), 'distanceBand', 'medium'), 'pass'),
   '073': ctx => count(ctx, attr(pass(ctx), 'distanceBand', 'long'), 'pass'),
-  '074': ctx => ratioOf(ctx, e => passComplete(e, ctx.profile), attr(pass(ctx), 'distanceBand', 'short'), 'pass'),
-  '075': ctx => ratioOf(ctx, e => passComplete(e, ctx.profile), attr(pass(ctx), 'distanceBand', 'medium'), 'pass'),
-  '076': ctx => ratioOf(ctx, e => passComplete(e, ctx.profile), attr(pass(ctx), 'distanceBand', 'long'), 'pass'),
+  '074': ctx => ratioOf(ctx, e => passComplete(e, profileForObservation(ctx, e)), attr(pass(ctx), 'distanceBand', 'short'), 'pass'),
+  '075': ctx => ratioOf(ctx, e => passComplete(e, profileForObservation(ctx, e)), attr(pass(ctx), 'distanceBand', 'medium'), 'pass'),
+  '076': ctx => ratioOf(ctx, e => passComplete(e, profileForObservation(ctx, e)), attr(pass(ctx), 'distanceBand', 'long'), 'pass'),
   '077': ctx => ratioOf(ctx, e => eq(e, 'distanceBand', 'long'), pass(ctx), 'pass'),
   '078': ctx => count(ctx, attr(pass(ctx), 'height', 'ground'), 'pass'),
   '079': ctx => count(ctx, attr(pass(ctx), 'height', 'high'), 'pass'),
@@ -394,44 +394,44 @@ export const recipes001_200: Record<string, MetricRecipe> = {
   '081': ctx => count(ctx, flag(pass(ctx), 'firstTouch'), 'pass'),
   '082': ctx => count(ctx, flag(pass(ctx), 'weakFoot'), 'pass'),
   '083': ctx => count(ctx, flag(pass(ctx), 'underPressure'), 'pass'),
-  '084': ctx => ratioOf(ctx, e => passComplete(e, ctx.profile), flag(pass(ctx), 'underPressure'), 'pass'),
+  '084': ctx => ratioOf(ctx, e => passComplete(e, profileForObservation(ctx, e)), flag(pass(ctx), 'underPressure'), 'pass'),
   '087': ctx => count(ctx, attr(pass(ctx), 'direction', 'forward'), 'pass'),
   '088': ctx => count(ctx, attr(pass(ctx), 'direction', 'backward'), 'pass'),
   '089': ctx => count(ctx, attr(pass(ctx), 'direction', 'lateral'), 'pass'),
   '090': ctx => count(ctx, flag(pass(ctx), 'intendedReceiverGoalkeeper'), 'pass'),
   '091': ctx => ratioOf(ctx, e => eq(e, 'direction', 'forward'), pass(ctx), 'pass'),
   '092': ctx => count(ctx, flag(pass(ctx), 'progressive'), 'pass'),
-  '093': ctx => ratioOf(ctx, e => passComplete(e, ctx.profile), flag(pass(ctx), 'progressive'), 'pass'),
-  '095': ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile), eq(e, 'exitsOwnThird', true)), 'pass'),
-  '096': ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile), eq(e, 'entersFinalThird', true)), 'pass'),
-  '097': ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile), eq(e, 'entersArea', true)), 'pass'),
-  '098': configured('deepPassCriterion', ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile), eq(e, 'deepPass', true)), 'pass')),
+  '093': ctx => ratioOf(ctx, e => passComplete(e, profileForObservation(ctx, e)), flag(pass(ctx), 'progressive'), 'pass'),
+  '095': ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)), eq(e, 'exitsOwnThird', true)), 'pass'),
+  '096': ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)), eq(e, 'entersFinalThird', true)), 'pass'),
+  '097': ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)), eq(e, 'entersArea', true)), 'pass'),
+  '098': configured('deepPassCriterion', ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)), eq(e, 'deepPass', true)), 'pass')),
   '099': ctx => count(ctx, flag(pass(ctx), 'behindDefence'), 'pass'),
-  '100': ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile), eq(e, 'breaksLine', true)), 'pass'),
+  '100': ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)), eq(e, 'breaksLine', true)), 'pass'),
   '101': ctx => sum(ctx, pass(ctx), e => num(e, 'opponentsBypassed'), 'pass'),
   '102': ctx => count(ctx, flag(pass(ctx), 'switchOfPlay'), 'pass'),
   '103': ctx => count(ctx, flag(pass(ctx), 'halfspace'), 'pass'),
   '104': configured('wallSeconds', ctx => count(ctx, e => {
-    if (!isPass(e, ctx.profile)) return false;
+    if (!isPass(e, profileForObservation(ctx, e))) return false;
     const actor = (p: ScopedObservation) => p.team === 'us' ? p.actorId : p.opponentId;
     const receiver = (p: ScopedObservation) => p.team === 'us' ? p.receiverId : typeof p.facts.opponentReceiverId === 'string' ? p.facts.opponentReceiverId : undefined;
     if (!actor(e) || !receiver(e)) return undefined;
-    const candidates = ctx.all.filter(p => p.matchId === e.matchId && p.team === e.team && isPass(p, ctx.profile) && p.links?.pass === e.id);
-    const returns = candidates.filter(p => actor(p) === receiver(e) && receiver(p) === actor(e) && p.facts.continuity === true && passComplete(p, ctx.profile) === true);
+    const candidates = ctx.all.filter(p => p.matchId === e.matchId && p.team === e.team && isPass(p, profileForObservation(ctx, p)) && p.links?.pass === e.id);
+    const returns = candidates.filter(p => actor(p) === receiver(e) && receiver(p) === actor(e) && p.facts.continuity === true && passComplete(p, profileForObservation(ctx, p)) === true);
     if (!returns.length && candidates.some(p => !actor(p) || !receiver(p))) return undefined;
     if (!returns.length) return e.facts.phaseClosed === true ? false : undefined;
-    return and(passComplete(e, ctx.profile), before(e, returns[0], numericParameter(ctx, 'wallSeconds') ?? 0));
+    return and(passComplete(e, profileForObservation(ctx, e)), before(e, returns[0], numericParameter(ctx, 'wallSeconds') ?? 0));
   }, 'pass')),
   '105': ctx => assists(ctx),
-  '106': ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile), eq(e, 'continuity', true), leadsTo(ctx, e, shot)), 'pass'),
-  '107': configured('bigChanceCriterion', ctx => count(ctx, e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile), eq(e, 'continuity', true), leadsTo(ctx, e, flag(shot, 'bigChance'))), 'pass')),
+  '106': ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)), eq(e, 'continuity', true), leadsTo(ctx, e, shot)), 'pass'),
+  '107': configured('bigChanceCriterion', ctx => count(ctx, e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e)), eq(e, 'continuity', true), leadsTo(ctx, e, flag(shot, 'bigChance'))), 'pass')),
   '108': ctx => assists(ctx, 2),
   '109': ctx => assists(ctx, 3),
   '110': ctx => creation(ctx, false),
   '111': ctx => creation(ctx, true),
   '114': ctx => count(ctx, cross, 'pass'),
-  '115': ctx => count(ctx, e => and(cross(e), passComplete(e, ctx.profile)), 'pass'),
-  '116': ctx => ratioOf(ctx, e => passComplete(e, ctx.profile), cross, 'pass'),
+  '115': ctx => count(ctx, e => and(cross(e), passComplete(e, profileForObservation(ctx, e))), 'pass'),
+  '116': ctx => ratioOf(ctx, e => passComplete(e, profileForObservation(ctx, e)), cross, 'pass'),
   '117': ctx => count(ctx, flag(cross, 'blocked'), 'pass'),
   '118': ctx => count(ctx, flag(pass(ctx), 'cutback'), 'pass'),
   '119': ctx => count(ctx, e => { const eligible = cross(e); return eligible === false ? false : and(eligible, leadsTo(ctx, e, shot)); }, 'pass'),
@@ -439,8 +439,8 @@ export const recipes001_200: Record<string, MetricRecipe> = {
   '122': ctx => interventions(ctx, true),
   '123': ctx => quotient(recipes001_200['121'](ctx), recipes001_200['121'](fullTeam(ctx)), 100, '%'),
   '124': ctx => count(receiverContext(ctx, true), pass(ctx), 'pass'),
-  '125': ctx => count(receiverContext(ctx, false), e => and(isPass(e, ctx.profile), passComplete(e, ctx.profile)), 'pass'),
-  '126': ctx => ratioOf(receiverContext(ctx, true), e => and(passComplete(e, ctx.profile), e.intendedReceiverId == null || e.receiverId == null ? undefined : e.intendedReceiverId === e.receiverId), pass(ctx), 'pass'),
+  '125': ctx => count(receiverContext(ctx, false), e => and(isPass(e, profileForObservation(ctx, e)), passComplete(e, profileForObservation(ctx, e))), 'pass'),
+  '126': ctx => ratioOf(receiverContext(ctx, true), e => and(passComplete(e, profileForObservation(ctx, e)), e.intendedReceiverId == null || e.receiverId == null ? undefined : e.intendedReceiverId === e.receiverId), pass(ctx), 'pass'),
   '127': ctx => count(ctx, flag(K('reception'), 'betweenLines'), 'reception'),
   '128': ctx => count(ctx, flag(K('reception'), 'behindDefence'), 'reception'),
   '129': ctx => count(ctx, flag(K('reception'), 'underPressure'), 'reception'),

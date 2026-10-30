@@ -227,8 +227,8 @@ describe('narrated catalogue engine', () => {
   it('does not apply the first match pass policy silently to other seasons', () => {
     const a = match([obs('a', 'pass', 1, { subtype: 'cross', outcome: 'complete' })]);
     const b = match([obs('b', 'pass', 1, { subtype: 'cross', outcome: 'complete' })], { id: 'm2' }); b.analysis!.profile.passes.crosses = false;
-    expect(metric('067', [a, b])).toMatchObject({ value: null, status: 'not_configured' });
-    expect(metric('067', [b, a])).toMatchObject({ value: null, status: 'not_configured' });
+    expect(metric('067', [a, b])).toMatchObject({ value: 1, status: 'complete' });
+    expect(metric('067', [b, a])).toMatchObject({ value: 1, status: 'complete' });
     expect(metric('015', [a, b]).value).toBe(0);
   });
   it('does not attach known out-of-scope doubts to another player or half', () => {

@@ -926,7 +926,7 @@ export function Juego({ v, grow, onClose, onInspect, catalogLoad = { error: fals
             </h3>
             <Seg label="Qué goles ver" opts={g.clockOpts} i={g.clockI} className="nu-race__seg" n={3} />
           </div>
-          <div className="nu-clock" role="group" aria-label="Goles por tramo de 5 minutos: arriba los nuestros, abajo los del rival">
+          <div className="nu-clock" style={{ gridTemplateColumns: `repeat(${g.slices.length},minmax(0,1fr))` }} role="group" aria-label="Goles por tramo de 5 minutos: arriba los nuestros, abajo los del rival">
             {g.slices.map((s) => (
               <span key={s.key} className={`nu-clock__s ${s.cls}`.trim()} role="img" aria-label={s.label}>
                 <i className="nu-clock__u" style={{ height: `${s.u}%` }} />
@@ -938,14 +938,14 @@ export function Juego({ v, grow, onClose, onInspect, catalogLoad = { error: fals
           <p className="nu-keys">
             <span className="nu-key nu-key--us">a favor</span>
             <span className="nu-key nu-key--them">del rival, en contra</span>
-            <span>descanso al 25′</span>
+            <span>tiempo de juego, sin descanso</span>
           </p>
           <p className="nu-regsub">{g.clockCap}</p>
           {g.hasTech && (
             <>
               <h3 className="nu-h3 nu-h3--gap">{g.tramT}</h3>
               <p className="nu-regsub">{g.tramSub}</p>
-              <div className="nu-tram" role="group" aria-label={g.tramT}>
+              <div className="nu-tram" style={{ gridTemplateColumns: `repeat(${g.tramos.length},minmax(0,1fr))` }} role="group" aria-label={g.tramT}>
                 {g.tramos.map((t) => (
                   <span key={t.key} className="nu-tram__s" role="img" aria-label={t.label}>
                     <i className="nu-tram__a" style={{ height: `${t.h}%` }} />

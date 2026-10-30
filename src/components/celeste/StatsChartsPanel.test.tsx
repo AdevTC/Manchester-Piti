@@ -29,6 +29,28 @@ describe("shared chart panel", () => {
     expect(detail).toHaveTextContent("0′ 10″");
     expect(detail).not.toHaveTextContent("26′ 40″");
   });
+  it("renders both matches together and keeps each acta in the pair detail", () => {
+    const first = structuredClone(match);
+    first.analysis!.profile = structuredClone(DEFAULT_ANALYSIS_PROFILE);
+    first.analysis!.observations.find(action => action.id === "pass")!.facts.deflected = true;
+    const second = structuredClone(first); second.id = "second-match";
+    second.analysis!.profile.passes.deflection = "retain";
+    const view = render(<StatsChartsPanel matches={[first, second]} people={people}/>);
+    expect(screen.getByRole("group", { name: "Red dirigida de pases completados" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Aún no se puede dibujar la red" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Bruno a Álex: 2 pases completados. Ver jugadas" }));
+    const detail = screen.getByRole("region", { name: "Jugadas de la conexión elegida" });
+    expect(detail).toHaveTextContent("2/2 con resultado conocido");
+    expect(within(detail).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(expect.arrayContaining(["/partidos/m/numeros", "/partidos/second-match/numeros"]));
+    view.rerender(<StatsChartsPanel matches={[second, first]} people={people} filters={{ period: 1 }}/>);
+    expect(screen.getByRole("button", { name: "Álex a Bruno: 1 pases completados. Ver jugadas" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Bruno a Álex/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Álex a Bruno: 1 pases completados. Ver jugadas" }));
+    const firstHalfDetail = screen.getByRole("region", { name: "Jugadas de la conexión elegida" });
+    expect(firstHalfDetail).toHaveTextContent("1/2 con resultado conocido");
+    expect(within(firstHalfDetail).getByText("Fallido")).toBeVisible();
+    expect(within(firstHalfDetail).getByText("Completado")).toBeVisible();
+  });
   it("recalculates the selected period without leaking old pair evidence", () => {
     const view = render(<StatsChartsPanel matches={[match]} people={people}/>);
     fireEvent.click(within(screen.getByRole("list", { name: "Conexiones de la red" })).getByRole("button", { name: /Álex a Bruno/ }));

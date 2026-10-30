@@ -906,10 +906,16 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     return o;
   });
   const tmax = Math.max(1, ...tram.map((x) => x.pas));
-  const tramos = tram.map((x, i) => ({
-    key: i, h: Math.round((x.pas / tmax) * 100), ok: Math.round((x.pok / tmax) * 100), lab: `${i * 5}′`, v: x.pas,
-    label: `Del ${i * 5}′ al ${i * 5 + 5}′: ${x.pas} pases, ${x.pok} completados, ${x.sh} remates nuestros y ${x.tsh} del rival`,
-  }));
+  const tramos = tram.map((x, i) => {
+    // Pass bars follow the selected team; the shot comparison needs both sides.
+    // A player-only sample cannot make claims about the rival's total shots.
+    const shots = clockActions?.tramos[i] ?? x;
+    const shotLabel = analysis.filters.playerIds?.length ? `${us ? x.sh : x.tsh} remates de los jugadores seleccionados` : `${shots.sh} remates nuestros y ${shots.tsh} del rival`;
+    return {
+      key: i, h: Math.round((x.pas / tmax) * 100), ok: Math.round((x.pok / tmax) * 100), lab: `${i * 5}′`, v: x.pas,
+      label: `Del ${i * 5}′ al ${i * 5 + 5}′: ${x.pas} pases, ${x.pok} completados, ${shotLabel}`,
+    };
+  });
   const pairs: Record<string, number> = {};
   if (hasAnalysisSource) actions.links.forEach(p => { pairs[`${p.from}>${p.to}`] = p.count; });
   else narrated.forEach((m) => (m.passPairs || []).forEach((p) => (pairs[`${p[0]}>${p[1]}`] = (pairs[`${p[0]}>${p[1]}`] || 0) + p[2])));
@@ -960,7 +966,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ? (clockGoalsUs ? `Marcamos más entre el ${bu * 5}′ y el ${bu * 5 + 5}′` : "Aún no hemos marcado con minuto") + (clockGoalsThem ? `; el rival nos marca más entre el ${bt * 5}′ y el ${bt * 5 + 5}′.` : ".")
       : "Aún no hay goles con minuto registrado.",
     hasTech: nN > 0, tramos, tramT: "Dónde cambia el juego: pases por tramo",
-    tramSub: `Cada columna, cinco minutos: alto, los pases intentados; relleno, los completados. ${nN === 1 ? `De la J${narrated[0].j}.` : `${nN} partidos.`}${actions.unplaced ? ` ${actions.unplaced} acciones no se asignan a un tramo por falta de tiempo preciso.` : ""}`,
+    tramSub: `Cada columna, cinco minutos de juego, incluido el añadido: alto, los pases intentados; relleno, los completados. ${nN === 1 ? `De la J${narrated[0].j}.` : `${nN} partidos.`}${actions.unplaced ? ` ${actions.unplaced} acciones no se pueden ubicar por completo en un único tramo.` : ""}`,
     pairs: pairL, hasPairs: pairL.length > 0,
     cov: { ok: cov.complete.join(" · ") || "Ninguna", part: cov.partial.join(" · ") || "Ninguna", none: cov.unknown.join(" · ") || "Ninguna", hasNone: cov.unknown.length > 0 },
     note: narrated.map((m) => m.analysisNote).find(Boolean) ?? "",

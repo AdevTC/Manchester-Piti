@@ -25,11 +25,21 @@ describe("shared statistics charts", () => {
     expect(data.edges[0]).toMatchObject({ from: "a", to: "b", completed: 1, volume: { evidenceEventIds: ["a:second"] } });
     expect(data.nodes.map(node => node.id)).toEqual(["a", "b"]);
   });
-  it("does not draw unknown or incompatible-profile passes as successful connections", () => {
+  it("does not draw unknown passes as successful connections", () => {
     expect(buildPassingNetwork([match("m", [pass("pending", { facts: { outcome: "pending" } })])], people).edges).toEqual([]);
-    const a = match("a", [pass("one")]), b = match("b", [pass("two")]);
-    b.analysis!.profile.passes.crosses = false;
-    expect(buildPassingNetwork([a, b], people).edges).toEqual([]);
+  });
+  it("keeps the network consistent with pooled totals from different match profiles", () => {
+    const a = match("a", [pass("deflected", { facts: { outcome: "complete", deflected: true } }), pass("plain")]);
+    const b = match("b", [pass("deflected", { facts: { outcome: "complete", deflected: true } }), pass("anonymous", { receiverId: undefined })]);
+    b.analysis!.profile.passes.deflection = "retain";
+    for (const matches of [[a, b], [b, a]]) {
+      const data = buildPassingNetwork(matches, people);
+      expect(data).toMatchObject({ attempts: 4, completed: 2, totalCompleted: 3, unrepresentedCompleted: 1 });
+      expect(data.edges).toHaveLength(1);
+      expect(data.edges[0]).toMatchObject({ from: "a", to: "b", attempts: 3, completed: 2, failed: 1, accuracy: { numerator: 2, denominator: 3 } });
+      expect(data.nodes.map(node => [node.id, node.sent, node.received])).toEqual([["a", 2, 0], ["b", 0, 2]]);
+      expect(new Set(data.edges[0].volume.evidenceEventIds)).toEqual(new Set(["a:deflected", "a:plain", "b:deflected"]));
+    }
   });
   it("stops at the moviola minute without assigning an interval across its boundary", () => {
     const m = match("m", [
@@ -45,6 +55,17 @@ describe("shared statistics charts", () => {
   it("keeps rival identities separate from similarly named Piti players", () => {
     const data = buildPassingNetwork([match("m", [pass("opponent", { team: "opponent", actorId: undefined, receiverId: undefined, opponentId: "a", facts: { outcome: "complete", opponentReceiverId: "b" } })])], people, { team: "opponent" });
     expect(data.nodes.map(node => node.name)).toEqual(["Rival 1", "Rival 2"]);
+  });
+  it("never merges local rival identities from different matches into the same players", () => {
+    const rivalPass = pass("opponent", { team: "opponent", actorId: undefined, receiverId: undefined, opponentId: "9", facts: { outcome: "complete", opponentReceiverId: "10" } });
+    const a = match("a", [rivalPass]), b = match("b", [rivalPass]);
+    const data = buildPassingNetwork([a, b], people, { team: "opponent" });
+    expect(data.edges).toHaveLength(2);
+    expect(data.cells).toHaveLength(2);
+    expect(data.nodes).toHaveLength(4);
+    expect(data).toMatchObject({ completed: 2, totalCompleted: 2, unrepresentedCompleted: 0 });
+    expect(data.edges.map(edge => edge.volume.evidenceEventIds)).toEqual([["a:opponent"], ["b:opponent"]]);
+    expect(buildPassingNetwork([b, a], people, { team: "opponent" }).nodes).toEqual(data.nodes);
   });
   it("explains completed passes missing from the network without counting failed attempts as successes", () => {
     const data = buildPassingNetwork([match("m", [pass("pair"), pass("anonymous", { actorId: undefined }), pass("failed", { receiverId: undefined, facts: { outcome: "failed" } })])], people);

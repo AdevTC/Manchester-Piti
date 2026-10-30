@@ -46,17 +46,22 @@ function computeNumerosActions(matches: readonly ClubMatch[], filters: AnalysisF
   const events = context.matches.flatMap(m => technicalEvents(m.match).filter(e => scopedIds.has(`${m.match.id}:${e.id}`)).map(e => ({ ...e, id: `${m.match.id}:${e.id}` })));
   const selected = events.filter(e => (!filters.team || eventSide(e) === filters.team) && (!filters.playerIds?.length || !!e.playerId && filters.playerIds.includes(e.playerId)));
   const summary = analyseActions(selected);
-  const tramos: Tramo[] = Array.from({ length: 10 }, () => ({ pas: 0, pok: 0, sh: 0, rec: 0, loss: 0, tsh: 0 }));
-  const goalBins = { us: Array<number>(10).fill(0), opponent: Array<number>(10).fill(0) };
+  const durations = new Map(context.matches.map(m => [m.match.id, m.duration]));
+  const longest = Math.max(3000, ...[...durations.values()].filter(n => Number.isFinite(n) && n > 0));
+  const binCount = Math.min(120, Math.ceil(longest / 300));
+  const tramos: Tramo[] = Array.from({ length: binCount }, () => ({ pas: 0, pok: 0, sh: 0, rec: 0, loss: 0, tsh: 0 }));
+  const goalBins = { us: Array<number>(binCount).fill(0), opponent: Array<number>(binCount).fill(0) };
   const eventById = new Map(selected.map(e => [e.id, e]));
   let unplaced = 0;
   for (const o of context.all) {
     const event = eventById.get(o.evidenceId);
     if (!event || !isAnalysisAction(event.type) && !["goal", "goal_penalty", "goal_freekick", "opponent_goal"].includes(event.type)) continue;
     // A narrated minute interval fits one five-minute bar; an interval crossing bars does not.
-    const start = o.time && Math.floor(o.time.from / 300);
-    const end = o.time && Math.floor(Math.max(o.time.from, o.time.to - (o.time.to > o.time.from ? 0.001 : 0)) / 300);
-    if (start == null || start !== end || start > 9 || o.time?.precision === "approximate") { unplaced += event.quantity ?? 1; continue; }
+    // The exact final whistle belongs to the last played bin, not an extra one.
+    const atWhistle = o.time?.precision === "exact" && o.time.from === durations.get(o.matchId);
+    const start = o.time && Math.floor((o.time.from - (atWhistle ? 0.001 : 0)) / 300);
+    const end = atWhistle ? start : o.time && Math.floor(Math.max(o.time.from, o.time.to - (o.time.to > o.time.from ? 0.001 : 0)) / 300);
+    if (start == null || start !== end || start >= binCount || o.time?.precision === "approximate") { unplaced += event.quantity ?? 1; continue; }
     const row = tramos[Math.max(0, start)];
     const one = analyseActions([event]).teams[eventSide(event)];
     goalBins[eventSide(event)][Math.max(0, start)] += one.shotGoals;

@@ -55,12 +55,28 @@ describe("interactive game insights", () => {
     expect(data.uncertainActions).toBe(1);
     expect(data.segments[0].result).toMatchObject({ value: null, status: "unknown", pending: 1 });
   });
-  it("preserves the engine guard when selected matches use incompatible pass definitions", () => {
-    const a = game("a"), b = game("b"); b.analysis!.profile.passes.crosses = false;
-    expect(buildInsightTimeline([a, b], {}, "070").segments.every(s => s.result.status === "not_configured" && s.result.value == null)).toBe(true);
+  it("pools each match's pass inclusion rules without suppressing the timeline or matrix", () => {
+    const a = game("a", [pass("plain", 20), pass("cross", 21, { facts: { outcome: "complete", subtype: "cross" } })]);
+    const b = structuredClone(a); b.id = "b"; b.analysis!.profile.passes.crosses = false;
+    const row = buildInsightTimeline([a, b], {}, "070").segments[0];
+    expect(row.result).toMatchObject({ value: 100, numerator: 3, denominator: 3, status: "complete" });
     const cell = pair(buildPassMatrix([a, b], people));
-    expect(cell.accuracy).toMatchObject({ status: "not_configured", value: null });
-    expect(cell.volume).toMatchObject({ status: "not_configured", value: null });
+    expect(cell).toMatchObject({ attempts: 3, completed: 3, failed: 0, accuracy: { value: 100 }, volume: { value: 3 } });
+    expect(cell.volume.evidenceEventIds).toEqual(["a:plain", "a:cross", "b:plain"]);
+  });
+  it("weights deflected passes with their own acta's rule, regardless of match order", () => {
+    const a = game("a", [pass("deflected", 20, { facts: { outcome: "complete", deflected: true } })]);
+    const b = game("b", [pass("deflected", 20, { facts: { outcome: "complete", deflected: true } }), pass("failed", 21, { facts: { outcome: "failed" } })]);
+    b.analysis!.profile.passes.deflection = "retain";
+    for (const matches of [[a, b], [b, a]]) {
+      const row = buildInsightTimeline(matches, { period: 1, playerIds: ["a"] }, "070").segments[0];
+      expect(row.result).toMatchObject({ numerator: 1, denominator: 3, status: "complete" });
+      expect(row.result.value).toBeCloseTo(100 / 3);
+      const cell = pair(buildPassMatrix(matches, people, { period: 1, playerIds: ["a"] }));
+      expect(cell).toMatchObject({ attempts: 3, completed: 1, failed: 2, accuracy: { numerator: 1, denominator: 3 }, volume: { value: 1 } });
+      expect(cell.accuracy.value).toBeCloseTo(100 / 3);
+      expect(new Set(cell.volume.evidenceEventIds)).toEqual(new Set(["a:deflected", "b:deflected", "b:failed"]));
+    }
   });
   it("keeps directed receivers outside the selected sender and never guesses failed destinations", () => {
     const m = game("m", [pass("out", 10), pass("back", 11, { actorId: "b", receiverId: "a" }), pass("fail", 12, { receiverId: undefined, intendedReceiverId: "b", facts: { outcome: "failed" } }), pass("unassigned", 13, { receiverId: undefined, facts: { outcome: "failed" } })]);

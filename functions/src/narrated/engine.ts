@@ -5,22 +5,7 @@ import { DEFAULT_ANALYSIS_PROFILE, type AnalysisFilters, type MetricResult, type
 import { type MetricContext, type PreparedMatch, type MetricCalculation, type MetricRecipe, type ScopedObservation, kindOf, periodInterval, intervalUnion, missing } from './operators.js';
 import { RECIPES_001_200 } from './recipes001_200.js';
 import { RECIPES_201_400 } from './recipes201_400.js';
-
-function profileSignature(ctx: MetricContext, parameterIds: string[], index: number): string {
-  const p = ctx.matches[index].profile;
-  const wanted = new Set<string>();
-  const sets: Record<string, string[]> = {
-    P03: ['quickRecoverySeconds'], P04: ['temporalToleranceSeconds'],
-    P11: ['pressureRecoverySeconds','reactionSeconds','ppdaZone','ppdaActionKinds','defensiveActionKinds','counterpressReactionSeconds','counterpressRecoverySeconds','counterpressShotSeconds','gpiEligibleKinds','gpiExceptionsReviewed'],
-    P12: ['retentionSeconds','retentionEndPolicy','throwInProgressZone'], P13: ['dangerSeconds','reboundSeconds'],
-    P14: ['assistPolicy','scaEligibleKinds','scaPhasePolicy'], P16: ['windowSeconds','windowKind','splitSecond','substitutionId','substitutionWindowSeconds'],
-    P20: ['assistPolicy'], P21: ['scaEligibleKinds','scaPhasePolicy'], P23: ['keeperCleanSheetPolicy','keeperCleanSheetMinMinutes'],
-    P24: ['ratingWeights','ratingScaleMin','ratingScaleMax','ratingBaseline','ratingRole','ratingMissingPolicy'],
-  };
-  for (const id of parameterIds) for (const key of sets[id] ?? []) wanted.add(key);
-  const signature = { passes: parameterIds.some(id => ['P08','P09','P10','P19'].includes(id)) ? p.passes : null, baseMinutes: parameterIds.includes('P01') ? p.baseMinutes : null, parameters: Object.fromEntries([...wanted].sort().map(key => [key, p.parameters[key] ?? null])) };
-  return JSON.stringify(signature);
-}
+import { compatibleMetricProfiles } from './profileCompatibility.js';
 
 export function prepareNarrated(matches: readonly NarratedMatch[], filters: AnalysisFilters = {}): MetricContext {
   const team = filters.team ?? 'us';
@@ -51,7 +36,7 @@ export function prepareNarrated(matches: readonly NarratedMatch[], filters: Anal
     return true;
   });
   const events = all.filter(e => e.team === team && (!filters.playerIds?.length || e.actorId && filters.playerIds.includes(e.actorId)));
-  return { matches: prepared, events, all, filters, team, profile: prepared[0]?.profile ?? DEFAULT_ANALYSIS_PROFILE, excludedByUncertainty: uncertainEvents.length, uncertainEvents };
+  return { matches: prepared, events, all, filters, team, profile: prepared[0]?.profile ?? DEFAULT_ANALYSIS_PROFILE, profilesByMatch: new Map(prepared.map(m => [m.match.id, m.profile])), excludedByUncertainty: uncertainEvents.length, uncertainEvents };
 }
 
 export const NARRATED_RECIPES: Readonly<Record<string, MetricRecipe>> = { ...RECIPES_001_200, ...RECIPES_201_400 };
@@ -102,6 +87,10 @@ function completeCoverage(ctx: MetricContext, category: string, id: string, requ
   });
 }
 function finalize(id: string, category: string, ctx: MetricContext, raw: MetricCalculation): MetricResult {
+  const profiles = [...new Set(ctx.matches.map(m => `${m.profile.id} v${m.profile.version}`))].sort();
+  const profileParameters: MetricResult['parameters'] = profiles.length > 1
+    ? { profiles, profilePolicy: 'per_match' }
+    : { profile: ctx.profile.id, profileVersion: ctx.profile.version };
   const families = id === '105' && raw.requiredCoverage?.length === 1 && raw.requiredCoverage[0].family === 'goal'
     ? ['goal'] : [...metricFamilies(id), ...(raw.requiredCoverage ?? []).map(c => c.family)];
   const n = Number(id);
@@ -119,7 +108,7 @@ function finalize(id: string, category: string, ctx: MetricContext, raw: MetricC
   if (status === 'partial' && !raw.observed && pending) status = 'unknown';
   if (raw.value == null && status === 'partial') status = 'unknown';
   const value = status === 'unknown' && raw.observed === 0 ? null : raw.value;
-  return { id, value, unit: raw.unit ?? 'acciones', status, observed: raw.observed, pending, evidenceEventIds: [...new Set(raw.evidenceEventIds)], ruleId: `piti.${id}`, ruleVersion: 1, parameters: { profile: ctx.profile.id, profileVersion: ctx.profile.version, ...(raw.parameters ?? {}) }, reason: raw.reason ?? (status === 'complete' ? 'Cobertura declarada completa para esta muestra.' : status === 'partial' ? 'Recuento de la muestra observada; hay cobertura incompleta o atributos pendientes.' : status === 'unknown' ? 'Faltan hechos o cobertura suficiente para calcularlo.' : status === 'no_sample' ? 'No hay oportunidades elegibles en la muestra.' : ''), ...(raw.numerator != null ? { numerator: raw.numerator } : {}), ...(raw.denominator != null ? { denominator: raw.denominator } : {}), ...(raw.groups ? { groups: raw.groups } : {}), ...(raw.exposureSeconds != null ? { exposureSeconds: raw.exposureSeconds } : {}) };
+  return { id, value, unit: raw.unit ?? 'acciones', status, observed: raw.observed, pending, evidenceEventIds: [...new Set(raw.evidenceEventIds)], ruleId: `piti.${id}`, ruleVersion: 1, parameters: { ...profileParameters, ...(raw.parameters ?? {}) }, reason: raw.reason ?? (status === 'complete' ? 'Cobertura declarada completa para esta muestra.' : status === 'partial' ? 'Recuento de la muestra observada; hay cobertura incompleta o atributos pendientes.' : status === 'unknown' ? 'Faltan hechos o cobertura suficiente para calcularlo.' : status === 'no_sample' ? 'No hay oportunidades elegibles en la muestra.' : ''), ...(raw.numerator != null ? { numerator: raw.numerator } : {}), ...(raw.denominator != null ? { denominator: raw.denominator } : {}), ...(raw.groups ? { groups: raw.groups } : {}), ...(raw.exposureSeconds != null ? { exposureSeconds: raw.exposureSeconds } : {}) };
 }
 
 /** A requested subset still evaluates dependencies (for example a configured rating),
@@ -139,7 +128,7 @@ export function evaluateNarrated(matches: readonly NarratedMatch[], filters: Ana
     // do not establish the rival's roster, substitutions or combinations of seven.
     else if (ctx.team === 'opponent' && (Number(id) >= 1 && Number(id) <= 14 || id === '388' || id === '389')) raw = missing('Faltan la convocatoria y las tandas del rival. La participación del Piti no se atribuye al otro equipo.');
     else if (filters.playerIds?.length && metric.scope.trim().toLowerCase() === 'equipo') raw = missing('Esta métrica describe al equipo completo; quita el filtro de jugadores para consultarla.', 'not_applicable');
-    else if (ctx.matches.some((_, i) => profileSignature(ctx, metric.parameterIds, i) !== profileSignature(ctx, metric.parameterIds, 0))) raw = missing('Los partidos usan definiciones o parámetros distintos para esta métrica. Selecciona partidos con el mismo perfil de cálculo.', 'not_configured');
+    else if (!compatibleMetricProfiles(ctx, id)) raw = missing('Los partidos usan definiciones o parámetros distintos para esta métrica. Selecciona partidos con el mismo perfil de cálculo.', 'not_configured');
     else if (filters.period != null && ['001','002','003','004','009','010','011','012','013','014','219','220','221','223','224','225','228','276','319','320','321','322','382','383','384','388','392','393','394','395','396','400'].includes(id) && ctx.matches.some(m => !periodInterval(ctx, m))) raw = missing('Falta el límite real de esta parte; no se sustituye por la duración programada.');
     else raw = recipe ? recipe(ctx) : missing('La definición todavía no tiene un cálculo implementado.', 'not_configured');
     const result = finalize(metric.id, metric.category, ctx, raw); cache.set(id, result); calculating.delete(id); return result;

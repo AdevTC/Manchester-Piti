@@ -10,6 +10,7 @@ export interface MetricContext {
   filters: AnalysisFilters;
   team: AnalysisTeam;
   profile: AnalysisProfile;
+  profilesByMatch?: ReadonlyMap<string, AnalysisProfile>;
   excludedByUncertainty: number;
   uncertainEvents?: ScopedObservation[];
   evaluateMetric?: (id: string) => MetricResult | undefined;
@@ -44,6 +45,10 @@ export function missing(reason: string, status: MetricStatus = 'unknown'): Metri
 }
 export function parameter(ctx: MetricContext, key: string): number | string | boolean | string[] | undefined { return ctx.profile.parameters[key]; }
 export function numericParameter(ctx: MetricContext, key: string): number | undefined { const p = parameter(ctx, key); return typeof p === 'number' && Number.isFinite(p) ? p : undefined; }
+/** Rules belong to the recorded match, never to the first item in a selection. */
+export function profileForObservation(ctx: MetricContext, e: ScopedObservation): AnalysisProfile {
+  return ctx.profilesByMatch?.get(e.matchId) ?? ctx.matches.find(m => m.match.id === e.matchId)?.profile ?? ctx.profile;
+}
 export function count(ctx: MetricContext, predicate: Predicate, _family?: string, requiredFacts: string[] = []): MetricCalculation {
   let value = 0, pending = 0;
   const evidenceEventIds: string[] = [];

@@ -1,5 +1,5 @@
 /** Deterministic reducers for transitions, possession, set pieces and temporal/team contexts. */
-import { and, before, clipIntervals, count, difference, elapsed, eq, exactTime, intervalIntersection, intervalSeconds, intervalUnion, isGoal, isKind, isPass, isShot, kindOf, knownOutcome, mean, missing, num, numericParameter, opposite, parameter, passComplete, playerIntervals, quantity, quotient, ratioOf, sum, teamContext, withEvents, type MetricCalculation, type MetricContext, type MetricRecipe, type PreparedMatch, type ScopedObservation } from './operators.js';
+import { and, before, clipIntervals, count, difference, elapsed, eq, exactTime, intervalIntersection, intervalSeconds, intervalUnion, isGoal, isKind, isPass, isShot, kindOf, knownOutcome, mean, missing, num, numericParameter, opposite, parameter, passComplete, profileForObservation, playerIntervals, quantity, quotient, ratioOf, sum, teamContext, withEvents, type MetricCalculation, type MetricContext, type MetricRecipe, type PreparedMatch, type ScopedObservation } from './operators.js';
 import type { AnalysisTeam, Observation } from './types.js';
 import { dateMillis } from '../matchEngine.js';
 
@@ -195,7 +195,7 @@ export const RECIPES_201_400: Record<string, MetricRecipe> = {
   '223': c => unit(episodeValue(c, ep => ep.complete ? ep.duration : undefined, 'mean'), 's'),
   '224': c => unit(episodeValue(c, ep => ep.complete ? ep.duration : undefined, 'median'), 's'),
   '225': c => unit(episodeValue(c, ep => ep.complete ? ep.duration : undefined, 'max'), 's'),
-  '226': c => { const eps = episodes(c); const events = eps.flatMap(ep => ep.events.filter(e => isPass(e, c.profile))); return quotient(count(withEvents(c, events), () => true), episodeValue(c, () => 1)); },
+  '226': c => { const eps = episodes(c); const events = eps.flatMap(ep => ep.events.filter(e => isPass(e, profileForObservation(c, e)))); return quotient(count(withEvents(c, events), () => true), episodeValue(c, () => 1)); },
   '227': c => {
     let best = 0, pending = 0; const evidence: string[] = [];
     for (const m of c.matches) { let run = 0; const runIds: string[] = []; for (const e of c.all.filter(e => e.matchId === m.match.id)) {
@@ -207,7 +207,7 @@ export const RECIPES_201_400: Record<string, MetricRecipe> = {
     } }
     return { value: best, observed: evidence.length, pending, evidenceEventIds: evidence };
   },
-  '228': c => { const time = controlSeconds(c, c.team); return quotient(count(c, e => isPass(e, c.profile) && !!e.links?.possession), { ...time, value: time.value == null ? null : time.value / 60 }, 1, 'pases/min'); },
+  '228': c => { const time = controlSeconds(c, c.team); return quotient(count(c, e => isPass(e, profileForObservation(c, e)) && !!e.links?.possession), { ...time, value: time.value == null ? null : time.value / 60 }, 1, 'pases/min'); },
   '229': c => possessionReached(c, attackingHalf),
   '230': c => possessionReached(c, e => eq(e, 'zone', 'opponent_area')),
   '231': c => quotient(possessionReached(c, isShot), episodeValue(c, () => 1), 100, '%'),
@@ -218,13 +218,13 @@ export const RECIPES_201_400: Record<string, MetricRecipe> = {
   '238': c => count(c, e => and(attack(e), eq(e, 'phase', 'positional'))),
   '239': c => count(c, e => and(attack(e), eq(e, 'phase', 'direct'))),
   '240': c => count(c, e => and(attack(e), attack(e) ? hasRelated(c, e, 'attack', isShot) : false)),
-  '241': c => count(c, e => and(isKind(e, 'pass', 'carry'), eq(e, 'entersFinalThird', true), isKind(e, 'pass') ? passComplete(e, c.profile) : true)),
-  '242': c => count(c, e => and(isKind(e, 'pass', 'carry'), eq(e, 'entersArea', true), isKind(e, 'pass') ? passComplete(e, c.profile) : true)),
+  '241': c => count(c, e => and(isKind(e, 'pass', 'carry'), eq(e, 'entersFinalThird', true), isKind(e, 'pass') ? passComplete(e, profileForObservation(c, e)) : true)),
+  '242': c => count(c, e => and(isKind(e, 'pass', 'carry'), eq(e, 'entersArea', true), isKind(e, 'pass') ? passComplete(e, profileForObservation(c, e)) : true)),
   '243': c => quotient(sum(c, e => and(eq(e, 'zone', 'opponent_area'), !!e.links?.attack), field('touchCount')), count(c, attack)),
   '244': c => count(c, e => and(attack(e), eq(e, 'lane', 'left'))),
   '245': c => count(c, e => and(attack(e), eq(e, 'lane', 'center'))),
   '246': c => count(c, e => and(attack(e), eq(e, 'lane', 'right'))),
-  '247': c => { const all = withEvents(c, c.all); return ratioOf(all, e => e.team === c.team, e => and(isPass(e, c.profile), passComplete(e, c.profile), e.facts.zone == null ? undefined : ['final_third', 'opponent_area'].includes(String(e.facts.zone)))); },
+  '247': c => { const all = withEvents(c, c.all); return ratioOf(all, e => e.team === c.team, e => and(isPass(e, profileForObservation(c, e)), passComplete(e, profileForObservation(c, e)), e.facts.zone == null ? undefined : ['final_third', 'opponent_area'].includes(String(e.facts.zone)))); },
   '248': c => ratioOf(withEvents(c, c.all), e => e.team === c.team, isShot),
   '250': c => ratioOf(c, e => hasRelated(c, e, 'attack', x => x.facts.entersArea === true || x.facts.zone === 'opponent_area'), attack),
   '251': c => count(c, e => restart(e, 'corner', 'awarded')),
@@ -263,7 +263,7 @@ export const RECIPES_201_400: Record<string, MetricRecipe> = {
   '285': c => count(c, e => subtype(e, 'keeper', 'punch')),
   '286': c => count(c, e => and(subtype(e, 'keeper', 'cross_exit'), eq(e, 'outcome', 'failed'))),
   '287': c => count(c, e => and(isKind(e, 'keeper', 'save', 'tackle', 'interception', 'clearance'), eq(e, 'role', 'GK'), eq(e, 'outsideArea', true))),
-  '289': c => ratioOf(c, e => passComplete(e, c.profile), e => isKind(e, 'distribution')),
+  '289': c => ratioOf(c, e => passComplete(e, profileForObservation(c, e)), e => isKind(e, 'distribution')),
   '290': c => count(c, e => and(isKind(e, 'distribution'), isKind(e, 'distribution') ? hasRelated(c, e, 'possession', attack) : false)),
   '295': c => count(c, e => offence(e, 'foul')),
   '296': c => count(c, e => offence(e, 'foul_received')),
@@ -309,7 +309,7 @@ export const RECIPES_201_400: Record<string, MetricRecipe> = {
   '383': c => onOff(c),
   '384': c => sharedMinutes(c),
   '385': c => onField(c, 'balance', true),
-  '386': c => { const ids = pairIds(c); return ids.length === 2 ? count(withEvents(c, c.all), e => and(e.team === c.team, isPass(e, c.profile), e.actorId === ids[0], e.receiverId === ids[1], passComplete(e, c.profile))) : missing('Selecciona emisor y receptor: se cuentan pases dirigidos A → B.', 'not_applicable'); },
+  '386': c => { const ids = pairIds(c); return ids.length === 2 ? count(withEvents(c, c.all), e => and(e.team === c.team, isPass(e, profileForObservation(c, e)), e.actorId === ids[0], e.receiverId === ids[1], passComplete(e, profileForObservation(c, e)))) : missing('Selecciona emisor y receptor: se cuentan pases dirigidos A → B.', 'not_applicable'); },
   '388': c => combinations(c, false),
   '389': c => combinations(c, true),
   '391': c => goalRun(c),
@@ -545,9 +545,9 @@ function movingPeak(c: MetricContext): MetricCalculation {
 }
 function accuracyChange(c: MetricContext): MetricCalculation {
   const split = numericParameter(c, 'splitSecond'); if (split == null) return missing('Configura el segundo que separa los tramos A y B.', 'not_configured');
-  const a = ratioOf(withEvents(c, c.events.filter(e => exactTime(e) != null && exactTime(e)! < split)), e => passComplete(e, c.profile), e => isPass(e, c.profile));
-  const b = ratioOf(withEvents(c, c.events.filter(e => exactTime(e) != null && exactTime(e)! >= split)), e => passComplete(e, c.profile), e => isPass(e, c.profile));
-  return { ...difference(b, a), unit: 'pp', pending: a.pending + b.pending + c.events.filter(e => isPass(e, c.profile) && exactTime(e) == null).length, parameters: { splitSecond: split, attemptsA: a.denominator ?? 0, attemptsB: b.denominator ?? 0, completedA: a.numerator ?? 0, completedB: b.numerator ?? 0 }, reason: 'Diferencia en puntos porcentuales entre muestras resueltas; los pases pendientes se muestran aparte.' };
+  const a = ratioOf(withEvents(c, c.events.filter(e => exactTime(e) != null && exactTime(e)! < split)), e => passComplete(e, profileForObservation(c, e)), e => isPass(e, profileForObservation(c, e)));
+  const b = ratioOf(withEvents(c, c.events.filter(e => exactTime(e) != null && exactTime(e)! >= split)), e => passComplete(e, profileForObservation(c, e)), e => isPass(e, profileForObservation(c, e)));
+  return { ...difference(b, a), unit: 'pp', pending: a.pending + b.pending + c.events.filter(e => isPass(e, profileForObservation(c, e)) && exactTime(e) == null).length, parameters: { splitSecond: split, attemptsA: a.denominator ?? 0, attemptsB: b.denominator ?? 0, completedA: a.numerator ?? 0, completedB: b.numerator ?? 0 }, reason: 'Diferencia en puntos porcentuales entre muestras resueltas; los pases pendientes se muestran aparte.' };
 }
 function substitutionChange(c: MetricContext): MetricCalculation {
   const width = numericParameter(c, 'substitutionWindowSeconds'), target = parameter(c, 'substitutionId');
