@@ -13,6 +13,7 @@ const match: ClubMatch = { id: "m", seasonId: "s", rival: "Rival local", status:
   { id: "second", kind: "pass", team: "us", actorId: "a", intendedReceiverId: "b", order: 3, period: 2, time: { from: 350, to: 350, precision: "exact" }, facts: { outcome: "failed" } },
 ], coverage: [{ family: "*", team: "us", state: "complete" }] } };
 afterEach(cleanup);
+const pickMetric = (name: string) => fireEvent.click(within(screen.getByRole("group", { name: "Qué ver por tramos" })).getByRole("button", { name }));
 
 describe("interactive analysis charts", () => {
   it("selects a real half window and reveals only that window's evidence", () => {
@@ -20,15 +21,15 @@ describe("interactive analysis charts", () => {
     fireEvent.click(screen.getByRole("button", { name: /2.ª parte · 0′–5′:/ }));
     const detail = screen.getByRole("region", { name: "Detalle del tramo" });
     expect(detail).toHaveTextContent("5′ 50″"); expect(detail).not.toHaveTextContent("0′ 10″");
-    expect(detail).toHaveTextContent("4,7 min");
-    fireEvent.change(screen.getByRole("combobox", { name: "Qué ver por tramos" }), { target: { value: "070" } });
+    expect(screen.getByRole("region", { name: "Lectura del tramo" })).toHaveTextContent("4,7 min");
+    pickMetric("Precisión de pase");
     expect(detail).toHaveTextContent("0%"); expect(detail).toHaveTextContent("0/1");
     fireEvent.click(screen.getByRole("button", { name: /Ver el cálculo de esta estadística/ }));
     expect(inspect).toHaveBeenCalledWith("070");
   });
   it("selects a directed pair with its denominator and opens the match with a clean address", () => {
     render(<AnalysisInsights matches={[match]} people={people} filters={{ playerIds: ["a"], team: "us", period: 2 }}/>);
-    fireEvent.click(screen.getByRole("button", { name: "Quién conecta con quién" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
     const table = screen.getByRole("table", { name: "Matriz dirigida de pases" });
     fireEvent.click(within(table).getByRole("button", { name: /^Álex a Bruno:/ }));
     const detail = screen.getByRole("region", { name: "Detalle de la conexión" });
@@ -36,7 +37,7 @@ describe("interactive analysis charts", () => {
     const link = within(detail).getByRole("link", { name: /Abrir partido/ });
     // (the match page has no player or half of its own: the link carries neither)
     expect(link).toHaveAttribute("data-search", "{}");
-    fireEvent.change(screen.getByRole("combobox", { name: "Color y cifra de la matriz" }), { target: { value: "accuracy" } });
+    fireEvent.click(within(screen.getByRole("group", { name: "Color y cifra de la matriz" })).getByRole("button", { name: "Acierto de pase" }));
     expect(within(table).getByRole("button", { name: /^Álex a Bruno:/ })).toHaveTextContent("0%");
   });
   it("keeps unknown values separate from observed zero in both charts", () => {
@@ -44,7 +45,7 @@ describe("interactive analysis charts", () => {
     render(<AnalysisInsights matches={[unknown]} people={people}/>);
     const detail = screen.getByRole("region", { name: "Detalle del tramo" });
     expect(detail).toHaveTextContent("Sin información");
-    fireEvent.click(screen.getByRole("button", { name: "Quién conecta con quién" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
     expect(screen.getByRole("button", { name: /^Álex a Bruno:/ })).toHaveTextContent("-");
   });
   it("recalculates a changed parent scope and presents a clear absent-player state", () => {
@@ -55,15 +56,42 @@ describe("interactive analysis charts", () => {
   });
   it("preserves the chosen comparison when the parent changes player or period", () => {
     const view = render(<AnalysisInsights matches={[match]} people={people}/>);
-    fireEvent.change(screen.getByRole("combobox", { name: "Qué ver por tramos" }), { target: { value: "070" } });
+    pickMetric("Precisión de pase");
     view.rerender(<AnalysisInsights matches={[match]} people={people} filters={{ period: 2 }}/>);
-    expect(screen.getByRole("combobox", { name: "Qué ver por tramos" })).toHaveValue("070");
+    expect(within(screen.getByRole("group", { name: "Qué ver por tramos" })).getByRole("button", { name: "Precisión de pase" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("region", { name: "Detalle del tramo" })).toHaveTextContent("0%");
-    fireEvent.click(screen.getByRole("button", { name: "Quién conecta con quién" }));
-    fireEvent.change(screen.getByRole("combobox", { name: "Color y cifra de la matriz" }), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Color y cifra de la matriz" })).getByRole("button", { name: "Acierto de pase" }));
     view.rerender(<AnalysisInsights matches={[match]} people={people} filters={{ period: 1, playerIds: ["a"] }}/>);
-    expect(screen.getByRole("combobox", { name: "Color y cifra de la matriz" })).toHaveValue("accuracy");
+    expect(within(screen.getByRole("group", { name: "Color y cifra de la matriz" })).getByRole("button", { name: "Acierto de pase" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("region", { name: "Detalle de la conexión" })).toHaveTextContent("100%");
     expect(screen.getByRole("region", { name: "Detalle de la conexión" })).not.toHaveTextContent("5′ 50″");
+  });
+  it("draws the rival below the axis in the same tramos and shows its plays on request", () => {
+    const both: ClubMatch = { ...match, analysis: { ...match.analysis!, observations: [...match.analysis!.observations,
+      { id: "theirs", kind: "pass", team: "opponent", opponentId: "9", order: 4, period: 1, time: { from: 100, to: 100, precision: "exact" }, facts: { outcome: "complete", opponentReceiverId: "10" } },
+      { id: "ours", kind: "goal", team: "us", actorId: "b", order: 5, period: 1, time: { from: 60, to: 60, precision: "exact" }, facts: {} },
+      { id: "late", kind: "goal", team: "opponent", order: 6, period: 2, time: { from: 400, to: 400, precision: "approximate" }, facts: {} },
+    ], coverage: [{ family: "*", team: "us", state: "complete" }, { family: "*", team: "opponent", state: "complete" }] } };
+    render(<AnalysisInsights matches={[both]} people={people}/>);
+    expect(screen.getByRole("group", { name: /abajo Rival local$/ })).toBeVisible();
+    const first = screen.getByRole("button", { name: /^1.ª parte · 0′–5′:/ });
+    expect(first).toHaveAccessibleName(/Manchester Piti 1, Rival local 1\./);
+    expect(screen.getByRole("img", { name: "Gol del Piti, de Bruno · 1.ª parte, 1′" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Gol de Rival local/ })).not.toBeInTheDocument();
+    const detail = screen.getByRole("region", { name: "Detalle del tramo" });
+    expect(detail).toHaveTextContent("0′ 10″"); expect(detail).not.toHaveTextContent("1′ 40″");
+    fireEvent.click(within(screen.getByRole("group", { name: "De quién son las jugadas" })).getByRole("button", { name: "Del rival" }));
+    expect(detail).toHaveTextContent("Rival local · Pases intentados"); expect(detail).toHaveTextContent("1′ 40″"); expect(detail).not.toHaveTextContent("0′ 10″");
+  });
+  it("orders the matrix by position from the goalkeeper or by passes given", () => {
+    const sheet: ClubMatch = { ...match, ledger: { a: { stints: [], minutes: 10, positionsPlayed: { DC: 10 } }, b: { stints: [], minutes: 10, positionsPlayed: { POR: 10 } } } as unknown as ClubMatch["ledger"] };
+    render(<AnalysisInsights matches={[sheet]} people={people}/>);
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+    const rows = () => within(screen.getByRole("table", { name: "Matriz dirigida de pases" })).getAllByRole("rowheader").map(cell => cell.textContent);
+    expect(rows()).toEqual(["8Bruno", "1Álex", "Recibe"]);
+    expect(screen.getByRole("heading", { name: "Álex es quien más reparte: 1 pase completado" })).toBeVisible();
+    fireEvent.click(within(screen.getByRole("group", { name: "Orden" })).getByRole("button", { name: "Por volumen" }));
+    expect(rows()).toEqual(["1Álex", "8Bruno", "Recibe"]);
   });
 });
