@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { adminFixture, fixturePublished, mountAdmin, setAdminData } from "../../../test/adminKit";
 import { resetWhistledForTests } from "../data/whistleStore";
 import { ConvocatoriaScreen as Convocar, TemporadaScreen as Partidos } from "../areas/hoy-partidos/screens";
@@ -28,6 +28,12 @@ vi.mock("../partidos/live", () => ({
 }));
 vi.mock("../convocar/live", () => ({ useMatchAnswers: () => ({ data: [], loading: false }), useTeamAbsences: () => [] }));
 vi.mock("../convocar/reminders", () => ({ useReminders: () => ({ auto: true, loading: false, set: () => Promise.resolve() }) }));
+
+// These tests verify the real commands and their destinations. Await the real lazy dialog's module
+// first, as AdminLayout.test does: a cold CI transform must not consume findByRole's interaction timeout.
+beforeAll(async () => {
+  await import("../shell/SalaSearchDialog");
+});
 
 const WIDTH = window.innerWidth;
 const palette = async (user: ReturnType<typeof userEvent.setup>, query: string) => {
