@@ -41,7 +41,7 @@ export function ChartHero({ title, children }: { title: string; children?: React
 export interface ChartKpi { label: string; value: string }
 export function ChartKpis({ items, label = "Cifras de la selección" }: { items: readonly ChartKpi[]; label?: string }) {
   if (!items.length) return null;
-  return <dl className="gc-kpis" aria-label={label}>{items.map(k => <div className="gc-kpi" key={k.label}><dt>{k.label}</dt><dd>{k.value}</dd></div>)}</dl>;
+  return <ul className="gc-kpis" aria-label={label}>{items.map(k => <li className="gc-kpi" key={k.label}><strong>{k.value}</strong> <span>{k.label}</span></li>)}</ul>;
 }
 
 /** The honest notes of each chart, one tap away instead of a wall of text. */

@@ -24,9 +24,9 @@
 .gc-hero__p{margin-top:8px!important;font-size:15.5px;line-height:1.5;color:var(--vd-ink2);text-wrap:pretty}
 
 .gc-kpis{display:flex;flex-wrap:wrap;gap:6px 26px;margin-top:18px!important;padding:14px 0;border-top:1px solid var(--vd-rule);border-bottom:1px solid var(--vd-rule)}
-.gc-kpi{display:flex;flex-direction:column-reverse;gap:2px;min-width:0}
-.gc-kpi dt{font-size:12.5px;color:var(--vd-ink2)}
-.gc-kpi dd{font-size:26px;font-weight:760;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
+.gc-kpi{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gc-kpi>span{font-size:12.5px;color:var(--vd-ink2)}
+.gc-kpi>strong{font-size:26px;font-weight:760;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
 
 .gc-stage{display:grid;grid-template-columns:minmax(0,1fr);gap:22px 32px;margin-top:20px}
 @container gc (min-width:860px){.gc-stage{grid-template-columns:minmax(0,1.45fr) minmax(280px,1fr);align-items:start}.gc-stage.gc-stage--wide{grid-template-columns:minmax(0,1fr)}}
@@ -79,6 +79,6 @@
   .gc-root .vd-seg.gc-views{min-width:100%}
   .gc-root .gc-views .vd-seg__b{font-size:12.5px;padding:0 3px}
   .gc-kpis{gap:10px 18px}
-  .gc-kpi dd{font-size:22px}
+  .gc-kpi>strong{font-size:22px}
 }
 @media (prefers-reduced-motion:reduce){.gc-root *{transition:none!important;animation:none!important}}
