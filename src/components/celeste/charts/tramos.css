@@ -1,0 +1,123 @@
+/* «Tramos y matriz»: the pulse, the bars and the directed matrix. Everything under .gc-root (production CSS order). */
+.gc-root .vd-seg.gt-metrics{height:46px;margin:20px 0 4px}
+.gc-root .gt-metrics .vd-seg__b{font-size:13px;padding:0 4px}
+
+/* the plot: scrolls sideways only when a tramo would get narrower than a 44 px target */
+.gc-root .gt-scroll{max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;padding:0 2px 4px}
+.gc-root .gt-plotwrap{min-width:var(--gt-min,0px)}
+.gc-root .gt-plotwrap--bars{padding-left:34px}
+.gc-root .gt-pulse{position:relative;height:300px;margin-top:56px}
+.gc-root .gt-bars{position:relative;height:260px;margin-top:46px}
+.gc-root .gt-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.gc-root .gt-grid{stroke:var(--vd-rule);stroke-width:1;vector-effect:non-scaling-stroke;stroke-dasharray:2 4}
+.gc-root .gt-axis{stroke:var(--vd-rule2);stroke-width:1.4;vector-effect:non-scaling-stroke}
+.gc-root .gt-hatch-line{stroke:var(--vd-ink2);stroke-width:1.2}
+.gc-root .gt-selband{fill:color-mix(in srgb,var(--vd-celeste) 10%,transparent);transition:x .35s var(--vd-ease)}
+
+.gc-root .gt-area{animation:gt-reveal 1.1s var(--vd-ease) both}
+.gc-root .gt-aline{fill:none;stroke-width:2;vector-effect:non-scaling-stroke;animation:gt-reveal 1.1s var(--vd-ease) both}
+.gc-root .gt-aline--us{stroke:var(--vd-hielo)}
+.gc-root .gt-aline--them{stroke:var(--vd-rival)}
+@keyframes gt-reveal{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.gc-root .gt-gu0{stop-color:#eaf3fc;stop-opacity:.8}.gc-root .gt-gu1{stop-color:#6cabdd;stop-opacity:.1}
+.gc-root .gt-gt0{stop-color:#f08a7e;stop-opacity:.08}.gc-root .gt-gt1{stop-color:#f08a7e;stop-opacity:.6}
+:root[data-theme="light"] .gc-root .gt-gu0{stop-color:#2c6a9e;stop-opacity:.55}
+:root[data-theme="light"] .gc-root .gt-aline--us{stroke:var(--vd-marino)}
+:root[data-theme="light"] .gc-root :is(.gt-gt0,.gt-gt1){stop-color:#b4402f}
+
+.gc-root .gt-pdot{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;pointer-events:none;transition:width .25s,height .25s,margin .25s}
+.gc-root .gt-pdot--us{background:var(--vd-hielo);box-shadow:0 0 0 2px var(--vd-noche)}
+.gc-root .gt-pdot--them{background:var(--vd-rival);box-shadow:0 0 0 2px var(--vd-noche)}
+:root[data-theme="light"] .gc-root .gt-pdot--us{background:var(--vd-marino);box-shadow:0 0 0 2px #fff}
+:root[data-theme="light"] .gc-root .gt-pdot--them{box-shadow:0 0 0 2px #fff}
+.gc-root .gt-pdot.is-on{width:14px;height:14px;margin:-7px 0 0 -7px;box-shadow:0 0 0 3px var(--vd-noche),0 0 16px var(--vd-celeste)}
+:root[data-theme="light"] .gc-root .gt-pdot.is-on{box-shadow:0 0 0 3px #fff,0 0 12px var(--vd-celeste)}
+
+/* one transparent button per tramo, the full height of the plot */
+.gc-root .gt-pcol{position:absolute;top:0;bottom:0;padding:0;border:0;border-radius:12px;background:transparent;transition:background .2s}
+.gc-root .gt-pcol:hover{background:color-mix(in srgb,var(--vd-celeste) 7%,transparent)}
+.gc-root .gt-pcol__u,.gc-root .gt-pcol__t{position:absolute;left:0;right:0;text-align:center;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;line-height:18px;color:var(--vd-ink2);transition:top .45s var(--vd-ease)}
+.gc-root .gt-pcol[aria-pressed="true"] .gt-pcol__u{color:var(--vd-ink-strong);font-size:15px;font-weight:780}
+.gc-root .gt-pcol[aria-pressed="true"] .gt-pcol__t{color:var(--vd-rival);font-size:15px;font-weight:780}
+.gc-root .gt-bars .gt-pcol[aria-pressed="true"]{background:color-mix(in srgb,var(--vd-celeste) 10%,transparent)}
+
+.gc-root .gt-goal{position:absolute;top:-26px;width:20px;height:20px;margin-left:-10px;display:grid;place-items:center;pointer-events:none}
+.gc-root .gt-goal svg{width:18px;height:18px}
+.gc-root .gt-goal--us{color:var(--vd-oro)}
+.gc-root .gt-goal--them{top:calc(100% + 6px);color:var(--vd-rival)}
+.gc-root .gt-plab{position:absolute;top:-50px;font-size:12px;font-weight:650;color:var(--vd-ink2);white-space:nowrap;transform:translateX(2px)}
+.gc-root .gt-bars .gt-plab{top:-40px}
+.gc-root .gt-break{position:absolute;top:-8px;bottom:-8px;width:0;border-left:1px dashed var(--vd-rule2);pointer-events:none}
+.gc-root .gt-break>span{position:absolute;top:50%;left:0;transform:translate(-50%,-50%) rotate(-90deg);font-size:11.5px;color:var(--vd-ink2);white-space:nowrap}
+.gc-root .gt-ticks{position:relative;height:22px;margin-top:34px}
+.gc-root .gt-bars+.gt-ticks{margin-top:8px}
+.gc-root .gt-ticks>span{position:absolute;transform:translateX(-50%);font-family:var(--vd-mono);font-size:11.5px;color:var(--vd-ink2);white-space:nowrap}
+
+/* bars */
+.gc-root .gt-bar{transform-box:fill-box;transform-origin:50% 100%;animation:gt-grow .8s var(--vd-ease) both}
+@keyframes gt-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.gc-root .gt-gb0--us{stop-color:#eaf3fc;stop-opacity:.95}.gc-root .gt-gb1--us{stop-color:#6cabdd;stop-opacity:.55}
+.gc-root .gt-gb0--them{stop-color:#f08a7e;stop-opacity:.95}.gc-root .gt-gb1--them{stop-color:#f08a7e;stop-opacity:.45}
+:root[data-theme="light"] .gc-root .gt-gb0--us{stop-color:#2c6a9e}
+:root[data-theme="light"] .gc-root :is(.gt-gb0--them,.gt-gb1--them){stop-color:#b4402f}
+.gc-root .gt-avg{stroke:var(--vd-ink-strong);stroke-width:1.4;vector-effect:non-scaling-stroke;stroke-dasharray:6 5}
+.gc-root .gt-ylab{position:absolute;left:-34px;font-size:11.5px;color:var(--vd-ink2);transform:translateY(-50%);font-variant-numeric:tabular-nums}
+.gc-root .gt-avglab{position:absolute;right:0;transform:translateY(-120%);font-size:12px;font-weight:650;color:var(--vd-ink-strong);font-variant-numeric:tabular-nums}
+
+.gc-root .gt-sw--us{background:var(--vd-celeste-ink)}
+.gc-root .gt-sw--them{background:var(--vd-rival)}
+.gc-root .gt-sw--gold{background:var(--vd-oro);border-radius:50%}
+.gc-root .gt-sw--goalthem{background:var(--vd-rival);border-radius:50%}
+.gc-root .gt-sw--miss{background:repeating-linear-gradient(135deg,var(--vd-ink2) 0 1.5px,transparent 1.5px 5px)}
+
+/* the chosen tramo, beside the chart */
+.gc-root .gt-readout{display:flex;flex-direction:column;gap:14px}
+.gc-root .gt-ro__head p{font-size:12.5px;color:var(--vd-ink2)}
+.gc-root .gt-ro__head h4{font-size:20px;font-weight:650;color:var(--vd-ink-strong);margin-top:2px;overflow-wrap:anywhere}
+.gc-root .gt-vs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gc-root .gt-vs__c{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;padding:12px 14px;border-radius:16px;border:1px solid var(--vd-rule)}
+.gc-root .gt-vs__c>span:first-child{font-size:12.5px;color:var(--vd-ink2);overflow-wrap:anywhere}
+.gc-root .gt-vs__c strong{font-size:30px;font-weight:780;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
+.gc-root .gt-vs__c--them strong{color:var(--vd-rival)}
+.gc-root .gt-dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.gc-root .gt-dl dt{font-size:12px;color:var(--vd-ink2)}
+.gc-root .gt-dl dd{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.gc-root .gt-story{padding:12px 14px;border-radius:16px;background:var(--vd-pri2);font-size:13.5px;line-height:1.5;color:var(--vd-ink)}
+
+/* matrix */
+.gc-root .gt-matrix{margin-top:20px}
+.gc-root .gt-mtools{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:12px}
+.gc-root .gt-mtools>.vd-seg{flex:0 1 300px}
+.gc-root .gt-mscroll{max-width:100%;max-height:min(620px,78vh);overflow:auto;border:1px solid var(--vd-rule);border-radius:18px;overscroll-behavior:contain}
+.gc-root .gt-mt{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
+.gc-root .gt-mt th{position:sticky;top:0;z-index:2;padding:10px 6px;min-width:62px;font-weight:600;text-align:center;background:var(--vd-solid);border-bottom:1px solid var(--vd-rule);vertical-align:bottom}
+.gc-root .gt-mt th b{display:block;font-size:13.5px;font-weight:760;font-variant-numeric:tabular-nums}
+.gc-root .gt-mt th>span{display:block;font-size:11.5px;font-weight:500;color:var(--vd-ink2);white-space:nowrap}
+.gc-root .gt-mt th.gt-mt__corner{left:0;z-index:3;text-align:left;min-width:118px;font-size:11.5px;color:var(--vd-ink2);font-weight:500}
+.gc-root .gt-mt tbody th{left:0;top:auto;z-index:1;text-align:left;border-right:1px solid var(--vd-rule);vertical-align:middle;white-space:nowrap}
+.gc-root .gt-mt tbody th b{display:inline;margin-right:6px}
+.gc-root .gt-mt tbody th>span{display:inline;font-size:12.5px;color:var(--vd-ink)}
+.gc-root .gt-mt th.is-cross{box-shadow:inset 0 -2px 0 var(--vd-celeste)}
+.gc-root .gt-mt tbody th.is-cross{box-shadow:inset -2px 0 0 var(--vd-celeste)}
+.gc-root .gt-mt td{padding:2px;border-bottom:1px solid var(--vd-rule);text-align:center}
+.gc-root .gt-mt td.is-cross{background:color-mix(in srgb,var(--vd-celeste) 6%,transparent)}
+.gc-root .gt-mt__tot{font-weight:740;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong);font-size:13.5px}
+.gc-root .gt-mt tfoot th,.gc-root .gt-mt tfoot td{position:static;background:transparent;border-bottom:0;border-top:1px solid var(--vd-rule2);padding:10px 6px}
+.gc-root .gt-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;min-width:56px;min-height:50px;padding:4px;border:1px solid transparent;border-radius:9px;background:color-mix(in srgb,var(--vd-celeste) calc(var(--h) * 62%),transparent);font-variant-numeric:tabular-nums}
+.gc-root .gt-cell strong{font-size:15px;font-weight:740}
+.gc-root .gt-cell small,.gc-root .gt-cell__st{font-size:11px;color:var(--vd-ink2);font-style:normal}
+.gc-root .gt-cell.is-hot strong{color:var(--vd-ink-strong)}
+.gc-root .gt-cell[aria-pressed="true"]{border:2px solid var(--vd-ink-strong)}
+.gc-root .gt-cell--zero strong{color:var(--vd-ink2);font-weight:500}
+.gc-root .gt-diag{color:var(--vd-ink2);font-size:18px}
+
+@container gc (max-width:560px){
+  .gc-root .gt-pulse{height:250px}
+  .gc-root .gt-pcol__u,.gc-root .gt-pcol__t{font-size:11.5px}
+  .gc-root .gt-pcol[aria-pressed="true"] :is(.gt-pcol__u,.gt-pcol__t){font-size:13px}
+  .gc-root .gt-plab{font-size:11.5px}
+  .gc-root .gt-ticks>span:nth-child(even){display:none}
+  .gc-root .gt-vs__c strong{font-size:26px}
+  .gc-root .gt-mtools>.vd-seg{flex-basis:100%}
+}
+@media (prefers-reduced-motion:reduce){.gc-root :is(.gt-area,.gt-aline,.gt-bar){animation:none!important}}
