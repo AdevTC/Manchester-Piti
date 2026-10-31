@@ -635,7 +635,7 @@ export function NumerosPage() {
               <h1 className="nx-h1">Estadísticas</h1>
               <p className="nx-lede">{v.lede}</p>
             </div>
-            <button type="button" className="vd-glass vd-press nx-find" onClick={() => open("search")} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
+            <button type="button" className="vd-glass vd-press nx-find" onClick={() => open("search")} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" aria-label="Busca o pregunta: un jugador, un rival, una estadística">
               <Ic name="search" />
               <span>Busca o pregunta: un jugador, un rival, una estadística…</span>
               <kbd aria-hidden="true">Ctrl K</kbd>

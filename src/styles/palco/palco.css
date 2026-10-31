@@ -227,6 +227,12 @@ html[data-nu-dir="up"]{--nu-ex:10px;--nu-en:-14px}
 
 
 @container nx (max-width: 699px) {
+  /* the phone board: the title with a round «Busca o pregunta», no lede (the bar says the season) */
+  .nx-hero{flex-wrap:nowrap;align-items:center;gap:12px;padding:10px 0 8px}
+  .nx-h1{font-size:31px}
+  .nx-lede{display:none}
+  .nx-find{width:44px;min-height:44px;flex:none;justify-content:center;padding:0}
+  .nx-find>span,.nx-find>kbd{display:none}
   .nx-shelf .nx-shelf__h{display:none}
   .nx-shelf .nx-shelf__s{display:block}
   .nx-bar{position:sticky;top:0;z-index:30;grid-template-columns:minmax(0,1fr);gap:8px;margin:4px -16px 20px;padding:8px 16px 12px;background:linear-gradient(180deg,rgba(8,18,39,.94) 0,rgba(8,18,39,.86) 72%,rgba(8,18,39,0))}
