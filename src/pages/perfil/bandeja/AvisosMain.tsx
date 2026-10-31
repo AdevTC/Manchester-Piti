@@ -1,39 +1,63 @@
-// /avisos and /avisos/a-medida (TU boards, shell.html «Avisos»): the bandeja — what waits on you first, answered in
-// place («Te toca»), then each match as one stack with its timeline, then the rest by day, with the rail of filters
-// (?ver=) and this device at the side — and «A medida»: this device, the shortcuts, every topic, the pause, a test
-// notice and the calendar. A fan (no session) gets «A medida» only: the notices are the vestuario's. TuPage draws
-// the sky, the bars and the footer around this <main>; moving between the two and between filters goes through
-// the router inside a View Transition.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+// /avisos and /avisos/a-medida: la bandeja (TuCarta «avisos») — the head («5 cosas te tocan», what is unread,
+// «Marcar todo como leído» with «Deshacer»), the five filters with their counts (?ver=), «Te toca» first answered
+// in place with the same cards as Tú (Toca.tsx: usePending's items, la caja and the porra too), each match one
+// group (G/E/P and OUR score first), the vestuario by day, the season's fixture as ONE «Calendario: N jornadas
+// nuevas» that opens, and «Este móvil» at the side (its state, the shortcuts, the pause, the silenced matches, the
+// topics in Ajustes › Avisos) — and «A medida»: this device, the shortcuts, every topic, the pause, a test notice and
+// the calendar. A fan (no session) gets «A medida» only: the notices are the vestuario's. ProfilePage draws the sky,
+// the bars and the toast around this <main>; moving between filters goes through the router in a View Transition.
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { Switch, TuIcon } from "../../../components/vidrio/tu/ui";
+import { DotsMenu, Switch, TuIcon } from "../../../components/vidrio/tu/ui";
 import { tuGo, type TuDir } from "../../../components/vidrio/tu/kit";
 import { useAuth } from "../../../context/AuthContext";
-import { nameFor, useClubData } from "../../../lib/clubData";
+import { useClock } from "../../../hooks/useClock";
+import { useSeason } from "../../../context/SeasonContext";
+import { nameFor, nextFixture, useClubData } from "../../../lib/clubData";
 import { googleSubscribeUrl, webcalUrl } from "../../../lib/calendarLinks";
-import { groupNotices, type Notice } from "../../../lib/derived/notices";
+import { groupNotices, relativeTime, type Notice } from "../../../lib/derived/notices";
+import { capital } from "../../../lib/derived/words";
 import { siteOrigin } from "../../../lib/derived/venue";
+import { currentSeasonId } from "../../../lib/vestuario";
 import { pushSaveError, toggleTopic } from "../../../lib/push";
+import { dateMillis } from "../../../../functions/src/matchEngine";
+import { jornadaOf } from "../../../components/vidrio/account/accountModel";
+import { useMe } from "../../vestuario/writes";
 import { upcomingRows } from "../avisos";
 import { showTestNotice } from "../device";
 import { copyText } from "../fxRuntime";
-import { useInbox, type Inbox } from "./useInbox";
-import { MatchStack, NoticeRow, PendList } from "./parts";
+import { usePending, type PendingItem } from "../tu/usePending";
+import type { Say } from "../tu/places/types";
+import type { Inbox, StackView } from "./useInbox";
+import { noticeMenu, stackMenu } from "./menus";
+import { TocaList } from "./Toca";
 import { useAvisoActions, type AvisoActions } from "./actions";
 import { useThisDevice, type ThisDevice } from "./device";
 import { PauseChips, PresetSeg } from "./deviceParts";
-import { filterOf, filterRows, kindOf, nextLine, pauseLine, pendTitle, pl, PRESET_NOTE, RES_WORD, shownBy, testNotice, topicsFor, unreadText, verOf, type AvFilter } from "./model";
+import { actsOf, calendarBatch, collapseFixtures, filterOf, filterRows, iconOf, isNewFixture, kindOf, nextLine, pauseLine, pendTitle, pl, PRESET_NOTE, shownBy, stackLine, testNotice, tocaTitle, topicsFor, unreadText, verOf, type AvFilter } from "./model";
 import { takeFlyBell } from "./flyBell";
 import "../../../styles/tu-avisos.css";
 
-export function AvisosMain({ say }: { say: (t: string) => void }) {
+/** Where a member chooses topic by topic now (Ajustes › Avisos). */
+const AJ_AVISOS = "/perfil/ajustes/avisos";
+
+export function AvisosMain({ say }: { say: Say }) {
   const pathname = useLocation({ select: (l) => l.pathname });
   const search = useLocation({ select: (l) => l.search }) as { ver?: unknown };
   const navigate = useNavigate();
-  const inbox = useInbox();
+  const { matches } = useClubData();
+  const { seasons } = useSeason();
+  const me = useMe();
+  const now = useClock(60_000);
+  const next = nextFixture(matches, now);
+  const seasonId = currentSeasonId(next, matches, seasons);
+  // (one reader: usePending holds la bandeja's inbox and adds la caja and the porra)
+  const probe = usePending({ enabled: !!me, seasonId, playerId: me?.playerId ?? null, next: next ? { id: next.id, rival: next.rival, status: "scheduled", date: dateMillis(next.date) } : null, now });
+  const inbox = probe.inbox;
+  const member = inbox.member;
+  const items: PendingItem[] = member ? probe.items.filter((p) => (p.kind === "caja" ? inbox.viewer.who === "jugador" : true)) : [];
   const d = useThisDevice();
   const a = useAvisoActions(inbox, say);
-  const member = inbox.member;
   const sec: "bandeja" | "amedida" = !member || pathname.replace(/\/+$/, "").endsWith("/a-medida") ? "amedida" : "bandeja";
   const f = filterOf(search.ver);
   const [fly] = useState(takeFlyBell);
@@ -50,17 +74,25 @@ export function AvisosMain({ say }: { say: (t: string) => void }) {
       await navigate({ to: to === "amedida" ? "/avisos/a-medida" : "/avisos", search: ver ? { ver } : {}, replace, resetScroll: !replace } as never);
     });
   };
-  const goSec = (to: "bandeja" | "amedida") => {
-    if (to === sec) return;
-    move(to === "bandeja" ? "left" : "right", to, to === "bandeja" ? f : null);
-  };
 
+  if (sec === "bandeja") {
+    return (
+      <main className="tup nx tc-av" id="tu-main">
+        <Bandeja inbox={inbox} items={items} d={d} a={a} f={f} say={say} fly={flyOn} onFilter={(nf) => move("up", "bandeja", nf, true)} />
+      </main>
+    );
+  }
+  return <AMedidaMain inbox={inbox} d={d} a={a} say={say} onBandeja={() => move("left", "bandeja", null)} />;
+}
+
+/** /avisos/a-medida (and /avisos for a fan): today's head, then «A medida». */
+function AMedidaMain({ inbox, d, a, say, onBandeja }: { inbox: Inbox; d: ThisDevice; a: AvisoActions; say: Say; onBandeja: () => void }) {
+  const member = inbox.member;
   const tabs = [
     { k: "bandeja" as const, t: "Bandeja", hint: member ? unreadText(inbox.unread) : "De los socios" },
     { k: "amedida" as const, t: "A medida", hint: d.line },
   ];
-  const lede = !member ? "Los avisos del vestuario son de los socios. Aquí eliges qué te avisamos del partido en este móvil." : inbox.openPend ? "Primero lo que te toca, respondido aquí mismo; luego cada partido en un solo bloque y el vestuario por días." : "Cada partido en un solo bloque, el vestuario por días. Nada pendiente.";
-
+  const lede = !member ? "Los avisos del vestuario son de los socios. Aquí eliges qué te avisamos del partido en este móvil." : "Qué te llega a este móvil: los atajos, tema a tema, la pausa, una prueba y el calendario.";
   return (
     <main className="tu-main tu-av" id="tu-main">
       <header className="tu-av__head vd-reg-1">
@@ -71,9 +103,9 @@ export function AvisosMain({ say }: { say: (t: string) => void }) {
         </div>
         <nav className="tu-avtabs" aria-label="Avisos">
           {tabs.map((t) => {
-            const on = sec === t.k;
+            const on = t.k === "amedida";
             return (
-              <button key={t.k} type="button" className={`tu-avtab${on ? " is-on" : ""}`} aria-current={on ? "page" : "false"} onClick={() => goSec(t.k)}>
+              <button key={t.k} type="button" className={`tu-avtab${on ? " is-on" : ""}`} aria-current={on ? "page" : "false"} onClick={() => !on && onBandeja()}>
                 {on && <span className="tu-nav__bead" aria-hidden="true" />}
                 <b>{t.t}</b>
                 <small>{t.hint}</small>
@@ -82,201 +114,371 @@ export function AvisosMain({ say }: { say: (t: string) => void }) {
           })}
         </nav>
       </header>
-      {sec === "bandeja" ? <Bandeja inbox={inbox} d={d} a={a} f={f} say={say} fly={flyOn} onFilter={(nf) => move("up", "bandeja", nf, true)} /> : <AMedida inbox={inbox} d={d} a={a} say={say} />}
+      <AMedida inbox={inbox} d={d} a={a} say={say} />
     </main>
   );
 }
 
 // ---------- the bandeja
 
-function Bandeja({ inbox, d, a, f, say, fly, onFilter }: { inbox: Inbox; d: ThisDevice; a: AvisoActions; f: AvFilter; say: (t: string) => void; fly: boolean; onFilter: (f: AvFilter) => void }) {
+/** A day group shows this many before «Ver N más»; a match group, its newest this many. */
+const DAY_MAX = 6;
+const STACK_MAX = 3;
+/** The fixture batch's id among the loose notices. */
+const CAL_ID = "__calendario";
+
+function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; items: readonly PendingItem[]; d: ThisDevice; a: AvisoActions; f: AvFilter; say: Say; fly: boolean; onFilter: (f: AvFilter) => void }) {
+  const { matches } = useClubData();
   const [exp, setExp] = useState<Record<string, boolean>>({});
+  const [calOpen, setCalOpen] = useState(false);
   const show = shownBy(f);
   const one = f.startsWith("m:") ? f.slice(2) : null;
-  const rows = filterRows(inbox.list, inbox.openPend, inbox.unread);
-  const stacks = show.stacks === "all" ? inbox.stacks : show.stacks === "one" ? inbox.stacks.filter((x) => x.matchId === one) : [];
-  const loose = show.loose === "all" ? inbox.loose : show.loose === "vestuario" ? inbox.loose.filter((n) => kindOf(n) === "vestuario") : show.loose === "tuyos" ? inbox.feed.filter((n) => kindOf(n) === "tuyo") : [];
-  const unreadRows = show.unread ? inbox.feed.filter((n) => inbox.reads.unread(n)) : [];
-  const empty = !inbox.loading && !inbox.failed && !inbox.list.length && !inbox.pends.length;
+  const open = items.filter((p) => !p.done).length;
+
+  // the season's fixture: one item instead of a stack per jornada
+  const { stacks: allStacks, batch } = useMemo(() => collapseFixtures(inbox.stacks), [inbox.stacks]);
+  const cal = useMemo(() => {
+    if (!batch.length) return null;
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    return calendarBatch(batch, (id) => {
+      const m = byId.get(id);
+      return m ? { j: jornadaOf(matches, m), at: dateMillis(m.date), rival: m.rival?.trim() || "" } : null;
+    });
+  }, [batch, matches]);
+  const calNotice: Notice | null = cal ? { id: CAL_ID, topic: "dates", title: cal.title, body: cal.body, url: "", at: cal.at, audience: "team" } : null;
+  const calUnread = !!cal && batch.some((n) => inbox.reads.unread(n));
+
+  const partidosN = allStacks.reduce((s, x) => s + x.rows.length, 0);
+  const rows = filterRows({ toca: open, unread: inbox.unread, partidos: partidosN, loose: inbox.loose, batch: !!cal });
+  const stacks = show.stacks === "all" ? allStacks : show.stacks === "one" ? inbox.stacks.filter((x) => x.matchId === one) : [];
+  const withCal = (list: readonly Notice[]) => (calNotice ? [...list, calNotice].sort((x, y) => y.at - x.at) : [...list]);
+  const loose = show.loose === "all" ? withCal(inbox.loose) : show.loose === "vestuario" ? withCal(inbox.loose.filter((n) => kindOf(n) === "vestuario")) : show.loose === "tuyos" ? inbox.feed.filter((n) => kindOf(n) === "tuyo") : [];
+  const unreadRows = show.unread ? [...inbox.feed.filter((n) => inbox.reads.unread(n) && !(cal && isNewFixture(n))), ...(calNotice && calUnread ? [calNotice] : [])].sort((x, y) => y.at - x.at) : [];
+  const empty = !inbox.loading && !inbox.failed && !inbox.list.length && !items.length;
   const list = !inbox.loading && !inbox.failed && !empty;
-  const next = nextLine(inbox.next);
-  const markAll = () =>
+  const nextT = nextLine(inbox.next);
+  const oneStack = one ? inbox.stackOf(one) : undefined;
+
+  // «Marcar todo como leído» and its «Deshacer»: the ones unread then turn unread again
+  const readsRef = useRef(inbox.reads);
+  useEffect(() => {
+    readsRef.current = inbox.reads;
+  });
+  const markAll = () => {
+    const was = inbox.list.filter((n) => inbox.reads.unread(n)).map((n) => n.id);
     inbox.reads.markAll().then(
-      () => say("Todo leído. Te avisamos de lo nuevo."),
+      () => say("Todo leído. Te avisamos de lo nuevo.", () => void readsRef.current.mark(was, false).catch(() => say("No se ha podido deshacer. Inténtalo otra vez."))),
       () => say("No se ha podido guardar. Inténtalo otra vez."),
     );
+  };
+  const toCal = () => {
+    if (!cal) return;
+    if (!calOpen && calUnread) a.markRead(cal.ids, true);
+    setCalOpen((o) => !o);
+  };
+  const row = (n: Notice) => (n.id === CAL_ID && cal ? <CalRow key={CAL_ID} cal={cal} unread={calUnread} open={calOpen} onToggle={toCal} now={inbox.now} /> : <Row key={n.id} n={n} inbox={inbox} a={a} />);
+  const sub = `${inbox.unread ? `${inbox.unread} sin leer` : "Nada sin leer"} · ${open ? "primero lo que te toca, luego cada partido y el vestuario por días." : "cada partido en un solo bloque y el vestuario por días."}`;
+
   return (
-    <div className="tu-av__body vd-reg-2">
-      <nav className="tu-rail" data-scroll-x="1" aria-label="Qué avisos">
-        <ul className="tu-rail__l">
-          {rows.map((x) => {
-            const on = f === x.f;
-            return (
-              <li key={x.f}>
-                <button type="button" className={`tu-rail__b${on ? " is-on" : ""}`} aria-pressed={on} aria-label={`${x.t}, ${x.n}`} onClick={() => !on && onFilter(x.f)}>
-                  <span>{x.t}</span>
-                  <b>{x.n}</b>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {inbox.stacks.length > 0 && (
-          <>
-            <p className="tu-rail__g">Por partido</p>
-            <ul className="tu-rail__l tu-rail__m">
-              {inbox.stacks.map((x) => {
-                const on = f === `m:${x.matchId}`;
-                const muted = inbox.muted.includes(x.matchId);
-                return (
-                  <li key={x.matchId}>
-                    <button type="button" className={`tu-rail__b${on ? " is-on" : ""}${muted ? " is-muted" : ""}`} aria-pressed={on} onClick={() => !on && onFilter(`m:${x.matchId}`)}>
-                      <span>
-                        <b>{`${x.j ? `J${x.j} · ` : ""}${x.rival}`}</b>
-                        <small>{x.res ? `${RES_WORD[x.res]} ${x.gf}–${x.ga}` : "Por jugar"}</small>
-                      </span>
-                      <b>{x.rows.length}</b>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
+    <>
+      <header className="tc-head">
+        <div className="tc-head__t">
+          <p className="tc-kick">La bandeja · lo que llega a la campana</p>
+          <h1 className="nx-h2">{tocaTitle(open)}</h1>
+          <p className="nx-sub">{sub}</p>
+        </div>
+        {inbox.unread > 0 && (
+          <button type="button" className="nx-lnk" onClick={markAll}>
+            Marcar todo como leído
+          </button>
         )}
-      </nav>
-      <div className="tu-av__list" style={fly ? { viewTransitionName: "tu-bell" } : undefined}>
-        {d.pause && (
-          <p className="tu-state is-warn">
-            <b>{pauseLine(d.pause.kind)}</b>
-            <span>
-              Siguen llegando aquí.{" "}
-              <button type="button" className="vd-link" onClick={a.resume}>
+      </header>
+      <div className="tc-ib">
+        <div className="tc-ib__main" style={fly ? { viewTransitionName: "tu-bell" } : undefined}>
+          {d.pause && (
+            <p className="tc-note is-warn">
+              <b>{pauseLine(d.pause.kind)}</b> Siguen llegando aquí.{" "}
+              <button type="button" className="nx-lnk" onClick={a.resume}>
                 Reanudar ahora
               </button>
-            </span>
-          </p>
-        )}
-        {!d.ready && (
-          <p className={`tu-state is-${d.words.tone}`}>
-            <b>{d.words.title}</b>
-            <span>
-              Los avisos siguen llegando aquí.{" "}
-              <button type="button" className="vd-link" onClick={() => a.goAv("amedida")}>
+            </p>
+          )}
+          {!d.ready && (
+            <p className={`tc-note is-${d.words.tone}`}>
+              <b>{d.words.title}</b> Los avisos siguen llegando aquí.{" "}
+              <button type="button" className="nx-lnk" onClick={() => a.go(AJ_AVISOS)}>
                 Cómo arreglarlo
               </button>
-            </span>
-          </p>
-        )}
-        <div className="tu-av__tools">
-          <span className="tu-small">
-            {pl(inbox.list.length, "aviso", "avisos")} · {unreadText(inbox.unread)}
-          </span>
-          {inbox.unread > 0 && (
-            <button type="button" className="vd-link" onClick={markAll}>
-              Marcar todo como leído
-            </button>
+            </p>
+          )}
+          <div className="tc-filt" role="group" aria-label="Filtrar la bandeja">
+            {rows.map((x) => {
+              const on = f === x.f;
+              return (
+                <button key={x.f} type="button" className="vd-glass vd-press" aria-pressed={on} aria-label={`${x.t}, ${x.n}`} onClick={() => !on && onFilter(x.f)}>
+                  {x.t}
+                  <small aria-hidden="true">{x.n}</small>
+                </button>
+              );
+            })}
+            {one && (
+              <button type="button" className="vd-glass vd-press" aria-pressed="true" aria-label={`Solo ${oneStack ? stackName(oneStack) : "este partido"}. Quitar el filtro`} onClick={() => onFilter("todos")}>
+                {oneStack ? stackName(oneStack) : "Este partido"}
+                <TuIcon name="close" className="nx-ic" />
+              </button>
+            )}
+          </div>
+          {inbox.loading && (
+            <div className="tu-skel" role="status">
+              <span className="vd-vh">Cargando los avisos…</span>
+              <i />
+              <i />
+              <i />
+            </div>
+          )}
+          {inbox.failed && (
+            <div className="tc-empty" role="alert">
+              <TuIcon name="wifiOff" className="nx-ic" />
+              <b>No se han podido cargar los avisos.</b>
+              <span>Comprueba la conexión y vuelve a intentarlo. Lo que ya habías visto sigue en tu móvil.</span>
+              <button type="button" className="vd-glass vd-press nx-btn" onClick={() => window.location.reload()}>
+                Reintentar
+              </button>
+            </div>
+          )}
+          {empty && (
+            <div className="tc-empty" role="status">
+              <TuIcon name="bell" className="nx-ic" />
+              <b>Aquí verás los avisos del equipo.</b>
+              <span>{nextT} La convocatoria llegará aquí y la contestas sin salir.</span>
+            </div>
+          )}
+          {list && (
+            <>
+              {show.pend && (items.length > 0 || f === "toca") && (
+                <section className="tc-grp tc-grp--toca" aria-labelledby="tc-ibt-h">
+                  <div className="tc-grp__h">
+                    <h2 id="tc-ibt-h">{pendTitle(open)}</h2>
+                    <p className="nx-meta">Contesta aquí: lo mismo que en tu página</p>
+                  </div>
+                  <TocaList items={items} a={a} say={say} calm={nextT} />
+                </section>
+              )}
+              {stacks.map((x) => (
+                <Stack key={x.matchId} x={x} inbox={inbox} a={a} all={one === x.matchId || !!exp[x.matchId]} onMore={() => setExp((e) => ({ ...e, [x.matchId]: !e[x.matchId] }))} />
+              ))}
+              {show.unread &&
+                (unreadRows.length ? (
+                  <section className="tc-grp" aria-labelledby="tc-un-h">
+                    <div className="tc-grp__h">
+                      <h2 id="tc-un-h">Sin leer</h2>
+                      <p className="nx-meta">{pl(unreadRows.length, "aviso", "avisos")}</p>
+                    </div>
+                    <ul className="tc-nts">{unreadRows.map(row)}</ul>
+                  </section>
+                ) : (
+                  <p className="tc-calm">
+                    <span className="tk-tile">
+                      <TuIcon name="check" className="nx-ic" />
+                    </span>
+                    <span>
+                      <b>Nada sin leer.</b> Te avisamos de lo nuevo.
+                    </span>
+                  </p>
+                ))}
+              {groupNotices(loose, inbox.now).map((g) => {
+                const more = !!exp[`d:${g.key}`];
+                const shown = more ? g.items : g.items.slice(0, DAY_MAX);
+                return (
+                  <section key={g.key} className="tc-grp" aria-labelledby={`tc-day-${g.key}`}>
+                    <div className="tc-grp__h">
+                      <h2 id={`tc-day-${g.key}`}>{g.label}</h2>
+                      <p className="nx-meta">{f === "tuyos" ? "Tuyos" : "Del vestuario"}</p>
+                    </div>
+                    <ul className="tc-nts">{shown.map(row)}</ul>
+                    {g.items.length > DAY_MAX && (
+                      <button type="button" className="nx-lnk tc-more" aria-expanded={more} onClick={() => setExp((e) => ({ ...e, [`d:${g.key}`]: !more }))}>
+                        {more ? "Ver menos" : `Ver ${pl(g.items.length - DAY_MAX, "más", "más")}`}
+                      </button>
+                    )}
+                  </section>
+                );
+              })}
+              {(f === "partidos" && !stacks.length) || (f === "vestuario" && !loose.length) ? (
+                <p className="tc-calm">
+                  <span className="tk-tile">
+                    <TuIcon name="check" className="nx-ic" />
+                  </span>
+                  <span>
+                    <b>{f === "partidos" ? "Ningún aviso de partidos." : "Nada del vestuario."}</b> {nextT}
+                  </span>
+                </p>
+              ) : null}
+            </>
           )}
         </div>
-        {inbox.loading && (
-          <div className="tu-skel" role="status">
-            <span className="vd-vh">Cargando los avisos…</span>
-            <i />
-            <i />
-            <i />
-          </div>
-        )}
-        {inbox.failed && (
-          <div className="tu-empty" role="alert">
-            <TuIcon name="wifiOff" />
-            <b>No se han podido cargar los avisos.</b>
-            <span>Comprueba la conexión y vuelve a intentarlo. Lo que ya habías visto sigue en tu móvil.</span>
-            <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm" onClick={() => window.location.reload()}>
-              Reintentar
-            </button>
-          </div>
-        )}
-        {empty && (
-          <div className="tu-empty" role="status">
-            <TuIcon name="bell" />
-            <b>Aquí verás los avisos del equipo.</b>
-            <span>{next} La convocatoria llegará aquí y la contestas sin salir.</span>
-          </div>
-        )}
-        {list && (
-          <>
-            {show.pend && inbox.pends.length > 0 && (
-              <section className="tu-toca" aria-labelledby="tu-toca-t">
-                <h2 className="tu-day__h" id="tu-toca-t">
-                  {pendTitle(inbox.openPend)}
-                </h2>
-                <PendList pends={inbox.pends} a={a} say={say} />
-              </section>
-            )}
-            {f === "toca" && !inbox.pends.length && (
-              <div className="tu-empty">
-                <b>Nada te toca ahora.</b>
-                <span>{next}</span>
-              </div>
-            )}
-            {stacks.length > 0 && (
-              <section className="tu-day" aria-label="Por partido">
-                <h2 className="tu-day__h">Por partido</h2>
-                {stacks.map((x) => (
-                  <MatchStack key={x.matchId} x={x} inbox={inbox} a={a} exp={one === x.matchId || !!exp[x.matchId]} onToggle={() => setExp((e) => ({ ...e, [x.matchId]: !(one === x.matchId || e[x.matchId]) }))} />
-                ))}
-              </section>
-            )}
-            {show.unread &&
-              (unreadRows.length ? (
-                <section className="tu-day" aria-label="Sin leer">
-                  <h2 className="tu-day__h">Sin leer</h2>
-                  <Rows list={unreadRows} inbox={inbox} a={a} />
-                </section>
-              ) : (
-                <div className="tu-empty">
-                  <b>Estás al día.</b>
-                  <span>{next}</span>
-                </div>
-              ))}
-            {loose.length > 0 &&
-              groupNotices(loose, inbox.now).map((g) => (
-                <section key={g.key} className="tu-day" aria-label={g.label}>
-                  <h2 className="tu-day__h">{g.label}</h2>
-                  <Rows list={g.items} inbox={inbox} a={a} />
-                </section>
-              ))}
-          </>
-        )}
+        <Device inbox={inbox} d={d} a={a} say={say} />
       </div>
-      <aside className="tu-av__side" aria-label="Este móvil">
-        <div className={`tu-devcard is-${d.words.tone}`}>
-          <span className={`tu-pill is-${d.words.tone}`}>{d.words.chip}</span>
-          <b>{d.words.title}</b>
-          <small>{d.words.dev}</small>
-        </div>
-        <p className="tu-label" id="tu-side-p">
-          Te llega a este móvil
-        </p>
-        <PresetSeg d={d} four say={say} labelledBy="tu-side-p" onCustom={() => a.goAv("amedida")} />
-        <p className="tu-small">{PRESET_NOTE[d.choice]}</p>
-        <p className="tu-label">Pausar</p>
-        <PauseChips d={d} a={a} />
-        <Muted inbox={inbox} a={a} h={<p className="tu-label">Partidos silenciados</p>} />
-        <button type="button" className="vd-link" onClick={() => a.goAv("amedida")}>
-          Todo lo de este móvil, en A medida
-        </button>
-      </aside>
-    </div>
+    </>
   );
 }
 
-function Rows({ list, inbox, a }: { list: readonly Notice[]; inbox: Inbox; a: AvisoActions }) {
+/** «J2 · Pitutis». */
+const stackName = (x: StackView): string => `${x.j ? `J${x.j} · ` : ""}${x.rival}`;
+
+/** A match's group: «J2 · Pitutis», G/E/P with OUR score first, its newest notices («Ver los N»), its «⋯». */
+function Stack({ x, inbox, a, all, onMore }: { x: StackView; inbox: Inbox; a: AvisoActions; all: boolean; onMore: () => void }) {
+  const muted = inbox.muted.includes(x.matchId);
+  const id = `tc-ms-${x.matchId}`;
+  const shown = all ? x.rows : x.rows.slice(0, STACK_MAX);
+  const hidden = x.rows.slice(STACK_MAX);
+  const hiddenNew = hidden.filter((n) => inbox.reads.unread(n)).length;
+  const line = stackLine(x.res, x.gf, x.ga, x.at ?? NaN, x.home);
   return (
-    <ol className="tu-nts">
-      {list.map((n) => (
-        <NoticeRow key={n.id} n={n} inbox={inbox} a={a} />
-      ))}
-    </ol>
+    <section className={`tc-grp tc-ms${muted ? " is-muted" : ""}`} aria-labelledby={id}>
+      <div className="tc-grp__h">
+        <h2 id={id}>{stackName(x)}</h2>
+        <p className="nx-meta tc-ms__line">
+          {x.res && (
+            <span className={`tc-res is-${x.res}`} aria-hidden="true">
+              {x.res}
+            </span>
+          )}
+          <span>{line}</span>
+          {muted && <span className="tk-st is-off">Silenciado aquí</span>}
+        </p>
+        <span className="tc-ms__acts">
+          <button type="button" className="nx-lnk" onClick={() => a.go(`/partidos/${encodeURIComponent(x.matchId)}`)}>
+            {x.res ? "Abrir el partido" : "Ver la previa"}
+          </button>
+          <DotsMenu items={stackMenu(x, inbox, a)} label={`Más opciones del ${x.j ? `J${x.j}` : "partido"}`} right />
+        </span>
+      </div>
+      <ul className="tc-nts">
+        {shown.map((n) => (
+          <Row key={n.id} n={n} inbox={inbox} a={a} />
+        ))}
+      </ul>
+      {hidden.length > 0 && (
+        <button type="button" className="nx-lnk tc-more" aria-expanded={all} onClick={onMore}>
+          {all ? "Ver menos" : `Ver ${hidden.length === 1 ? "el otro aviso" : `los otros ${hidden.length}`}${hiddenNew ? ` (${hiddenNew === 1 ? "1 nuevo" : `${hiddenNew} nuevos`})` : ""}`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+/** A notice: its glyph, title and body (opens it), its own action, «Nuevo» and when, its «⋯». Gold only for our
+ *  goals and the MVP. */
+function Row({ n, inbox, a }: { n: Notice; inbox: Inbox; a: AvisoActions }) {
+  const un = inbox.reads.unread(n);
+  const acts = actsOf(n);
+  const gold = (n.topic === "goals" && !/^Gol de /.test(n.title)) || (n.topic === "mvp" && /^MVP/.test(n.title));
+  return (
+    <li className={`tc-nt${un ? " is-new" : ""}`}>
+      <span className={`tk-tile${gold ? " tk-tile--gold" : ""}`}>
+        <TuIcon name={iconOf(n)} className="nx-ic" />
+      </span>
+      <span className="tc-nt__t">
+        <button type="button" className="tc-nt__open" onClick={() => a.open(n)} aria-label={`${n.title}${un ? ", sin leer" : ""}. Abrir`}>
+          <b>{n.title}</b>
+          <span>{n.body}</span>
+        </button>
+        {acts.length > 0 && (
+          <span className="tc-nt__acts">
+            {acts.map((x) => (
+              <button key={x.k} type="button" className="nx-lnk" onClick={() => a.act(x.k, n)}>
+                {x.t}
+              </button>
+            ))}
+          </span>
+        )}
+      </span>
+      <span className="tc-nt__w">
+        {un && <span className="tc-new">Nuevo</span>}
+        {capital(relativeTime(n.at, inbox.now))}
+      </span>
+      <DotsMenu items={noticeMenu(n, inbox, a)} label={`Más opciones: ${n.title}`} right />
+    </li>
+  );
+}
+
+/** The season's fixture as one notice: «Calendario: 20 jornadas nuevas», «Ver las 20 jornadas». */
+function CalRow({ cal, unread, open, onToggle, now }: { cal: ReturnType<typeof calendarBatch>; unread: boolean; open: boolean; onToggle: () => void; now: number }) {
+  const n = cal.rows.length;
+  return (
+    <li className={`tc-nt${unread ? " is-new" : ""}`}>
+      <span className="tk-tile">
+        <TuIcon name="cal" className="nx-ic" />
+      </span>
+      <span className="tc-nt__t">
+        <b>{cal.title}</b>
+        <span>{cal.body}</span>
+        <span>
+          <button type="button" className="nx-lnk" aria-expanded={open} aria-controls="tc-cal20" onClick={onToggle}>
+            {open ? `Recoger ${n === 1 ? "la jornada" : `las ${n}`}` : `Ver ${n === 1 ? "la jornada" : `las ${n} jornadas`}`}
+          </button>
+        </span>
+        {open && (
+          <ul className="tc-cal20" id="tc-cal20" aria-label={n === 1 ? "La jornada nueva" : `Las ${n} jornadas nuevas`}>
+            {cal.rows.map((r) => (
+              <li key={r.key}>{r.t}</li>
+            ))}
+          </ul>
+        )}
+      </span>
+      <span className="tc-nt__w">
+        {unread && <span className="tc-new">Nuevo</span>}
+        {capital(relativeTime(cal.at, now))}
+      </span>
+    </li>
+  );
+}
+
+/** «Este móvil» (the side panel): its state, the shortcuts, the pause, the silenced matches, the topics in Ajustes. */
+function Device({ inbox, d, a, say }: { inbox: Inbox; d: ThisDevice; a: AvisoActions; say: Say }) {
+  const line = d.pause ? pauseLine(d.pause.kind) : d.ready ? `${d.words.title}.` : d.words.dev;
+  return (
+    <aside className="tk-panel tc-dev" aria-labelledby="tc-dev-h">
+      <h2 className="nx-h3" id="tc-dev-h">
+        Este móvil
+      </h2>
+      <p className="tc-dev__st">
+        <span className={`tk-st is-${d.words.tone}`}>{d.pause ? "En pausa" : d.words.chip}</span> <span className="nx-meta">{line}</span>
+      </p>
+      <p className="tc-dev__l" id="tc-dev-p">
+        Te llega a este móvil
+      </p>
+      <PresetSeg d={d} four say={say} labelledBy="tc-dev-p" cls="nx-seg tc-dev__seg" onCustom={() => a.go(AJ_AVISOS)} />
+      <p className="nx-meta">{PRESET_NOTE[d.choice]}</p>
+      <p className="tc-dev__l" id="tc-dev-pause">
+        Pausar
+      </p>
+      <PauseChips d={d} a={a} wrap="tk-quick" chip="tk-chip" labelledBy="tc-dev-pause" />
+      {inbox.muted.length > 0 && (
+        <>
+          <p className="tc-dev__l">Partidos silenciados</p>
+          <ul className="tc-mutes">
+            {inbox.muted.map((id) => {
+              const x = inbox.stackOf(id);
+              return (
+                <li key={id}>
+                  <span>{x ? stackName(x) : inbox.matchName(id)}</span>
+                  <button type="button" className="nx-lnk" onClick={() => a.muteMatch(id, false)}>
+                    Volver a avisarme
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      <p>
+        <button type="button" className="nx-lnk" onClick={() => a.go(AJ_AVISOS)}>
+          Tema a tema, en Ajustes › Avisos
+        </button>
+      </p>
+    </aside>
   );
 }
 

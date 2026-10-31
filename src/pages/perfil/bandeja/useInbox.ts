@@ -66,6 +66,9 @@ export interface StackView {
   gf: number;
   ga: number;
   when: string;
+  /** The kick-off (ms) and where (la bandeja's line «Perdimos 3–8 · fuera · 25 oct»). */
+  at?: number;
+  home?: boolean | null;
   sum: string;
   marks: MatchMark[];
   dur: number;
@@ -358,6 +361,8 @@ export function useInbox(): Inbox {
       gf,
       ga,
       when: m ? whenLine(dateMillis(m.date), m.home) : "",
+      at: m ? dateMillis(m.date) : NaN,
+      home: m?.home ?? null,
       sum: stackSummary(res, rival, marks, rows.map((r) => r.title)),
       marks,
       dur: m ? durationOf(m) : 50,

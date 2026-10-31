@@ -143,16 +143,80 @@ export interface FilterRow {
   t: string;
   n: number;
 }
-/** The rail's filters and their counts (component.js F). */
-export function filterRows(list: readonly Pick<Notice, "url" | "audience" | "topic" | "title">[], openPend: number, unread: number): FilterRow[] {
+/** The bandeja's five filters and their counts (TuCarta «avisos» FILT): what waits on him, the unread notices,
+ *  everything shown (the open «Te toca» items, the stacks' rows, the loose ones, the calendar batch as one), the
+ *  matches' rows and the vestuario's (the batch is the vestuario's). «Tuyos» stays reachable by ?ver=tuyos. */
+export function filterRows(c: { toca: number; unread: number; partidos: number; loose: readonly Pick<Notice, "audience" | "topic" | "title">[]; batch: boolean }): FilterRow[] {
+  const b = c.batch ? 1 : 0;
   return [
-    { f: "toca", t: "Te toca", n: openPend },
-    { f: "sinleer", t: "Sin leer", n: unread },
-    { f: "todos", t: "Todos", n: list.length },
-    { f: "partidos", t: "Partidos", n: list.filter((n) => !!matchOf(n)).length },
-    { f: "vestuario", t: "Del vestuario", n: list.filter((n) => kindOf(n) === "vestuario").length },
-    { f: "tuyos", t: "Tuyos", n: list.filter((n) => kindOf(n) === "tuyo").length },
+    { f: "toca", t: "Te toca", n: c.toca },
+    { f: "sinleer", t: "Sin leer", n: c.unread },
+    { f: "todos", t: "Todos", n: c.toca + c.partidos + c.loose.length + b },
+    { f: "partidos", t: "Partidos", n: c.partidos },
+    { f: "vestuario", t: "Del vestuario", n: c.loose.filter((n) => kindOf(n) === "vestuario").length + b },
   ];
+}
+
+// ---------- the fixture's «Nuevo partido» notices: one item
+
+/** A «Nuevo partido: <rival>» notice (pushLogic: a match scheduled for the first time, the season's fixture). */
+export const isNewFixture = (n: Pick<Notice, "topic" | "title">): boolean => n.topic === "dates" && /^Nuevo partido\b/.test(n.title);
+
+/** Takes the «Nuevo partido» notices out of the match stacks into one batch (each was a stack of its own: the
+ *  20-jornada fixture made a wall of 20). One alone stays in its stack. A stack left empty goes. */
+export function collapseFixtures<S extends { rows: readonly Pick<Notice, "topic" | "title">[] }>(stacks: readonly S[]): { stacks: S[]; batch: S["rows"][number][] } {
+  const batch: S["rows"][number][] = stacks.flatMap((s) => s.rows.filter(isNewFixture));
+  if (batch.length < 2) return { stacks: [...stacks], batch: [] };
+  // (the same stack with its other rows: S keeps its own fields)
+  const rest = stacks.map((s) => ({ ...s, rows: s.rows.filter((n) => !isNewFixture(n)) }) as S).filter((s) => s.rows.length > 0);
+  return { stacks: rest, batch };
+}
+
+/** A jornada of the batch: its number, kick-off (ms) and rival (null: the match is gone). */
+export interface FixtureInfo {
+  j: number | null;
+  at: number;
+  rival: string;
+}
+const SHORT = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short" });
+/** «8 nov». */
+export const shortDay = (at: number): string => SHORT.format(at).replace(/\./g, "");
+
+/** The batch as one item: «Calendario: 20 jornadas nuevas», «De la J3 (8 nov) a la J22 (9 may).» and, expanded,
+ *  each jornada «J3 · 8 nov · Red Demons» in calendar order. `info` reads the match a notice is about. */
+export function calendarBatch<T extends Pick<Notice, "id" | "url" | "at" | "title">>(batch: readonly T[], info: (matchId: string) => FixtureInfo | null): { title: string; body: string; rows: { key: string; t: string }[]; at: number; ids: string[] } {
+  const seen = new Set<string>();
+  const items: { key: string; f: FixtureInfo | null; rival: string }[] = [];
+  for (const n of batch) {
+    const id = matchOf(n) ?? n.id;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    items.push({ key: id, f: info(id), rival: n.title.replace(/^Nuevo partido:?\s*/, "") });
+  }
+  items.sort((a, b) => (a.f?.at ?? Infinity) - (b.f?.at ?? Infinity));
+  const label = (f: FixtureInfo | null) => (f ? [f.j ? `J${f.j}` : "", Number.isFinite(f.at) ? shortDay(f.at) : ""].filter(Boolean) : []);
+  const end = (f: FixtureInfo | null) => (f?.j ? (Number.isFinite(f.at) ? `J${f.j} (${shortDay(f.at)})` : `J${f.j}`) : "");
+  const first = end(items[0]?.f ?? null);
+  const last = end(items.at(-1)?.f ?? null);
+  const n = items.length;
+  return {
+    title: `Calendario: ${n === 1 ? "1 jornada nueva" : `${n} jornadas nuevas`}`,
+    body: first && last && first !== last ? `De la ${first} a la ${last}.` : "Ya están en Partidos y en tu calendario.",
+    rows: items.map((x) => ({ key: x.key, t: [...label(x.f), x.f?.rival || x.rival].join(" · ") })),
+    at: Math.max(...batch.map((x) => x.at)),
+    ids: batch.map((x) => x.id),
+  };
+}
+
+// ---------- the bandeja's head
+
+/** «5 cosas te tocan», «Una cosa te toca», «Al día». */
+export const tocaTitle = (open: number): string => (open === 0 ? "Al día" : open === 1 ? "Una cosa te toca" : `${open} cosas te tocan`);
+
+/** A stack's line: «Perdimos 3–8 · fuera · 25 oct» (OUR score first), «Por jugar · en casa · 8 nov». */
+export function stackLine(res: Res, gf: number, ga: number, at: number, home: boolean | null | undefined): string {
+  const where = home === true ? "en casa" : home === false ? "fuera" : "";
+  return [res ? `${RES_WORD[res]} ${gf}–${ga}` : "Por jugar", where, Number.isFinite(at) ? shortDay(at) : ""].filter(Boolean).join(" · ");
 }
 
 /** What a filter shows: «Te toca», the stacks (all, or one match open), the loose rows by day, the unread rows. */

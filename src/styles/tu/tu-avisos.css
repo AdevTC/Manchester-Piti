@@ -28,3 +28,66 @@
 .tup .tc-cal20>li{font-size:12.5px;padding:4px 9px;border-radius:9px;box-shadow:inset 0 0 0 1px var(--vd-rule);color:var(--vd-ink)}
 
 /* ── by hand ── */
+/* the page title (the prototype's h2 look on the page's h1) and the groups' headings (h2) in the kit's sans */
+.tup.tc-av .tc-head h1{font-family:var(--vd-sans)}
+.tup .tc-grp__h>h2{font-family:var(--vd-sans);font-size:18px;font-weight:700;letter-spacing:-.01em;color:var(--vd-ink-strong)}
+.tup .tc-grp--toca{margin-top:0}
+.tup .tc-ib__main{min-width:0}
+.tup .tc-filt>button>.nx-ic{width:14px;height:14px}
+.tup .tc-nts{list-style:none;margin:0;padding:0}
+/* a notice: the title opens it; «Nuevo» and the time, then its «⋯» */
+.tup .tc-nt{grid-template-columns:auto minmax(0,1fr) auto auto}
+.tup .tc-nt__open{display:grid;gap:2px;min-width:0;min-height:44px;padding:0;border:0;background:none;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.tup .tc-nt__open>b{font-size:15px;font-weight:700;color:var(--vd-ink-strong)}
+.tup .tc-nt__open>span{font-size:13.5px;line-height:1.45;color:var(--vd-ink2)}
+.tup .tc-nt__open:hover>b{text-decoration:underline;text-underline-offset:3px}
+.tup .tc-nt__open:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px;border-radius:6px}
+.tup .tc-nt__acts{display:flex;flex-wrap:wrap;gap:0 16px}
+.tup .tc-nt>.tu-nt__more{position:relative}
+.tup .tc-nt:has(.tu-pop),.tup .tc-grp:has(.tc-grp__h .tu-pop){position:relative;z-index:5}
+.tup .tk-tile--gold{background:rgba(242,208,75,.14);color:var(--vd-oro);box-shadow:inset 0 0 0 1px rgba(242,208,75,.3)}
+@container nx (max-width:699px){
+.tup .tc-nt{grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px}
+.tup .tc-nt>.tk-tile{grid-row:1/span 2}
+.tup .tc-nt__w{grid-column:2;grid-row:2;display:flex;gap:8px;justify-items:start;text-align:left}
+.tup .tc-nt>.tu-nt__more{grid-column:3;grid-row:1}
+}
+/* a match's group: G/E/P (the word is in the line too), OUR score first, «Abrir el partido» and its «⋯» */
+.tup .tc-ms .tc-grp__h{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 14px}
+.tup .tc-ms .tc-grp__h>h2{grid-column:1}
+.tup .tc-ms__line{grid-column:1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.tup .tc-ms__acts{grid-column:2;grid-row:1/span 2;display:inline-flex;align-items:center;gap:6px}
+.tup .tc-ms__acts>.tu-nt__more{position:relative}
+.tup .tc-ms.is-muted .tc-nts{opacity:.8}
+.tup .tc-res{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;font-size:12.5px;font-weight:800;color:var(--vd-ink-strong);box-shadow:inset 0 0 0 1.5px var(--vd-rule2)}
+.tup .tc-res.is-G{background:rgba(108,171,221,.3);box-shadow:inset 0 0 0 1.5px rgba(159,208,242,.7)}
+.tup .tc-res.is-P{background:rgba(240,138,126,.18);box-shadow:inset 0 0 0 1.5px rgba(240,138,126,.6)}
+.tup .tc-more{margin-top:2px}
+/* «Te toca»: an error under its card, the counts in the options, the answered ones' chips */
+.tup .tc-do__err{margin-top:6px;font-size:13px;font-weight:640;color:#f6a59b}
+:root[data-theme="light"] .tup .tc-do__err{color:#a3261b}
+.tup .tc-opt>small{font-size:12px;font-weight:720;color:var(--vd-g-ink2)}
+.tup .tc-opt>.vd-shirt--img{background:var(--vd-shirt-img) center/contain no-repeat}
+.tup .tc-do__ctl>.nx-btn[aria-disabled="true"]{opacity:.6;cursor:default}
+.tup .tc-done{list-style:none;padding:0}
+/* the notes over the list: paused, this device not ready (the words say which) */
+.tup .tc-note{margin:0 0 14px;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.45;color:var(--vd-ink);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.tup .tc-note.is-warn{box-shadow:inset 0 0 0 1px rgba(242,208,75,.55)}
+.tup .tc-note.is-bad{box-shadow:inset 0 0 0 1px rgba(240,138,126,.6)}
+.tup .tc-note>b{color:var(--vd-ink-strong)}
+/* loading, error, empty */
+.tup .tc-empty{display:grid;justify-items:start;gap:8px;padding:22px 0;font-size:15px;color:var(--vd-ink)}
+.tup .tc-empty>b{font-size:18px;color:var(--vd-ink-strong)}
+.tup .tc-empty>.nx-ic{width:26px;height:26px}
+/* «Este móvil» */
+.tup .tc-dev{display:grid;gap:10px;align-content:start}
+.tup .tc-dev>h2{font-family:var(--vd-sans)}
+@container nx (min-width:1001px){.tup .tc-dev{position:sticky;top:96px}}
+.tup .tc-dev__st{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.tup .tc-dev__l{margin-top:6px;font-size:13px;font-weight:700;color:var(--vd-ink2)}
+.tup .tc-dev__seg{width:100%;min-width:0}
+.tup .tc-dev .vd-seg__b{min-height:44px}
+.tup .tk-st.is-bad{color:#f6a59b;box-shadow:inset 0 0 0 1px rgba(240,138,126,.6)}
+:root[data-theme="light"] .tup .tk-st.is-bad{color:#a3261b}
+.tup .tc-mutes{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.tup .tc-mutes>li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;font-size:14px;color:var(--vd-ink)}
