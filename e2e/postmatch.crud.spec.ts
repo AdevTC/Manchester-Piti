@@ -34,17 +34,17 @@ test('resumen personal en el vestuario del partido y cobertura sin confundir cer
   // Coverage belongs to each figure: one recorded pass is partial; a figure the acta never narrated says «–».
   const cards=page.getByRole('list',{name:'Indicadores de la selección'});
   const attempts=cards.getByRole('button',{name:/Pases intentados/});
-  await expect(attempts.locator('.nu-fig__v')).toHaveText('1');
-  await expect(attempts.locator('.nu-fig__st')).toHaveText('Parcial');
+  await expect(attempts.locator('.nx-gt2__v')).toHaveText('1');
+  await expect(attempts.getByRole('img')).toHaveAccessibleName('Parcial');
   await attempts.click();
   const detail=page.getByRole('dialog',{name:/Pases intentados/});
-  await expect(detail.locator('.nu-mt__v b')).toHaveText('1');
-  await expect(detail.locator('.nu-mt__v')).toContainText('Parcial');
-  await expect(detail.locator('.nu-ev').getByRole('listitem')).toHaveCount(1);
+  await expect(detail.locator('.nx-ficha__v b')).toHaveText('1');
+  await expect(detail.locator('.nx-ficha__v')).toContainText('Parcial');
+  await expect(detail.locator('.nx-ev').getByRole('listitem')).toHaveCount(1);
   await page.screenshot({path:testInfo.outputPath('coverage-mobile.png')});
   // The previous acta explicitly covers the whole game: here no passes really is zero, a number and not «–».
   await page.goto('/estadisticas/juego?temporada=todas&partidos=preview-balance-previous');
-  await expect(attempts.locator('.nu-fig__v')).toHaveText('0');
+  await expect(attempts.locator('.nx-gt2__v')).toHaveText('0');
 });
 
 // (the boards dropped «+20′ respecto a tu anterior partido» from «Tu partido»; «Tu recorrido en la porra» is on Mi

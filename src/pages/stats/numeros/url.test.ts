@@ -18,21 +18,28 @@ describe("Números: every screen has its address", () => {
     expect(screenAt("/estadisticas")).toMatchObject({ place: "temporada", grow: null, ysi: false });
     expect(screenAt("/estadisticas/y-si")).toMatchObject({ place: "temporada", ysi: true });
     expect(screenAt("/estadisticas/jugadores/")).toMatchObject({ place: "jugadores" });
-    expect(screenAt("/estadisticas/campo")).toMatchObject({ place: "campo", campoView: "pases" });
-    expect(screenAt("/estadisticas/campo/puestos")).toMatchObject({ place: "campo", campoView: "puestos" });
-    expect(screenAt("/estadisticas/campo/sistemas")).toMatchObject({ place: "campo", campoView: "sistemas" });
+    expect(screenAt("/estadisticas/jugadores/campo")).toMatchObject({ place: "jugadores", jugView: "campo", campoView: "pases" });
+    expect(screenAt("/estadisticas/jugadores/campo/puestos")).toMatchObject({ place: "jugadores", jugView: "campo", campoView: "puestos" });
+    expect(screenAt("/estadisticas/jugadores/evolucion")).toMatchObject({ place: "jugadores", jugView: "evo" });
     expect(screenAt("/estadisticas/juego")).toMatchObject({ place: "juego", grow: null });
     expect(screenAt("/estadisticas/juego/tabla")).toMatchObject({ place: "juego", grow: "mesa" });
     expect(screenAt("/estadisticas/juego/graficas")).toMatchObject({ place: "juego", grow: "graficas" });
     expect(screenAt("/estadisticas/juego/catalogo")).toMatchObject({ place: "juego", grow: "catalogo" });
     expect(screenAt("/estadisticas/rivales")).toMatchObject({ place: "rivales" });
-    expect(screenAt("/estadisticas/records")).toMatchObject({ place: "records", recView: "rachas" });
-    expect(screenAt("/estadisticas/records/marcas")).toMatchObject({ recView: "marcas" });
-    expect(screenAt("/estadisticas/records/cromos")).toMatchObject({ recView: "cromos" });
-    expect(screenAt("/estadisticas/records/evolucion")).toMatchObject({ recView: "evolucion" });
+  });
+  it("the round-3 addresses open where their screens went: El campo in Jugadores, Récords in Temporada", () => {
+    expect(screenAt("/estadisticas/campo")).toMatchObject({ place: "jugadores", jugView: "campo", campoView: "pases" });
+    expect(screenAt("/estadisticas/campo/puestos")).toMatchObject({ place: "jugadores", jugView: "campo", campoView: "puestos" });
+    expect(screenAt("/estadisticas/campo/sistemas")).toMatchObject({ place: "temporada" });
+    expect(screenAt("/estadisticas/records")).toMatchObject({ place: "temporada", recView: "rachas" });
+    expect(screenAt("/estadisticas/records/marcas")).toMatchObject({ place: "temporada", recView: "marcas" });
+    expect(screenAt("/estadisticas/records/cromos")).toMatchObject({ place: "temporada", recView: "cromos" });
+    expect(screenAt("/estadisticas/records/evolucion")).toMatchObject({ place: "jugadores", jugView: "evo" });
+    expect(pathOf(st(stateFromUrl("/estadisticas/campo/puestos", {}, people)))).toBe("/estadisticas/jugadores/campo/puestos");
+    expect(pathOf(st(stateFromUrl("/estadisticas/records/cromos", {}, people)))).toBe("/estadisticas");
   });
   it("writes back the path it read", () => {
-    for (const p of ["/estadisticas", "/estadisticas/jugadores", "/estadisticas/campo", "/estadisticas/campo/puestos", "/estadisticas/campo/sistemas", "/estadisticas/juego", "/estadisticas/juego/tabla", "/estadisticas/juego/graficas", "/estadisticas/juego/catalogo", "/estadisticas/rivales", "/estadisticas/records", "/estadisticas/records/marcas", "/estadisticas/records/cromos", "/estadisticas/records/evolucion"]) {
+    for (const p of ["/estadisticas", "/estadisticas/jugadores", "/estadisticas/jugadores/campo", "/estadisticas/jugadores/campo/puestos", "/estadisticas/jugadores/evolucion", "/estadisticas/juego", "/estadisticas/juego/tabla", "/estadisticas/juego/graficas", "/estadisticas/juego/catalogo", "/estadisticas/rivales"]) {
       const s = stateFromUrl(p, {}, people);
       expect(pathOf(st(s)), p).toBe(p);
     }
@@ -80,29 +87,38 @@ describe("the boards' Spanish parameters", () => {
     expect(all.temporada).toBe("todas");
     expect(all.hasta).toBeUndefined();
   });
-  it("each screen's own: jugador, estrella, puesto, equipo, parte, familia, fuera-del-audio, q, rival, ver", () => {
+  it("each screen's own: jugador, contra, estrella, puesto, equipo, parte, familia, fuera-del-audio, q, rival, ver", () => {
     expect(stateFromUrl("/estadisticas/jugadores", { ranking: "porra", jugador: "alcides", ver: "todo" }, people)).toMatchObject({ rankK: "porra", pick: "p1", grow: "jugadores", sheet: null });
+    expect(stateFromUrl("/estadisticas/jugadores", { jugador: "alcides", contra: "adrian-t-c" }, people)).toMatchObject({ pick: "p1", vsOn: true, vsB: "p2" });
+    expect(urlOf(st({ place: "jugadores", pick: "p1", vsOn: true, vsB: "p2" }), ctx).search).toMatchObject({ jugador: "alcides", contra: "adrian-t-c" });
+    expect(stateFromUrl("/estadisticas/jugadores/campo", { estrella: "alcides" }, people).star).toBe("p1");
     expect(stateFromUrl("/estadisticas/campo", { estrella: "kevin" }, people).star).toBeNull();
     expect(stateFromUrl("/estadisticas/campo/puestos", { puesto: "dc" }, people).puesto).toBe("DC");
+    expect(urlOf(st({ place: "jugadores", jugView: "campo", campoView: "puestos", puesto: "DC" }), ctx)).toMatchObject({ path: "/estadisticas/jugadores/campo/puestos", search: { puesto: "dc" } });
     expect(stateFromUrl("/estadisticas/juego/catalogo", { equipo: "rival", parte: 2, familia: "pases", "fuera-del-audio": 1, q: "pase" }, people)).toMatchObject({ team: "them", parte: "2", catFam: "pases", catX: true, catQ: "pase", grow: "catalogo" });
     expect(stateFromUrl("/estadisticas/rivales", { rival: "orduna-fc" }, people)).toMatchObject({ rival: "orduna-fc", sheet: null });
-    expect(stateFromUrl("/estadisticas", { ver: "todo" }, people).grow).toBe("tabla");
+    expect(stateFromUrl("/estadisticas", { ver: "todo" }, people)).toMatchObject({ allTable: true, grow: null });
+    expect(urlOf(st({ place: "temporada", allTable: true }), ctx).search.ver).toBe("todo");
     const u = urlOf(st({ place: "juego", grow: "catalogo", team: "them", parte: "1", catFam: "Pases", catX: true, catQ: "x" }), ctx);
     expect(u).toEqual({ path: "/estadisticas/juego/catalogo", search: expect.objectContaining({ equipo: "rival", parte: "1", familia: "pases", "fuera-del-audio": "1", q: "x" }) });
-    expect(urlOf(st({ place: "rivales", rival: "Orduña fc", grow: "rivales" }), ctx).search).toMatchObject({ rival: "orduna-fc", ver: "todo" });
+    expect(urlOf(st({ place: "rivales", rival: "Orduña fc" }), ctx).search).toMatchObject({ rival: "orduna-fc" });
   });
-  it("the sheets: jugador, rival, metrica and buscar on any screen; hoja for the rest", () => {
-    expect(stateFromUrl("/estadisticas", { jugador: "alcides" }, people)).toMatchObject({ sheet: "player", sheetId: "p1" });
-    expect(stateFromUrl("/estadisticas/juego", { rival: "orduna-fc" }, people)).toMatchObject({ sheet: "rival", sheetId: "orduna-fc" });
+  it("the sheets: metrica and buscar on any screen, hoja for the rest; a player or a rival opens his place", () => {
+    expect(stateFromUrl("/estadisticas", { jugador: "alcides" }, people)).toMatchObject({ place: "jugadores", pick: "p1", sheet: null });
+    expect(stateFromUrl("/estadisticas/juego", { rival: "orduna-fc" }, people)).toMatchObject({ place: "rivales", rival: "orduna-fc", sheet: null });
     expect(stateFromUrl("/estadisticas/juego/catalogo", { metrica: "070" }, people)).toMatchObject({ sheet: "metric", sheetId: "070" });
     expect(stateFromUrl("/estadisticas", { buscar: "" }, people)).toMatchObject({ sheet: "search", sq: "" });
     expect(stateFromUrl("/estadisticas/y-si", {}, people)).toMatchObject({ sheet: "ysi" });
     expect(hojaOf("scope", null)).toBe("filtros");
+    expect(hojaOf("stats", null)).toBe("estadisticas");
+    expect(hojaOf("export", null)).toBe("exportar");
+    expect(stateFromUrl("/estadisticas/juego", { hoja: "exportar" }, people)).toMatchObject({ sheet: "export" });
+    expect(stateFromUrl("/estadisticas/jugadores", { hoja: "estadisticas" }, people)).toMatchObject({ sheet: "stats" });
+    expect(stateFromUrl("/estadisticas", { hoja: "que-es-moviola" }, people).sheet).toBeNull();
     expect(hojaOf("info", "m:goles")).toBe("que-es-m-goles");
     expect(sheetOfHoja("que-es-m-goles")).toEqual({ sheet: "info", id: "m:goles" });
     expect(sheetOfHoja("que-es-moviola")).toEqual({ sheet: "info", id: "moviola" });
     expect(sheetOfHoja("que-es-nada")).toBeNull();
-    expect(urlOf(st({ sheet: "player", sheetId: "p2" }), ctx).search.jugador).toBe("adrian-t-c");
     expect(urlOf(st({ sheet: "search", sq: "orduña" }), ctx).search.buscar).toBe("orduña");
   });
   it("one key per address, whatever the order and the remembered season", () => {

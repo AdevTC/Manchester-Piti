@@ -1,10 +1,11 @@
-// Números «Vidrio», round 3 (the NU- boards): an almanac. The identity header with the slim time bar (what numbers
-// to see + «La moviola de la temporada», which drives every screen), a rail of sections each with its live
-// headline (a sticky tab strip on the phone), and one full screen per section with its own address — Temporada,
-// Jugadores, El campo, El juego, Rivales, Récords — swapped with a View Transition (exit → morph → enter); «Ver
-// todo» grows in place and the sheets open over it, both with their address too. On a desktop the page is an app
-// frame: it never scrolls, each region scrolls inside. Every number is the boards' arithmetic (numeros/view.ts) on
-// production's data (numeros/adapt.ts). Server-rendered for fans; the viewer's own pieces once hydrated.
+// Estadísticas «El palco» (the canvas prototype, Numeros.dc.html): the title with «Busca o pregunta», the bar —
+// «Qué números ver» (the one filter for the whole page: hasta una jornada, en casa o fuera, todas las temporadas, un
+// partido, un jugador) and the shelf of four places, each with its live headline — and the open place under it, with
+// its own address: Temporada (la cinta and «Repasar la temporada», the table and «¿Y si…?», records), Jugadores
+// (ranking, cara a cara, El campo, evolución), El juego (with its windows: gráficas, todos los números, catálogo) and
+// Rivales, swapped with a View Transition. Every number is the round-3 arithmetic (numeros/view.ts) on production's
+// data (numeros/adapt.ts), cut by the filters; palco/* draws it. Server-rendered for fans; the viewer's own pieces
+// once hydrated.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type TouchEvent } from "react";
 import { flushSync } from "react-dom";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
@@ -33,18 +34,26 @@ import { makeND, slug, type Moment, type NSeasonData } from "./numeros/nd";
 import { seasonData, squadOf, type SquadInput } from "./numeros/adapt";
 import { useCatalog } from "./numeros/useCatalog";
 import { addressKey, peopleIndex, stateFromUrl, urlOf, type Search } from "./numeros/url";
-import { numerosView, PLACES, type Act, type Env, type Grow, type NuState, type Place, type Sheet, type Viewer } from "./numeros/view";
-import { I, Q } from "./numeros/bits";
-import { Campo, Juego, Jugadores, Records, Rivales, Temporada } from "./numeros/Screens";
-import { Sheets } from "./numeros/Sheets";
+import { isPlace, numerosView, PLACE_LABEL, PLACES, type Act, type Env, type Grow, type NuState, type Place, type Section, type Sheet, type Viewer } from "./numeros/view";
 import { csvText, download, jsonText } from "./numeros/files";
+import { Ic } from "./palco/kit";
+import { filterLabel } from "./palco/scope";
+import { Temporada } from "./palco/Temporada";
+import { Jugadores } from "./palco/Jugadores";
+import { Juego } from "./palco/Juego";
+import { Rivales } from "./palco/Rivales";
+import { Sheets } from "./palco/Sheets";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
 import "../../styles/vidrio/components.css";
 import "../../styles/vidrio/reading.css";
+import "../../styles/vidrio/field.css";
 import "../../styles/vidrio-paginas.css";
-import "../../styles/numeros.css";
-import "../../styles/numeros-fixes.css";
+import "../../styles/palco/palco.css";
+import "../../styles/palco/temporada.css";
+import "../../styles/palco/jugadores.css";
+import "../../styles/palco/juego.css";
+import "../../styles/palco/rivales.css";
 
 const subscribeNothing = () => () => {};
 const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
@@ -93,9 +102,19 @@ const BASE: NuState = {
   place: "temporada", upto: Number.POSITIVE_INFINITY, playing: false, raceK: "goles", star: null, temporada: "esta", campo: "todo", jug: [], partidos: [], grow: null, sheet: null, sheetId: null,
   rankK: "goles", pick: null, rival: null, campoView: "pases", puesto: "", team: "us", parte: "all", recView: "rachas", cromoK: "todos", evoK: "goles", ysi: {}, sortK: "goles",
   q: "", rq: "", catQ: "", catFam: "", catN: 24, catX: false, allStats: false, colSet: "basico", wsSet: "resumen", wsColumns: undefined, wsSort: undefined, wsDirection: "desc", wsQuery: "", wsFamily: "", clockK: "ambos", streakK: "g", evoIds: null, sq: "",
+  jugView: "ranking", vsOn: false, vsB: null, allRank: false, allTable: false, jkey: null, replay: false, exFmt: "json",
 };
 /** The parts of the state the address holds (everything else is the screen's own). */
-const URL_KEYS = ["place", "campoView", "recView", "grow", "sheet", "sheetId", "temporada", "upto", "campo", "partidos", "jug", "rankK", "pick", "rival", "star", "puesto", "team", "parte", "catFam", "catX", "catQ", "sq", "wsSet", "wsColumns", "wsSort", "wsDirection", "wsQuery", "wsFamily"] as const;
+const URL_KEYS = ["place", "jugView", "campoView", "recView", "grow", "sheet", "sheetId", "temporada", "upto", "campo", "partidos", "jug", "rankK", "pick", "vsOn", "vsB", "rival", "star", "puesto", "team", "parte", "allTable", "catFam", "catX", "catQ", "sq", "wsSet", "wsColumns", "wsSort", "wsDirection", "wsQuery", "wsFamily"] as const;
+/** «Repasar la temporada»: a jornada every 1,1 s (2,2 s with reduced motion: it still steps, without the moving bars). */
+const REPLAY_MS = 1100;
+/** Where a round-3 section lives in «El palco»: El campo is Jugadores' second view, Récords is Temporada's (its
+ *  evolution, Jugadores'). */
+function placeOf(section: Section, patch: Partial<NuState>): { place: Place; patch: Partial<NuState> } {
+  if (isPlace(section)) return { place: section, patch };
+  if (section === "campo") return patch.campoView === "sistemas" ? { place: "temporada", patch } : { place: "jugadores", patch: { ...patch, jugView: "campo" } };
+  return patch.recView === "evolucion" ? { place: "jugadores", patch: { ...patch, jugView: "evo" } } : { place: "temporada", patch };
+}
 
 /** The View Transition of the boards: html[data-nu-dir] (down · up) and a transition whose update commits at once;
  *  without View Transitions, under reduced motion or a shot, the change just happens. */
@@ -230,8 +249,8 @@ export function NumerosPage() {
   stRef.current = st;
   const narrowNow = () => {
     try {
-      const sc = pageRef.current?.querySelector<HTMLElement>(".nu-screen");
-      return (sc ? sc.clientWidth : window.innerWidth) < 760;
+      const sc = pageRef.current?.querySelector<HTMLElement>(".nx");
+      return (sc ? sc.clientWidth : window.innerWidth) < 700;
     } catch {
       return false;
     }
@@ -311,25 +330,23 @@ export function NumerosPage() {
   /** The address under the open sheet when it was pushed. */
   const underSheet = useRef("");
 
-  // ── scroll per screen: the page on a phone, every scrolling region on a desktop
+  // ── scroll per place: where each was left (the page scrolls as a page)
   const pageRef = useRef<HTMLDivElement | null>(null);
-  const scrollMem = useRef<Partial<Record<Place, { y: number; r: number[] }>>>({});
-  const regions = () => Array.from(pageRef.current?.querySelectorAll<HTMLElement>(".nu-screen .nu-reg, .nu-screen .nu-tem__side, .nu-screen .nu-cromos, .nu-screen .vd-grow__body, .nu-screen .nu-scroll, .nu-screen__body") ?? []);
+  const scrollMem = useRef<Partial<Record<Place, number>>>({});
   function saveScroll(place: Place) {
-    scrollMem.current[place] = { y: window.scrollY, r: regions().map((el) => el.scrollTop) };
+    scrollMem.current[place] = window.scrollY;
   }
-  /** Puts the new screen where it was left (or its top under the rail): inside the transition's update, right after
-   *  the swap, so the old screen is captured where it was and the new one where it goes (restored a frame later, the
-   *  screen jumped before or after the animation). */
+  /** Puts the new place where it was left (or its top under the bar, when the page had scrolled past it): inside the
+   *  transition's update, right after the swap, so the old place is captured where it was and the new one where it
+   *  goes (restored a frame later, the place jumped before or after the animation). */
   function restoreScroll(place: Place) {
-    const m = scrollMem.current[place];
-    regions().forEach((el, i) => (el.scrollTop = m?.r[i] ?? 0));
-    const rail = pageRef.current?.querySelector<HTMLElement>(".nu-rail");
-    const scr = pageRef.current?.querySelector<HTMLElement>(".nu-screen");
-    if (m) window.scrollTo(0, m.y);
-    else if (scr && rail) {
-      const under = getComputedStyle(rail).position === "sticky" ? rail.getBoundingClientRect().bottom : 0;
-      if (scr.getBoundingClientRect().top < under) window.scrollTo(0, window.scrollY + scr.getBoundingClientRect().top - under - 8);
+    const y = scrollMem.current[place];
+    const bar = pageRef.current?.querySelector<HTMLElement>(".nx-bar");
+    const at = pageRef.current?.querySelector<HTMLElement>(".nx-place");
+    if (y != null) window.scrollTo(0, y);
+    else if (bar && at) {
+      const under = getComputedStyle(bar).position === "sticky" ? bar.getBoundingClientRect().bottom : 0;
+      if (at.getBoundingClientRect().top < under) window.scrollTo(0, window.scrollY + at.getBoundingClientRect().top - under - 8);
     }
   }
 
@@ -406,9 +423,10 @@ export function NumerosPage() {
     const next = { ...cur, grow: g };
     transition(null, reduced, () => flushSync(() => setSt(next)));
     commit(next, false);
-    window.setTimeout(() => pageRef.current?.querySelector<HTMLElement>(".nu-grow h2")?.focus({ preventScroll: true }), 40);
+    window.setTimeout(() => pageRef.current?.querySelector<HTMLElement>(".nx-win h2")?.focus({ preventScroll: true }), 40);
   };
-  const go = (place: Place, patch: Partial<NuState> = {}) => {
+  const go = (section: Section, patch0: Partial<NuState> = {}) => {
+    const { place, patch } = placeOf(section, patch0);
     const cur = stRef.current;
     const next: NuState = { ...cur, ...patch, place, grow: null, sheet: null, sheetId: null };
     if (place === cur.place) {
@@ -425,32 +443,37 @@ export function NumerosPage() {
     commit(next, false);
   };
 
-  // ── the moviola
+  // ── «Repasar la temporada»: la cinta plays jornada by jornada and every place follows; at the end, back to today
   const edge = moment.edge;
   const seek = (j: number) => setState({ upto: Math.max(1, Math.min(edge, Math.round(j))) });
   const stop = () => stRef.current.playing && setSt((s) => ({ ...s, playing: false }));
   useEffect(() => {
     if (!st.playing) return;
-    const t = window.setInterval(() => {
-      const cur = stRef.current;
-      const j = Math.min(cur.upto, edge) + 1;
-      if (j > edge) {
-        setSt((s) => ({ ...s, playing: false }));
-        toast("La temporada, al día.");
-        return;
-      }
-      setState({ upto: j });
-    }, 900);
+    const t = window.setInterval(
+      () => {
+        const cur = stRef.current;
+        const j = Math.min(cur.upto, edge) + 1;
+        if (j > edge) {
+          setState({ playing: false, replay: false, upto: Number.POSITIVE_INFINITY });
+          toast("La temporada, al día.");
+          return;
+        }
+        setState({ upto: j });
+      },
+      reduced ? REPLAY_MS * 2 : REPLAY_MS,
+    );
     return () => window.clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one timer while «Repasar» runs
-  }, [st.playing, edge]);
+  }, [st.playing, edge, reduced]);
+  /** Play or pause; a paused replay goes on from its jornada, anything else starts at the J1. */
   const play = () => {
-    const cur = Math.min(stRef.current.upto, edge);
-    if (reduced) {
-      seek(cur >= edge ? 1 : cur + 1);
+    const cur = stRef.current;
+    if (cur.playing) {
+      stop();
       return;
     }
-    setState({ playing: true, upto: cur >= edge ? 1 : cur });
+    const at = Math.min(cur.upto, edge);
+    setState({ playing: true, replay: true, jkey: null, upto: cur.replay && at < edge ? at : 1 });
   };
 
   const act: Act = {
@@ -462,8 +485,10 @@ export function NumerosPage() {
     say: toast,
     stop,
     seek,
+    play,
     narrow: narrowNow,
-    ask: (place, patch, sheet, id) => {
+    ask: (section, patch0, sheet, id) => {
+      const { place, patch } = placeOf(section, patch0);
       const cur = stRef.current;
       if (cur.sheet) {
         pushedOverlay.current = false;
@@ -506,24 +531,13 @@ export function NumerosPage() {
     say: (t) => actRef.current.say(t),
     stop: () => actRef.current.stop(),
     seek: (j) => actRef.current.seek(j),
+    play: () => actRef.current.play(),
     narrow: () => actRef.current.narrow(),
     ask: (place, patch, sheet, id) => actRef.current.ask(place, patch, sheet, id),
     csv: (kind) => actRef.current.csv(kind),
     json: () => actRef.current.json(),
   }));
   const v = useMemo(() => numerosView(st, env, stableAct), [st, env, stableAct]);
-  const numOf = (id: string) => nd.num(id);
-
-  // a narrow screen opens the chosen player's or rival's sheet when the address asks for him
-  const arrived = useRef(false);
-  useEffect(() => {
-    if (arrived.current || !hydrated) return;
-    arrived.current = true;
-    if (!narrowNow()) return;
-    if (st.place === "jugadores" && st.pick && !st.sheet) setSt((s) => ({ ...s, sheet: "player", sheetId: s.pick }));
-    if (st.place === "rivales" && st.rival && !st.sheet) setSt((s) => ({ ...s, sheet: "rival", sheetId: s.rival }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
-  }, [hydrated]);
 
   // ── the shirts: the printed stills of the season's squad
   const stillOf = usePageKitStills({ on: hydrated, theme, kits: ["home"], players: sq.squad.map((p) => ({ name: p.name.toUpperCase(), num: p.n === "" ? "" : String(p.n) })) });
@@ -532,6 +546,12 @@ export function NumerosPage() {
   useLightPointer(pageRef);
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
+      // Ctrl K / ⌘K: «Busca o pregunta» from anywhere on the page
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (stRef.current.sheet !== "search") open("search");
+        return;
+      }
       if (e.key !== "Escape") return;
       if (stRef.current.sheet) {
         e.preventDefault();
@@ -544,58 +564,15 @@ export function NumerosPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
-  // a sheet takes the focus (it locks the page behind it itself: Sheets' PageLock, only while one is drawn)
+  // a sheet takes the focus: its search box when it has one (it locks the page behind it itself, while drawn)
   useEffect(() => {
     if (!st.sheet) return;
     const t = window.setTimeout(() => {
       const s = sheetRef.current;
-      (s?.querySelector<HTMLElement>(".nu-find__in") ?? s)?.focus({ preventScroll: true });
+      (s?.querySelector<HTMLElement>("input[type=search],.nx-field>input") ?? s)?.focus({ preventScroll: true });
     }, 40);
     return () => window.clearTimeout(t);
   }, [st.sheet]);
-
-  // ── the phone's slim time line: once the time bar scrolls away, a one-line summary sticks with the tabs
-  const [slim, setSlim] = useState(false);
-  useEffect(() => {
-    // (once a frame, with the bar and the rail found once, and --nu-railh written only when it moves)
-    let raf = 0;
-    let t: HTMLElement | null = null;
-    let rail: HTMLElement | null = null;
-    const measure = () => {
-      const page = pageRef.current;
-      if (!page) return;
-      if (!t?.isConnected) t = page.querySelector<HTMLElement>(".nu-time");
-      if (!t) return;
-      if (!rail?.isConnected) rail = page.querySelector<HTMLElement>(".nu-rail");
-      const w = page.clientWidth;
-      const narrow = w < 700;
-      const bottom = t.getBoundingClientRect().bottom;
-      const h = `${narrow ? (rail?.offsetHeight ?? 0) : w < 1100 ? Math.max(0, Math.round(bottom)) : 0}px`;
-      if (page.style.getPropertyValue("--nu-railh") !== h) page.style.setProperty("--nu-railh", h);
-      setSlim(narrow && bottom < 60);
-    };
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        measure();
-      });
-    };
-    measure();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    // the rail grows by the slim line right after it was measured: without a look at its new height the stuck title
-    // of a grown window (and its «Cerrar») sat 48 px under it until the next scroll
-    const sized = typeof ResizeObserver === "function" ? new ResizeObserver(() => onScroll()) : null;
-    const railEl = pageRef.current?.querySelector<HTMLElement>(".nu-rail");
-    if (railEl) sized?.observe(railEl);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      sized?.disconnect();
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
 
   // the floodlit sky over the golden one: at opacity 0 (the day theme, an early jornada) it is hidden once its fade
   // has run, and shown again before any fade starts (a layout effect: before the frame that changes its opacity)
@@ -611,24 +588,15 @@ export function NumerosPage() {
     return () => window.clearTimeout(tm);
   }, [skyFlood]);
 
-  // board fault: on the phone the tab strip scrolls sideways and kept showing the first tabs; the open one comes into view
-  useEffect(() => {
-    const strip = pageRef.current?.querySelector<HTMLElement>(".nu-rail__in");
-    const on = strip?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (!strip || !on || strip.scrollWidth <= strip.clientWidth + 1) return;
-    const left = strip.scrollLeft + on.getBoundingClientRect().left - strip.getBoundingClientRect().left - 12;
-    strip.scrollTo({ left: Math.max(0, left), behavior: reduced ? "auto" : "smooth" });
-  }, [st.place, reduced]);
-
-  // ── the rail: arrows move between sections, a swipe on the phone too
-  const railKey = (e: KeyboardEvent) => {
+  // ── the shelf: a tablist (arrows and Home/End move between the places), and a swipe on the phone
+  const shelfKey = (e: KeyboardEvent) => {
     const i = PLACES.indexOf(st.place);
     const L = PLACES.length;
-    const n = e.key === "ArrowDown" || e.key === "ArrowRight" ? (i + 1) % L : e.key === "ArrowUp" || e.key === "ArrowLeft" ? (i + L - 1) % L : e.key === "Home" ? 0 : e.key === "End" ? L - 1 : -1;
+    const n = e.key === "ArrowRight" ? (i + 1) % L : e.key === "ArrowLeft" ? (i + L - 1) % L : e.key === "Home" ? 0 : e.key === "End" ? L - 1 : -1;
     if (n < 0) return;
     e.preventDefault();
     go(PLACES[n]);
-    window.setTimeout(() => document.getElementById(`nu-tab-${PLACES[n]}`)?.focus(), 60);
+    window.setTimeout(() => document.getElementById(`nx-tab-${PLACES[n]}`)?.focus(), 60);
   };
   const tx = useRef<{ x: number; y: number } | null>(null);
   const touchStart = (e: TouchEvent) => {
@@ -642,182 +610,99 @@ export function NumerosPage() {
     if (!t || !s || st.grow) return;
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
-    // (a swipe inside a table or a strip that scrolls sideways is that region's own)
-    if ((e.target as HTMLElement).closest?.(".nu-scroll,.nu-asks,.nu-chips,.nu-rib")) return;
+    // (a swipe inside anything that scrolls sideways — a strip, a table, la cinta — or on a chart is that region's own)
+    for (let el = e.target as HTMLElement | null; el && el !== e.currentTarget; el = el.parentElement) {
+      if (el.matches("svg,input")) return;
+      if (el.scrollWidth > el.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return;
+    }
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
     const i = PLACES.indexOf(st.place);
     const n = dx < 0 ? Math.min(PLACES.length - 1, i + 1) : Math.max(0, i - 1);
     if (n !== i) go(PLACES[n]);
   };
 
-  const share = () => {
-    const href = window.location.href;
-    void navigator.clipboard?.writeText(href).catch(() => {});
-    toast(`Enlace copiado: ${window.location.pathname}${window.location.search}`);
-  };
-  const time = v.time;
   const dia = theme === "light";
   const loading = club.loading && !useDemo;
+  const filterT = filterLabel(v, st);
+  const placeI = PLACES.indexOf(st.place);
+  const railOf = (id: Place) => v.rail.find((r) => r.id === id);
   return (
     <KitStillContext.Provider value={stillOf}>
-      <div ref={pageRef} className={["vx vd-pg nu", dia ? "is-dia" : "", v.withLive ? "is-live" : "", `p-${st.place}`].filter(Boolean).join(" ")} style={{ "--vd-sky-h": "1000px", "--nu-flood": dia ? 0 : v.flood } as CSSProperties} aria-busy={loading}>
-        <VidrioSky light={dia ? "noon" : "dorada"} floodlit={false} height={1000} />
-        <VidrioSky light={dia ? "noon" : "noche"} floodlit={!dia} height={1000} className="nu-sky-b" />
+      <div ref={pageRef} className={["vx vd-pg palco", dia ? "is-dia" : "", v.withLive ? "is-live" : "", `p-${st.place}`].filter(Boolean).join(" ")} style={{ "--vd-sky-h": "1150px", "--nu-flood": dia ? 0 : v.flood } as CSSProperties} aria-busy={loading}>
+        <VidrioSky light={dia ? "noon" : "dorada"} floodlit={false} height={1150} />
+        <VidrioSky light={dia ? "noon" : "noche"} floodlit={!dia} height={1150} className="nu-sky-b" />
         <CelesteHeader active="stats" actions={<ThemeToggle />} live={v.se.live ? true : undefined} />
-        <div className="nu-main" id="nu-main">
-          <header className="nu-id">
-            <div className="nu-id__t">
-              <h1 className="nu-h1">Estadísticas</h1>
-              <p className="nu-lede">{v.lede}</p>
+        <main className="nx" id="nx-main">
+          <section className="nx-hero">
+            <div>
+              <h1 className="nx-h1">Estadísticas</h1>
+              <p className="nx-lede">{v.lede}</p>
             </div>
-            <div className="nu-id__acts">
-              <button type="button" className="vd-glass vd-press nu-find" onClick={() => open("search")} aria-haspopup="dialog">
-                <I name="search" />
-                <span>Busca o pregunta: un jugador, un rival, una estadística…</span>
-              </button>
-              <button type="button" className="vd-glass vd-press vd-ibtn nu-share" onClick={share} aria-label="Copiar el enlace de esta pantalla">
-                <I name="share" />
-              </button>
-            </div>
-            <ul className="nu-asks" aria-label="Preguntas frecuentes">
-              {v.asks.map((a) => (
-                <li key={a.key}>
-                  <button type="button" className="nu-ask" onClick={a.go}>
-                    {a.t}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </header>
-
-          <div className={`vd-glass nu-time ${time.cls}`.trim()} role="group" aria-label="El tiempo de los números: qué temporada y hasta qué jornada">
-            <button type="button" className={`nu-time__scope ${time.scopeCls}`.trim()} onClick={() => open("scope")} aria-haspopup="dialog" aria-label={time.scopeLabel}>
-              <I name="cal" />
-              <span className="nu-time__st">
-                <b>{time.scopeT}</b>
-                <small>{time.scopeS}</small>
-              </span>
-              <I name="chev-r" className="nu-time__chev" />
+            <button type="button" className="vd-glass vd-press nx-find" onClick={() => open("search")} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" aria-label="Busca o pregunta: un jugador, un rival, una estadística">
+              <Ic name="search" />
+              <span>Busca o pregunta: un jugador, un rival, una estadística…</span>
+              <kbd aria-hidden="true">Ctrl K</kbd>
             </button>
-            <p className="nu-time__j" aria-live="polite">
-              <b>{time.jLabel}</b>
-              <small>{time.tip}</small>
-              {time.back && (
-                <button type="button" className="vd-link nu-time__back nu-time__back--j" onClick={() => (stop(), seek(edge))}>
-                  {time.backLabel}
-                </button>
-              )}
-            </p>
-            <div className="nu-time__track">
-              <div className="nu-rib" role="group" aria-label="La moviola de la temporada: una columna por jornada; arriba nuestros goles, abajo los del rival.">
-                <span className="nu-rib__axis" aria-hidden="true" />
-                {time.cols.map((c) => (
-                  <button key={c.key} type="button" className={`nu-col ${c.cls}`} onClick={c.go} aria-label={c.label} tabIndex={-1}>
-                    <span className="nu-col__up" style={{ "--u": c.up } as CSSProperties} />
-                    <span className="nu-col__down" style={{ "--u": c.down } as CSSProperties} />
-                    <span className="nu-col__l">{c.letter}</span>
+          </section>
+
+          <div className="nx-bar">
+            <button type="button" className={`vd-glass vd-press nx-scope${filterT ? " is-filtered" : ""}`} aria-haspopup="dialog" onClick={() => open("scope")} aria-label={`Qué números ver: ${[v.time.scopeT, v.time.scopeS, filterT].filter(Boolean).join(", ")}`}>
+              <span className="nx-scope__i">
+                <Ic name="cal" />
+              </span>
+              <span className="nx-scope__t">
+                <b>{v.time.scopeT}</b>
+                <small>{v.time.scopeS}</small>
+              </span>
+              {filterT ? <span className="nx-scope__f">{filterT}</span> : <Ic name="filter" />}
+              <span className="nx-vh">: qué números ver</span>
+            </button>
+            <div className="vd-glass vd-shelf nx-shelf" role="tablist" aria-label="Lugares de Estadísticas" style={{ "--n": PLACES.length, "--i": placeI } as CSSProperties}>
+              <span className="vd-shelf__bead" aria-hidden="true" />
+              {PLACES.map((id) => {
+                const r = railOf(id);
+                const on = id === st.place;
+                return (
+                  <button key={id} type="button" role="tab" id={`nx-tab-${id}`} aria-controls="nx-place" aria-selected={on} tabIndex={on ? 0 : -1} className="vd-shelf__b" onClick={() => go(id)} onKeyDown={shelfKey}>
+                    <b>{PLACE_LABEL[id]}</b>
+                    <small className="nx-shelf__h">{r?.head ?? ""}</small>
+                    <small className="nx-shelf__s">{r?.short ?? r?.head ?? ""}</small>
                   </button>
-                ))}
-              </div>
-              <div className="nu-head" style={{ left: `${time.headPct}%` }} aria-hidden="true">
-                <span className="nu-head__line" />
-              </div>
-              <input
-                className="nu-time__range"
-                type="range"
-                min={1}
-                max={Math.max(1, time.max)}
-                step={1}
-                value={time.upto}
-                onChange={(e) => (stop(), seek(Number(e.target.value)))}
-                style={{ width: `${time.edgePct}%` }}
-                aria-label="La moviola de la temporada: hasta qué jornada"
-                aria-valuetext={time.valueText}
-                disabled={time.off}
-              />
+                );
+              })}
             </div>
-            <div className="nu-time__btns">
-              <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => (stop(), seek(Math.min(st.upto, edge) - 1))} aria-label="Jornada anterior" disabled={time.off}>
-                <I name="chev-l" />
-              </button>
-              <button type="button" className="vd-glass vd-press vd-btn vd-btn--sm nu-time__play" onClick={() => (st.playing ? stop() : play())} aria-pressed={time.playing} aria-label="Repasar la temporada" disabled={time.off}>
-                <I name={time.playIcon} />
-                <span>{time.playLabel}</span>
-              </button>
-              <button type="button" className="vd-glass vd-press vd-ibtn" onClick={() => (stop(), seek(Math.min(st.upto, edge) + 1))} aria-label="Jornada siguiente" disabled={time.off}>
-                <I name="chev-r" />
-              </button>
-              <Q label="Qué es la moviola" onClick={time.info} />
-              {time.back && (
-                <button type="button" className="vd-link nu-time__back" onClick={() => (stop(), seek(edge))}>
-                  {time.backLabel}
-                </button>
-              )}
-            </div>
-            {time.offNote && <p className="nu-time__note">{time.offNote}</p>}
           </div>
 
-          <nav className={`vd-glass nu-rail${slim ? " is-slim" : ""}`} aria-label="Secciones de Estadísticas">
-            {slim && (
-              <button type="button" className="nu-slim" onClick={() => window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" })}>
-                <I name="cal" />
-                <span>{v.slimT}</span>
-                <I name="chev-l" className="nu-slim__up" />
-                <span className="vd-vh">: volver a la barra del tiempo</span>
-              </button>
-            )}
-            <div className="nu-rail__in" role="tablist" aria-orientation="vertical" aria-label="Secciones de Estadísticas">
-              {v.rail.map((s) => (
-                <button key={s.id} type="button" role="tab" id={`nu-tab-${s.id}`} aria-controls="nu-screen" aria-selected={s.on} tabIndex={s.on ? 0 : -1} className="nu-rail__b" onClick={() => go(s.id)} onKeyDown={railKey} title={s.title}>
-                  {s.on && <span className="nu-rail__bead" aria-hidden="true" />}
-                  <I name={s.icon} className="nu-rail__i" />
-                  <span className="nu-rail__t">
-                    <b>{s.label}</b>
-                    <small className="nu-rail__h">{s.head}</small>
-                    <small className="nu-rail__s">{s.short}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </nav>
-
-          <section className="nu-screen" id="nu-screen" role="tabpanel" aria-labelledby={`nu-tab-${st.place}`} onTouchStart={touchStart} onTouchEnd={touchEnd}>
-            <header className="nu-screen__head">
-              <p className="nu-screen__kick">
-                {v.screen.kick} <Q label="Qué hay en esta pantalla" onClick={() => open("info", st.place)} />
+          <section className="nx-place" id="nx-place" role="tabpanel" aria-labelledby={`nx-tab-${st.place}`} onTouchStart={touchStart} onTouchEnd={touchEnd}>
+            {club.error && !useDemo ? (
+              <p className="nx-sub" role="alert">
+                No nos llegan los números. Suele ser la conexión o el servidor del club: dale otra vez en un momento.
               </p>
-              <h2 className="nu-screen__title" id="nu-screen-title">
-                {v.screen.title}
-                {v.screen.prov && (
-                  <>
-                    {" "}
-                    <span className="vd-provtag">Si acaba así</span>
-                  </>
-                )}
-              </h2>
-              <p className="nu-screen__sub">{v.screen.sub}</p>
-            </header>
-            <div className="nu-screen__body">
-              {club.error && !useDemo ? (
-                <p className="nu-empty" role="alert">
-                  No nos llegan los números. Suele ser la conexión o el servidor del club: dale otra vez en un momento.
-                </p>
-              ) : st.place === "temporada" ? (
-                <Temporada v={v} grow={st.grow === "tabla"} onClose={() => grow(null)} />
-              ) : st.place === "jugadores" ? (
-                <Jugadores v={v} grow={st.grow === "jugadores"} onClose={() => grow(null)} numOf={numOf} />
-              ) : st.place === "campo" ? (
-                <Campo v={v} numOf={numOf} />
-              ) : st.place === "juego" ? (
-                <Juego v={v} loading={loading} catalogLoad={catalogLoad} catalogPaused={!!st.sheet} grow={st.grow === "mesa" || st.grow === "catalogo" || st.grow === "graficas" ? st.grow : null} onClose={() => grow(null)} onInspect={(metricId, playerId) => { if (playerId) { const next = { ...stRef.current, jug: [playerId] }; stRef.current = next; setSt(next); } open("metric", metricId); }} />
-              ) : st.place === "rivales" ? (
-                <Rivales v={v} grow={st.grow === "rivales"} onClose={() => grow(null)} />
-              ) : (
-                <Records v={v} numOf={numOf} />
-              )}
-            </div>
+            ) : st.place === "temporada" ? (
+              <Temporada v={v} st={st} act={stableAct} />
+            ) : st.place === "jugadores" ? (
+              <Jugadores v={v} st={st} act={stableAct} />
+            ) : st.place === "juego" ? (
+              <Juego
+                v={v}
+                st={st}
+                act={stableAct}
+                loading={loading}
+                catalogLoad={catalogLoad}
+                onInspect={(metricId, playerId) => {
+                  if (playerId) {
+                    const next = { ...stRef.current, jug: [playerId] };
+                    stRef.current = next;
+                    setSt(next);
+                  }
+                  open("metric", metricId);
+                }}
+              />
+            ) : (
+              <Rivales v={v} st={st} act={stableAct} />
+            )}
           </section>
-        </div>
+        </main>
         <CelesteFooter />
         <CelesteDock active="stats" live={v.se.live ? true : undefined} />
 
@@ -825,10 +710,10 @@ export function NumerosPage() {
           {say.t}
         </p>
         <div className={`nu-toast${say.on ? " is-on" : ""}`} aria-hidden="true">
-          <I name="check" />
+          <Ic name="check" />
           <span>{say.t}</span>
         </div>
-        <Sheets v={v} st={st} catalogLoad={catalogLoad} onClose={closeSheet} openSearch={() => open("search")} infoScope={() => open("info", "scope")} numOf={numOf} sheetRef={sheetRef} />
+        <Sheets v={v} st={st} act={stableAct} catalogLoad={catalogLoad} onClose={closeSheet} sheetRef={sheetRef} />
       </div>
     </KitStillContext.Provider>
   );

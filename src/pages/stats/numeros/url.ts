@@ -4,12 +4,14 @@
 // q for the screens, hoja for a sheet that has no address of its own. Pure.
 import { NU_GLOSS, NU_MET } from "./glossary";
 import { slug } from "./nd";
-import type { CampoView, Grow, NuState, Place, RecView, Sheet } from "./view";
+import type { CampoView, Grow, JugView, NuState, Place, RecView, Sheet } from "./view";
 
 export type Search = Record<string, unknown>;
 
 export interface Screen {
   place: Place;
+  /** Jugadores' view: /jugadores/campo, /jugadores/evolucion (and the old /campo, /records/evolucion). */
+  jugView: JugView;
   campoView: CampoView;
   recView: RecView;
   /** /juego/tabla and /juego/catalogo grow in place. */
@@ -20,18 +22,32 @@ export interface Screen {
 
 const trim = (p: string) => (p.length > 1 ? p.replace(/\/+$/, "") : p);
 
-/** The screen at a /estadisticas address. */
+/**
+ * The screen at a /estadisticas address. «El palco» has four places: El campo is Jugadores' second view
+ * (/jugadores/campo[/puestos]) and Récords lives in Temporada (its evolution in /jugadores/evolucion). The round-3
+ * addresses (/campo…, /records…) still open where their screens went.
+ */
 export function screenAt(pathname: string): Screen {
   const seg = trim(pathname).split("/").slice(2);
-  const s: Screen = { place: "temporada", campoView: "pases", recView: "rachas", grow: null, ysi: false };
+  const s: Screen = { place: "temporada", jugView: "ranking", campoView: "pases", recView: "rachas", grow: null, ysi: false };
+  const campo = (view: string | undefined) => {
+    s.place = "jugadores";
+    s.jugView = "campo";
+    if (view === "puestos") s.campoView = "puestos";
+  };
   switch (seg[0]) {
     case "jugadores":
+      s.place = "jugadores";
+      if (seg[1] === "campo") campo(seg[2]);
+      if (seg[1] === "evolucion") s.jugView = "evo";
+      break;
     case "rivales":
-      s.place = seg[0];
+      s.place = "rivales";
       break;
     case "campo":
-      s.place = "campo";
-      if (seg[1] === "puestos" || seg[1] === "sistemas") s.campoView = seg[1];
+      // (the systems are Temporada's «Con cada sistema» now)
+      if (seg[1] === "sistemas") s.campoView = "sistemas";
+      else campo(seg[1]);
       break;
     case "juego":
       s.place = "juego";
@@ -40,8 +56,12 @@ export function screenAt(pathname: string): Screen {
       if (seg[1] === "graficas") s.grow = "graficas";
       break;
     case "records":
-      s.place = "records";
-      if (seg[1] === "marcas" || seg[1] === "cromos" || seg[1] === "evolucion") s.recView = seg[1];
+      if (seg[1] === "marcas" || seg[1] === "cromos") s.recView = seg[1];
+      if (seg[1] === "evolucion") {
+        s.place = "jugadores";
+        s.jugView = "evo";
+        s.recView = "evolucion";
+      }
       break;
     case "y-si":
       s.ysi = true;
@@ -51,11 +71,14 @@ export function screenAt(pathname: string): Screen {
 }
 
 /** The path of a screen (with its view and what grows on its own address). */
-export function pathOf(st: Pick<NuState, "place" | "campoView" | "recView" | "grow" | "sheet">): string {
+export function pathOf(st: Pick<NuState, "place" | "jugView" | "campoView" | "grow" | "sheet">): string {
   if (st.place === "temporada") return st.sheet === "ysi" ? "/estadisticas/y-si" : "/estadisticas";
-  if (st.place === "campo") return st.campoView === "pases" ? "/estadisticas/campo" : `/estadisticas/campo/${st.campoView}`;
+  if (st.place === "jugadores") {
+    if (st.jugView === "campo") return st.campoView === "puestos" ? "/estadisticas/jugadores/campo/puestos" : "/estadisticas/jugadores/campo";
+    if (st.jugView === "evo") return "/estadisticas/jugadores/evolucion";
+    return "/estadisticas/jugadores";
+  }
   if (st.place === "juego") return st.grow === "mesa" ? "/estadisticas/juego/tabla" : st.grow === "catalogo" ? "/estadisticas/juego/catalogo" : st.grow === "graficas" ? "/estadisticas/juego/graficas" : "/estadisticas/juego";
-  if (st.place === "records") return st.recView === "rachas" ? "/estadisticas/records" : `/estadisticas/records/${st.recView}`;
   return `/estadisticas/${st.place}`;
 }
 
@@ -76,11 +99,15 @@ export function rankingOf(v: unknown): string | null {
 /** ?hoja= for the sheets without an address of their own: «Qué números ver» and each «?». */
 export function hojaOf(sheet: Sheet | null, id: string | null): string | undefined {
   if (sheet === "scope") return "filtros";
+  if (sheet === "stats") return "estadisticas";
+  if (sheet === "export") return "exportar";
   if (sheet === "info" && id) return `que-es-${id.replace(":", "-")}`;
   return undefined;
 }
 export function sheetOfHoja(v: unknown): { sheet: Sheet; id: string | null } | null {
   if (v === "filtros") return { sheet: "scope", id: null };
+  if (v === "estadisticas") return { sheet: "stats", id: null };
+  if (v === "exportar") return { sheet: "export", id: null };
   if (typeof v !== "string" || !v.startsWith("que-es-")) return null;
   const k = v.slice(7);
   if (NU_GLOSS[k]) return { sheet: "info", id: k };
@@ -114,9 +141,11 @@ const ids = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : typeof
 /** What the address says, as page state (the sheet a narrow screen opens for ?jugador= / ?rival= is the page's). */
 export function stateFromUrl(pathname: string, search: Search, people: PeopleIndex): Partial<NuState> & { seasonWord: string | null } {
   const sc = screenAt(pathname);
-  const out: Partial<NuState> & { seasonWord: string | null } = { place: sc.place, campoView: sc.campoView, recView: sc.recView, grow: sc.grow, sheet: null, sheetId: null, seasonWord: null };
+  const out: Partial<NuState> & { seasonWord: string | null } = { place: sc.place, jugView: sc.jugView, campoView: sc.campoView, recView: sc.recView, grow: sc.grow, sheet: null, sheetId: null, seasonWord: null };
+  // ?ver=todo: the whole league table in Temporada, «Toda la plantilla, en una tabla» in Jugadores
   const ver = str(search.ver) === "todo";
-  if (ver && !sc.grow) out.grow = sc.place === "temporada" ? "tabla" : sc.place === "jugadores" ? "jugadores" : sc.place === "rivales" ? "rivales" : null;
+  out.allTable = ver && sc.place === "temporada";
+  if (ver && !sc.grow && sc.place === "jugadores") out.grow = "jugadores";
   const t = str(search.temporada);
   out.temporada = t === "todas" ? "todas" : "esta";
   out.seasonWord = t && t !== "todas" ? t : null;
@@ -132,8 +161,12 @@ export function stateFromUrl(pathname: string, search: Search, people: PeopleInd
   const jugador = str(search.jugador);
   const pid = jugador ? people.id(jugador) : null;
   out.pick = sc.place === "jugadores" ? pid : null;
+  // «Cara a cara»: ?contra=<el otro jugador>
+  const contra = sc.place === "jugadores" && str(search.contra) ? people.id(str(search.contra) as string) : null;
+  out.vsOn = !!contra;
+  out.vsB = contra;
   out.rival = sc.place === "rivales" ? str(search.rival) : null;
-  out.star = sc.place === "campo" ? (str(search.estrella) ? people.id(str(search.estrella) as string) : null) : null;
+  out.star = sc.jugView === "campo" ? (str(search.estrella) ? people.id(str(search.estrella) as string) : null) : null;
   const puesto = str(search.puesto);
   out.puesto = puesto ? puesto.toUpperCase() : "";
   out.team = search.equipo === "rival" ? "them" : "us";
@@ -163,12 +196,11 @@ export function stateFromUrl(pathname: string, search: Search, people: PeopleInd
     out.sheet = "metric";
     out.sheetId = metrica;
   } else if (pid && sc.place !== "jugadores") {
-    out.sheet = "player";
-    out.sheetId = pid;
+    // (round 3 opened a player's sheet over any screen: «El palco» shows him in Jugadores)
+    Object.assign(out, { place: "jugadores", jugView: "ranking", pick: pid });
   } else if (str(search.rival) && sc.place !== "rivales") {
-    out.sheet = "rival";
-    out.sheetId = str(search.rival);
-  } else if (hoja) {
+    Object.assign(out, { place: "rivales", rival: str(search.rival) });
+  } else if (hoja && hoja.sheet !== "info") {
     out.sheet = hoja.sheet;
     out.sheetId = hoja.id;
   }
@@ -200,12 +232,13 @@ export function urlOf(st: NuState, ctx: UrlCtx): { path: string; search: Record<
   if (st.wsDirection === "asc") s.sentido = "asc";
   if (st.wsQuery) s["buscar-columna"] = st.wsQuery;
   if (st.wsFamily) s["familia-columna"] = st.wsFamily;
-  if (st.place === "jugadores") {
+  if (st.place === "jugadores" && st.jugView === "ranking") {
     s.ranking = rankingParam(st.rankK);
     if (st.pick) s.jugador = ctx.people.word(st.pick);
+    if (st.vsOn && st.vsB) s.contra = ctx.people.word(st.vsB);
   }
-  if (st.place === "campo" && st.campoView === "pases" && st.star) s.estrella = ctx.people.word(st.star);
-  if (st.place === "campo" && st.campoView === "puestos" && st.puesto) s.puesto = st.puesto.toLowerCase();
+  if (st.place === "jugadores" && st.jugView === "campo" && st.campoView !== "puestos" && st.star) s.estrella = ctx.people.word(st.star);
+  if (st.place === "jugadores" && st.jugView === "campo" && st.campoView === "puestos" && st.puesto) s.puesto = st.puesto.toLowerCase();
   if (st.place === "juego") {
     if (st.team === "them") s.equipo = "rival";
     if (st.parte !== "all") s.parte = st.parte;
@@ -216,7 +249,7 @@ export function urlOf(st: NuState, ctx: UrlCtx): { path: string; search: Record<
     }
   }
   if (st.place === "rivales" && st.rival) s.rival = slug(st.rival);
-  if (st.grow === "tabla" || st.grow === "jugadores" || st.grow === "rivales") s.ver = "todo";
+  if ((st.place === "temporada" && st.allTable) || (st.place === "jugadores" && st.grow === "jugadores")) s.ver = "todo";
   if (st.sheet === "player" && st.sheetId && st.place !== "jugadores") s.jugador = ctx.people.word(st.sheetId);
   if (st.sheet === "rival" && st.sheetId && st.place !== "rivales") s.rival = slug(st.sheetId);
   if (st.sheet === "metric" && st.sheetId) s.metrica = st.sheetId;

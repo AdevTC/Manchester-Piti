@@ -44,12 +44,13 @@ test("la narración se revisa antes de publicar y la cifra abre sus jugadas", as
   await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
   expect(new URL(page.url()).searchParams.get("partidos")).toBe("preview-finished");
   // «Quién conecta con quién»: the corrected pass, Marcos → Pablo
-  const pairs = page.locator(".nu-conn");
+  const pairs = page.locator(".nx-conn");
   await expect(pairs.getByRole("listitem").filter({ hasText: "Marcos → Pablo" })).toContainText("1");
   // a narrated figure opens its card, with who did it in that match
   await page.getByRole("list", { name: "Indicadores de la selección" }).getByRole("button", { name: /Pases intentados/ }).click();
   const card = page.getByRole("dialog", { name: /Pases intentados/ });
-  await expect(card.getByRole("listitem").filter({ hasText: "Marcos" })).toBeVisible();
+  await expect(card.getByRole("list", { name: "Por jugador" }).getByRole("listitem").filter({ hasText: "Marcos" })).toBeVisible();
+  await expect(card.getByRole("list", { name: "Jugadas y registros" }).getByRole("listitem").filter({ hasText: "Marcos" })).toBeVisible();
   // Literal narration is kept with private admin sources, never in the public numbers.
   await expect(page.locator("body")).not.toContainText("Marcos se la pasa a Pablo");
 });

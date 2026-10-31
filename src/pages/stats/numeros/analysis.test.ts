@@ -114,9 +114,10 @@ const state: NuState = {
   place: "juego", upto: 1, playing: false, raceK: "goles", star: null, temporada: "esta", campo: "todo", jug: [], partidos: [], grow: "mesa", sheet: null, sheetId: null,
   rankK: "goles", pick: null, rival: null, campoView: "pases", puesto: "", team: "us", parte: "2", recView: "rachas", cromoK: "todos", evoK: "goles", ysi: {}, sortK: "goles",
   q: "", rq: "", catQ: "", catFam: "", catN: 24, catX: false, allStats: false, colSet: "basico", wsSet: "pases", clockK: "ambos", streakK: "g", evoIds: null, sq: "",
+  jugView: "ranking", vsOn: false, vsB: null, allRank: false, allTable: false, jkey: null, replay: false, exFmt: "json",
   wsColumns: ["067", "068", "069", "070", "272", "173"],
 };
-const act: Act = { set: vi.fn(), open: vi.fn(), closeSheet: vi.fn(), go: vi.fn(), grow: vi.fn(), say: vi.fn(), stop: vi.fn(), seek: vi.fn(), narrow: () => false, ask: vi.fn(), csv: vi.fn(), json: vi.fn() };
+const act: Act = { set: vi.fn(), open: vi.fn(), closeSheet: vi.fn(), go: vi.fn(), grow: vi.fn(), say: vi.fn(), stop: vi.fn(), seek: vi.fn(), play: vi.fn(), narrow: () => false, ask: vi.fn(), csv: vi.fn(), json: vi.fn() };
 
 describe("Números · period-aware table, catalogue and detail", () => {
   async function view(patch: Partial<NuState> = {}, rawMatches: ClubMatch[] = [match()]) {
@@ -141,13 +142,13 @@ describe("Números · period-aware table, catalogue and detail", () => {
       observation("rival-shot", 2, { outcome: "off_target" }, { kind: "shot", team: "opponent", actorId: undefined }),
     );
     const own = await view({}, [m]);
-    expect(own.juego.tramos[5].label).toContain("1 remates nuestros y 1 del rival");
+    expect(own.juego.tramos[5].label).toContain("1 remate nuestro y 1 del rival");
     expect(own.juego.tramos[5].v).toBe(4);
     const rival = await view({ team: "them" }, [m]);
-    expect(rival.juego.tramos[5].label).toContain("1 remates nuestros y 1 del rival");
+    expect(rival.juego.tramos[5].label).toContain("1 remate nuestro y 1 del rival");
     expect(rival.juego.tramos[5].v).toBe(1);
     const player = await view({ jug: ["a"] }, [m]);
-    expect(player.juego.tramos[5].label).toContain("1 remates de los jugadores seleccionados");
+    expect(player.juego.tramos[5].label).toContain("1 remate de los jugadores seleccionados");
     expect(player.juego.tramos[5].label).not.toContain("0 del rival");
   });
   it("calculates a catalogue metric outside the old 16 tiles and exposes confirmed zeros as selectable", async () => {

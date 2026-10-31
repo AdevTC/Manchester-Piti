@@ -83,15 +83,18 @@ test("jugador, datos de temporada y reparto real de minutos", async ({
   const four = page.locator(".pl-four li").filter({ hasText: "Minutos" });
   await expect(four.locator("b")).toHaveText("40′");
   await expect(page.locator(".pl-nums").getByText("40′", { exact: true })).toBeVisible();
-  // Números: each player's minutes of the season, in Jugadores › «Todos los jugadores», columns «Minutos»
+  // Estadísticas: each player's minutes of the season, in Jugadores › «Toda la plantilla, en una tabla», columns «Minutos»
   await page.goto("/estadisticas/jugadores?temporada=preview-season&ranking=minutos&ver=todo");
-  const all = page.getByRole("region", { name: "Todos los jugadores" });
-  await all.getByRole("radiogroup", { name: "Qué columnas ver" }).getByRole("radio", { name: "Minutos" }).click();
-  const table = all.getByRole("table", { name: "Todos los jugadores" });
+  const all = page.getByRole("region", { name: "Toda la plantilla, en una tabla" });
+  const minutes = all.getByRole("group", { name: "Qué columnas" }).getByRole("button", { name: "Minutos", exact: true });
+  await minutes.click();
+  await expect(minutes).toHaveAttribute("aria-pressed", "true");
+  const table = all.getByRole("table", { name: "Toda la plantilla" });
+  // (headers: Jugador, Partidos, Minutos…)
   await expect(table.getByRole("columnheader").nth(2)).toHaveText("Minutos");
   const row = table.getByRole("row").filter({ hasText: "Hugo" });
-  // (cells: the player, Partidos, Minutos…)
-  await expect(row.getByRole("cell").nth(2)).toHaveText("40");
+  // (the player is the row header; cells: Partidos, Minutos…)
+  await expect(row.getByRole("cell").nth(1)).toHaveText("40");
 });
 test("el club, con su vitrina, sus cuatro salas y el contacto", async ({ page }) => {
   await page.goto("/club");

@@ -6,19 +6,27 @@ import { numerosActions, numerosMatches, numerosMetrics } from "./analysis";
 import { buildAnalysisWorkspace, formatWorkspaceMetric, selectAnalysisMatches, sortAnalysisRows, workspaceMetricValue, ANALYSIS_WORKSPACE_PRESETS } from "../../../lib/analysisWorkspace";
 import { NARRATED_METRICS } from "../../../../functions/src/narrated/catalogIndex";
 import type { AnalysisFilters, MetricResult } from "../../../../functions/src/narrated/types";
-import { NU_GLOSS, NU_MET, NU_METRICS } from "./glossary";
+import { NU_GLOSS, NU_MET, NU_METRICS, metricLower, unitOf } from "./glossary";
 import type { CatRow } from "./catalog";
 import { tonightWord, TonightWord } from "../../../lib/derived/madrid";
 import { logoOf } from "../../../lib/derived/rivalLogo";
 import { clock, dec, list, pct, posWith, result, slug, strip, table, type Moment, type ND, type NMatch, type NSeasonData, type PRow, type Se, type TRow } from "./nd";
 
-export const PLACES = ["temporada", "jugadores", "campo", "juego", "rivales", "records"] as const;
+/** The sections the numbers are computed for (the round-3 screens); the page shows them in four places. */
+export const SECTIONS = ["temporada", "jugadores", "campo", "juego", "rivales", "records"] as const;
+export type Section = (typeof SECTIONS)[number];
+export const SECTION_LABEL: Record<Section, string> = { temporada: "Temporada", jugadores: "Jugadores", campo: "El campo", juego: "El juego", rivales: "Rivales", records: "Récords" };
+/** «El palco»: the four places on the shelf. El campo lives in Jugadores (and its systems in Temporada), Récords in both. */
+export const PLACES = ["temporada", "jugadores", "juego", "rivales"] as const;
 export type Place = (typeof PLACES)[number];
-export const PLACE_LABEL: Record<Place, string> = { temporada: "Temporada", jugadores: "Jugadores", campo: "El campo", juego: "El juego", rivales: "Rivales", records: "Récords" };
+export const PLACE_LABEL: Record<Place, string> = { temporada: "Temporada", jugadores: "Jugadores", juego: "El juego", rivales: "Rivales" };
+export const isPlace = (s: string): s is Place => (PLACES as readonly string[]).includes(s);
 export type Grow = "tabla" | "jugadores" | "mesa" | "catalogo" | "graficas" | "rivales";
-export type Sheet = "scope" | "ysi" | "player" | "rival" | "metric" | "info" | "search";
+export type Sheet = "scope" | "ysi" | "player" | "rival" | "metric" | "info" | "search" | "stats" | "export";
 export type CampoView = "pases" | "puestos" | "sistemas";
 export type RecView = "rachas" | "marcas" | "cromos" | "evolucion";
+/** Jugadores' three views: the ranking with the player's card, the pitch (pases de gol, puestos), the evolution. */
+export type JugView = "ranking" | "campo" | "evo";
 
 /** The page's state: the part in the address (NumerosPage reads and writes it) and the part that is only the screen's. */
 export interface NuState {
@@ -64,21 +72,36 @@ export interface NuState {
   streakK: "g" | "a" | "ga" | "p" | "c";
   evoIds: string[] | null;
   sq: string;
+  /** «El palco»: Jugadores' view, the second player of «Cara a cara» (on while vsOn), the whole ranking or table. */
+  jugView: JugView;
+  vsOn: boolean;
+  vsB: string | null;
+  allRank: boolean;
+  allTable: boolean;
+  /** The jornada picked on la cinta (its match key); null: the one the season is at. */
+  jkey: string | null;
+  /** `upto` was set by «Repasar la temporada» (paused or running), not by «Hasta la J…». */
+  replay: boolean;
+  /** The export sheet's format. */
+  exFmt: "json" | "csv";
 }
 
 export interface Act {
   set: (p: Partial<NuState>) => void;
   open: (sheet: Sheet, id?: string | null) => void;
   closeSheet: () => void;
-  go: (place: Place, patch?: Partial<NuState>) => void;
+  /** To a section: El campo and Récords land in the place that holds them now. */
+  go: (place: Section, patch?: Partial<NuState>) => void;
   grow: (g: Grow | null) => void;
   say: (t: string) => void;
   /** Leaves the moviola where it is and stops «Repasar». */
   stop: () => void;
   seek: (j: number) => void;
+  /** «Repasar la temporada»: play, or pause; a paused replay goes on from its jornada. */
+  play: () => void;
   narrow: () => boolean;
   /** A question or a search result: closes the sheet, sets the screen's view and goes there (then opens a sheet). */
-  ask: (place: Place, patch: Partial<NuState>, sheet?: Sheet, id?: string) => void;
+  ask: (place: Section, patch: Partial<NuState>, sheet?: Sheet, id?: string) => void;
   csv: (kind: "jugadores" | "mesa") => void;
   json: () => void;
 }
@@ -107,6 +130,8 @@ export interface Env {
   logos?: ReadonlyMap<string, string>;
 }
 
+/** «1 parada», «3 paradas»: a number with its word in the right number. */
+const nW = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 /** «1 partido marcando», never «1 partidos marcando». */
 const ONE_STREAK: Record<string, string> = { "Victorias seguidas": "Victoria seguida", "Partidos sin perder": "Partido sin perder", "Partidos marcando": "Partido marcando", "Porterías a cero": "Portería a cero" };
 
@@ -160,7 +185,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const myId = viewer.playerId;
   const liveM = se.matches.find((m) => m.st === "live") ?? null;
   const atM = se.matches.find((m) => m.j === upto) ?? null;
-  const place = st.place;
+  const place: Section = st.place;
   const set = (p: Partial<NuState>) => () => act.set(p);
   const you = (id: string | null | undefined) => !!id && id === myId;
   const fmtRes = (m: Pick<NMatch, "gf" | "ga"> | null | undefined) => (!m || m.gf == null ? "" : `${m.gf}–${m.ga}`);
@@ -192,14 +217,16 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const lede = all
     ? `${allNames.length > 1 ? `${list(allNames)}, juntas` : `${env.S.name}, entera`}. La moviola recorre una temporada: con todas, se ven los totales.`
     : se.closed
-      ? `${se.S.name}, cerrada después de ${se.jornadas} jornadas.${env.demo ? ` (Demo: la temporada larga cortada en la J${se.jornadas}.)` : ""}`
+      ? `${se.S.name}, cerrada después de ${nW(se.jornadas, "jornada", "jornadas")}.${env.demo ? ` (Demo: la temporada larga cortada en la J${se.jornadas}.)` : ""}`
       : withLive
         ? `${se.S.name}, con la J${edge} en directo: lo de borde discontinuo es «si acaba así» hasta que haya acta.`
         : scrubbed
           ? `Estás viendo la temporada tal como estaba tras la J${upto}.`
           : !gsDone.length
             ? `${se.S.name}. Aún no se ha jugado ninguna jornada: todos a cero${pendingN ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`
-            : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
+            : st.partidos.length
+              ? `${se.S.name}: ${st.partidos.length === 1 ? "solo el partido elegido" : `los ${st.partidos.length} partidos elegidos`}.`
+              : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
   let maxG = 1;
   se.matches.forEach((m) => {
     if (m.gf != null) maxG = Math.max(maxG, m.gf, m.ga ?? 0);
@@ -278,8 +305,15 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       const on = st.jug.includes(id);
       return { key: id, t: ND.name(id), n: ND.num(id), on, pick: () => act.set({ jug: on ? st.jug.filter((x) => x !== id) : [...st.jug, id] }) };
     }),
+    /** «El palco»: the jornadas «Hasta qué jornada» offers (J1…J(edge−1); the edge is «Al día»), with each result. */
+    jornadas: se.matches
+      .map((m, i) => ({ m, c: cols[i] }))
+      .filter(({ m }, i, a) => m.j < edge && a.findIndex((x) => x.m.j === m.j) === i)
+      .map(({ m, c }) => ({ key: m.id, j: m.j, letter: c.letter, label: c.label })),
+    /** «Todas» only when there is another season to add. */
+    hasOthers: env.others.length > 0,
     clear: () => {
-      act.set({ temporada: "esta", campo: "todo", jug: [], partidos: [], upto: edge });
+      act.set({ temporada: "esta", campo: "todo", jug: [], partidos: [], upto: Number.POSITIVE_INFINITY, replay: false, playing: false });
       act.say("Filtros quitados.");
     },
     players: st.jug.length > 0,
@@ -339,6 +373,11 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         pts: m.st === "apl" ? "aplazado" : m.st === "live" ? "en directo" : "por jugar", unit: "", w: 0, at: "", href: `/partidos/${m.id}`,
       })),
   );
+  // «El palco»: who scored in each match with a score (la cinta's jornada card), whatever the filters cut
+  const who: Record<string, string> = {};
+  se.matches.forEach((m) => {
+    if (m.gf != null) who[m.id] = m.goals.length ? m.goals.map((g) => `${ND.name(g[0])} ${g[2]}′`).join(", ") : "Sin goles del Piti";
+  });
   const champ = se.closed && hasTable ? tbl[0] : null;
   const mvpTop = ND.ranked(
     rsAll.filter((r) => r.mvp),
@@ -373,7 +412,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     const bestSv = ND.ranked(techRows, "sv")[0];
     const bestPok = ND.ranked(techRows, "pok")[0];
     const bestRec = ND.ranked(techRows, "rec")[0];
-    if (bestSv && bestSv.saves) said.push(`${bestSv.name} hizo ${bestSv.saves} paradas.`);
+    if (bestSv && bestSv.saves) said.push(`${bestSv.name} hizo ${nW(bestSv.saves, "parada", "paradas")}.`);
     if (bestPok && bestPok.pok) said.push(`${bestPok.name} es quien más pases completa: ${bestPok.pok}.`);
     if (bestRec && bestRec.rec) said.push(`${bestRec.name} recupera más balones que nadie: ${bestRec.rec}.`);
   }
@@ -406,7 +445,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         : withLive
           ? `${pos}, si acaba así`
           : `${pos} en la tabla`
-      : `${T.pts}${T.pts === 1 ? " punto" : " puntos"}${all ? ", todas las temporadas" : scrubbed ? ` tras la J${upto}` : !hasTable ? ` tras ${T.pj === 1 ? "la primera jornada" : `${T.pj} jornadas`}` : ` tras la J${upto}`}`,
+      : `${T.pts}${T.pts === 1 ? " punto" : " puntos"}${all ? ", todas las temporadas" : scrubbed ? ` tras la J${upto}` : nPart ? (nPart === 1 ? " en el partido elegido" : ` en los ${nPart} partidos elegidos`) : !hasTable ? ` tras ${T.pj === 1 ? "la primera jornada" : `${T.pj} jornadas`}` : ` tras la J${upto}`}`,
     sub: `${T.g}G ${T.e}E ${T.p}P · ${T.gf}–${T.ga}${st.campo !== "todo" ? (st.campo === "casa" ? " en casa" : " fuera") : ""}${!hasTable ? " · la liga aún no ha publicado la clasificación" : ""}`,
     prov: withLive && tableReal,
     showTable: hasTable && (tableReal || all || st.campo !== "todo" || nPart > 0),
@@ -423,7 +462,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     rows: focusRows, all: tbl.map(trow), n: tbl.length, more: tbl.length > 8, seeAll: `Ver la tabla entera (${tbl.length})`, summary: `${tbl.length} equipos; vas ${pos}`,
     journey, recent: journey.slice(-5).reverse(), hasRecent: journey.length > 1,
     journeyT: `Jornada a jornada, hasta la J${upto}`, journeySub: `La liga guarda su tabla al día; tras la J${upto} llevábamos ${T.pts} puntos.`,
-    calendar, calT: "Nuestra temporada, jornada a jornada",
+    calendar, calT: "Nuestra temporada, jornada a jornada", who,
     calSub: `La liga aún no ha publicado la clasificación. En cuanto el capitán la suba, aquí verás la tabla, «si acaba así» durante los partidos y «¿Y si…?». Mientras, nuestro calendario: ${played.length} jugada${played.length === 1 ? "" : "s"} y ${toPlay.length} por jugar.`,
     form, hasForm: form.length > 0, kpis, mvpLine, said: said.slice(0, 5), hasSaid: said.length > 0,
     champ: !!champ, champT: champ ? `${champ.us ? "¡Campeones! " : "Campeón: "}${champ.team}, ${champ.pts} puntos.` : "",
@@ -444,7 +483,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         ? `Más jornadas en cabeza: ${ND.name(leadTop)} (${lead[leadTop]})`
         : nScorers <= 1 && played.length <= 1
           ? "Con una jornada, la carrera acaba de empezar: cada gol moverá las filas."
-          : "Arrastra la moviola: las filas se reordenan solas.",
+          : "Repasa la temporada en la cinta: las filas se reordenan solas.",
     raceSR: `La carrera de ${raceLabel} tras la J${upto}: ${rk
       .slice(0, 5)
       .map((r) => `${r.rank}º ${r.name}, ${r.val}`)
@@ -521,12 +560,13 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         };
     r.alt = `La camiseta de ${r.name}, dorsal ${r.n}`;
   });
-  const unitWord = porra ? "puntos" : rkK === "min" && !minKnown ? "de titular" : MD.t.toLowerCase();
+  const unitWord = (n: number) => (porra ? (n === 1 ? "punto" : "puntos") : rkK === "min" && !minKnown ? "de titular" : unitOf(rkK, n));
   const meRow = rankRows.find((r) => r.you);
   const podium = locked || MD.low ? [] : rankRows.filter((r) => r.val > 0).slice(0, 3);
   const restFrom = podium.length;
   const jLeaders = rankRows.filter((r) => r.rank === 1 && r.val > 0);
-  let pickId = st.pick || (myId && (rkK === "min" || rkK === "pj") ? myId : jLeaders[0] && !porra ? jLeaders[0].id : myId || ND.IDS[0]);
+  // (one player in the filter: his card)
+  let pickId = st.pick || (st.jug.length === 1 ? st.jug[0] : myId && (rkK === "min" || rkK === "pj") ? myId : jLeaders[0] && !porra ? jLeaders[0].id : myId || ND.IDS[0]);
   if (!pickId || !ND.SQUAD[pickId]) pickId = ND.IDS[0] ?? "";
   const quick = [
     ["goles", "Goles"],
@@ -582,7 +622,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ].concat(
         R.tech
           ? [
-              { t: "Pases completados", v: `${R.pok} completados de ${R.pas} intentados · ${R.pko} fallados${R.punk ? ` · ${R.punk} sin resultado` : ""}${R.passPct != null ? ` (${R.passPct} % de los resueltos)` : ""} · parcial` },
+              { t: "Pases completados", v: `${nW(R.pok, "completado", "completados")} de ${nW(R.pas, "intentado", "intentados")} · ${nW(R.pko, "fallado", "fallados")}${R.punk ? ` · ${R.punk} sin resultado` : ""}${R.passPct != null ? ` (${R.passPct} % de los resueltos)` : ""} · parcial` },
               { t: "Recuperaciones · pérdidas", v: `${R.rec} · ${R.tov} · parcial` },
             ]
           : [],
@@ -617,6 +657,12 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     : [];
   const showStints = ["min", "tit", "ban", "sin", "sout", "nc", "pj"].includes(rkK);
   const nzRank = rankRows.filter((r) => r.val > 0).length;
+  // «El palco»: cara a cara's second player (the first other one until another is picked)
+  const vsId = st.vsB && st.vsB !== pickId && ND.SQUAD[st.vsB] ? st.vsB : (ND.IDS.find((x) => x !== pickId) ?? "");
+  // «El palco»: la carrera under the goals' rankings, only for the season as it is (it counts every jornada)
+  const raceOn = (rkK === "goles" || rkK === "asist" || rkK === "ga") && !scrubbed && !all && st.campo === "todo" && !st.partidos.length && !st.jug.length;
+  const lead2 = raceOn ? (rkK === st.raceK ? lead : ND.inLead(se, upto, rkK)) : {};
+  const lead2Top = Object.keys(lead2).sort((a, b) => lead2[b] - lead2[a])[0];
   const jug = {
     kick: `Jugadores · ${porra ? "la porra" : MD.g.toLowerCase()}`,
     title: locked
@@ -625,11 +671,13 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         ? "La porra, aún sin puntos"
         : MD.low
         ? nzRank
-          ? `${nzRank} con ${MD.t.toLowerCase()}`
-          : `Nadie con ${MD.t.toLowerCase()} todavía`
+          ? `${nzRank} con ${metricLower(rkK)}`
+          : `Nadie con ${metricLower(rkK)} todavía`
         : jLeaders.length
-          ? `${list(jLeaders.map((r) => r.name))}, ${jLeaders[0].val} ${jLeaders[0].val === 1 && rkK === "goles" ? "gol" : unitWord}`
-          : `Nadie todavía en ${MD.t.toLowerCase()}`,
+          ? `${list(jLeaders.map((r) => r.name))}, ${jLeaders[0].val} ${unitWord(jLeaders[0].val)}`
+          : rkK === "mvp"
+            ? "Nadie ha sido MVP todavía"
+            : `Nadie todavía en ${metricLower(rkK)}`,
     sub: porra
       ? member
         ? `${NU_GLOSS.porra[1]}${env.S.porra?.demo ? " Demo en estos datos." : ""}`
@@ -644,8 +692,19 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     /** (not on the boards: a season whose porra has no points yet) */
     porraEmpty: porra && !locked && !rankRows.length ? "Aún no hay puntos de porra esta temporada: llegan al cerrar la primera jornada con apuestas." : "",
     more: locked || porra ? 0 : Math.max(0, rankRows.length - restFrom - 5), moreT: `Todos los jugadores (${rankRows.length})`,
-    onlyOne: !locked && !MD.low && podium.length === 1 && rankRows.length > 1 ? `Solo ${podium[0].name} tiene ${MD.t.toLowerCase()} de momento; el resto, a cero.` : "",
-    meLine: meRow && rankRows.indexOf(meRow) >= restFrom + 5 ? `Tú, ${meRow.rank}º con ${meRow.val} ${unitWord}` : "",
+    onlyOne: !locked && !MD.low && podium.length === 1 && rankRows.length > 1 ? `Solo ${podium[0].name} tiene ${metricLower(rkK)} de momento; el resto, a cero.` : "",
+    meLine: meRow && rankRows.indexOf(meRow) >= restFrom + 8 ? `Tú, ${meRow.rank}º con ${meRow.val} ${unitWord(meRow.val)}` : "",
+    /** «El palco»: everyone after the podium (the place shows 8 and «Todos los jugadores»). */
+    restAll: locked ? [] : rankRows.slice(restFrom),
+    /** «El palco»: cara a cara's second card. */
+    vs: st.vsOn && vsId ? playerCard(vsId) : null,
+    race: raceOn
+      ? [
+          jLeaders.length ? `En cabeza tras la J${upto}: ${list(jLeaders.map((r) => r.name))}, ${jLeaders[0].val}` : `Nadie ${rkK === "asist" ? "ha dado un pase de gol" : "ha marcado"} aún: el primero estrena la carrera.`,
+          lead2Top && lead2[lead2Top] > 1 ? `Más jornadas en cabeza: ${ND.name(lead2Top)} (${lead2[lead2Top]})` : "",
+        ].filter(Boolean)
+      : [],
+    ganttNone: !SM && gs.length > 0 ? "Estas actas no traen los cambios minuto a minuto: los minutos llegan con el registro de la mesa." : "",
     hasMvp: rkK === "mvp" && played.some((m) => m.mvp),
     mvpList: rkK === "mvp" ? played.slice(-8).reverse().filter((m) => m.mvp).map((m) => ({ key: m.id, j: `J${m.j}`, name: list((m.mvps ?? [m.mvp as string]).map((x) => ND.name(x))) })) : [],
     voteOpen: rkK === "mvp" && lastVote && lastVote.open ? `La votación de la J${lastPlayed.j} sigue abierta: ${lastVote.total} de ${lastVote.eligible} han votado. El MVP sale al cerrarla.` : "",
@@ -655,7 +714,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     noStints: showStints && !SM && gs.length > 0 ? "Estas actas no traen los cambios minuto a minuto: los minutos llegan con el registro de la mesa." : "",
     info: info(`m:${rkK}`), infoTramos: info("tramos"),
   };
-  const sortK = st.sortK;
+  // («El palco» keeps the table's direction in the same key: «goles» goes down, «goles:asc» up)
+  const sortK = st.sortK.split(":")[0];
   const qn = st.q.toLowerCase();
   const PRESETS: Record<string, string[]> = {
     basico: ["pj", "min", "goles", "asist", "ga", "mvp", "yc"], minutos: ["pj", "min", "tit", "ban", "sin", "sout", "nc"], mesa: ["ch", "wood", "sv", "f", "fr", "rc", "dy"],
@@ -674,7 +734,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         act.grow(null);
         if (act.narrow()) act.open("player", r.id);
       },
-      heat: heatOf(r.id, 8),
+      heat: heatOf(r.id, 12),
     }));
   const gj = {
     n: colKeys.length, rows: full,
@@ -703,7 +763,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     return {
       key: id, id, name: P.name, left: P.x, top: P.y, size: 12 + Math.min(40, r.ga * 3.4),
       cls: [r.ga ? "" : "is-dim", sel === id ? "is-sel" : "", sel && sel !== id && !lk.some((l) => (l.from === sel && l.to === id) || (l.to === sel && l.from === id)) ? "is-far" : "", you(id) ? "is-you" : "", P.y > 70 ? "is-low" : ""].join(" ").trim(),
-      label: `${P.name}: ${r.g} goles y ${r.a} asistencias`,
+      label: `${P.name}: ${nW(r.g, "gol", "goles")} y ${nW(r.a, "asistencia", "asistencias")}`,
       pick: () => act.set({ star: st.star === id ? null : id }),
     };
   });
@@ -732,7 +792,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     x: number;
     y: number;
     min: number;
-    who: { name: string; min: number }[];
+    who: { id: string; name: string; min: number; g: number; a: number }[];
     empty: boolean;
     on: boolean;
     pick: () => void;
@@ -910,10 +970,10 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     // Pass bars follow the selected team; the shot comparison needs both sides.
     // A player-only sample cannot make claims about the rival's total shots.
     const shots = clockActions?.tramos[i] ?? x;
-    const shotLabel = analysis.filters.playerIds?.length ? `${us ? x.sh : x.tsh} remates de los jugadores seleccionados` : `${shots.sh} remates nuestros y ${shots.tsh} del rival`;
+    const shotLabel = analysis.filters.playerIds?.length ? `${nW(us ? x.sh : x.tsh, "remate", "remates")} de los jugadores seleccionados` : `${nW(shots.sh, "remate nuestro", "remates nuestros")} y ${shots.tsh} del rival`;
     return {
       key: i, h: Math.round((x.pas / tmax) * 100), ok: Math.round((x.pok / tmax) * 100), lab: `${i * 5}′`, v: x.pas,
-      label: `Del ${i * 5}′ al ${i * 5 + 5}′: ${x.pas} pases, ${x.pok} completados, ${shotLabel}`,
+      label: `Del ${i * 5}′ al ${i * 5 + 5}′: ${nW(x.pas, "pase", "pases")}, ${nW(x.pok, "completado", "completados")}, ${shotLabel}`,
     };
   });
   const pairs: Record<string, number> = {};
@@ -970,6 +1030,12 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     pairs: pairL, hasPairs: pairL.length > 0,
     cov: { ok: cov.complete.join(" · ") || "Ninguna", part: cov.partial.join(" · ") || "Ninguna", none: cov.unknown.join(" · ") || "Ninguna", hasNone: cov.unknown.length > 0 },
     note: narrated.map((m) => m.analysisNote).find(Boolean) ?? "",
+    // «El palco»: «Jugadas de» — who played in the selection (and whoever is already chosen); a player's plays are ours
+    who: ND.IDS.filter((id) => st.jug.includes(id) || rsAll.some((r) => r.id === id && r.pj > 0)).map((id) => {
+      const on = st.jug.includes(id);
+      return { key: id, t: ND.name(id), n: ND.num(id), on, pick: () => act.set(on ? { jug: st.jug.filter((x) => x !== id) } : { jug: [...st.jug, id], team: "us" }) };
+    }),
+    whoAll: () => act.set({ jug: [] }),
     openCharts: () => act.grow("graficas"), openMesa: () => act.grow("mesa"), openCat: () => act.grow("catalogo"), exportJson: () => act.json(),
     i: { vistazo: info("vistazo"), reloj: info("reloj"), tramos: info("conecta"), cobertura: info("cobertura"), estados: info("estados") },
   };
@@ -977,7 +1043,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const presetNames = ["resumen", "pases", "remates", "defensa", "porteria", "rotaciones", "disciplina"];
   const preset = ANALYSIS_WORKSPACE_PRESETS[Math.max(0, presetNames.indexOf(st.wsSet || "resumen"))];
   const wsKeys = [...new Set(st.wsColumns ?? preset.metricIds)].filter(id => NARRATED_METRICS.some(m => m.id === id));
-  const workspace = tableOpen ? buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, wsKeys)
+  // (the export sheet's CSV is the mesa's table, so it needs the rows too)
+  const workspace = tableOpen || st.sheet === "export" ? buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, wsKeys)
     : { rows: [], total: new Map<string, MetricResult>() };
   const sortKey = wsKeys.includes(st.wsSort ?? "") ? st.wsSort! : wsKeys[0] ?? "001";
   const sortDirection = st.wsDirection ?? "desc";
@@ -1006,6 +1073,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     totalLabel: st.jug.length ? "Total de los jugadores seleccionados" : us ? "Total del Piti, incluidas acciones sin jugador" : "Total del rival",
     columns: wsColumns, query: st.wsQuery ?? "", setQuery: (value: string) => act.set({ wsQuery: value }),
     family: wsFamily, families: [...new Set(NARRATED_METRICS.map(m => m.category))], setFamily: (value: string) => act.set({ wsFamily: value }),
+    // «El palco»: every column's family count, the whole list and «Volver al resumen»
+    famN: NARRATED_METRICS.reduce<Record<string, number>>((o, m) => ((o[m.category] = (o[m.category] ?? 0) + 1), o), {}),
+    total: NARRATED_METRICS.length, custom: st.wsColumns !== undefined, resumen: [...ANALYSIS_WORKSPACE_PRESETS[0].metricIds] as string[],
     availableCount: availableColumns.length, selectedCount: wsKeys.length,
     selectAll: () => act.set({ wsColumns: availableColumns }), clearColumns: () => act.set({ wsColumns: [] }),
     csv: () => act.csv("mesa"),
@@ -1023,8 +1093,12 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     items: catAll.slice(0, st.catN).map((c) => {
       const t2 = TILE_V[c[0]];
       const s = t2 ? t2.status : c[5] ? "none" : "cfg";
-      return { key: c[0], id: c[0], t: c[2], fam: c[1], cls: `is-${s}`, st: t2 ? `${t2.statusT} · ${t2.v}` : c[5] ? "Necesita vídeo u otra fuente" : "Sin datos para esta selección", pick: () => act.open("metric", c[0]) };
+      return { key: c[0], id: c[0], t: c[2], fam: c[1], cls: `is-${s}`, st: t2 ? `${t2.statusT} · ${t2.v}` : c[5] ? "Necesita vídeo u otra fuente" : "Sin datos para esta selección", pick: () => act.open("metric", c[0]),
+        // «El palco»'s card: the definition, the value and the status word apart
+        def: c[3], v: t2 ? String(t2.v) : "–", stT: t2 ? t2.statusT : c[5] ? "Fuera del audio" : "Sin dato" };
     }),
+    n: catAll.length, excl: CAT.filter((c) => c[5]).length,
+    famN: CAT.filter((c) => st.catX || !c[5]).reduce<Record<string, number>>((o, c) => ((o[c[1]] = (o[c[1]] ?? 0) + 1), o), {}),
     count: env.catalog ? `${catAll.length} de las ${CAT.length} estadísticas${famSel ? ` · ${famSel}` : ""}${st.catX ? " · incluidas las de fuera del audio" : ""}` : "Cargando el catálogo…",
     more: catAll.length > st.catN, moreT: `Mostrar más (${Math.min(st.catN, catAll.length)} de ${catAll.length})`,
     showMore: () => act.set({ catN: st.catN + 24 }), empty: !!env.catalog && catAll.length === 0,
@@ -1037,15 +1111,17 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     const bl = b.next && b.next.st === "live" ? 1 : 0;
     return bl - al || b.pj - a.pj || b.gf - b.ga - (a.gf - a.ga);
   });
-  const rq = st.rq.toLowerCase();
+  const rq = strip(st.rq.toLowerCase().trim());
   const rivalBySlug = (s: string | null) => (s ? (rv.find((r) => r.rival === s || slug(r.rival) === slug(s))?.rival ?? null) : null);
   const selRival = rivalBySlug(st.rival) ?? (rv[0] ? rv[0].rival : "");
-  const rvRows = rv
-    .filter((r) => !rq || r.rival.toLowerCase().includes(rq))
+  const nextLong = (nx: NMatch | null) => (nx ? (nx.st === "live" ? `${TonightWord(nx.time)}, en directo` : `J${nx.j} · ${nx.day}, ${nx.time}${nx.st === "apl" ? " (aplazado)" : ""}`) : "");
+  // every rival (the next one and the bars' scale do not depend on the search); the list is the searched ones
+  const rvAll = rv
     .map((r) => {
       const nx = r.next;
       return {
         key: r.rival, rival: r.rival, ini: ini(r.rival), logo: logoOf(env.logos, r.rival), pj: r.pj, rec: r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Aún sin jugar",
+        gf: r.gf, gc: r.ga, nextJ: nx ? nx.j : null, nextLong: nextLong(nx),
         letters: r.games.map((m) => {
           const x = result(m) ?? "e";
           return { key: m.id, l: x.toUpperCase(), cls: `vd-form__l--${x}` };
@@ -1058,6 +1134,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         },
       };
     });
+  const rvRows = rvAll.filter((r) => !rq || strip(r.rival.toLowerCase()).includes(rq));
   const dossier = (nm: string) => {
     const RR = rv.find((r) => r.rival === nm) || { rival: nm, games: [] as NMatch[], pj: 0, g: 0, e: 0, p: 0, gf: 0, ga: 0, next: null as NMatch | null };
     const scorers: Record<string, number> = {};
@@ -1076,7 +1153,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         .join(", ") || "Nadie todavía",
       big: bw ? `${fmtRes(bw)}, J${bw.j}` : "Aún ninguna",
       first: RR.games[0] ? `J${RR.games[0].j}, ${RR.games[0].day}` : "Por estrenar",
-      next: RR.next ? (RR.next.st === "live" ? `${TonightWord(RR.next.time)}, en directo` : `J${RR.next.j} · ${RR.next.day}, ${RR.next.time}${RR.next.st === "apl" ? " (aplazado)" : ""}`) : "Ninguno en esta temporada",
+      next: nextLong(RR.next) || "Ninguno en esta temporada",
       noGames: RR.games.length === 0,
     };
   };
@@ -1096,7 +1173,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
               ? `Contra ${best[0].rival}, lo mejor`
               : "Por estrenar",
     sub: `El cara a cara con cada rival en el período.${best.length > 1 ? ` El que más se nos atraganta: ${best[best.length - 1].rival}.` : ""}${unplayedR ? ` ${unplayedR}${unplayedR === 1 ? " rival, por estrenar." : " rivales, por estrenar."}` : ""}`,
-    rows: rvRows, phoneRows: rvRows.slice(0, 7), more: Math.max(0, rvRows.length - 7), moreT: `Todos los rivales (${rvRows.length})`,
+    rows: rvRows, all: rvAll, phoneRows: rvRows.slice(0, 7), more: Math.max(0, rvRows.length - 7), moreT: `Todos los rivales (${rvRows.length})`,
     q: st.rq, setQ: (v: string) => act.set({ rq: v }), empty: rvRows.length === 0, n: rv.length, growNote: `${rv.length} rivales en la liga.${rv[0]?.next?.st === "live" ? ` Primero, el de ${tonightWord(rv[0].next.time)}.` : ""}`, openAll: () => act.grow("rivales"),
     d: dossier(selRival), sel: selRival, i: info("rivalesb"),
   };
@@ -1129,7 +1206,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const evoMetric = evoK;
   const autoIds = ND.ranked(rDone, evoMetric)
     .filter((r) => ND.metricOf(r, evoMetric) > 0)
-    .slice(0, 4)
+    .slice(0, 6)
     .map((r) => r.id);
   const evoIds = st.evoIds && st.evoIds.length ? st.evoIds.filter((id) => ND.SQUAD[id]).slice(0, 6) : autoIds;
   const ev = ND.evo(se, upto, evoIds, evoK);
@@ -1192,6 +1269,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     indRec: [indRow("Más goles en un partido", rec.ind.goals, ""), indRow("Más asistencias en un partido", rec.ind.asis, ""), indRow("Más goles y asistencias", rec.ind.ga, ""), indRow("Gol más temprano", rec.ind.early, "′")],
     multi, hasMulti: multi.length > 0, multiNone: multi.length ? "" : "Nadie ha marcado dos en un partido todavía: el primer doblete aparecerá aquí.",
     cromos: colF.map((c, i) => ({ ...c, key: `${c.title}-${i}` })),
+    /** The whole collection, whatever «Qué cromos ver» shows: «3 de 10 conseguidos». */
+    cromoGot: col.filter((c) => c.got).length, cromoN: col.length,
     cromoOpts: (
       [
         ["todos", "Todos"],
@@ -1228,7 +1307,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     }),
     evo: {
       d: ev.d, keys: evoIds.map((id, i) => ({ key: id, id, name: ND.name(id), v: evoK === "min" ? Math.round(ev.last[i]) : ev.last[i], cls: `nu-evo__k--${i}`, alt: `La camiseta de ${ND.name(id)}` })),
-      cap: `Acumulado de ${EVO_WORD[evoK]} hasta la J${upto}`, one: ev.n <= 1,
+      cap: `Acumulado de ${EVO_WORD[evoK]} hasta la J${upto}`, one: ev.n <= 1, n: ev.n,
     },
     hitos: ND.ranked(rDone, "goles")
       .filter((r) => r.g > 0)
@@ -1244,6 +1323,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   let mt: null | {
     id: string; t: string; fam: string; v: number | string; st: string; cls: string; def: string; narr: string; scope: string; why: string;
     evid: { key: string; t: string; d: string; href: string }[]; noEv: boolean; evMore: string;
+    /** «El palco»: outside the audio; «Por jugador», the best eight with a value (bars against the first). */
+    excluded: boolean; rows: { key: string; name: string; n: number | string; v: string; w: number }[];
   } = null;
   if (st.sheet === "metric") {
     const c = CAT.find((x) => x[0] === st.sheetId);
@@ -1288,6 +1369,13 @@ export function numerosView(st: NuState, env: Env, act: Act) {
               ? "Necesita vídeo, seguimiento u otra fuente: no se puede sacar solo del audio de la mesa."
               : "Está definida, pero estos datos no la calculan todavía.",
           evid: evid.slice(0, 6), noEv: evid.length === 0, evMore: evid.length > 6 ? `${evid.length - 6} más` : "",
+          excluded: !!c[5], rows: (() => {
+            if (!hasAnalysisSource || !us) return [];
+            const per = buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, [c[0]]);
+            const list = sortAnalysisRows(per.rows, c[0], "desc").map(r => ({ r, x: workspaceMetricValue(r.results.get(c[0])) })).filter((o): o is { r: typeof o.r; x: number } => o.x != null && o.x > 0).slice(0, 8);
+            const mx = Math.max(1, ...list.map(o => o.x));
+            return list.map(({ r, x }) => ({ key: r.person.id, name: r.person.name, n: r.person.number ?? "", v: formatWorkspaceMetric(r.results.get(c[0])), w: Math.round((x / mx) * 100) }));
+          })(),
         }
       : null;
   }
@@ -1340,7 +1428,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   // ---------- the questions people ask, per screen (the nav teaches) and search across everything
   const nextRival = (se.matches.find((m) => m.st !== "fin") || se.matches[0])?.rival;
   const lastRival = played.length ? played[played.length - 1].rival : nextRival;
-  const QS: [string, Place, Partial<NuState>, Sheet?][] = [
+  const QS: [string, Section, Partial<NuState>, Sheet?][] = [
     ["¿Quién marca más?", "jugadores", { rankK: "goles", pick: null }], ["¿Quién da más pases de gol?", "jugadores", { rankK: "asist", pick: null }],
     [myId ? "¿Cuántos minutos llevo?" : "¿Quién juega más minutos?", "jugadores", { rankK: "min", pick: myId || null }], ["¿Quién ha sido MVP?", "jugadores", { rankK: "mvp", pick: null }],
     ["¿Quién ve más tarjetas?", "jugadores", { rankK: "yc", pick: null }], ["¿Cómo vamos en la liga?", "temporada", {}],
@@ -1358,7 +1446,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     .concat(askAll.filter((x) => x.place !== place).slice(0, place === "temporada" ? 3 : 2));
   const sqn = strip((st.sq || "").toLowerCase().trim());
   const hit = (s: string | number) => !!sqn && strip(String(s).toLowerCase()).includes(sqn);
-  const res: { key: string; g: string; t: string; s: string; go: () => void }[] = [];
+  // (`kind` groups them in «El palco»'s search: jugadores with their shirt, rivales, estadísticas, rankings)
+  type SearchKind = "player" | "rival" | "ask" | "rank" | "screen" | "stat";
+  const res: { key: string; kind: SearchKind; g: string; t: string; s: string; name: string; n: number | string | ""; detail: string; go: () => void }[] = [];
   if (sqn) {
     ND.IDS.filter((id) => {
       const P = ND.SQUAD[id];
@@ -1367,22 +1457,26 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       .slice(0, 5)
       .forEach((id) => {
         const r = rowOf(id) ?? NO_ROW(id, ND.name(id));
-        res.push({ key: `p-${id}`, g: "Jugador", t: `${ND.name(id)} · ${ND.num(id)}`, s: `${r.g} goles · ${r.pj} partidos`, go: () => act.ask("jugadores", { pick: id }) });
+        res.push({ key: `p-${id}`, kind: "player", g: "Jugador", t: `${ND.name(id)} · ${ND.num(id)}`, s: `${nW(r.g, "gol", "goles")} · ${nW(r.pj, "partido", "partidos")}`, name: ND.name(id), n: ND.num(id), detail: "Su ficha, sus rachas y sus minutos", go: () => act.ask("jugadores", { pick: id, jugView: "ranking", vsOn: false }) });
       });
     rv.filter((r) => hit(r.rival))
       .slice(0, 4)
-      .forEach((r) => res.push({ key: `r-${r.rival}`, g: "Rival", t: r.rival, s: r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Por estrenar", go: () => act.ask("rivales", { rival: r.rival }) }));
+      .forEach((r) => {
+        const s = r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Por estrenar";
+        res.push({ key: `r-${r.rival}`, kind: "rival", g: "Rival", t: r.rival, s, name: r.rival, n: "", detail: s, go: () => act.ask("rivales", { rival: r.rival }) });
+      });
     askAll
       .filter((x) => hit(x.t))
       .slice(0, 4)
-      .forEach((x) => res.push({ key: `q-${x.t}`, g: "Pregunta", t: x.t, s: PLACE_LABEL[x.place], go: x.go }));
+      .forEach((x) => res.push({ key: `q-${x.t}`, kind: "ask", g: "Pregunta", t: x.t, s: SECTION_LABEL[x.place], name: x.t, n: "", detail: "", go: x.go }));
     NU_METRICS.filter((m) => hit(m[1]) || hit(m[3]))
       .slice(0, 5)
-      .forEach((m) => res.push({ key: `m-${m[0]}`, g: "Ranking", t: m[1], s: `Jugadores › ${m[2]}`, go: () => act.ask("jugadores", { rankK: m[0], pick: null }) }));
-    PLACES.filter((p) => hit(PLACE_LABEL[p]) || hit(NU_GLOSS[p][1])).forEach((p) => res.push({ key: `s-${p}`, g: "Pantalla", t: PLACE_LABEL[p], s: NU_GLOSS[p][1], go: () => act.ask(p, {}) }));
-    CAT.filter((c) => hit(c[2]))
+      .forEach((m) => res.push({ key: `m-${m[0]}`, kind: "rank", g: "Ranking", t: m[1], s: `Jugadores › ${m[2]}`, name: m[1], n: "", detail: `El ranking · ${m[2]}`, go: () => act.ask("jugadores", { rankK: m[0], pick: null, jugView: "ranking", allRank: false }) }));
+    SECTIONS.filter((p) => hit(SECTION_LABEL[p]) || hit(NU_GLOSS[p][1])).forEach((p) => res.push({ key: `s-${p}`, kind: "screen", g: "Pantalla", t: SECTION_LABEL[p], s: NU_GLOSS[p][1], name: SECTION_LABEL[p], n: "", detail: NU_GLOSS[p][1], go: () => act.ask(p, {}) }));
+    // the ones outside the audio stay in the catalogue (the prototype's search leaves them out)
+    CAT.filter((c) => !c[5] && (hit(c[2]) || hit(c[1])))
       .slice(0, 6)
-      .forEach((c) => res.push({ key: `c-${c[0]}`, g: "Estadística", t: c[2], s: `${c[1]} · ${c[0]}`, go: () => act.ask("juego", {}, "metric", c[0]) }));
+      .forEach((c) => res.push({ key: `c-${c[0]}`, kind: "stat", g: "Estadística", t: c[2], s: `${c[1]} · ${c[0]}`, name: c[2], n: "", detail: `${c[1]} · su ficha`, go: () => act.ask("juego", {}, "metric", c[0]) }));
   }
   const map = (
     [
@@ -1393,7 +1487,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ["rivales", "El cara a cara y el dossier de cada rival"],
       ["records", "Rachas, marcas, la colección de cromos, la evolución"],
     ] as const
-  ).map((x) => ({ key: x[0], t: PLACE_LABEL[x[0]], d: x[1], go: () => act.ask(x[0], {}) }));
+  ).map((x) => ({ key: x[0], t: SECTION_LABEL[x[0]], d: x[1], go: () => act.ask(x[0], {}) }));
   const search = {
     q: st.sq, setQ: (v: string) => act.set({ sq: v }), res, has: res.length > 0, none: !!sqn && res.length === 0, empty: !sqn, all: askAll, map,
     noneT: `Nada con «${st.sq}». Prueba con un nombre, un rival o una estadística: «pases», «${rv[0]?.rival.split(" ")[0] ?? "Orduña"}», «minutos».`,
@@ -1401,21 +1495,21 @@ export function numerosView(st: NuState, env: Env, act: Act) {
 
   // ---------- the rail: each section with its live headline (the nav informs)
   const pich = ND.ranked(rsAll, "goles").filter((r) => r.rank === 1 && r.g > 0);
-  const heads: Record<Place, string> = {
+  const heads: Record<Section, string> = {
     temporada: tableReal ? (se.closed ? `Así acabó: ${pos}` : withLive ? `${pos} si acaba así` : `${pos} · ${T.pts} puntos`) : `${T.pts}${T.pts === 1 ? " punto" : " puntos"} · ${T.g}G ${T.e}E ${T.p}P`,
     jugadores: pich.length ? `${list(pich.map((r) => r.name))}, ${pich[0].g}${pich[0].g === 1 ? " gol" : ""}` : "Por estrenar",
     campo: lk[0] ? `${ND.name(lk[0].from)} → ${ND.name(lk[0].to)}, ${lk[0].n}` : realPos ? `Puestos de ${rsAll.filter((r) => Object.keys(r.pos).length).length} jugadores` : "Sin pases de gol",
-    juego: nN ? partial : `${gU} goles · ${gs.length}${gs.length === 1 ? " acta" : " actas"}`,
+    juego: nN ? partial : `${nW(gU, "gol", "goles")} · ${nW(gs.length, "acta", "actas")}`,
     rivales: liveM && withLive ? `Hoy: ${liveM.rival}` : `Ahora: ${nextRival || "–"}`,
     records: `${col.filter((c) => c.got).length} de ${col.length} cromos`,
   };
-  const shorts: Record<Place, string> = {
+  const shorts: Record<Section, string> = {
     temporada: tableReal ? pos : `${T.pts} pts`, jugadores: pich[0] ? `${pich[0].name.split(" ")[0]} ${pich[0].g}` : "0",
-    campo: lk[0] ? `${lk[0].n}${lk[0].n === 1 ? " gol" : " goles"}` : "Puestos", juego: nN ? "Narrado" : `${gU} goles`,
-    rivales: liveM && withLive ? "Hoy" : String(rv.length), records: `${col.filter((c) => c.got).length} cromos`,
+    campo: lk[0] ? `${lk[0].n}${lk[0].n === 1 ? " gol" : " goles"}` : "Puestos", juego: nN ? "Narrado" : nW(gU, "gol", "goles"),
+    rivales: liveM && withLive ? "Hoy" : String(rv.length), records: nW(col.filter((c) => c.got).length, "cromo", "cromos"),
   };
   const icons = { temporada: "cal", jugadores: "shirt", campo: "pip", juego: "chart", rivales: "shield", records: "trophy" } as const;
-  const rail = PLACES.map((id) => ({ id, label: PLACE_LABEL[id], head: heads[id], short: shorts[id], icon: icons[id], on: place === id, title: NU_GLOSS[id][1] }));
+  const rail = SECTIONS.map((id) => ({ id, label: SECTION_LABEL[id], head: heads[id], short: shorts[id], icon: icons[id], on: place === id, title: NU_GLOSS[id][1] }));
 
   const screen = {
     kick: { temporada: tem.kick, jugadores: jug.kick, campo: campo.kick, juego: juego.kick, rivales: rivales.kick, records: records.kick }[place],

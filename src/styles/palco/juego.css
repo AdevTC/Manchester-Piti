@@ -1,0 +1,69 @@
+/* «El palco» · El juego: de un vistazo, más a fondo, the clock, the pass, the tramos and what is narrated. */
+
+/* ———— EL JUEGO ———— */
+.nx-fam3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 32px}
+.nx-fam__t{font-size:13px;font-weight:660;color:var(--vd-ink2);padding-bottom:8px;border-bottom:1px solid var(--vd-rule2);margin-bottom:4px!important}
+.nx-gt2{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:10px;width:100%;padding:9px 0;border:0;border-bottom:1px solid var(--vd-rule);background:none;text-align:left;color:inherit}
+.nx-gt2:hover .nx-gt2__t{color:var(--vd-celeste-ink)}
+.nx-gt2__t{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
+.nx-gt2__v{font-size:22px;font-weight:780;font-variation-settings:'wdth' 108;letter-spacing:-.02em;font-feature-settings:'tnum' 1;color:var(--vd-ink-strong)}
+.nx-pass{display:grid;gap:10px}
+.nx-pass__bar{display:flex;height:22px;border-radius:8px;overflow:hidden;gap:2px}
+.nx-pass__bar>i{display:block;height:100%;transition:flex .45s var(--vd-ease)}
+.nx-pass__bar>.c{background:var(--vd-celeste-ink)}
+.nx-pass__bar>.f{background:rgba(234,243,252,.22)}
+:root[data-theme="light"] .nx-pass__bar>.f{background:rgba(12,23,51,.16)}
+.nx-pass__bar>.u{background:repeating-linear-gradient(135deg,var(--vd-rule2) 0 2px,transparent 2px 6px)}
+.nx-pass__k{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--vd-ink2)}
+.nx-pass__k b{color:var(--vd-ink-strong);font-weight:760}
+.nx-clock{position:relative;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:4px;height:180px;align-items:center}
+.nx-clock__c{position:relative;height:100%;display:grid;grid-template-rows:1fr 1fr}
+.nx-clock__c>i{display:block;width:62%;margin:0 auto;border-radius:5px;transition:height .45s var(--vd-ease)}
+.nx-clock__u{align-self:end;background:linear-gradient(180deg,var(--vd-celeste-ink),rgba(108,171,221,.4))}
+.nx-clock__t{align-self:start;background:linear-gradient(0deg,rgba(240,138,126,.4),var(--vd-rival))}
+.nx-clock::after{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--vd-rule2)}
+.nx-axis{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:4px;margin-top:6px;font-size:11.5px;color:var(--vd-ink2);text-align:center;font-feature-settings:'tnum' 1}
+.nx-tram{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:5px;height:150px;align-items:end}
+.nx-tram__c{position:relative;height:100%;display:flex;align-items:flex-end}
+.nx-tram__c>i{position:absolute;left:12%;right:12%;bottom:0;border-radius:6px 6px 3px 3px;transition:height .45s var(--vd-ease)}
+.nx-tram__h{background:rgba(234,243,252,.13);box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+:root[data-theme="light"] .nx-tram__h{background:rgba(12,23,51,.06)}
+.nx-tram__ok{background:linear-gradient(180deg,var(--vd-celeste-ink),rgba(108,171,221,.5))}
+.nx-tram__v{position:absolute;left:0;right:0;text-align:center;font-size:11.5px;font-weight:700;color:var(--vd-ink);transform:translateY(-18px)}
+.nx-ent{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.nx-en{--vd-r:24px;position:relative;display:grid;align-content:start;gap:6px;min-height:200px;padding:18px;border:0;text-align:left;color:var(--vd-g-ink);overflow:hidden}
+.nx-en__i{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:rgba(108,171,221,.18);color:var(--vd-celeste-ink)}
+.nx-en>b{font-size:16px;font-weight:700;margin-top:6px}
+.nx-en__s{font-size:13px;color:var(--vd-g-ink2);line-height:1.4}
+.nx-en__art{display:block;height:56px;margin-top:auto;opacity:.9}
+.nx-en__art>svg{width:100%;height:100%;overflow:visible}
+.nx-art{fill:none;stroke:var(--vd-celeste-ink);stroke-width:1.6;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.nx-art--f{fill:var(--vd-celeste-ink);stroke:none}
+.nx-art--m{fill:var(--vd-rule2);stroke:none}
+.nx-cov{display:grid;gap:10px;font-size:13.5px;line-height:1.5}
+.nx-cov>div{display:grid;grid-template-columns:100px minmax(0,1fr);gap:10px}
+.nx-cov dt{display:flex;align-items:center;gap:8px;color:var(--vd-ink);font-weight:650}
+.nx-cov dd{color:var(--vd-ink2)}
+.nx-det{margin-top:14px;font-size:13.5px;color:var(--vd-ink2)}
+.nx-det>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:640;color:var(--vd-ink)}
+.nx-det>p{line-height:1.55;max-width:72ch}
+.nx-jfil{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:-10px 0 24px}
+.nx-jfil>.nx-pick{flex:none}
+.nx-jfil__k{font-size:13px;font-weight:620;color:var(--vd-ink2);margin-right:4px;flex:none}
+/* the app's additions: team and half stay radios (aria-checked), the clock dims what is outside the half, the
+   catalogue's families are a list, the column picker's links */
+.nx-seg .vd-seg__b[aria-checked="true"]{color:var(--vd-g-ink);font-weight:720}
+.nx-clock__c.is-off{opacity:.35}
+.nx-chiprow>li{flex:none;display:flex}
+.nx-colpick__head{margin-bottom:8px}
+.nx-colpick__head>.nx-links{gap:0 18px}
+
+@container nx (max-width: 699px) {
+  .nx-fam3{grid-template-columns:minmax(0,1fr);gap:24px}
+  .nx-ent{grid-template-columns:minmax(0,1fr)}
+  .nx-en{min-height:0;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px 14px}
+  .nx-en__i{grid-row:span 2}
+  .nx-en>b{margin-top:0}
+  .nx-en__art{display:none}
+  .nx-jfil{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:-10px -16px 22px;padding:0 16px 4px}
+}
