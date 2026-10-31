@@ -55,7 +55,8 @@ test('historial mensual de la porra en Mi página',async({page},testInfo)=>{
   await expect(page).toHaveURL(/\/perfil\/partidos#porra$/);
   await expect(page.getByRole('heading',{name:'16 puntos esta temporada'})).toBeVisible();
   await page.goto('/perfil/partidos');
-  await page.getByRole('button',{name:/^Tu porra/}).click();
+  // (without #porra the history waits folded under «Tu porra»: its summary opens it)
+  await page.locator('#porra').getByText(/^Historial de la porra/).click();
   await expect(page.getByRole('heading',{name:'16 puntos esta temporada'})).toBeVisible();
   await page.getByLabel('Periodo de la porra').selectOption('2026-09');
   await expect(page.getByRole('heading',{name:'0 puntos este mes'})).toBeVisible();

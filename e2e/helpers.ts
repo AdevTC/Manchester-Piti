@@ -36,6 +36,15 @@ export async function clearAdminPorra(matchId: string): Promise<void> {
   });
   if (!response.ok && response.status !== 404) throw new Error(`No se ha podido borrar la porra: HTTP ${response.status}`);
 }
+/** Deletes the preview admin's answer to a match's convocatoria (having none is fine): a spec that answers «¿Vas?»
+ * starts with the question open, whatever an earlier spec or a failed attempt left answered. */
+export async function clearAdminAvailability(matchId: string): Promise<void> {
+  const { uid } = await emulatorAdmin();
+  const response = await fetch(`http://127.0.0.1:8080/v1/projects/${EMULATOR}/databases/(default)/documents/matchPrivate/${matchId}/availability/${uid}`, {
+    method: "DELETE", headers: { authorization: "Bearer owner" },
+  });
+  if (!response.ok && response.status !== 404) throw new Error(`No se ha podido borrar la respuesta a la convocatoria: HTTP ${response.status}`);
+}
 /** Calls a callable function on the Functions emulator as the given user. */
 export async function callFunction(token: string, name: string, data: unknown): Promise<unknown> {
   const response = await fetch(`http://127.0.0.1:5001/${EMULATOR}/europe-southwest1/${name}`, {
