@@ -9,7 +9,12 @@ import {
   deviceWords,
   feedOf,
   filterOf,
+  calendarBatch,
+  collapseFixtures,
   filterRows,
+  isNewFixture,
+  stackLine,
+  tocaTitle,
   iconOf,
   kindOf,
   mvpBody,
@@ -96,15 +101,15 @@ describe("the bandeja's filters", () => {
     expect(verOf(`m:${J1}`)).toBe(`partido-${J1}`);
   });
   it("the rail's counts", () => {
-    const list = [n("a", { url: `/partidos/${J1}`, topic: "final" }), n("b", { audience: "personal" }), n("c", { title: "Nueva encuesta" })];
-    expect(filterRows(list, 2, 1).map((r) => [r.f, r.n])).toEqual([
-      ["toca", 2],
-      ["sinleer", 1],
-      ["todos", 3],
-      ["partidos", 1],
-      ["vestuario", 1],
-      ["tuyos", 1],
+    const loose = [n("b", { audience: "personal" }), n("c", { title: "Nueva encuesta" })];
+    expect(filterRows({ toca: 2, unread: 1, partidos: 4, loose, batch: true }).map((r) => [r.f, r.t, r.n])).toEqual([
+      ["toca", "Te toca", 2],
+      ["sinleer", "Sin leer", 1],
+      ["todos", "Todos", 9],
+      ["partidos", "Partidos", 4],
+      ["vestuario", "Del vestuario", 2],
     ]);
+    expect(filterRows({ toca: 0, unread: 0, partidos: 0, loose: [], batch: false }).map((r) => r.n)).toEqual([0, 0, 0, 0, 0]);
   });
   it("what each filter shows", () => {
     expect(shownBy("todos")).toEqual({ pend: true, stacks: "all", loose: "all", unread: false });
@@ -190,5 +195,66 @@ describe("this device", () => {
     expect(presetLine("todo", true)).toBe("En pausa");
     expect(pauseLine("1h")).toBe("Avisos en pausa en este móvil durante una hora.");
     expect(pauseLine("manana")).toBe("Avisos en pausa en este móvil hasta mañana a las 9:00.");
+  });
+});
+
+describe("the fixture's «Nuevo partido» notices", () => {
+  // production-shaped: the season's fixture made 20 notices at once (J3–J22), each its own match; J2 played
+  const fixture = Array.from({ length: 20 }, (_, i) => n(`date-m${i + 3}`, { topic: "dates", title: `Nuevo partido: Rival ${i + 3}`, url: `/partidos/m${i + 3}`, at: NOW - 8 * 86_400_000 }));
+  const final = n("final-m2", { topic: "final", title: "Final: Manchester Piti 3–8 Pitutis", url: "/partidos/m2", at: NOW });
+  const stacks = stacksOf([final, ...fixture]).stacks;
+  it("only the fixture's", () => {
+    expect(isNewFixture(fixture[0])).toBe(true);
+    expect(isNewFixture(n("x", { topic: "dates", title: "Cambio de hora: Pitutis" }))).toBe(false);
+    expect(isNewFixture(n("y", { topic: "final", title: "Nuevo partido: X" }))).toBe(false);
+  });
+  it("collapse into one batch; the played match keeps its stack", () => {
+    expect(stacks).toHaveLength(21);
+    const c = collapseFixtures(stacks);
+    expect(c.batch).toHaveLength(20);
+    expect(c.stacks.map((s) => s.matchId)).toEqual(["m2"]);
+    // a stack with a fixture notice and others keeps the others
+    const mixed = stacksOf([n("g", { topic: "goals", url: "/partidos/m3" }), ...fixture.slice(0, 2)]).stacks;
+    expect(collapseFixtures(mixed).stacks.map((s) => [s.matchId, s.rows.map((r) => r.id)])).toEqual([["m3", ["g"]]]);
+  });
+  it("one alone stays where it was", () => {
+    const one = stacksOf([final, fixture[0]]).stacks;
+    expect(collapseFixtures(one)).toEqual({ stacks: one, batch: [] });
+  });
+  it("one item: «Calendario: 20 jornadas nuevas», from the first to the last, each jornada in order", () => {
+    const { batch } = collapseFixtures(stacks);
+    // J3 on Sunday 8 Nov 2026 at 18:00, then one a week
+    const info = (id: string) => {
+      const j = Number(id.slice(1));
+      return { j, at: Date.UTC(2026, 10, 8, 17) + (j - 3) * 7 * 86_400_000, rival: `Rival ${j}` };
+    };
+    const c = calendarBatch([...batch].reverse(), info);
+    expect(c.title).toBe("Calendario: 20 jornadas nuevas");
+    expect(c.body).toBe("De la J3 (8 nov) a la J22 (21 mar).");
+    expect(c.rows).toHaveLength(20);
+    expect(c.rows[0]).toEqual({ key: "m3", t: "J3 · 8 nov · Rival 3" });
+    expect(c.rows.at(-1)?.t).toBe("J22 · 21 mar · Rival 22");
+    expect(c.ids).toHaveLength(20);
+    expect(c.at).toBe(NOW - 8 * 86_400_000);
+  });
+  it("a match gone: its rival from the notice, no range", () => {
+    const c = calendarBatch(fixture.slice(0, 2), () => null);
+    expect(c.title).toBe("Calendario: 2 jornadas nuevas");
+    expect(c.body).toBe("Ya están en Partidos y en tu calendario.");
+    expect(c.rows.map((r) => r.t)).toEqual(["Rival 3", "Rival 4"]);
+  });
+});
+
+describe("the bandeja's head and stacks", () => {
+  it("what waits on him", () => {
+    expect(tocaTitle(0)).toBe("Al día");
+    expect(tocaTitle(1)).toBe("Una cosa te toca");
+    expect(tocaTitle(5)).toBe("5 cosas te tocan");
+  });
+  it("our score first", () => {
+    const at = Date.UTC(2026, 9, 25, 13);
+    expect(stackLine(resOf(true, 3, 8), 3, 8, at, false)).toBe("Perdimos 3–8 · fuera · 25 oct");
+    expect(stackLine(resOf(true, 2, 2), 2, 2, at, true)).toBe("Empatamos 2–2 · en casa · 25 oct");
+    expect(stackLine("", 0, 0, at, null)).toBe("Por jugar · 25 oct");
   });
 });

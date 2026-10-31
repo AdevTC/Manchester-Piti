@@ -1,14 +1,14 @@
 // Avisos' pieces, shared by the bell, «Tú» and /avisos (TU boards: pend.html, nrow.html, stack.html): a «Te toca»
 // item answered in place, a notice row with its «⋯», a match's stack with its timeline (what they do: actions.ts).
 import { type CSSProperties } from "react";
-import { DotsMenu, TuIcon, type MenuItem } from "../../../components/vidrio/tu/ui";
+import { DotsMenu, TuIcon } from "../../../components/vidrio/tu/ui";
 import { RivalMark } from "../../../components/vidrio/RivalMark";
 import { relativeTime } from "../../../lib/derived/notices";
 import type { Notice } from "../../../lib/derived/notices";
 import { capital } from "../../../lib/derived/words";
-import type { Topic } from "../../../lib/push";
-import { actsOf, ANSWER_SAID, ANSWER_WORD, iconOf, KIND_LABEL, kindOf, matchOf, MUTABLE, pl, RES_WORD, TOPIC_NAME, type Answer } from "./model";
+import { actsOf, ANSWER_SAID, ANSWER_WORD, iconOf, KIND_LABEL, kindOf, pl, RES_WORD, type Answer } from "./model";
 import { useCandStills, type AvisoActions } from "./actions";
+import { noticeMenu, stackMenu } from "./menus";
 import type { Inbox, Pend, StackView } from "./useInbox";
 
 // ---------- a «Te toca» item (pend.html)
@@ -109,19 +109,7 @@ export function PendList({ pends, a, say, sm }: { pends: readonly Pend[]; a: Avi
 export function NoticeRow({ n, inbox, a }: { n: Notice; inbox: Inbox; a: AvisoActions }) {
   const un = inbox.reads.unread(n);
   const acts = actsOf(n);
-  const matchId = matchOf(n);
-  const items: MenuItem[] = [{ t: un ? "Marcar como leído" : "Marcar como no leído", icon: "check", go: () => a.markRead([n.id], un) }];
-  if (MUTABLE.has(n.topic) && inbox.member) {
-    const on = inbox.topics.includes(n.topic as Topic);
-    const tl = TOPIC_NAME[n.topic];
-    items.push({ t: on ? `Silenciar «${tl}» en este móvil` : `Volver a avisarme de «${tl}»`, icon: "bell", go: () => a.muteTopic(n.topic, !on) });
-  }
-  if (matchId) {
-    const muted = inbox.muted.includes(matchId);
-    const j = inbox.matchName(matchId);
-    items.push({ t: muted ? `Volver a avisarme del ${j}` : `Silenciar el ${j} en este móvil`, icon: "fixtures", go: () => a.muteMatch(matchId, !muted) });
-  }
-  items.push({ t: "Pausar todo una hora", icon: "clock", go: () => a.pause("1h") }, { t: "Avisos a medida", icon: "gear", go: () => a.goAv("amedida") });
+  const items = noticeMenu(n, inbox, a);
   const label = `Más opciones: ${n.title}`;
   const gold = (n.topic === "goals" && !/^Gol de /.test(n.title)) || (n.topic === "mvp" && /^MVP/.test(n.title));
   const rival = n.topic === "goals" && /^Gol de /.test(n.title);
@@ -163,11 +151,7 @@ export function MatchStack({ x, inbox, a, exp, onToggle }: { x: StackView; inbox
   const muted = inbox.muted.includes(x.matchId);
   const un = x.rows.filter((n) => inbox.reads.unread(n)).length;
   const j = x.j ? `J${x.j}` : "";
-  const items: MenuItem[] = [
-    { t: muted ? `Volver a avisarme del ${j || "partido"}` : `Silenciar el ${j || "partido"} en este móvil`, icon: "bell", go: () => a.muteMatch(x.matchId, !muted) },
-    ...(x.rows.length ? [{ t: x.rows.length === 1 ? "Marcar el aviso como leído" : `Marcar los ${x.rows.length} como leídos`, icon: "check" as const, go: () => a.markRead(x.rows.map((n) => n.id), true) }] : []),
-    { t: "Avisos a medida", icon: "gear", go: () => a.goAv("amedida") },
-  ];
+  const items = stackMenu(x, inbox, a);
   const label = `Más opciones del ${j || "partido"}`;
   const cls = ["tu-ms", exp ? "is-open" : "", muted ? "is-muted" : "", un ? "is-new" : ""].filter(Boolean).join(" ");
   const count = pl(x.rows.length, "aviso", "avisos");
