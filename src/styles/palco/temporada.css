@@ -131,6 +131,15 @@
 .nx-sysg>span:first-child i{background:var(--vd-ink2)}
 .nx-sysc b{font-size:20px;font-weight:760;font-variation-settings:'wdth' 108;color:var(--vd-ink-strong)}
 .nx-sysc small{display:block;font-size:12.5px;color:var(--vd-ink2)}
+/* the app's links on the place: a got cromo opens its match (the title's link covers the card), a team mark too */
+.nx-cromo:focus-within{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.nx-cromo__lk{color:inherit;text-decoration:none}
+.nx-cromo__lk::before{content:"";position:absolute;inset:0;z-index:1;border-radius:inherit}
+.nx-cromo__lk:focus-visible{outline:none}
+a.nx-rec{min-height:44px;color:inherit;text-decoration:none}
+a.nx-rec:hover .nx-rec__t{text-decoration:underline}
+.nx-champ{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14.5px;font-weight:650;color:var(--vd-ink-strong)}
+.nx-champ>.nx-ic{width:18px;height:18px;color:var(--vd-celeste-ink)}
 
 @container nx (max-width: 699px) {
   .nx-cinta__in{min-width:calc(var(--n) * 40px)}
