@@ -305,8 +305,15 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       const on = st.jug.includes(id);
       return { key: id, t: ND.name(id), n: ND.num(id), on, pick: () => act.set({ jug: on ? st.jug.filter((x) => x !== id) : [...st.jug, id] }) };
     }),
+    /** «El palco»: the jornadas «Hasta qué jornada» offers (J1…J(edge−1); the edge is «Al día»), with each result. */
+    jornadas: se.matches
+      .map((m, i) => ({ m, c: cols[i] }))
+      .filter(({ m }, i, a) => m.j < edge && a.findIndex((x) => x.m.j === m.j) === i)
+      .map(({ m, c }) => ({ key: m.id, j: m.j, letter: c.letter, label: c.label })),
+    /** «Todas» only when there is another season to add. */
+    hasOthers: env.others.length > 0,
     clear: () => {
-      act.set({ temporada: "esta", campo: "todo", jug: [], partidos: [], upto: edge });
+      act.set({ temporada: "esta", campo: "todo", jug: [], partidos: [], upto: Number.POSITIVE_INFINITY, replay: false, playing: false });
       act.say("Filtros quitados.");
     },
     players: st.jug.length > 0,
@@ -1066,15 +1073,17 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     const bl = b.next && b.next.st === "live" ? 1 : 0;
     return bl - al || b.pj - a.pj || b.gf - b.ga - (a.gf - a.ga);
   });
-  const rq = st.rq.toLowerCase();
+  const rq = strip(st.rq.toLowerCase().trim());
   const rivalBySlug = (s: string | null) => (s ? (rv.find((r) => r.rival === s || slug(r.rival) === slug(s))?.rival ?? null) : null);
   const selRival = rivalBySlug(st.rival) ?? (rv[0] ? rv[0].rival : "");
-  const rvRows = rv
-    .filter((r) => !rq || r.rival.toLowerCase().includes(rq))
+  const nextLong = (nx: NMatch | null) => (nx ? (nx.st === "live" ? `${TonightWord(nx.time)}, en directo` : `J${nx.j} · ${nx.day}, ${nx.time}${nx.st === "apl" ? " (aplazado)" : ""}`) : "");
+  // every rival (the next one and the bars' scale do not depend on the search); the list is the searched ones
+  const rvAll = rv
     .map((r) => {
       const nx = r.next;
       return {
         key: r.rival, rival: r.rival, ini: ini(r.rival), logo: logoOf(env.logos, r.rival), pj: r.pj, rec: r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Aún sin jugar",
+        gf: r.gf, gc: r.ga, nextJ: nx ? nx.j : null, nextLong: nextLong(nx),
         letters: r.games.map((m) => {
           const x = result(m) ?? "e";
           return { key: m.id, l: x.toUpperCase(), cls: `vd-form__l--${x}` };
@@ -1087,6 +1096,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         },
       };
     });
+  const rvRows = rvAll.filter((r) => !rq || strip(r.rival.toLowerCase()).includes(rq));
   const dossier = (nm: string) => {
     const RR = rv.find((r) => r.rival === nm) || { rival: nm, games: [] as NMatch[], pj: 0, g: 0, e: 0, p: 0, gf: 0, ga: 0, next: null as NMatch | null };
     const scorers: Record<string, number> = {};
@@ -1105,7 +1115,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         .join(", ") || "Nadie todavía",
       big: bw ? `${fmtRes(bw)}, J${bw.j}` : "Aún ninguna",
       first: RR.games[0] ? `J${RR.games[0].j}, ${RR.games[0].day}` : "Por estrenar",
-      next: RR.next ? (RR.next.st === "live" ? `${TonightWord(RR.next.time)}, en directo` : `J${RR.next.j} · ${RR.next.day}, ${RR.next.time}${RR.next.st === "apl" ? " (aplazado)" : ""}`) : "Ninguno en esta temporada",
+      next: nextLong(RR.next) || "Ninguno en esta temporada",
       noGames: RR.games.length === 0,
     };
   };
@@ -1125,7 +1135,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
               ? `Contra ${best[0].rival}, lo mejor`
               : "Por estrenar",
     sub: `El cara a cara con cada rival en el período.${best.length > 1 ? ` El que más se nos atraganta: ${best[best.length - 1].rival}.` : ""}${unplayedR ? ` ${unplayedR}${unplayedR === 1 ? " rival, por estrenar." : " rivales, por estrenar."}` : ""}`,
-    rows: rvRows, phoneRows: rvRows.slice(0, 7), more: Math.max(0, rvRows.length - 7), moreT: `Todos los rivales (${rvRows.length})`,
+    rows: rvRows, all: rvAll, phoneRows: rvRows.slice(0, 7), more: Math.max(0, rvRows.length - 7), moreT: `Todos los rivales (${rvRows.length})`,
     q: st.rq, setQ: (v: string) => act.set({ rq: v }), empty: rvRows.length === 0, n: rv.length, growNote: `${rv.length} rivales en la liga.${rv[0]?.next?.st === "live" ? ` Primero, el de ${tonightWord(rv[0].next.time)}.` : ""}`, openAll: () => act.grow("rivales"),
     d: dossier(selRival), sel: selRival, i: info("rivalesb"),
   };
@@ -1387,7 +1397,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     .concat(askAll.filter((x) => x.place !== place).slice(0, place === "temporada" ? 3 : 2));
   const sqn = strip((st.sq || "").toLowerCase().trim());
   const hit = (s: string | number) => !!sqn && strip(String(s).toLowerCase()).includes(sqn);
-  const res: { key: string; g: string; t: string; s: string; go: () => void }[] = [];
+  // (`kind` groups them in «El palco»'s search: jugadores with their shirt, rivales, estadísticas, rankings)
+  type SearchKind = "player" | "rival" | "ask" | "rank" | "screen" | "stat";
+  const res: { key: string; kind: SearchKind; g: string; t: string; s: string; name: string; n: number | string | ""; detail: string; go: () => void }[] = [];
   if (sqn) {
     ND.IDS.filter((id) => {
       const P = ND.SQUAD[id];
@@ -1396,22 +1408,26 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       .slice(0, 5)
       .forEach((id) => {
         const r = rowOf(id) ?? NO_ROW(id, ND.name(id));
-        res.push({ key: `p-${id}`, g: "Jugador", t: `${ND.name(id)} · ${ND.num(id)}`, s: `${nW(r.g, "gol", "goles")} · ${nW(r.pj, "partido", "partidos")}`, go: () => act.ask("jugadores", { pick: id }) });
+        res.push({ key: `p-${id}`, kind: "player", g: "Jugador", t: `${ND.name(id)} · ${ND.num(id)}`, s: `${nW(r.g, "gol", "goles")} · ${nW(r.pj, "partido", "partidos")}`, name: ND.name(id), n: ND.num(id), detail: "Su ficha, sus rachas y sus minutos", go: () => act.ask("jugadores", { pick: id, jugView: "ranking", vsOn: false }) });
       });
     rv.filter((r) => hit(r.rival))
       .slice(0, 4)
-      .forEach((r) => res.push({ key: `r-${r.rival}`, g: "Rival", t: r.rival, s: r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Por estrenar", go: () => act.ask("rivales", { rival: r.rival }) }));
+      .forEach((r) => {
+        const s = r.pj ? `${r.g}G ${r.e}E ${r.p}P · ${r.gf}–${r.ga}` : "Por estrenar";
+        res.push({ key: `r-${r.rival}`, kind: "rival", g: "Rival", t: r.rival, s, name: r.rival, n: "", detail: s, go: () => act.ask("rivales", { rival: r.rival }) });
+      });
     askAll
       .filter((x) => hit(x.t))
       .slice(0, 4)
-      .forEach((x) => res.push({ key: `q-${x.t}`, g: "Pregunta", t: x.t, s: SECTION_LABEL[x.place], go: x.go }));
+      .forEach((x) => res.push({ key: `q-${x.t}`, kind: "ask", g: "Pregunta", t: x.t, s: SECTION_LABEL[x.place], name: x.t, n: "", detail: "", go: x.go }));
     NU_METRICS.filter((m) => hit(m[1]) || hit(m[3]))
       .slice(0, 5)
-      .forEach((m) => res.push({ key: `m-${m[0]}`, g: "Ranking", t: m[1], s: `Jugadores › ${m[2]}`, go: () => act.ask("jugadores", { rankK: m[0], pick: null }) }));
-    SECTIONS.filter((p) => hit(SECTION_LABEL[p]) || hit(NU_GLOSS[p][1])).forEach((p) => res.push({ key: `s-${p}`, g: "Pantalla", t: SECTION_LABEL[p], s: NU_GLOSS[p][1], go: () => act.ask(p, {}) }));
-    CAT.filter((c) => hit(c[2]))
+      .forEach((m) => res.push({ key: `m-${m[0]}`, kind: "rank", g: "Ranking", t: m[1], s: `Jugadores › ${m[2]}`, name: m[1], n: "", detail: `El ranking · ${m[2]}`, go: () => act.ask("jugadores", { rankK: m[0], pick: null, jugView: "ranking", allRank: false }) }));
+    SECTIONS.filter((p) => hit(SECTION_LABEL[p]) || hit(NU_GLOSS[p][1])).forEach((p) => res.push({ key: `s-${p}`, kind: "screen", g: "Pantalla", t: SECTION_LABEL[p], s: NU_GLOSS[p][1], name: SECTION_LABEL[p], n: "", detail: NU_GLOSS[p][1], go: () => act.ask(p, {}) }));
+    // the ones outside the audio stay in the catalogue (the prototype's search leaves them out)
+    CAT.filter((c) => !c[5] && (hit(c[2]) || hit(c[1])))
       .slice(0, 6)
-      .forEach((c) => res.push({ key: `c-${c[0]}`, g: "Estadística", t: c[2], s: `${c[1]} · ${c[0]}`, go: () => act.ask("juego", {}, "metric", c[0]) }));
+      .forEach((c) => res.push({ key: `c-${c[0]}`, kind: "stat", g: "Estadística", t: c[2], s: `${c[1]} · ${c[0]}`, name: c[2], n: "", detail: `${c[1]} · su ficha`, go: () => act.ask("juego", {}, "metric", c[0]) }));
   }
   const map = (
     [
