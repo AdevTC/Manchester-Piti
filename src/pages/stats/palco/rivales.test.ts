@@ -94,7 +94,7 @@ describe("«Qué números ver»", () => {
       ["J2", "is-p", false],
       ["J3", "", false],
     ]);
-    expect(s.js[2].aria).toBe("Hasta la J2, Perdimos 0–2 en casa de Payo");
+    expect(s.js[2].aria).toBe("J2 P · hasta la J2, Perdimos 0–2 en casa de Payo");
     s.js[2].pick();
     s.js[0].pick();
     expect(set.mock.calls).toEqual([[{ upto: 2, replay: false, playing: false }], [{ upto: Number.POSITIVE_INFINITY, replay: false, playing: false }]]);

@@ -192,6 +192,7 @@ html[data-nu-dir="up"]{--nu-ex:10px;--nu-en:-14px}
 .nx-sheet__p--after{margin-top:10px!important}
 .nx-jgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
 .nx-jgrid>.nx-pick{justify-content:center;padding:0 6px;min-height:44px;font-feature-settings:'tnum' 1}
+.nx-jl{font-size:11px;font-weight:760;color:var(--vd-g-ink2)}
 .nx-jgrid>.nx-pick.is-g{box-shadow:inset 0 -3px 0 rgba(108,171,221,.7)}
 .nx-jgrid>.nx-pick.is-p{box-shadow:inset 0 -3px 0 rgba(240,138,126,.7)}
 .nx-jgrid>.nx-pick[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}

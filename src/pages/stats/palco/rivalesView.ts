@@ -159,8 +159,9 @@ export function scopeView(v: ScopeIn, st: Pick<NuState, "replay">, act: Pick<Act
       t: `J${x.j}`,
       letter: x.letter,
       cls: x.letter === "G" ? "is-g" : x.letter === "P" ? "is-p" : "",
-      // the result in words too («Hasta la J3, Ganamos 3–1 contra…»): the colour is not the only sign
-      aria: `Hasta la ${x.label}`,
+      // the result is said three ways: the letter on the chip, the colour under it, the words in its name
+      // («J3 G · hasta la J3, Ganamos 3–1 contra…»)
+      aria: `J${x.j}${x.letter ? ` ${x.letter}` : ""} · hasta la ${x.label}`,
       on: !st.replay && v.upto === x.j && v.upto < v.edge,
       pick: () => act.set({ upto: x.j, replay: false, playing: false }),
     })),

@@ -24,7 +24,7 @@ export function ScopeSheet({ v, st, act, onClose, sheetRef }: SheetProps) {
           <div className="nx-jgrid" role="group" aria-label="Hasta qué jornada">
             {s.js.map((o) => (
               <button key={o.key} type="button" className={`vd-glass nx-pick${o.cls ? ` ${o.cls}` : ""}`} aria-pressed={o.on} aria-label={o.aria} onClick={o.pick}>
-                {o.t}
+                {o.t} {o.letter ? <small className="nx-jl" aria-hidden="true">{o.letter}</small> : null}
               </button>
             ))}
           </div>
