@@ -322,3 +322,58 @@
 .tup .tf-md__out>p{font-size:14px;line-height:1.5;color:var(--vd-g-ink2)}
 
 /* ── by hand ── */
+/* the place's rhythm: head · river · the jornada in focus · nota and figures · the list · the porra */
+.tup .tp>.tt-season{margin-top:4px}
+.tup .tp>.tc-pa{margin-top:44px}
+.tup .tp-lista{margin-bottom:44px}
+.tup .tp-seasons{width:330px;max-width:100%;height:46px}
+@container nx (max-width:699px){.tup .tp-seasons{width:100%}}
+.tup .tp-empty{padding:18px 0}
+.tup .tp-links{margin-top:22px}
+.tup .tp-k{font-size:12.5px;font-weight:660;color:var(--vd-g-ink2)}
+.tup .tp-lead{font-size:18px;line-height:1.45;color:var(--vd-ink);text-wrap:pretty}
+@container nx (max-width:699px){.tup .tp-lead{font-size:16px}}
+/* the ribbon scrolls by touch (the prototype's touch-action:none was for its mouse scrub only) */
+.tup .tt-j{touch-action:manipulation}
+.tup .tt-j:focus-visible,.tup .tt-nextj__f:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.tup .tp-nextj__m{font-size:12px!important;align-self:end}
+.tup .tt-vas>button{min-height:44px}
+/* the jornada in focus (A's match sheet inline: the nota, the result and the minutes | the acta's figures) */
+.tup .tf-md{container:tfm/inline-size}
+.tup .tp-md{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px 48px;align-items:start}
+.tup .tp-md--other{grid-template-columns:minmax(0,1fr);max-width:720px}
+@container nx (max-width:1000px){.tup .tp-md{grid-template-columns:minmax(0,1fr)}}
+.tup .tp-md__a,.tup .tp-md__b{display:grid;gap:18px;min-width:0}
+.tup .tp-md .tf-md__hero>div>span,.tup .tp-md .tf-stint__ax,.tup .tp-md .tf-led dt,.tup .tp-md .tf-led dd>span,.tup .tp-md .tp-k,.tup .tp-md .tf-md__out>p{color:var(--vd-ink2)}
+.tup .tp-md .tf-md__hero>div>b{color:var(--vd-ink-strong)}
+.tup .tp-md .tf-stint>p,.tup .tp-md .tf-md__arrow{color:var(--vd-ink)}
+.tup .tf-md__hero>div>.tp-mvp{justify-self:start;height:24px;font-size:12px;line-height:1;padding:0 9px;margin-top:4px;color:#2a1c00}
+.tup .tp-md__acts{margin:0}
+.tup .tp-vas{display:grid;gap:12px}
+.tup .tf-md__nav .nx-ic,.tup .tp-md__acts .nx-ic{width:18px;height:18px}
+/* the sheet (phone): portaled to the body inside a .tup, so the place's rules reach it */
+.tup.tp-sheetwrap .tp-sheet{gap:16px}
+.tup.tp-sheetwrap .nx-sheet__head{align-items:flex-start}
+.tup.tp-sheetwrap .nx-sheet__head h2{font-family:var(--vd-sans);font-size:24px;line-height:1.1;font-weight:720;letter-spacing:-.018em;color:var(--vd-g-ink)}
+.tup.tp-sheetwrap .tf-nb--hero{min-width:96px;height:76px;font-size:42px;border-radius:20px}
+/* the nota chart: the theme's inks, the labels clear of their dots and big enough to tap */
+.tup .tp-chart{margin-top:8px;padding-bottom:10px}
+.tup .tp-ch__grid{fill:none;stroke:currentColor;stroke-opacity:.16;stroke-width:1}
+.tup .tp-ch__avg{fill:none;stroke:var(--vd-celeste);stroke-opacity:.75;stroke-dasharray:4 5;stroke-width:1.5}
+.tup .tp-ch__line{fill:none;stroke:var(--vd-celeste);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.tup .tp-ch__dot{fill:var(--vd-celeste)}
+.tup .tp-ch__gold{fill:var(--vd-oro)}
+.tup .tp-ch__lab{display:flex;align-items:flex-end;justify-content:center;min-width:44px;min-height:44px;padding:0 4px 2px;border:0;background:none;border-radius:10px;transform:translate(-50%,calc(-100% - 7px));cursor:pointer}
+.tup .tp-ch__lab:hover{color:var(--vd-celeste-ink)}
+.tup .tc-chart__g{pointer-events:none}
+/* the table scrolls inside itself when it doesn't fit (tablet) */
+.tup .tp-tabwrap{overflow-x:auto;scrollbar-width:thin}
+.tup .tp-tabwrap>.tt-tab{min-width:760px}
+.tup .tt-tab tr.is-next td:first-child{box-shadow:inset 3px 0 0 var(--vd-celeste)}
+/* #porra: «Tu recorrido en la porra» in the place's inks */
+.tup .tp-porra{margin:8px 0 12px;scroll-margin-top:96px}
+.tup .tp-porra .ph-history{background:none;box-shadow:inset 0 0 0 1px var(--vd-rule2);border-radius:24px;margin:0;color:var(--vd-ink)}
+.tup .tp-porra .ph-history summary{color:var(--vd-celeste-ink);font-weight:660}
+.tup .tp-porra .ph-history h2{font-family:var(--vd-sans);font-size:22px;font-weight:700;letter-spacing:-.016em;color:var(--vd-ink-strong)}
+.tup .tp-porra .ph-history h3{font-family:var(--vd-sans);font-size:17px;font-weight:680;color:var(--vd-ink-strong)}
+.tup .tp-porra .ph-history select{background:transparent;border:1px solid var(--vd-rule2);color:var(--vd-ink)}
