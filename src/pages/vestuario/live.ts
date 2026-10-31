@@ -418,7 +418,7 @@ export interface Training {
   proposedByName: string;
   lastSlotAt: number;
   /** Set when the proposer or an admin fixes the winning slot. */
-  confirmed?: { slotId: string; at: number; end?: number; place: string; byName: string };
+  confirmed?: { slotId: string; at: number; end?: number; place: string; byName: string; /** Who fixed it (uid). */ by?: string };
 }
 export function useOpenTrainings(now: number) {
   // Re-query at most every 10 minutes so trainings that finish drop out.
@@ -434,7 +434,7 @@ export function useOpenTrainings(now: number) {
       proposedByName: d.proposedByName ?? "Alguien",
       lastSlotAt: millis(d.lastSlotAt),
       confirmed: d.confirmed?.slotId
-        ? { slotId: d.confirmed.slotId, at: millis(d.confirmed.at), end: d.confirmed.end ? millis(d.confirmed.end) : undefined, place: d.confirmed.place ?? "", byName: d.confirmed.byName ?? "" }
+        ? { slotId: d.confirmed.slotId, at: millis(d.confirmed.at), end: d.confirmed.end ? millis(d.confirmed.end) : undefined, place: d.confirmed.place ?? "", byName: d.confirmed.byName ?? "", by: d.confirmed.by ?? undefined }
         : undefined,
     }),
   );
@@ -443,12 +443,14 @@ export interface TrainingVote {
   uid: string;
   slotIds: string[];
   name: string;
+  /** The voter's ficha (null: a member without one). */
+  playerId?: string | null;
 }
 export function useTrainingVotes(trainingId: string | undefined) {
   return useLiveQuery<TrainingVote>(
     trainingId ? `trainingVotes/${trainingId}` : null,
     (fb) => fb.collection(fb.db, "trainings", trainingId!, "votes"),
-    (uid, d) => ({ uid, slotIds: d.slotIds ?? [], name: d.name ?? "Miembro" }),
+    (uid, d) => ({ uid, slotIds: d.slotIds ?? [], name: d.name ?? "Miembro", playerId: d.playerId ?? null }),
   );
 }
 
