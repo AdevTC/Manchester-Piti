@@ -625,7 +625,7 @@ export function PlantillaPage() {
                   <p className="pl-big">{home.pi.title}</p>
                   <ol className="pl-podium" aria-label="El podio de goleadores">
                     {home.pi.steps.map((s) => (
-                      <li key={s.cls + s.place} className={`pl-step ${s.cls}`}>
+                      <li key={s.has ? s.id : `por-decidir-${s.place}`} className={`pl-step ${s.cls}`}>
                         {s.has ? (
                           <button type="button" className="pl-step__b" onClick={() => openPlayer(s.id, null, "temporada")} aria-label={s.label}>
                             <Shirt kit={kit} num={s.num} className="pl-step__shirt" />
