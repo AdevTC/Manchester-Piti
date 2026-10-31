@@ -79,21 +79,23 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await page.getByRole("link", { name: "Abrir el análisis en Estadísticas" }).click();
     await expect(page).toHaveURL(/\/estadisticas\/juego\?/);
     expect(new URL(page.url()).searchParams.get("partidos")).toBe(id);
-    await expect(page.locator(".nu-conn").getByRole("listitem").filter({ hasText: `${names[2]} → ${names[3]}` })).toContainText("1");
+    await expect(page.locator(".nx-conn").getByRole("listitem").filter({ hasText: `${names[2]} → ${names[3]}` })).toContainText("1");
     await expect(page.locator("body")).not.toContainText(privateQuote);
     // the catalogue grows in place; a statistic opens its card with its value and who did it
-    await page.getByRole("button", { name: /^Catálogo de estadísticas/ }).click();
+    await page.getByRole("button", { name: /^Catálogo · / }).click();
     await expect(page).toHaveURL(/\/estadisticas\/juego\/catalogo\?/);
     await page.getByRole("searchbox", { name: "Buscar estadística" }).fill("Pases intentados");
-    await page.locator(".nu-cat").getByRole("button", { name: /Pases intentados/ }).first().click();
+    await page.locator(".nx-catg").getByRole("button", { name: /Pases intentados/ }).first().click();
     const detail = page.getByRole("dialog", { name: /Pases intentados/ });
-    await expect(detail.locator(".nu-mt__v b")).toHaveText("2");
-    await expect(detail.locator(".nu-mt__v")).toContainText("Completo");
-    await expect(detail.locator(".nu-ev").getByRole("listitem")).toHaveCount(2);
-    await expect(detail.locator(".nu-ev")).toContainText(names[2]);
+    await expect(detail.locator(".nx-ficha__v b")).toHaveText("2");
+    await expect(detail.locator(".nx-ficha__v")).toContainText("Completo");
+    await expect(detail.locator(".nx-ev").getByRole("listitem")).toHaveCount(2);
+    await expect(detail.locator(".nx-ev")).toContainText(names[2]);
     await expect(detail).not.toContainText(privateQuote);
-    await detail.getByRole("button", { name: "Cerrar" }).click();
-    await page.getByRole("region", { name: "Una ficha para cada estadística" }).getByRole("button", { name: "Cerrar" }).click();
+    // (Esc: at 1280×720 the floating live score sits over the ficha's «Cerrar», reported apart)
+    await page.keyboard.press("Escape");
+    await expect(detail).toHaveCount(0);
+    await page.getByRole("region", { name: "Catálogo: una ficha para cada estadística" }).getByRole("button", { name: "Cerrar", exact: true }).click();
 
     // «Qué números ver»: both cards and tables follow the selected matches and player.
     const pick = async (name: RegExp) => {
@@ -102,26 +104,30 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
       await sheet.getByRole("button", { name }).click();
       await sheet.getByRole("button", { name: "Ver los números" }).click();
     };
-    const attempts = page.getByRole("list", { name: "Indicadores de la selección" }).getByRole("button", { name: /Pases intentados/ }).locator(".nu-fig__v");
+    const attempts = page.getByRole("list", { name: "Indicadores de la selección" }).getByRole("button", { name: /Pases intentados/ }).locator(".nx-gt2__v");
     await expect(attempts).toHaveText("2");
     await pick(new RegExp(otherRival));
     await expect(attempts).toHaveText("3");
     expect(new URL(page.url()).searchParams.get("partidos")).toBe(`${id},${otherId}`);
-    await pick(new RegExp(`^\\d+\\s*${names[2]}$`));
+    // (his button says his name; the shirt beside it is decorative)
+    await pick(new RegExp(`^${names[2]}$`));
     // (the address names him as the boards do: his name's word)
     expect(new URL(page.url()).searchParams.get("jugadores")).toBe(`marcos-${stamp}`);
     await page.reload();
     await expect(attempts).toHaveText("2");
     await page.getByRole("button", { name: /^Todos los números, a tu medida/ }).click();
     const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
-    await workspace.getByRole("button", { name: "Pases y creación", exact: true }).click();
-    await expect(workspace.getByRole("row", { name: /^Total de los jugadores seleccionados/ }).getByRole("cell").nth(1)).toHaveText("2");
+    await workspace.getByRole("group", { name: "Vistas de la mesa" }).getByRole("button", { name: "Pases y creación", exact: true }).click();
+    // (the total's label is a row header: cell 0 is the first column, «Pases intentados»)
+    await expect(workspace.getByRole("row", { name: /^Total de los jugadores seleccionados/ }).getByRole("cell").nth(0)).toHaveText("2");
     await expect(workspace).toContainText(names[2]);
-    await workspace.getByRole("button", { name: "Cerrar" }).click();
+    await workspace.getByRole("button", { name: "Cerrar", exact: true }).click();
 
     // the selection exported in JSON: the matches, the filters and the figures, never the private narration
+    await page.getByRole("button", { name: /^Exportar la selección/ }).click();
+    const exportSheet = page.getByRole("dialog", { name: "Exportar la selección" });
     const downloadReady = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Exportar la selección en JSON" }).click();
+    await exportSheet.getByRole("button", { name: "Descargar el JSON" }).click();
     const download = await downloadReady;
     expect(download.suggestedFilename()).toMatch(/^piti-estadisticas-.*\.json$/);
     const stream = await download.createReadStream();
@@ -134,11 +140,14 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     expect(exported.partidos.map((m: { id: string }) => m.id)).toEqual(expect.arrayContaining([id, otherId]));
     expect(exported.filtros.jugadores).toEqual([players[2]]);
     expect(String(exported.deUnVistazo.find((metric: { id: string }) => metric.id === "067").valor)).toBe("2");
+    // (Esc, as for the ficha: the floating live score covers the sheet's «Cerrar» here)
+    await page.keyboard.press("Escape");
+    await expect(exportSheet).toHaveCount(0);
     await page.setViewportSize({ width: 1440, height: 1050 });
-    await page.locator(".nu-screen").screenshot({ path: testInfo.outputPath("narrated-juego-desktop.png") });
+    await page.locator('section[aria-labelledby="nx-g-h"]').screenshot({ path: testInfo.outputPath("narrated-juego-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.locator(".nu-screen").screenshot({ path: testInfo.outputPath("narrated-juego-mobile.png") });
+    await page.locator('section[aria-labelledby="nx-g-h"]').screenshot({ path: testInfo.outputPath("narrated-juego-mobile.png") });
   } finally {
     try {
       for (const createdId of created) await callFunction(token, "deleteMatch", { id: createdId });

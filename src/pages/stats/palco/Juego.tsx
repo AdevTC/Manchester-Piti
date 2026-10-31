@@ -180,8 +180,9 @@ function Mesa({ p, g }: { p: JuegoProps; g: ReturnType<typeof juego> }) {
 function Catalogo({ p, g }: { p: JuegoProps; g: ReturnType<typeof juego> }) {
   const ct = catalogo(p.v, p.st);
   const batchKey = [ct.q, ct.x, ct.fams.find((f) => f.on)?.key, ct.items.length].join(":");
-  // (the next 24 load on their own near the end; «Ver 24 más» stays for whoever has no observer)
-  const sentinel = useProgressiveLoad(!ct.loading && !p.catalogLoad.error && ct.more, batchKey, ct.showMore);
+  // (the next 24 load on their own near the end; «Ver 24 más» stays for whoever has no observer. Paused while a sheet
+  // is open over it: a ficha opened from the cards must not load the next batch behind it)
+  const sentinel = useProgressiveLoad(!ct.loading && !p.catalogLoad.error && ct.more && !p.st.sheet, batchKey, ct.showMore);
   if (ct.loading) return <Wait t="Cargando el catálogo…" fail={p.catalogLoad.error ? "No ha llegado el catálogo." : null} retry={p.catalogLoad.retry} />;
   return (
     <>

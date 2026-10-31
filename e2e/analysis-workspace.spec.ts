@@ -80,13 +80,18 @@ function sample(observations: Observation[], playerId?: string) {
   return { attempts: passes.length, completed: passes.filter(o => o.facts.outcome === "complete").length };
 }
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-/** The row «Total del Piti» of «Todos los números, a tu medida» (its first column after the name). */
-const totalOf = (workspace: Locator, column: number) => workspace.getByRole("row", { name: /^Total (del Piti|de los jugadores seleccionados|del rival)/ }).getByRole("cell").nth(column);
+/** The row «Total del Piti» of «Todos los números, a tu medida» (its first column after the name: the label is a row
+ *  header, not a cell). */
+const totalOf = (workspace: Locator, column: number) => workspace.getByRole("row", { name: /^Total (del Piti|de los jugadores seleccionados|del rival)/ }).getByRole("cell").nth(column - 1);
+/** The table's player rows (the total is its foot). */
+const playerRows = (workspace: Locator) => workspace.getByRole("table", { name: "Todos los números, a tu medida" }).locator("tbody > tr");
+/** A quick view of the mesa, or «Personalizado». */
+const view = (workspace: Locator, name: string) => workspace.getByRole("group", { name: "Vistas de la mesa" }).getByRole("button", { name, exact: true });
 async function openTable(page: Page) {
   await page.getByRole("button", { name: /^Todos los números, a tu medida/ }).click();
   const workspace = page.getByRole("region", { name: "Todos los números, a tu medida" });
   await expect(workspace).toBeVisible();
-  await workspace.getByRole("button", { name: "Pases y creación", exact: true }).click();
+  await view(workspace, "Pases y creación").click();
   return workspace;
 }
 async function pickInScope(page: Page, name: RegExp) {
@@ -112,28 +117,28 @@ test("Números · El juego: De un vistazo, la tabla de trabajo con su total, los
     const cards = page.getByRole("list", { name: "Indicadores de la selección" });
     await expect(cards.getByRole("button")).toHaveCount(16);
     const attempts = cards.getByRole("button", { name: /Pases intentados/ });
-    await expect(attempts.locator(".nu-fig__v")).toHaveText(String(all.attempts));
-    await expect(attempts.locator(".nu-fig__st")).toHaveText("Completo");
+    await expect(attempts.locator(".nx-gt2__v")).toHaveText(String(all.attempts));
+    await expect(attempts.getByRole("img")).toHaveAccessibleName("Completo");
     // Quién conecta con quién: the pair that most often finds each other
-    await expect(page.locator(".nu-conn li").first()).toContainText("Pablo E2E → Dani");
+    await expect(page.locator(".nx-conn li").first()).toContainText("Pablo E2E → Dani");
     // The workspace grows in place with its own address; its total row is the narrated total
     const workspace = await openTable(page);
     await expect(page).toHaveURL(/\/estadisticas\/juego\/tabla\?/);
-    const rows = workspace.locator(".nu-ws__r:not(.nu-ws__r--h):not(.nu-ws__r--f)");
+    const rows = playerRows(workspace);
     await expect(rows).toHaveCount(f.participantCount);
     await expect(totalOf(workspace, 1)).toHaveText(String(all.attempts));
     await expect(totalOf(workspace, 2)).toHaveText(String(all.completed));
     // A custom table can clear or select all available columns regardless of the search.
-    await workspace.locator("summary").filter({ hasText: "Personalizado" }).click();
+    await view(workspace, "Personalizado").click();
     await workspace.getByRole("button", { name: "Quitar todas", exact: true }).click();
-    await expect(workspace.getByText("No hay columnas seleccionadas.", { exact: false })).toBeVisible();
+    await expect(workspace.getByText("No hay columnas elegidas", { exact: false })).toBeVisible();
     await expect.poll(() => new URL(page.url()).searchParams.get("columnas")).toBe("");
     await workspace.getByRole("searchbox", { name: "Buscar columna" }).fill("Precisión de pase");
-    await workspace.getByRole("button", { name: /^Seleccionar todas las disponibles/ }).click();
+    await workspace.getByRole("button", { name: /^Todas las que tienen datos/ }).click();
     expect(new URL(page.url()).searchParams.get("columnas")?.split(",").length).toBeGreaterThan(1);
     await workspace.getByRole("searchbox", { name: "Buscar columna" }).fill("");
-    await workspace.getByRole("button", { name: "Pases y creación", exact: true }).click();
-    await workspace.locator("summary").filter({ hasText: "Personalizado" }).click();
+    await view(workspace, "Pases y creación").click();
+    await view(workspace, "Personalizado").click();
     await workspace.screenshot({ path: testInfo.outputPath("analysis-table-1440.png") });
     await workspace.getByRole("button", { name: "Cerrar" }).click();
 
@@ -141,28 +146,28 @@ test("Números · El juego: De un vistazo, la tabla de trabajo con su total, los
       // another match of the period, picked in «Qué números ver», adds its pass
       await pickInScope(page, new RegExp(f.other.rival));
       expect(new URL(page.url()).searchParams.get("partidos")).toBe(`${f.id},${f.other.id}`);
-      await expect(attempts.locator(".nu-fig__v")).toHaveText(String(all.attempts + 1));
+      await expect(attempts.locator(".nx-gt2__v")).toHaveText(String(all.attempts + 1));
       await pickInScope(page, new RegExp(f.other.rival));
     }
-    // Selecting a player narrows both the cards and the table.
-    await pickInScope(page, new RegExp(`^\\d+\\s*${f.player.name}$`));
+    // Selecting a player narrows both the cards and the table (his button says his name; the shirt is decorative).
+    await pickInScope(page, new RegExp(`^${f.player.name}$`));
     const one = await openTable(page);
-    await expect(one.locator(".nu-ws__r:not(.nu-ws__r--h):not(.nu-ws__r--f)")).toHaveCount(1);
+    await expect(playerRows(one)).toHaveCount(1);
     await expect(totalOf(one, 1)).toHaveText(String(sample(f.observations, f.player.id).attempts));
     // the address keeps the screen and the selection
     await page.reload();
     const again = page.getByRole("region", { name: "Todos los números, a tu medida" });
-    await again.getByRole("button", { name: "Pases y creación", exact: true }).click();
+    await view(again, "Pases y creación").click();
     await expect(totalOf(again, 1)).toHaveText(String(sample(f.observations, f.player.id).attempts));
     await page.getByRole("region", { name: "Todos los números, a tu medida" }).getByRole("button", { name: "Cerrar" }).click();
     // The same player's passes, precision and network are scoped to the selected half.
     await page.getByRole("radiogroup", { name: "Parte" }).getByRole("radio", { name: "2ª parte" }).click();
     expect(new URL(page.url()).searchParams.get("parte")).toBe("2");
-    await expect(attempts.locator(".nu-fig__v")).toHaveText("1");
-    await expect(attempts.locator(".nu-fig__st")).toHaveText("Completo");
-    await expect(page.locator(".nu-conn li").first()).toContainText("Pablo E2E → Dani");
+    await expect(attempts.locator(".nx-gt2__v")).toHaveText("1");
+    await expect(attempts.getByRole("img")).toHaveAccessibleName("Completo");
+    await expect(page.locator(".nx-conn li").first()).toContainText("Pablo E2E → Dani");
     await page.getByRole("radiogroup", { name: "Parte" }).getByRole("radio", { name: "1ª parte" }).click();
-    await expect(attempts.locator(".nu-fig__v")).toHaveText("1");
+    await expect(attempts.locator(".nx-gt2__v")).toHaveText("1");
 
     for (const viewport of [{ width: 1440, height: 1050 }, { width: 375, height: 812 }]) {
       await page.setViewportSize(viewport);
@@ -218,21 +223,24 @@ test("Números · las gráficas conservan la mitad y la tabla personalizada cons
     await charts.getByRole("button", { name: "Cerrar", exact: true }).click();
     await page.getByRole("radiogroup", { name: "Parte" }).getByRole("radio", { name: "Todo" }).click();
     const workspace = await openTable(page);
-    await workspace.locator("summary").filter({ hasText: "Personalizado" }).click();
+    await view(workspace, "Personalizado").click();
     await workspace.getByRole("button", { name: "Quitar todas", exact: true }).click();
     await workspace.getByRole("searchbox", { name: "Buscar columna" }).fill("Precisión de pase");
-    await workspace.getByRole("checkbox", { name: /^Precisión de pase / }).check();
+    const precision = workspace.getByRole("group", { name: "Columnas", exact: true }).getByRole("button", { name: /^Precisión de pase\s*070/ });
+    await precision.click();
+    await expect(precision).toHaveAttribute("aria-pressed", "true");
     expect(new URL(page.url()).searchParams.get("columnas")).toBe("070");
     await page.reload();
-    const header = workspace.getByRole("columnheader", { name: "Ordenar por Precisión de pase" });
+    const header = workspace.getByRole("columnheader", { name: /^Precisión de pase$/ });
     await expect(header).toHaveAttribute("aria-sort", "descending");
-    const rows = workspace.locator(".nu-ws__r:not(.nu-ws__r--h):not(.nu-ws__r--f)");
-    await expect(rows.first().getByRole("cell").nth(1)).toHaveText("100%");
-    await expect(rows.last().getByRole("cell").nth(1)).toHaveText("-");
+    // (the player is the row header: cell 0 is the column)
+    const rows = playerRows(workspace);
+    await expect(rows.first().getByRole("cell").nth(0)).toHaveText("100%");
+    await expect(rows.last().getByRole("cell").nth(0)).toHaveText("–");
     await header.getByRole("button").click();
     await expect(header).toHaveAttribute("aria-sort", "ascending");
     await expect(rows.first()).toContainText("Marcos");
-    await expect(rows.last().getByRole("cell").nth(1)).toHaveText("-");
+    await expect(rows.last().getByRole("cell").nth(0)).toHaveText("–");
     expect(new URL(page.url()).searchParams.get("orden")).toBe("070");
     expect(new URL(page.url()).searchParams.get("sentido")).toBe("asc");
     await page.reload();
@@ -269,9 +277,10 @@ test("Números · varios partidos combinan sus reglas de pase en tabla y gráfic
     }
     await part.getByRole("radio", { name: "Todo", exact: true }).click();
     const dani = workspace.getByRole("row").filter({ hasText: /Dani/ });
-    await expect(dani.getByRole("cell").nth(1)).toHaveText("3");
-    await expect(dani.getByRole("cell").nth(2)).toHaveText("1");
-    await expect(dani.getByRole("cell").nth(4)).toHaveText("33,33%");
+    // (his name is the row header: cell 0 is the first column)
+    await expect(dani.getByRole("cell").nth(0)).toHaveText("3");
+    await expect(dani.getByRole("cell").nth(1)).toHaveText("1");
+    await expect(dani.getByRole("cell").nth(3)).toHaveText("33,33%");
     await workspace.getByRole("button", { name: "Cerrar", exact: true }).click();
 
     await page.getByRole("button", { name: /^Gráficas del juego/ }).click();
