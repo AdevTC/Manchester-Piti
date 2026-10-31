@@ -32,6 +32,11 @@
 @container nx (max-width:699px){.tup .tc-id>:is(.tc-todohead,.tc-todo,.tc-done,.tc-calm,.tc-idcard,.tc-reveal){justify-self:stretch;text-align:left}}
 
 /* «Lo que te toca» */
+/* (one explicit shrinkable column: an implicit «auto» track grows to the widest content — the convocatoria's
+   380px control — and the card, its title and the line beside the card ran off a 360–390 phone) */
+.tup .tc-id,.tup .tc-do__b{grid-template-columns:minmax(0,1fr)}
+.tup .tc-do__t,.tup .tc-do__s{overflow-wrap:anywhere}
+.tup .tc-do--lead .nx-seg{min-width:0}
 .tup .tc-todo--list{grid-template-columns:minmax(0,1fr)}
 .tup .tc-do .tk-tile{width:40px;height:40px;border-radius:13px}
 .tup .tc-do .tk-tile>.nx-ic{width:20px;height:20px}

@@ -71,7 +71,8 @@
 .tup .tc-back3__pv{display:grid;place-items:center;width:190px;aspect-ratio:540/600}
 .tup .tc-back3__img{display:block;width:100%;height:auto;filter:drop-shadow(0 16px 22px rgba(0,0,0,.4))}
 .tup .tc-back3__img.is-ghost{opacity:.45;filter:grayscale(1)}
-.tup .tc-kitseg{width:190px}
+/* (the old .tu-oseg min-width:260px made it wider than its 200px column, over the rules beside it) */
+.tup .tc-kitseg{width:100%;max-width:200px;min-width:0}
 .tup .tu-tee{position:relative;display:block;aspect-ratio:540/600;container-type:inline-size;color:#051330}
 .tup .tu-tee>img{display:block;width:100%;height:auto}
 .tup .tu-tee.k-away{color:#F5F5F5}
@@ -114,3 +115,6 @@
 
 /* Avisos: «A medida» keeps its own blocks; no extra frame around it. */
 .tup .tc-ajav{min-width:0}
+/* (its rows used the old page's `scr` container, absent here: each switch fell under its words, on the left) */
+.tup .tc-ajav .tu-topics li{grid-template-columns:auto minmax(0,1fr) auto}
+.tup .tc-ajav .tu-topics li>.vd-switch{grid-column:auto;justify-self:end}

@@ -13,6 +13,7 @@ import { ANSWER_SAID, type Answer } from "../../../bandeja/model";
 import type { CajaPend, PendingItem, PorraPend } from "../../usePending";
 import type { Say } from "../types";
 import { canChange, doneText, todoView } from "../tuView";
+import { niceName } from "../../../../../lib/derived/words";
 
 type Rsvp = Extract<Pend, { kind: "rsvp" }>;
 type Mvp = Extract<Pend, { kind: "mvp" }>;
@@ -40,9 +41,11 @@ export interface TodoCardsProps {
   calm?: string;
   /** The heading the list is labelled by. */
   labelledBy?: string;
+  /** After an answer is saved (la bandeja turns the notices it stands for read). */
+  onAnswered?: (x: PendingItem) => void;
 }
 
-export function TodoCards({ items, say, layout = "board", jornadaOf, calm, labelledBy }: TodoCardsProps) {
+export function TodoCards({ items, say, layout = "board", jornadaOf, calm, labelledBy, onAnswered }: TodoCardsProps) {
   // answered cards he chose to change (open again until he answers)
   const [editing, setEditing] = useState<ReadonlySet<string>>(() => new Set());
   // (the toast's «Deshacer» runs later: it reads the latest items, never a closure of the click's render)
@@ -62,7 +65,21 @@ export function TodoCards({ items, say, layout = "board", jornadaOf, calm, label
 
   const open = items.filter((x) => !x.done || editing.has(x.key));
   const done = items.filter((x) => x.done && !editing.has(x.key));
-  const card = (x: PendingItem) => <TodoCard key={x.key} x={x} say={say} now={now} settle={() => settle(x.key)} stillOf={stillOf} jornadaOf={jornadaOf} />;
+  // (every saved answer goes through settle: the card folds again and la bandeja hears of it)
+  const card = (x: PendingItem) => (
+    <TodoCard
+      key={x.key}
+      x={x}
+      say={say}
+      now={now}
+      settle={() => {
+        settle(x.key);
+        onAnswered?.(x);
+      }}
+      stillOf={stillOf}
+      jornadaOf={jornadaOf}
+    />
+  );
 
   return (
     <>
@@ -134,7 +151,7 @@ function TodoCard({ x, say, now, settle, stillOf, jornadaOf }: CardProps) {
         <div className="tc-do__ctl">
           {x.kind === "rsvp" && <RsvpCtl p={x} say={say} settle={settle} labelledBy={tid} />}
           {x.kind === "caja" && <CajaCtl p={x} say={say} />}
-          {x.kind === "turno" && <TurnoCtl p={x} say={say} now={now} />}
+          {x.kind === "turno" && <TurnoCtl p={x} say={say} now={now} settle={settle} />}
           {x.kind === "poll" && <PollCtl p={x} say={say} settle={settle} />}
           {x.kind === "porra" && <PorraCtl p={x} say={say} settle={settle} rivalLabel={v.title} />}
           {x.kind === "mvp" && <MvpCtl p={x} say={say} settle={settle} stillOf={stillOf} />}
@@ -178,14 +195,17 @@ function CajaCtl({ p, say }: { p: CajaPend; say: Say }) {
   );
 }
 
-function TurnoCtl({ p, say, now }: { p: Turno; say: Say; now: (key: string) => PendingItem | undefined }) {
+function TurnoCtl({ p, say, now, settle }: { p: Turno; say: Say; now: (key: string) => PendingItem | undefined; settle: () => void }) {
   const mark = () => {
     if (p.busy) return;
     const undo = () => {
       const cur = now(p.key);
       if (cur?.kind === "turno" && cur.done && !cur.busy) void cur.mark().then(() => say("Turno sin marcar."), quiet);
     };
-    p.mark().then(() => say("Turno hecho. Gracias.", undo), quiet);
+    p.mark().then(() => {
+      settle();
+      say("Turno hecho. Gracias.", undo);
+    }, quiet);
   };
   return (
     <button type="button" className="vd-glass vd-press nx-btn" aria-pressed={p.done} aria-disabled={p.busy || undefined} onClick={mark}>
@@ -268,17 +288,17 @@ function MvpCtl({ p, say, settle, stillOf }: { p: Mvp; say: Say; settle: () => v
             type="button"
             className="vd-glass vd-press tc-opt"
             aria-pressed={c.on}
-            aria-label={`Votar a ${c.name}, ${c.min} minutos`}
+            aria-label={`Votar a ${niceName(c.name)}, ${c.min} minutos`}
             onClick={() => {
               const prev = p.cands.find((x) => x.on);
               p.pick(c.id).then(() => {
                 settle();
-                say(`Votado: ${c.name}.`, prev && prev.id !== c.id ? () => void p.pick(prev.id).then(() => say(`Vuelve a ser ${prev.name}.`), quiet) : undefined);
+                say(`Votado: ${niceName(c.name)}.`, prev && prev.id !== c.id ? () => void p.pick(prev.id).then(() => say(`Vuelve a ser ${niceName(prev.name)}.`), quiet) : undefined);
               }, quiet);
             }}
           >
             {src ? <img className="tc-opt__shirt" src={src} alt="" /> : <span className="tc-opt__num" aria-hidden="true">{c.num}</span>}
-            {c.name}
+            {niceName(c.name)}
           </button>
         );
       })}

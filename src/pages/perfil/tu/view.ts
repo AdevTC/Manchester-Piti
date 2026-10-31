@@ -95,6 +95,6 @@ export function identityOf(d: ProfileData, kind: Kind, captain: boolean): Identi
     return { name, line: [c.number, c.posLong, nick].filter(Boolean).join(" · "), chips: [chip, ...(captain ? [{ t: "Capitán del vestuario", cls: "is-cap" }] : [])] };
   }
   const since = `${nick} · socio desde ${d.access.sinceText}`;
-  if (kind === "nuevo") return { name, line: since, chips: [d.ficha.state === "pendiente" ? { t: "Ficha pendiente", cls: "is-warn" } : { t: "Sin ficha todavía", cls: "" }] };
+  if (kind === "nuevo") return { name, line: since, chips: [d.ficha.state === "pendiente" ? { t: "Ficha pendiente", cls: "is-ok" } : { t: "Sin ficha todavía", cls: "" }] };
   return { name, line: since, chips: [{ t: "Socio del club", cls: "" }, ...(captain ? [{ t: "Capitán del vestuario", cls: "is-cap" }] : [])] };
 }

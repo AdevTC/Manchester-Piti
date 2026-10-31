@@ -363,6 +363,10 @@
 .tup .tp-ch__line{fill:none;stroke:var(--vd-celeste);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .tup .tp-ch__dot{fill:var(--vd-celeste)}
 .tup .tp-ch__gold{fill:var(--vd-oro)}
+.tup .tp-chart>svg path{vector-effect:non-scaling-stroke}
+@container nx (max-width:699px){.tup .tp-chart>svg{height:190px}}
+.tup .tp-ch__pt{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--vd-celeste);transform:translate(-50%,-50%);pointer-events:none}
+.tup .tp-ch__pt.is-gold{background:var(--vd-oro)}
 .tup .tp-ch__lab{display:flex;align-items:flex-end;justify-content:center;min-width:44px;min-height:44px;padding:0 4px 2px;border:0;background:none;border-radius:10px;transform:translate(-50%,calc(-100% - 7px));cursor:pointer}
 .tup .tp-ch__lab:hover{color:var(--vd-celeste-ink)}
 .tup .tc-chart__g{pointer-events:none}

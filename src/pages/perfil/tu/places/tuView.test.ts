@@ -85,7 +85,7 @@ describe("who he is", () => {
   it("a captain, a socio, a new account", () => {
     expect(idView({ ...o, captain: true }).chips.map((c) => c.t)).toContain("Capitán del vestuario");
     expect(idView({ ...o, kind: "socio" })).toMatchObject({ kick: "Tu página · socio", chips: [{ t: "Socio del club", cls: "is-ok" }] });
-    expect(idView({ ...o, kind: "nuevo", pendingClaim: true })).toMatchObject({ kick: "Tu página · ficha en camino", chips: [{ t: "Ficha pendiente", cls: "is-warn" }] });
+    expect(idView({ ...o, kind: "nuevo", pendingClaim: true })).toMatchObject({ kick: "Tu página · ficha en camino", chips: [{ t: "Ficha pendiente", cls: "is-ok" }] });
     expect(idView({ ...o, kind: "nuevo" }).chips[0].t).toBe("Sin ficha todavía");
   });
   it("before the season starts", () => {

@@ -12,6 +12,7 @@ import type { JornadaRow, Reward, Rewards, SeasonFigures, TierInfo } from "../me
 import type { PendingItem } from "../usePending";
 import type { Kind } from "../model";
 import { pl } from "../model";
+import { niceName } from "../../../../lib/derived/words";
 
 const TZ = "Europe/Madrid";
 /** «domingo 8 de noviembre». */
@@ -69,7 +70,7 @@ export function idView(o: {
     if (o.racha) chips.push({ t: "En racha", cls: "is-ok" });
   }
   if (o.kind === "socio") chips.push({ t: "Socio del club", cls: "is-ok" });
-  if (o.kind === "nuevo") chips.push(o.pendingClaim ? { t: "Ficha pendiente", cls: "is-warn" } : { t: "Sin ficha todavía", cls: "" });
+  if (o.kind === "nuevo") chips.push(o.pendingClaim ? { t: "Ficha pendiente", cls: "is-ok" } : { t: "Sin ficha todavía", cls: "" });
   if (o.captain) chips.push({ t: "Capitán del vestuario", cls: "" });
 
   const kick = o.kind === "jugador" ? `Tu página · ${o.seasonName}${o.lastJ ? `, tras la ${o.lastJ}` : ""}` : o.kind === "socio" ? "Tu página · socio" : o.pendingClaim ? "Tu página · ficha en camino" : "Tu página · sin ficha";
@@ -169,7 +170,7 @@ export function doneText(p: PendingItem): string | null {
       return p.saved ? `Porra: ${p.saved.gf}–${p.saved.ga}` : "Porra guardada";
     case "mvp": {
       const c = p.cands.find((x) => x.on);
-      return c ? `MVP: ${c.name}` : "MVP votado";
+      return c ? `MVP: ${niceName(c.name)}` : "MVP votado";
     }
     case "door":
       return null;

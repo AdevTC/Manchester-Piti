@@ -1,6 +1,6 @@
 // /avisos and /avisos/a-medida: la bandeja (TuCarta «avisos») — the head («5 cosas te tocan», what is unread,
 // «Marcar todo como leído» with «Deshacer»), the five filters with their counts (?ver=), «Te toca» first answered
-// in place with the same cards as Tú (Toca.tsx: usePending's items, la caja and the porra too), each match one
+// in place with Tú's own cards (TodoCards: usePending's items, la caja and the porra too), each match one
 // group (G/E/P and OUR score first), the vestuario by day, the season's fixture as ONE «Calendario: N jornadas
 // nuevas» that opens, and «Este móvil» at the side (its state, the shortcuts, the pause, the silenced matches, the
 // topics in Ajustes › Avisos) — and «A medida»: this device, the shortcuts, every topic, the pause, a test notice and
@@ -28,9 +28,9 @@ import { showTestNotice } from "../device";
 import { copyText } from "../fxRuntime";
 import { usePending, type PendingItem } from "../tu/usePending";
 import type { Say } from "../tu/places/types";
-import type { Inbox, StackView } from "./useInbox";
+import type { Inbox, Pend, StackView } from "./useInbox";
 import { noticeMenu, stackMenu } from "./menus";
-import { TocaList } from "./Toca";
+import { TodoCards } from "../tu/places/tu/TodoCards";
 import { useAvisoActions, type AvisoActions } from "./actions";
 import { useThisDevice, type ThisDevice } from "./device";
 import { PauseChips, PresetSeg } from "./deviceParts";
@@ -158,6 +158,10 @@ function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; 
   const list = !inbox.loading && !inbox.failed && !empty;
   const nextT = nextLine(inbox.next);
   const oneStack = one ? inbox.stackOf(one) : undefined;
+  const jOf = (id: string): number | null => {
+    const m = matches.find((x) => x.id === id);
+    return m ? jornadaOf(matches, m) : null;
+  };
 
   // «Marcar todo como leído» and its «Deshacer»: the ones unread then turn unread again
   const readsRef = useRef(inbox.reads);
@@ -261,7 +265,7 @@ function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; 
                     <h2 id="tc-ibt-h">{pendTitle(open)}</h2>
                     <p className="nx-meta">Contesta aquí: lo mismo que en tu página</p>
                   </div>
-                  <TocaList items={items} a={a} say={say} calm={nextT} />
+                  <TodoCards items={items} say={say} layout="list" jornadaOf={jOf} calm={nextT} labelledBy="tc-ibt-h" onAnswered={(x) => isPend(x) && a.answered(x)} />
                 </section>
               )}
               {stacks.map((x) => (
@@ -322,6 +326,9 @@ function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; 
     </>
   );
 }
+
+/** One of la bandeja's own items (it stands for notices: answered, they turn read). */
+const isPend = (p: PendingItem): p is Pend => "noticeIds" in p;
 
 /** «J2 · Pitutis». */
 const stackName = (x: StackView): string => `${x.j ? `J${x.j} · ` : ""}${x.rival}`;
@@ -407,7 +414,7 @@ function Row({ n, inbox, a }: { n: Notice; inbox: Inbox; a: AvisoActions }) {
 function CalRow({ cal, unread, open, onToggle, now }: { cal: ReturnType<typeof calendarBatch>; unread: boolean; open: boolean; onToggle: () => void; now: number }) {
   const n = cal.rows.length;
   return (
-    <li className={`tc-nt${unread ? " is-new" : ""}`}>
+    <li className={`tc-nt tc-nt--cal${unread ? " is-new" : ""}`}>
       <span className="tk-tile">
         <TuIcon name="cal" className="nx-ic" />
       </span>

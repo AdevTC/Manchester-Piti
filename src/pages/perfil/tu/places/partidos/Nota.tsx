@@ -15,13 +15,15 @@ export function NotaChart({ chart, rows, pick }: { chart: Chart; rows: readonly 
         <p className="nx-meta">Las notas congeladas de cada acta</p>
       </div>
       <div className="tc-chart tp-chart">
-        <svg viewBox="0 0 640 200" role="img" aria-label={chart.aria}>
+        {/* (it stretches to a readable height on a phone: the strokes keep their width, the dots are drawn on top) */}
+        <svg viewBox="0 0 640 200" preserveAspectRatio="none" role="img" aria-label={chart.aria}>
           <path className="tp-ch__grid" d={chart.grid} />
           {chart.avg && <path className="tp-ch__avg" d={chart.avg} />}
           {chart.line && <path className="tp-ch__line" d={chart.line} />}
-          {chart.dots && <path className="tp-ch__dot" d={chart.dots} />}
-          {chart.gold && <path className="tp-ch__gold" d={chart.gold} />}
         </svg>
+        {chart.labs.map((l) => (
+          <i key={l.left} className={`tp-ch__pt${l.t.endsWith("MVP") ? " is-gold" : ""}`} style={{ left: l.left, top: l.top }} aria-hidden="true" />
+        ))}
         {chart.labs.map((l, k) => {
           const x = played[k];
           return (

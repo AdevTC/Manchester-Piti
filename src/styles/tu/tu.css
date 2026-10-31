@@ -306,6 +306,9 @@
 
 /* the seal is never gold (gold is only our goals and the MVP): celeste/ink glass with the number and the words */
 .tup .tc-seal{background:var(--vd-celeste);color:var(--vd-marino);box-shadow:0 10px 24px -10px rgba(2,8,26,.6),inset 0 0 0 1px rgba(255,255,255,.35)}
+/* the same for every other «something waits on you» mark: the mini card's dot, the Tú tab's number */
+.tup .tc-mini>i{background:var(--vd-celeste)}
+.tup .tk-badge--warn{background:var(--vd-celeste);color:var(--vd-marino)}
 
 /* the shirts are the printed stills (an <img>), not the prototype's CSS shirt */
 .tup .tc-art>.tc-shirt{display:block;width:138px;height:auto;filter:drop-shadow(0 18px 24px rgba(0,0,0,.45))}

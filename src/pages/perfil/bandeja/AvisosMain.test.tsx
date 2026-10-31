@@ -95,20 +95,22 @@ describe("la bandeja", () => {
     expect(within(filt).getByRole("button", { name: "Todos, 8" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("«Te toca» answered in place with Tú's cards; what is done folds into a chip", () => {
+  it("«Te toca» answered in place with Tú's own cards (TodoCards); what is done folds into a chip", async () => {
     render(<AvisosMain say={say} />);
     const toca = screen.getByRole("heading", { name: "Te toca · 2" }).closest("section") as HTMLElement;
     expect(within(toca).getByRole("heading", { name: "¿Vas el domingo 8 a Red Demons?" }).closest("li")).toHaveClass("tc-do", "tc-do--lead");
     fireEvent.click(within(toca).getByRole("button", { name: "Voy" }));
     expect(state.pick).toHaveBeenCalledWith("yes");
-    expect(state.mark).toHaveBeenCalledWith(["conv"], true);
+    // (answered: the notices it stands for turn read)
+    await vi.waitFor(() => expect(state.mark).toHaveBeenCalledWith(["conv"], true));
+    await vi.waitFor(() => expect(say).toHaveBeenCalledWith("Apuntado: vas. El capitán ya lo ve.", undefined));
     expect(within(toca).getByText("Solo lo ves tú")).toBeInTheDocument();
     fireEvent.click(within(toca).getByRole("button", { name: "Ya la he pagado" }));
     expect(state.claim).toHaveBeenCalled();
     const done = within(toca).getByRole("list", { name: "Lo que ya has hecho" });
-    expect(done).toHaveTextContent("Te toca el agua: hecho");
-    fireEvent.click(within(done).getByRole("button", { name: /^Cambiar/ }));
-    expect(within(toca).getByRole("button", { name: "Hecho" })).toHaveAttribute("aria-pressed", "true");
+    expect(done).toHaveTextContent("Turno hecho: el agua");
+    // one list, like Tú's: never the board's two columns beside «Este móvil»
+    expect(within(toca).getAllByRole("list")[0]).toHaveClass("tc-todo", "tc-todo--list");
   });
 
   it("each match one group, OUR score first, its newest three; the fixture as ONE item that opens", () => {

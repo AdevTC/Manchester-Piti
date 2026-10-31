@@ -210,7 +210,8 @@ export interface Chart {
 }
 /** One x per completed jornada (played or not), y = the nota (3–10): the line breaks where he didn't play. */
 export function chartOf(rows: readonly JornadaRow[], f: SeasonFigures): Chart {
-  const W = 640, H = 200, x0 = 40, x1 = 620, top = 14, bot = 172, lo = 3, hi = 10;
+  // (x0 leaves the 6,0 · 7,0 · 8,0 labels their own column: the first nota's label never sits on them on a phone)
+  const W = 640, H = 200, x0 = 76, x1 = 620, top = 14, bot = 172, lo = 3, hi = 10;
   const past = rows.filter(done);
   const n = Math.max(2, past.length);
   const X = (i: number) => x0 + (i / Math.max(1, n - 1)) * (x1 - x0);

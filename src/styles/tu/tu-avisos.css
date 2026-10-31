@@ -30,6 +30,9 @@
 /* ── by hand ── */
 /* the page title (the prototype's h2 look on the page's h1) and the groups' headings (h2) in the kit's sans */
 .tup.tc-av .tc-head h1{font-family:var(--vd-sans)}
+/* (outside the Shell: the same room under the site's header as a place's masthead) */
+.tup.tc-av>.tc-head{padding-top:30px}
+@container nx (max-width:699px){.tup.tc-av>.tc-head{padding-top:14px}}
 .tup .tc-grp__h>h2{font-family:var(--vd-sans);font-size:18px;font-weight:700;letter-spacing:-.01em;color:var(--vd-ink-strong)}
 .tup .tc-grp--toca{margin-top:0}
 .tup .tc-ib__main{min-width:0}
@@ -43,6 +46,9 @@
 .tup .tc-nt__open:hover>b{text-decoration:underline;text-underline-offset:3px}
 .tup .tc-nt__open:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px;border-radius:6px}
 .tup .tc-nt__acts{display:flex;flex-wrap:wrap;gap:0 16px}
+/* (the calendar item has no «⋯»: its time keeps the column of the others) */
+.tup .tc-nt--cal>.tc-nt__w{margin-right:44px}
+@container nx (max-width:699px){.tup .tc-nt--cal>.tc-nt__w{margin-right:0}}
 .tup .tc-nt>.tu-nt__more{position:relative}
 .tup .tc-nt:has(.tu-pop),.tup .tc-grp:has(.tc-grp__h .tu-pop){position:relative;z-index:5}
 .tup .tk-tile--gold{background:rgba(242,208,75,.14);color:var(--vd-oro);box-shadow:inset 0 0 0 1px rgba(242,208,75,.3)}

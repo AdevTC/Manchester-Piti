@@ -34,7 +34,7 @@ export function PlaceNav({ tabs, current, onGo, gearBadge }: PlaceNavProps) {
               <small>{t.hint}</small>
             </span>
             {t.badge > 0 && (
-              <span className="tk-badge tk-badge--warn" aria-label={`${t.badge} por hacer`}>
+              <span className="tk-badge" aria-label={`${t.badge} por hacer`}>
                 {t.badge}
               </span>
             )}

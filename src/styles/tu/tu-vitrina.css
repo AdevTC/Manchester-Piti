@@ -80,10 +80,20 @@
 .tup .tc-cromos>li{flex:none;display:flex}
 .tup .tc-cr{cursor:pointer;min-height:44px}
 .tup .tc-cr>span{line-height:1.35}
+.tup .tc-cr>b{text-wrap:balance}
 .tup .tc-cr.is-gold{box-shadow:inset 0 0 0 2px var(--vd-oro)}
 .tup .tc-cr:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
 /* the scale without a rating yet: no «Tú, hoy» over it */
 .tup .tc-scale.is-empty{padding-top:0}
+/* the wall: one shrinkable column (a strip's content would widen an implicit track off the phone); on the phone
+   the pieces wrap in two columns instead of a sideways strip, and every line wraps */
+.tup .tc-wall{grid-template-columns:minmax(0,1fr)}
+.tup .tc-shelf__h>.nx-meta{min-width:0;overflow-wrap:anywhere}
+.tup .tc-pc>b,.tup .tc-pc__s{overflow-wrap:anywhere}
+@container nx (max-width:699px){
+.tup .tc-pcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:14px 10px}
+.tup .tc-pc{flex:none}
+}
 .tup .tc-st__t>span{overflow-wrap:anywhere}
 .tup .tv-shelf__empty{font-size:14.5px;color:var(--vd-ink2);padding:8px 0 4px}
 /* the album under the cromos */

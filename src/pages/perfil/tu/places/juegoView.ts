@@ -11,6 +11,7 @@ import { matchNotas, ratingMatches } from "../../../../lib/seasonRating";
 import { canSendPositions, positionsNudge, type PositionsInfo } from "../../profileData";
 import type { MeInput, JornadaRow, PartnerInfo, RankKey, RankRow } from "../me";
 import { pl } from "../model";
+import { niceName } from "../../../../lib/derived/words";
 
 const name = (c: PosCode) => POSITIONS[c].name;
 const dec = (n: number) => n.toFixed(1).replace(".", ",");
@@ -129,7 +130,7 @@ export function nudgeText(played: PlayerPositions | null, info: PositionsInfo | 
 /** One teammate's season numbers. */
 export interface SquadNumbers {
   id: string;
-  /** «Alcides» (his first name when nobody else in the squad shares it, else the shirt's name). */
+  /** «Evans»: his shirt's name read as a name (niceName), like the rest of the web. */
   name: string;
   num: string;
   minutos: number;
@@ -140,29 +141,20 @@ export interface SquadNumbers {
   nota: number | null;
 }
 
-const titled = (s: string) => s.toLocaleLowerCase("es").replace(/(^|[\s-])(\p{L})/gu, (_, a: string, b: string) => a + b.toLocaleUpperCase("es"));
-
 /** The season's squad with their numbers (the same tables me.ranksOf reads), by dorsal. */
 export function squadNumbers(i: Pick<MeInput, "playerId" | "seasonId" | "matches" | "players" | "seasons" | "mvpResults" | "standings" | "now">): SquadNumbers[] {
   const squadP = seasonPlayers(i.players, i.seasonId, i.seasons, i.playerId);
   const { squad, games } = seasonSquad(squadP, i.matches, i.seasonId, i.mvpResults, i.now, i.standings);
   const noteOf = matchNotas(ratingMatches(games), i.standings);
-  const first = new Map(i.players.map((p) => [p.id, (p.firstName ?? "").trim()]));
-  const firstCount = new Map<string, number>();
-  for (const c of squad.list) {
-    const f = first.get(c.id)?.toLocaleLowerCase("es");
-    if (f) firstCount.set(f, (firstCount.get(f) ?? 0) + 1);
-  }
   return squad.list
     .map((c): SquadNumbers => {
       const ns = games.flatMap((m) => {
         const n = noteOf(m.id, c.id)?.nota;
         return typeof n === "number" ? [n] : [];
       });
-      const f = first.get(c.id) ?? "";
       return {
         id: c.id,
-        name: f && firstCount.get(f.toLocaleLowerCase("es")) === 1 ? f : titled(c.name),
+        name: niceName(c.name),
         num: c.num ? String(c.num) : "",
         minutos: Math.round(c.stats.minutes ?? 0),
         partidos: c.stats.played ?? 0,

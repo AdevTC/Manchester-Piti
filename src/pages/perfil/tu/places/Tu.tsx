@@ -181,7 +181,7 @@ function Petition(p: PlaceProps) {
         <p className="tk-card__k">Tu petición</p>
         <h3>{title}</h3>
         <p>
-          <span className="tk-st is-warn">Pendiente del capitán</span> Te avisamos en cuanto conteste: en la campana y, si lo tienes activado, en el móvil.
+          <span className="tk-st is-ok">Pendiente del capitán</span> Te avisamos en cuanto conteste: en la campana y, si lo tienes activado, en el móvil.
         </p>
         <div className="tk-acts">
           <button type="button" className="vd-glass vd-press nx-btn nx-btn--pri" onClick={openPetition}>
@@ -196,7 +196,7 @@ function Petition(p: PlaceProps) {
             <div>
               <p className="tc-pet__t">{title}</p>
               <p className="nx-meta">
-                <span className="tk-st is-warn">Pendiente del capitán</span>
+                <span className="tk-st is-ok">Pendiente del capitán</span>
               </p>
             </div>
           </div>
