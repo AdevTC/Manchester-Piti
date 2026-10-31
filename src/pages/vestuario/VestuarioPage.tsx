@@ -316,7 +316,11 @@ export function VestuarioPage() {
       if (on && roomsNav.current) roomsNav.current.scrollLeft = Math.max(0, on.offsetLeft - 12);
     }
     if (prev === undefined || prev === blk) return;
-    if (blk) document.getElementById(ROOM_TITLE_ID)?.focus({ preventScroll: true });
+    // (a room that moved the focus itself — the poll of /vestuario/encuestas/<id> — keeps it: the title takes it only
+    // from the page, the door just gone or the room bar)
+    const at = document.activeElement;
+    const free = !at || at === document.body || !!at.closest(".ve-bar");
+    if (blk && free) document.getElementById(ROOM_TITLE_ID)?.focus({ preventScroll: true });
     else if (prev) hubRef.current?.querySelector<HTMLElement>(`[data-room="${prev}"]`)?.focus({ preventScroll: true });
   }, [blk]);
 

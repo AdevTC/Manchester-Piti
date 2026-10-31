@@ -9,7 +9,7 @@ import { useBoard } from "../live";
 import { useWrite } from "../shared/useWrite";
 import { deleteBoardMessage, postBoardMessage } from "../writes";
 import type { VxCtx } from "./ctx";
-import { Ic, PShirt, RoomHead } from "./kit";
+import { Ic, PShirt, ROOM_TITLE_ID, RoomHead } from "./kit";
 import { ago, congrats, TABLON_MAX, TABLON_QUICK, tablonHead, tablonWall, weekCount } from "./tablonModel";
 
 export function TablonBlock({ c }: { c: VxCtx }) {
@@ -60,6 +60,9 @@ export function TablonBlock({ c }: { c: VxCtx }) {
   };
   const remove = (id: string) => {
     setAsking(null);
+    // (its «Borrar» goes with it: the focus waits on the room's title, which says the wall's news — not on the
+    // composer, which would open the phone's keyboard)
+    document.getElementById(ROOM_TITLE_ID)?.focus({ preventScroll: true });
     act.write(() => deleteBoardMessage(id), () => c.say("Mensaje borrado."));
   };
 
