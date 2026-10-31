@@ -1,0 +1,125 @@
+/* «El vestuario» · La puerta: las pestañas, quién llama con la camiseta que pide, el pase de túnel, quién está dentro y el túnel dibujado (ported from SalaPuerta.dc.html) */
+.vst .vpu-push{--vd-r:999px;display:inline-flex;align-items:center;padding:4px 18px 4px 10px;color:var(--vd-g-ink)}
+.vst .vpu-push>.ve-tog{color:var(--vd-g-ink)}
+.vst .vpu-tabs{width:100%;height:56px;margin-bottom:22px}
+.vst .vpu-tabs>.vd-seg__b{font-size:15px}
+.vst .vpu-tabs>.vd-seg__b[aria-selected="true"]{color:var(--vd-g-ink);font-weight:740}
+.vst .vpu-panel{display:grid;gap:14px;min-width:0}
+.vst .vpu-panel:focus-visible{outline-offset:6px;border-radius:12px}
+.vst .vpu-lead{font-size:14.5px;line-height:1.5;color:var(--vd-ink2);max-width:62ch}
+.vst .vpu-lead>b{color:var(--vd-ink-strong)}
+.vst .vpu-knocks{display:grid;gap:14px}
+.vst .vpu-knock{display:grid;gap:16px}
+.vst .vpu-who{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px}
+.vst .vpu-who__t{display:grid;gap:2px;min-width:0}
+.vst .vpu-who__t>b{font-size:17px;font-weight:720;color:var(--vd-g-ink);overflow-wrap:anywhere}
+.vst .vpu-who__t>span{font-size:13px;color:var(--vd-g-ink2);overflow-wrap:anywhere}
+.vst .vpu-who>small{font-size:12.5px;color:var(--vd-g-ink2);white-space:nowrap;align-self:start;padding-top:4px}
+.vst .vpu-av{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:780;font-size:15px;letter-spacing:.02em;color:var(--vd-celeste-ink);background:rgba(108,171,221,.16);box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.55)}
+.vst .vpu-av>small{font-size:inherit}
+.vst .vpu-ask{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:16px;padding:14px 16px;border-radius:20px;background:rgba(3,8,22,.22);box-shadow:inset 0 0 0 1px var(--vd-rule)}
+:root[data-theme="light"] .vst .vpu-ask{background:rgba(255,255,255,.55)}
+.vst .vpu-ask>.vd-shirt{--s:72px}
+.vst .vpu-ask__t{display:grid;gap:3px;min-width:0}
+.vst .vpu-ask__t>small{font-size:12.5px;font-weight:660;color:var(--vd-g-ink2)}
+.vst .vpu-ask__t>b{font-size:30px;line-height:1.02;font-weight:760;letter-spacing:-.024em;font-variation-settings:'wdth' 96;color:var(--vd-g-ink)}
+.vst .vpu-ask__t>span{font-size:13.5px;line-height:1.4;color:var(--vd-g-ink2)}
+.vst .vpu-none{opacity:.45;filter:grayscale(.7)}
+.vst .vpu-ctl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px 16px}
+.vst .vpu-ctl .ve-lab{color:var(--vd-g-ink2)}
+.vst .vpu-btns{display:flex;gap:10px}
+.vst .vpu-btns>.nx-btn{min-height:48px;padding:0 22px}
+.vst .vpu-btns>.nx-btn--pri{min-width:132px}
+.vst .vpu-make{display:grid;gap:16px}
+.vst .vpu-make__row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,250px);gap:14px;align-items:end}
+.vst .vpu-make .ve-lab{color:var(--vd-g-ink2)}
+.vst .vpu-uses{width:100%;height:48px;margin:0}
+.vst .vpu-uses>.vd-seg__b[aria-checked="true"]{color:var(--vd-g-ink);font-weight:720}
+.vst .vpu-make__go{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.vst .vpu .vpu-make__go>p{font-size:13.5px;color:var(--vd-g-ink2)}
+.vst .vpu-tk{--cut:112px;position:relative;display:grid;grid-template-columns:var(--cut) minmax(0,1fr);min-height:150px;border-radius:20px;color:var(--vd-g-ink);
+  background:linear-gradient(120deg,rgba(159,208,242,.26),rgba(108,171,221,.1) 42%,rgba(12,23,51,.42));box-shadow:inset 0 0 0 1px rgba(159,208,242,.42);
+  -webkit-mask:radial-gradient(circle 11px at var(--cut) 0,transparent 97%,#000) top/100% 51% no-repeat,radial-gradient(circle 11px at var(--cut) 100%,transparent 97%,#000) bottom/100% 51% no-repeat;
+  mask:radial-gradient(circle 11px at var(--cut) 0,transparent 97%,#000) top/100% 51% no-repeat,radial-gradient(circle 11px at var(--cut) 100%,transparent 97%,#000) bottom/100% 51% no-repeat}
+:root[data-theme="light"] .vst .vpu-tk{background:linear-gradient(120deg,rgba(255,255,255,.95),rgba(225,239,251,.9) 50%,rgba(196,222,244,.85));box-shadow:inset 0 0 0 1px rgba(44,106,158,.35)}
+.vst .vpu-tk__stub{display:grid;justify-items:center;align-content:center;gap:6px;padding:14px 8px;border-right:2px dashed rgba(159,208,242,.5)}
+:root[data-theme="light"] .vst .vpu-tk__stub{border-right-color:rgba(44,106,158,.35)}
+.vst .vpu-tk__stub>.vd-shirt{--s:54px}
+.vst .vpu-tk__stub>small{font-size:11px;font-weight:720;letter-spacing:.04em;color:var(--vd-g-ink2);text-align:center}
+.vst .vpu-tk__body{display:grid;align-content:center;gap:8px;padding:16px 18px;min-width:0}
+.vst .vpu-tk__k{font-size:12px;font-weight:700;color:var(--vd-celeste-ink)}
+.vst .vpu-tk__body>b{font-size:22px;line-height:1.1;font-weight:740;letter-spacing:-.015em}
+.vst .vpu .vpu-tk__dl{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:13px;color:var(--vd-g-ink2)}
+.vst .vpu-tk__dl>span>b{color:var(--vd-g-ink);font-weight:680}
+.vst .vpu-tk__url{display:block;padding:8px 10px;border-radius:10px;background:rgba(3,8,22,.4);font:600 12.5px/1.4 var(--vd-mono);color:var(--vd-g-ink);overflow-wrap:anywhere;user-select:all}
+:root[data-theme="light"] .vst .vpu-tk__url{background:rgba(12,23,51,.07)}
+.vst .vpu-tk--blank{grid-template-columns:minmax(0,1fr);min-height:96px;place-items:center;-webkit-mask:none;mask:none;background:none;box-shadow:none;border:1.5px dashed var(--vd-rule2);font-size:14px;color:var(--vd-g-ink2);text-align:center;padding:16px}
+.vst .vpu-share{display:flex;flex-wrap:wrap;gap:10px}
+.vst .vpu .vpu-msg{font-size:13.5px;line-height:1.5;color:var(--vd-g-ink2);padding-left:12px;box-shadow:inset 2px 0 0 var(--vd-rule2)}
+.vst .vpu-msg>b{color:var(--vd-g-ink);font-weight:660}
+.vst .vpu-passes{display:grid;gap:12px}
+.vst .vpu-pass{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+.vst .vpu-pass>.vpu-tk{min-height:112px}
+.vst .vpu-pass .vpu-tk__body>b{font-size:18px}
+.vst .vpu-pass .vpu-tk__stub>.vd-shirt{--s:40px}
+.vst .vpu-in .vd-shirt{--s:36px}
+.vst .vpu-in>.ve-row{grid-template-columns:auto minmax(0,1fr) auto}
+.vst .vpu-in>.ve-row>.ve-confirm{grid-column:1/-1}
+.vst .vpu-in .ve-row__t>span{color:var(--vd-ink2)}
+.vst .vpu-in .nx-btn{min-height:44px;padding:0 16px;font-size:13.5px}
+.vst .vpu-in__mine{font-size:12.5px;color:var(--vd-ink2);white-space:nowrap}
+.vst .vpu-new{color:var(--vd-celeste-ink);font-weight:700}
+.vst .vpu-in>.ve-row.is-fresh>.ve-row__t>span{color:var(--vd-celeste-ink);font-weight:620}
+.vst .vpu-tun{position:relative;height:230px;border-radius:20px;overflow:hidden;
+  background:radial-gradient(42% 46% at 50% 54%,rgba(159,208,242,.42),rgba(108,171,221,.12) 48%,transparent 72%),linear-gradient(180deg,rgba(3,8,22,.55),rgba(8,18,39,.15) 70%,rgba(60,110,90,.18));box-shadow:inset 0 0 0 1px var(--vd-rule)}
+:root[data-theme="light"] .vst .vpu-tun{background:radial-gradient(42% 46% at 50% 54%,rgba(255,255,255,.95),rgba(196,222,244,.5) 48%,transparent 72%),linear-gradient(180deg,rgba(12,23,51,.16),rgba(12,23,51,.04) 70%,rgba(60,130,90,.12))}
+.vst .vpu-tun>i{position:absolute;left:50%;bottom:0;transform:translateX(-50%);border:1.5px solid rgba(159,208,242,.55);border-bottom:0;border-radius:50% 50% 0 0/42% 42% 0 0}
+:root[data-theme="light"] .vst .vpu-tun>i{border-color:rgba(44,106,158,.4)}
+.vst .vpu-tun>i:nth-child(1){width:94%;height:97%;opacity:.95}
+.vst .vpu-tun>i:nth-child(2){width:74%;height:80%;opacity:.75}
+.vst .vpu-tun>i:nth-child(3){width:56%;height:65%;opacity:.6}
+.vst .vpu-tun>i:nth-child(4){width:40%;height:52%;opacity:.45}
+.vst .vpu-tun>i:nth-child(5){width:26%;height:41%;opacity:.35;border-style:dashed}
+.vst .vpu-tun__in{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:2px;text-align:center}
+.vst .vpu-tun__in>b{font-size:34px;line-height:1;font-weight:790;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
+.vst .vpu-tun__in>span{font-size:12px;font-weight:680;color:var(--vd-ink2)}
+.vst .vpu-tun__q{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;align-items:center;gap:8px}
+.vst .vpu-tun__q>.vpu-av{width:38px;height:38px;font-size:12.5px;background:var(--vd-solid);animation:vpu-knock 2.4s var(--vd-ease) infinite}
+.vst .vpu-tun__q>.vpu-av:nth-child(2){animation-delay:.4s}
+.vst .vpu-tun__l{font-size:12.5px;font-weight:660;color:var(--vd-ink2);padding:5px 10px;border-radius:999px;background:var(--vd-solid)}
+.vst .vpu-figs{margin-top:16px}
+.vst .vpu-figs>.ve-fig>b{font-size:28px}
+.vst .vpu-how{display:grid;gap:10px;margin-top:4px}
+.vst .vpu-how>li{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;font-size:14px;line-height:1.4;color:var(--vd-ink)}
+.vst .vpu-how .ve-tile{width:36px;height:36px;border-radius:11px}
+.vst .vpu-how .ve-tile>.nx-ic{width:17px;height:17px}
+.vst .vpu-how b{font-weight:680}
+.vst .vpu-rule{margin-top:14px!important}
+/* (by hand) the panels stay mounted (Invitar keeps its new link across tabs): a hidden one is not drawn */
+.vst .vpu-panel[hidden]{display:none}
+/* (by hand) the decision waiting its 5 seconds, with «Deshacer»: today's undo, in the room */
+.vst .vpu-undo{--vd-r:20px;display:flex;align-items:center;gap:10px;padding:6px 10px 6px 16px;font-size:14px;line-height:1.35;font-weight:620;color:var(--vd-g-ink)}
+.vst .vpu-undo>.nx-ic{width:18px;height:18px;flex:none;color:var(--vd-celeste)}
+.vst .vpu-undo>span{flex:1;min-width:0}
+.vst .vpu-undo>.nx-lnk{min-height:44px;flex:none}
+@container nx (max-width:699px){
+.vst .vpu-tabs{height:52px;margin-bottom:18px}
+.vst .vpu-tabs>.vd-seg__b{font-size:13.5px;padding:0 4px}
+.vst .vpu-ask>.vd-shirt{--s:58px}
+.vst .vpu-ask__t>b{font-size:24px}
+.vst .vpu-ctl{grid-template-columns:minmax(0,1fr)}
+.vst .vpu-btns>.nx-btn{flex:1}
+.vst .vpu-make__row{grid-template-columns:minmax(0,1fr)}
+.vst .vpu-tk{--cut:88px}
+.vst .vpu-tk__stub>.vd-shirt{--s:44px}
+.vst .vpu-tk__body{padding:14px 14px}
+.vst .vpu-tk__body>b{font-size:19px}
+.vst .vpu-share>.nx-btn{flex:1}
+.vst .vpu-pass{grid-template-columns:minmax(0,1fr)}
+.vst .vpu-pass>.nx-btn{justify-self:start}
+.vst .vpu-tun{height:200px}
+}
+@media (prefers-reduced-motion:reduce){
+.vst .vpu-tun__q>.vpu-av{animation:none}
+}
+@keyframes vpu-knock{0%,100%{box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.6),0 0 0 0 rgba(108,171,221,.45)}50%{box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.9),0 0 0 7px rgba(108,171,221,0)}}
