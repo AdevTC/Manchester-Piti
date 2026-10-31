@@ -20,3 +20,48 @@
 .tup .tc-bar>i{display:block;height:100%;border-radius:999px;background:var(--vd-celeste)}
 
 /* ── by hand ── */
+/* the stage's side: the identity's cards (petition, «¿Juegas en el Piti?»), the reveal */
+.tup .tc-idcard{margin-top:14px}
+.tup .tc-idcard p .tk-st{margin-right:6px}
+.tup .tc-reveal{--vd-r:20px;display:flex;align-items:flex-start;gap:12px;margin-top:10px;padding:14px 16px;font-size:14.5px;line-height:1.45;color:var(--vd-g-ink)}
+.tup .tc-reveal>.nx-ic{flex:none;width:22px;height:22px;color:var(--vd-celeste)}
+.tup .tc-reveal b{color:var(--vd-g-ink)}
+.tup .tc-id>h1:focus{outline:none}
+.tup .tc-id>h1:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:4px;border-radius:6px}
+/* (the phone centres who he is; the cards and the lists under it read from the left, full width) */
+@container nx (max-width:699px){.tup .tc-id>:is(.tc-todohead,.tc-todo,.tc-done,.tc-calm,.tc-idcard,.tc-reveal){justify-self:stretch;text-align:left}}
+
+/* «Lo que te toca» */
+.tup .tc-todo--list{grid-template-columns:minmax(0,1fr)}
+.tup .tc-do .tk-tile{width:40px;height:40px;border-radius:13px}
+.tup .tc-do .tk-tile>.nx-ic{width:20px;height:20px}
+.tup .tc-do__err{margin-top:8px;font-size:13.5px;font-weight:620;color:var(--vd-amarilla)}
+:root[data-theme="light"] .tup .tc-do__err{color:#7a5a00}
+.tup .tc-opts{display:flex;flex-wrap:wrap;gap:8px}
+.tup .tc-opt>.nx-ic{width:16px;height:16px}
+.tup .tc-opt__shirt{display:block;width:26px;height:auto}
+.tup .tc-opt__num{display:grid;place-items:center;min-width:26px;height:26px;border-radius:8px;font-size:12px;font-weight:780;box-shadow:inset 0 0 0 1px var(--vd-rule2)}
+.tup .tc-do .nx-btn[aria-disabled="true"],.tup .tc-step>button[aria-disabled="true"]{opacity:.45;cursor:default}
+.tup .tc-do .nx-btn[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--vd-celeste)}
+/* la porra: one row per team (its name, − n +), then «Guardar pronóstico» — never cut in half on a phone */
+.tup .tc-porra{display:grid;gap:8px;width:100%}
+.tup .tc-porra>.tc-step{display:grid;grid-template-columns:minmax(0,8em) 44px 34px 44px;align-items:center;gap:6px}
+.tup .tc-porra>.tc-step>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
+.tup .tc-porra>.nx-btn{justify-self:start;margin-top:4px}
+.tup .tc-calm .tk-tile{width:40px;height:40px}
+.tup .tc-calm .tk-tile>.nx-ic{width:20px;height:20px}
+
+/* under the bar */
+.tup .tc-tri__big--sm{font-size:30px}
+@container nx (max-width:699px){.tup .tc-tri__big--sm{font-size:26px}}
+.tup .tc-tri .nx-links{margin-top:2px}
+
+/* the sheets («De qué está hecho», the petition): in the body, inside a .tup wrapper (no container there: the
+   phone is a media query) */
+.tu-shroot .tc-sh__p{font-size:14.5px;line-height:1.5}
+.tu-shroot .tc-big>.nx-meta{max-width:46ch}
+.tu-shroot .tc-pet__shirt{display:block;width:70px;height:auto}
+.tu-shroot .tc-pet__t{font-size:20px;font-weight:720;line-height:1.2}
+.tu-shroot .nx-btn--danger{background:rgba(240,138,126,.18);color:var(--vd-g-ink);box-shadow:inset 0 0 0 1.5px rgba(240,138,126,.6)}
+.tu-shroot .nx-btn[aria-disabled="true"],.tu-shroot .nx-lnk[aria-disabled="true"]{opacity:.5;cursor:default}
+@media (max-width:699px){.tu-shroot .tc-mrow{grid-template-columns:minmax(0,1fr) 64px 54px}}
