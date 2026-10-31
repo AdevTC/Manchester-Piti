@@ -366,6 +366,11 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         pts: m.st === "apl" ? "aplazado" : m.st === "live" ? "en directo" : "por jugar", unit: "", w: 0, at: "", href: `/partidos/${m.id}`,
       })),
   );
+  // «El palco»: who scored in each match with a score (la cinta's jornada card), whatever the filters cut
+  const who: Record<string, string> = {};
+  se.matches.forEach((m) => {
+    if (m.gf != null) who[m.id] = m.goals.length ? m.goals.map((g) => `${ND.name(g[0])} ${g[2]}′`).join(", ") : "Sin goles del Piti";
+  });
   const champ = se.closed && hasTable ? tbl[0] : null;
   const mvpTop = ND.ranked(
     rsAll.filter((r) => r.mvp),
@@ -450,7 +455,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     rows: focusRows, all: tbl.map(trow), n: tbl.length, more: tbl.length > 8, seeAll: `Ver la tabla entera (${tbl.length})`, summary: `${tbl.length} equipos; vas ${pos}`,
     journey, recent: journey.slice(-5).reverse(), hasRecent: journey.length > 1,
     journeyT: `Jornada a jornada, hasta la J${upto}`, journeySub: `La liga guarda su tabla al día; tras la J${upto} llevábamos ${T.pts} puntos.`,
-    calendar, calT: "Nuestra temporada, jornada a jornada",
+    calendar, calT: "Nuestra temporada, jornada a jornada", who,
     calSub: `La liga aún no ha publicado la clasificación. En cuanto el capitán la suba, aquí verás la tabla, «si acaba así» durante los partidos y «¿Y si…?». Mientras, nuestro calendario: ${played.length} jugada${played.length === 1 ? "" : "s"} y ${toPlay.length} por jugar.`,
     form, hasForm: form.length > 0, kpis, mvpLine, said: said.slice(0, 5), hasSaid: said.length > 0,
     champ: !!champ, champT: champ ? `${champ.us ? "¡Campeones! " : "Campeón: "}${champ.team}, ${champ.pts} puntos.` : "",
@@ -471,7 +476,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         ? `Más jornadas en cabeza: ${ND.name(leadTop)} (${lead[leadTop]})`
         : nScorers <= 1 && played.length <= 1
           ? "Con una jornada, la carrera acaba de empezar: cada gol moverá las filas."
-          : "Arrastra la moviola: las filas se reordenan solas.",
+          : "Repasa la temporada en la cinta: las filas se reordenan solas.",
     raceSR: `La carrera de ${raceLabel} tras la J${upto}: ${rk
       .slice(0, 5)
       .map((r) => `${r.rank}º ${r.name}, ${r.val}`)
@@ -1221,6 +1226,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     indRec: [indRow("Más goles en un partido", rec.ind.goals, ""), indRow("Más asistencias en un partido", rec.ind.asis, ""), indRow("Más goles y asistencias", rec.ind.ga, ""), indRow("Gol más temprano", rec.ind.early, "′")],
     multi, hasMulti: multi.length > 0, multiNone: multi.length ? "" : "Nadie ha marcado dos en un partido todavía: el primer doblete aparecerá aquí.",
     cromos: colF.map((c, i) => ({ ...c, key: `${c.title}-${i}` })),
+    /** The whole collection, whatever «Qué cromos ver» shows: «3 de 10 conseguidos». */
+    cromoGot: col.filter((c) => c.got).length, cromoN: col.length,
     cromoOpts: (
       [
         ["todos", "Todos"],
