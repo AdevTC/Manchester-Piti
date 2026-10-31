@@ -1,0 +1,104 @@
+/* «El vestuario» · Entrenos: el entreno fijado como un billete, los huecos con su hoja de calendario y su barra de votos, los huecos fantasma y el formulario (ported from SalaEntrenos.dc.html) */
+.vst .vet-tk{--vd-r:32px;display:grid;grid-template-columns:200px minmax(0,1fr);padding:0;overflow:hidden;color:var(--vd-g-ink)}
+.vst .vet-tk__stub{display:grid;align-content:center;justify-items:center;gap:2px;padding:28px 16px;background:linear-gradient(180deg,rgba(108,171,221,.24),rgba(108,171,221,.08));border-right:2px dashed var(--vd-rule2);text-align:center}
+.vst .vet-tk__dow{font-size:15px;font-weight:760;letter-spacing:.08em;text-transform:uppercase;color:var(--vd-celeste-ink)}
+.vst .vet-tk__d{font-size:104px;line-height:.9;font-weight:800;letter-spacing:-.05em;font-variation-settings:'wdth' 104;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
+.vst .vet-tk__mon{font-size:17px;font-weight:720;letter-spacing:.06em;text-transform:uppercase;color:var(--vd-g-ink)}
+.vst .vet-tk__hr{margin-top:12px!important;font-size:13px;font-weight:650;color:var(--vd-g-ink2)}
+.vst .vet-tk__main{display:grid;gap:18px;padding:26px 28px 28px;min-width:0}
+.vst .vet-tk__k{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.vst .vet-tk__time{font-size:52px;line-height:1;font-weight:780;letter-spacing:-.035em;font-variation-settings:'wdth' 106;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
+.vst .vet-tk__place{display:flex;align-items:center;gap:8px;margin-top:8px!important;font-size:18px;font-weight:660;color:var(--vd-g-ink)}
+.vst .vet-tk__place>.nx-ic{width:20px;height:20px;color:var(--vd-celeste-ink)}
+.vst .vet-tk__by{margin-top:6px!important;font-size:13.5px!important;color:var(--vd-g-ink2)}
+.vst .vet-ask{display:grid;gap:10px;padding:16px;border-radius:20px;background:rgba(234,243,252,.05);box-shadow:inset 0 0 0 1px var(--vd-rule)}
+:root[data-theme="light"] .vst .vet-ask{background:rgba(255,255,255,.45)}
+.vst .vet-ask__h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.vst .vet-ask__h>:is(h2,h3){font-size:18px!important;font-weight:700;color:var(--vd-g-ink)}
+.vst .vet-ask .vd-seg{margin-top:0;max-width:420px}
+.vst .vet-go{display:grid;gap:10px}
+.vst .vet-go__row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
+.vst .vet-go .ve-shirts>.vd-shirt{--s:32px}
+.vst .vet-go__t{font-size:14.5px!important;color:var(--vd-g-ink)!important}
+.vst .vet-tk .ve-confirm{margin-top:-4px}
+.vst .vet-hus{display:grid;gap:12px}
+.vst .vet-hu{display:grid;grid-template-columns:84px minmax(0,1fr) auto;align-items:center;gap:18px}
+.vst .vet-hu.is-top{box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.55)}
+.vst .vet-hu.is-past{opacity:.72}
+.vst .vet-cal{display:grid;justify-items:center;align-content:center;gap:0;width:84px;height:92px;border-radius:20px;background:rgba(108,171,221,.14);box-shadow:inset 0 0 0 1px rgba(108,171,221,.3)}
+.vst .vet-cal>span{font-size:12.5px;font-weight:740;letter-spacing:.08em;text-transform:uppercase;color:var(--vd-celeste-ink)}
+.vst .vet-cal>b{font-size:38px;line-height:1;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
+.vst .vet-cal.is-ghost{background:none;box-shadow:inset 0 0 0 1.5px var(--vd-rule2)}
+.vst .vet-cal.is-ghost>b{color:var(--vd-ink2)}
+.vst .vet-hu__b{display:grid;gap:10px;min-width:0}
+.vst .ve-card.vet-hu h3.vet-hu__day{font-size:20px;line-height:1.15;font-weight:720;letter-spacing:-.012em;color:var(--vd-g-ink)}
+.vst .vet-hu__when{margin-top:2px!important;font-size:14px!important;color:var(--vd-g-ink2)}
+.vst .vet-bar{position:relative;height:12px;border-radius:6px;background:rgba(234,243,252,.1);box-shadow:inset 0 0 0 1px var(--vd-rule)}
+:root[data-theme="light"] .vst .vet-bar{background:rgba(12,23,51,.06)}
+.vst .vet-bar__fill{position:absolute;left:0;top:0;bottom:0;width:var(--p);border-radius:6px;background:linear-gradient(90deg,rgba(108,171,221,.6),var(--vd-celeste));transition:width .6s var(--vd-ease)}
+.vst .vet-bar__seven{position:absolute;top:-5px;bottom:-5px;left:var(--s7);width:2px;border-radius:1px;background:var(--vd-g-ink)}
+.vst .vet-hu__row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.vst .vet-hu .vet-hu__n{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--vd-g-ink)}
+.vst .vet-hu__n>b{font-weight:740;font-variant-numeric:tabular-nums}
+.vst .vet-hu .ve-shirts>.vd-shirt{--s:24px}
+.vst .vet-seven-k{font-size:12px!important;color:var(--vd-g-ink2)!important}
+.vst .vet-me{min-width:150px}
+.vst .vet-me[aria-pressed="true"]{background:var(--vd-pri);color:#fff}
+.vst .vet-ghosts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%;margin-top:6px}
+.vst .vet-ghost{display:grid;justify-items:start;gap:12px;padding:16px;border-radius:22px;border:1.5px dashed var(--vd-rule2)}
+.vst .vet-ghost__t{display:grid;gap:2px}
+.vst .vet-ghost__t>b{font-size:17px;font-weight:720;color:var(--vd-ink-strong)}
+.vst .vet-ghost__t>span{font-size:13.5px;color:var(--vd-ink2)}
+.vst .vet-empty{justify-items:stretch}
+.vst .vet-empty>.ve-tile{justify-self:start}
+.vst .vet-form{display:grid;gap:16px}
+.vst .vet-form__h{display:flex;align-items:flex-start;gap:12px}
+.vst .vet-form__h>div{display:grid;gap:4px}
+.vst .vet-slot{display:grid;gap:10px;margin:0;padding:14px 14px 16px;border:0;border-radius:18px;box-shadow:inset 0 0 0 1px var(--vd-rule)}
+.vst .vet-slot.is-bad{box-shadow:inset 0 0 0 1.5px rgba(240,138,126,.55)}
+.vst .vet-slot>legend{float:left;width:100%;padding:0;font-size:14px;font-weight:700;color:var(--vd-g-ink)}
+.vst .vet-slot__g{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);gap:10px;clear:both}
+.vst .vet-form .ve-lab{color:var(--vd-g-ink2)}
+.vst .vet-form .ve-err{color:var(--vd-rival);font-size:13.5px}
+.vst .vet-lab{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.vst .vet-how{display:grid;gap:12px;margin-top:12px}
+.vst .vet-how>li{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;font-size:14.5px;line-height:1.4;color:var(--vd-ink)}
+.vst .vet-how .ve-tile{width:38px;height:38px;border-radius:12px}
+.vst .vet-how .ve-tile>.nx-ic{width:18px;height:18px}
+.vst .vet-who .vd-shirt{--s:30px}
+.vst .vet-who .ve-row{min-height:50px}
+.vst .vet-prop{display:flex;align-items:center;gap:12px;margin-top:12px}
+.vst .vet-prop .vd-shirt{--s:38px}
+.vst .vet-note{margin-top:12px!important;padding:12px 14px;border-radius:16px;background:rgba(234,243,252,.05);box-shadow:inset 0 0 0 1px var(--vd-rule);font-size:14.5px;line-height:1.45;color:var(--vd-ink)}
+.vst .vet-own{display:grid;gap:12px}
+.vst .ve-card.vet-own h2.vet-own__k{font-size:15px;font-weight:700;color:var(--vd-g-ink)}
+.vst .vet-own__bs{display:grid;gap:8px}
+.vst .vet-own__bs>.nx-btn{justify-content:space-between;white-space:normal;text-align:left;min-height:52px}
+.vst .vet-match{display:flex;align-items:center;gap:12px;margin-top:12px}
+.vst .vet-match>div{display:grid;gap:2px}
+.vst .vet-match b{font-size:15px;color:var(--vd-ink-strong)}
+.vst .vet-match span{font-size:13.5px;color:var(--vd-ink2)}
+.vst .vet-more{margin-top:4px}
+@container nx (max-width:699px){
+.vst .vet-tk{grid-template-columns:minmax(0,1fr);--vd-r:26px}
+.vst .vet-tk__stub{display:flex;align-items:baseline;justify-content:flex-start;gap:10px;padding:16px 18px;border-right:0;border-bottom:2px dashed var(--vd-rule2);text-align:left}
+.vst .vet-tk__d{font-size:58px}
+.vst .vet-tk__hr{margin:0 0 0 auto!important}
+.vst .vet-tk__main{padding:18px 16px 20px;gap:16px}
+.vst .vet-tk__time{font-size:40px}
+.vst .vet-tk__place{font-size:16px}
+.vst .vet-hu{grid-template-columns:64px minmax(0,1fr);gap:12px 14px;align-items:start}
+.vst .vet-cal{width:64px;height:74px;border-radius:16px}
+.vst .vet-cal>b{font-size:30px}
+.vst .vet-hu__act{grid-column:1 / -1}
+.vst .vet-me{width:100%}
+.vst .vet-ghosts{grid-template-columns:minmax(0,1fr)}
+.vst .vet-ghost{grid-template-columns:auto minmax(0,1fr) auto;align-items:center;justify-items:stretch;gap:12px}
+.vst .vet-ghost>.vet-cal{width:56px;height:62px;border-radius:14px}
+.vst .vet-ghost>.vet-cal>b{font-size:24px}
+.vst .vet-slot__g{grid-template-columns:repeat(2,minmax(0,1fr))}
+.vst .vet-slot__day{grid-column:1 / -1}
+}
+@media (prefers-reduced-motion:reduce){
+.vst .vet-bar__fill{transition:none}
+}

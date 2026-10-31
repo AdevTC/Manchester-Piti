@@ -21,7 +21,7 @@ const abs = (extra: Partial<Absence>): Absence => ({ id: "a1", uid: "u1", player
 const say = vi.fn();
 const matches = [{ id: "m3", seasonId: "s1", status: "scheduled", date: Date.UTC(2026, 10, 1, 13), rival: "Red Demons" }];
 const ctx = () =>
-  ({ me: { uid: "u1", name: "erik", playerId: "erik" }, uid: "u1", now: NOW, matches, players: [{ id: "andia" }], nameOf: (id: string) => (id === "andia" ? "Andia" : id), say }) as unknown as VxCtx;
+  ({ me: { uid: "u1", name: "erik", playerId: "erik" }, uid: "u1", now: NOW, matches, players: [{ id: "andia" }], squad: [{ id: "andia", name: "Andia", num: "7" }], nameOf: (id: string) => (id === "andia" ? "Andia" : id), say }) as unknown as VxCtx;
 
 beforeEach(() => {
   state.absences = [];
@@ -42,11 +42,25 @@ it("the list with its matches, «Quitar» asked first, and the team", async () =
   expect(screen.getByText("Del 31 oct al 9 nov")).toBeTruthy();
   expect(screen.getByText("1 partido en esas fechas: J1 contra Red Demons")).toBeTruthy();
   expect(screen.getByText("En el equipo: Andia, hasta el 27 (viaje).")).toBeTruthy();
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Fuera del 31 oct al 9 nov");
+  expect(screen.getByText("Contestamos «No puedo» por ti en la J1 contra Red Demons. Si al final puedes, cámbialo a mano en el partido.")).toBeTruthy();
+  expect(screen.getByText("Hasta el 27 oct · viaje")).toBeTruthy();
+  expect(screen.getByText("Sin partidos")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /Quitar/ }));
   expect(screen.getByText("Borramos el «No puedo» de los partidos que no cambiaste a mano.")).toBeTruthy();
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Sí, quitarla" })));
   expect(state.deleteAbsence).toHaveBeenCalledWith("a1");
   expect(say).toHaveBeenCalledWith("Ausencia quitada.");
+});
+
+it("«Apuntadas» says «ahora» for one under way, and an error under way stays", () => {
+  state.absences = [abs({ from: "2026-10-20", to: "2026-10-25" })];
+  render(<AusenciasBlock c={ctx()} />);
+  expect(screen.getByText("ahora")).toBeTruthy();
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Fuera hasta el 25 oct");
+  fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-10-10" } });
+  fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-10-12" } });
+  expect(screen.getByText("Esa fecha ya pasó.")).toBeTruthy();
 });
 
 it("«Añadir» checks the dates, then saves and says how many matches", async () => {
@@ -57,6 +71,7 @@ it("«Añadir» checks the dates, then saves and says how many matches", async (
   fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-11-09" } });
   fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: "boda" } });
   expect(screen.getByText("La ve todo el equipo · 4/140")).toBeTruthy();
+  expect(screen.getByText("Contestaremos «No puedo» en: J1 contra Red Demons")).toBeTruthy();
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Añadir" })));
   expect(state.addAbsence).toHaveBeenCalledWith(expect.objectContaining({ uid: "u1" }), "2026-10-31", "2026-11-09", "boda");
   expect(say).toHaveBeenCalledWith("Del 31 oct al 9 nov. Guardada. Contestamos «No puedo» en 1 partido.");
