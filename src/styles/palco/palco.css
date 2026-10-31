@@ -13,7 +13,7 @@
 :is(.nx,.nx-sheet) a{color:var(--vd-celeste-ink)}
 :is(.nx,.nx-sheet) :focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
 
-.nx-ic{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.nx-ic{display:inline-block;width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .nx-vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* the page (the real one, not the prototype's artboard): its two skies, the header over them, the place swapped with a

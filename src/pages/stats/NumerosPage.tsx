@@ -610,8 +610,11 @@ export function NumerosPage() {
     if (!t || !s || st.grow) return;
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
-    // (a swipe inside a strip or a table that scrolls sideways, or on a chart, is that region's own)
-    if ((e.target as HTMLElement).closest?.(".nx-scrollx,.nx-cinta__scroll,.nx-tscroll,.nx-chiprow,.nx-fams,svg,input")) return;
+    // (a swipe inside anything that scrolls sideways — a strip, a table, la cinta — or on a chart is that region's own)
+    for (let el = e.target as HTMLElement | null; el && el !== e.currentTarget; el = el.parentElement) {
+      if (el.matches("svg,input")) return;
+      if (el.scrollWidth > el.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return;
+    }
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
     const i = PLACES.indexOf(st.place);
     const n = dx < 0 ? Math.min(PLACES.length - 1, i + 1) : Math.max(0, i - 1);

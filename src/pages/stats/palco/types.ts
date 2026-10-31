@@ -1,8 +1,10 @@
 // «El palco»: what the page hands each place and each sheet. `v` is the season's numbers already cut by the page's
 // filters (numeros/view.ts recomputes it whenever the state moves); `st` the state; `act` the page's actions.
 import type { Ref } from "react";
-import type { CatalogLoadStatus } from "../numeros/CatalogLoadState";
 import type { Act, NuState, NuView } from "../numeros/view";
+
+/** The catalogue's load: failed (with a retry) or not. */
+export type CatalogLoadStatus = { error: boolean; retry: () => void };
 
 export interface PlaceProps {
   v: NuView;
