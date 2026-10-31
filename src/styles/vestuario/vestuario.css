@@ -185,3 +185,14 @@
 /* the room bar on the phone: the open room comes into view, the strip scrolls inside itself */
 .vst .ve-rooms{overscroll-behavior-x:contain}
 .vst .ve-room:focus-visible{outline-offset:-2px}
+/* the chosen option of a radio-style segmented control («¿Vas?», «¿Vas al entreno?») is said in weight too, as the
+   aria-pressed ones are (palco.css says it only for those, and Estadísticas' juego.css for these: here it holds anywhere) */
+.vst .nx-seg .vd-seg__b[aria-checked="true"]{color:var(--vd-g-ink);font-weight:720}
+/* …and the options not chosen keep the kit's quieter look (palco.css's button reset would otherwise win in one CSS order and
+   lose in the other) */
+.vst .vd-seg__b:not([aria-checked="true"],[aria-pressed="true"],[aria-selected="true"]){font-weight:600;color:var(--vd-g-ink2)}
+/* the vestuario's headings in the kit's sans, as the prototype draws them: a room's title (its status in words, an h1)
+   and every h2/h3 below. Without this, club.css's :where(.club-app) :where(h1,h2,h3) gives them the display face, and
+   only vidrio-paginas (when another page's chunk has loaded it) takes the h2/h3 back. The hub's «El vestuario» keeps the
+   display face, as every page title does. */
+.vst :where(h2,h3,h4),.vst .ve-head .nx-h2{font-family:var(--vd-sans)}
