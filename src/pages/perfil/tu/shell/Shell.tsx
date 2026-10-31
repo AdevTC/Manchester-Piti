@@ -6,7 +6,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { prefersReducedMotion } from "../../../../components/vidrio/env";
 import type { TuMaqueta } from "../../../../components/vidrio/tu/maqueta";
-import type { AttrKey } from "../../../../lib/derived/card";
+import type { AttrKey, CardRewards } from "../../../../lib/derived/card";
 import { introSeen, markIntroSeen, readProfilePrefs, shouldPlayIntro } from "../../prefs";
 import type { ProfileData } from "../../useProfileData";
 import { buildMe } from "../me";
@@ -16,6 +16,7 @@ import { cardAria, cardOf, identityOf } from "../view";
 import type { Go, PlaceProps, PlaceQuery, Say, TuActions } from "../places/types";
 import { legacyProps } from "../screens/legacy";
 import { Tu, TuStage } from "../places/Tu";
+import { openPetition } from "../places/tu/petition";
 import { Partidos } from "../places/Partidos";
 import { Juego } from "../places/Juego";
 import { Vitrina } from "../places/Vitrina";
@@ -30,6 +31,9 @@ const Cromos = lazy(() => import("../Cromos").then((m) => ({ default: m.Cromos }
 /** The card's View Transition name (the stage's card ↔ the masthead's mini card). */
 const CARD_VT = "tu-card";
 const dec = (n: number) => n.toFixed(1).replace(".", ",");
+/** The marks the card wears for his evoluciones (they mark it, never move its rating). */
+const marksOf = (r: CardRewards): string[] =>
+  [r.mvp && "MVP", r.double && "×2", r.goleador && "G", r.hat && "Hat-trick", r.fijo && "Fijo", r.duo !== null && `Dúo ${r.duo}`].filter((m): m is string => !!m);
 
 export interface ShellProps {
   data: ProfileData;
@@ -121,7 +125,8 @@ export function Shell(s: ShellProps) {
             run={run}
             pending={pending.open}
             onAttr={setAttr}
-            onPack={() => go({ page: "perfil", sec: "tu", aj: null, open: null })}
+            onPack={openPetition}
+            marks={marksOf(c.rewards)}
             provisional={c.global?.status === "provisional"}
             vt={CARD_VT}
           />
