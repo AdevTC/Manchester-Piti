@@ -33,3 +33,38 @@
 .tup .tc-pair b{display:block;font-size:22px;font-weight:740;color:var(--vd-ink-strong)}
 
 /* ── by hand ── */
+/* the pitch: a read-only pitch (out of season) says so in its label; smaller spots on the phone (still ≥44px) */
+.tup .tc-pos[aria-disabled="true"]{cursor:default}
+@container nx (max-width:699px){.tup .tc-pitch{margin-inline:auto}.tup .tc-pos{width:46px;height:46px;font-size:11.5px}}
+/* the ladder: one slot per ranked teammate (the squad's size, not a fixed 16) */
+.tup .tc-lad{grid-template-columns:repeat(var(--n,16),minmax(0,1fr))}
+/* «Tu propuesta» */
+.tup .tc-prop .nx-h3{margin-top:2px}
+.tup .tc-prop__d{margin-top:6px!important}
+.tup .tc-prop__ficha{margin-top:4px!important;color:var(--vd-ink)}
+.tup .tc-prop__m{margin-top:10px!important}
+.tup .tc-prop__warn{margin-top:12px!important;font-size:13.5px;line-height:1.45;color:var(--vd-ink);padding-left:12px;box-shadow:inset 3px 0 0 var(--vd-amarilla)}
+.tup .tc-prop__warn>b{font-weight:700;color:var(--vd-ink-strong)}
+.tup .tc-prop .nx-links{margin-top:8px}
+.tup .tc-played__note{margin-top:6px!important}
+/* the partner and the comparison side by side (one column on the phone) */
+.tup .tc-ju2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 44px}
+@container nx (max-width:699px){.tup .tc-ju2{grid-template-columns:minmax(0,1fr)}}
+.tup .tc-pair>div{display:grid;gap:2px;min-width:0}
+.tup .tc-cmp__acts{margin-top:12px}
+/* prod CSS order: this file can load before the shared kit's — pin the headings' face */
+.tup .tc-juego :where(h2,h3){font-family:var(--vd-sans)}
+
+/* «Compararte con…»: the sheet lives in the body (a container is the containing block of fixed boxes), so it
+   can't sit under .tup: its rules are scoped to its own class instead. */
+.nx-sheet.tju-sheet .nx-sheet__head>div{display:grid;gap:2px}
+.tju-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tju-grid>button{--vd-r:16px;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 12px;border:0;color:var(--vd-g-ink);font-weight:660;text-align:left}
+.tju-grid .vd-shirt{--s:26px}
+.tju-cmp{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tju-cmp th,.tju-cmp td{padding:12px 8px;border-bottom:1px solid var(--vd-rule);text-align:right}
+.tju-cmp thead th{font-size:13px;font-weight:660;color:var(--vd-g-ink2)}
+.tju-cmp tbody th{text-align:left;font-size:15px;font-weight:700;color:var(--vd-g-ink)}
+.tju-cmp tbody th>small{display:block;font-size:12.5px;font-weight:560;color:var(--vd-g-ink2)}
+.tju-cmp td{font-size:20px;font-weight:600;color:var(--vd-g-ink2)}
+.tju-cmp td.is-up{font-weight:800;color:var(--vd-g-ink)}
