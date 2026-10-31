@@ -24,7 +24,7 @@ vi.mock("../../firebase", () => ({ db: {} }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../lib/clubApi", () => ({ savePrediction: vi.fn() }));
 
-const { closePoll, createPoll, deletePoll, votePoll } = await import("./writes");
+const { closePoll, createPoll, deletePoll, unvotePoll, votePoll } = await import("./writes");
 const ME = { uid: "u1", name: "erik", playerId: "erik" };
 const NOW = Date.UTC(2026, 9, 16, 10);
 const POLL = {
@@ -79,4 +79,9 @@ it("closePoll sets only closedAt; deletePoll deletes the doc", async () => {
   expect(fs.updateDoc).toHaveBeenCalledWith({ path: "polls/p1" }, { closedAt: "SERVER_TIME" });
   await deletePoll("p1");
   expect(fs.deleteDoc).toHaveBeenCalledWith({ path: "polls/p1" });
+});
+
+it("unvotePoll deletes only the member's own vote doc", async () => {
+  await unvotePoll(ME, "p1");
+  expect(fs.deleteDoc).toHaveBeenCalledWith({ path: "polls/p1/votes/u1" });
 });
