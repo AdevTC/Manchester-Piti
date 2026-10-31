@@ -43,3 +43,74 @@
 .tup .tc-det>div{display:grid;gap:8px;padding:4px 0 14px;font-size:14px;line-height:1.5;color:var(--vd-ink2)}
 
 /* ── by hand ── */
+/* The place's frame: the index head shows only on the phone's index; the section's head and «‹ Ajustes» only
+   where a section is shown (the phone's index shows the list alone, a section hides the list). */
+.tup .tc-aj__ixhead,.tup .tc-ajback,.tup .tc-ajb__go{display:none}
+.tup .tc-ajb{position:relative;cursor:pointer}
+.tup .tc-ajb:focus-visible,.tup .tc-ajback:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.tup .tc-ajb>.tk-badge{margin-left:auto}
+.tup .tc-ajp h3{font-family:var(--vd-sans)}
+@container nx (max-width:699px){
+  .tup .tc-ajw.is-index>.tc-aj__head,.tup .tc-ajw.is-index .tc-ajp{display:none}
+  .tup .tc-ajw.is-index>.tc-aj__ixhead{display:flex}
+  .tup .tc-ajw.is-index .tc-ajnav{display:grid;gap:0;margin:0;padding:0;overflow:visible}
+  .tup .tc-ajw.is-index .tc-ajb{min-height:64px;border-radius:0;padding:0 4px;border-bottom:1px solid var(--vd-rule)}
+  .tup .tc-ajw.is-index .tc-ajb[aria-current="page"]{background:none;box-shadow:none}
+  .tup .tc-ajw.is-index .tc-ajb small{display:block}
+  .tup .tc-ajw.is-index .tc-ajb__go{display:block;margin-left:auto;color:var(--vd-ink2)}
+  .tup .tc-ajw.is-index .tc-ajb>.tk-badge+.tc-ajb__go{margin-left:0}
+  .tup .tc-ajw.is-sec .tc-ajnav{display:none}
+  .tup .tc-ajw.is-sec .tc-ajback{display:inline-flex;justify-self:start;text-decoration:none}
+  .tup .tc-ajw.is-sec>.tc-aj__head{margin-bottom:14px}
+  .tup .tc-ajp h3{font-size:19px}
+}
+
+/* Tu nombre: the printed shirt (the kit's still; while typing, the blank shirt with the name in Barlow) with
+   Primera/Segunda under it; the check's words beside the fit chip. */
+.tup .tc-back3{height:auto;display:grid;gap:12px;justify-items:center}
+.tup .tc-back3__pv{display:grid;place-items:center;width:190px;aspect-ratio:540/600}
+.tup .tc-back3__img{display:block;width:100%;height:auto;filter:drop-shadow(0 16px 22px rgba(0,0,0,.4))}
+.tup .tc-back3__img.is-ghost{opacity:.45;filter:grayscale(1)}
+.tup .tc-kitseg{width:190px}
+.tup .tu-tee{position:relative;display:block;aspect-ratio:540/600;container-type:inline-size;color:#051330}
+.tup .tu-tee>img{display:block;width:100%;height:auto}
+.tup .tu-tee.k-away{color:#F5F5F5}
+.tup .tu-tee__print{position:absolute;inset:0;pointer-events:none}
+.tup .tu-tee__name,.tup .tu-tee__num{position:absolute;left:50%;font-family:'Barlow Condensed',var(--vd-sans);text-transform:uppercase;white-space:nowrap;line-height:1;transform:translateX(-50%);transform-origin:50% 50%}
+.tup .tu-tee__name{top:calc(120 / 540 * 100cqi - 0.205 * 11.9cqi);font-weight:700;font-size:11.9cqi;letter-spacing:.02em}
+.tup .tu-tee__num{top:calc(199 / 540 * 100cqi - 0.205 * 49.6cqi);font-weight:600;font-size:49.6cqi;letter-spacing:-.01em}
+.tup .tu-tee.is-over .tu-tee__name{color:var(--vd-roja)}
+.tup .tc-inrow>.nx-btn{flex:none}
+.tup .tk-in.is-bad{box-shadow:inset 0 0 0 1.5px var(--vd-rival)}
+.tup .tk-in.is-ok{box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.65)}
+.tup .tk-in:disabled{opacity:.6;cursor:not-allowed}
+.tup .tc-vmsg{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.tup .tc-vmsg__t.is-bad{color:var(--vd-rival)}
+.tup .tc-vmsg__t.is-ok{color:var(--vd-celeste-ink)}
+.tup .tc-self{justify-self:start}
+.tup .tc-inl{min-height:0;display:inline}
+@container nx (max-width:699px){
+  .tup .tc-back3__pv{width:170px}
+  .tup .tc-inrow{flex-wrap:wrap}
+  .tup .tc-inrow>.tk-in,.tup .tc-inrow>.tc-at{flex:1 1 100%}
+}
+
+/* Apariencia: the segmented controls at the prototype's width. */
+.tup .tc-seg3{width:420px;max-width:100%}
+
+/* Cuenta: his Google photo in the initials' disc, the id, the red confirmations. */
+.tup .tc-ini--g{overflow:hidden;width:44px;height:44px;flex:none}
+.tup .tc-ini--g>img{width:100%;height:100%;object-fit:cover}
+.tup .tc-dl{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px 24px}
+.tup .tc-uid{font:500 13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere;color:var(--vd-ink)}
+.tup .tc-det--red>summary{color:var(--vd-rival)}
+
+/* Buttons: the danger one, and «not now» (aria-disabled keeps them focusable, the reason written beside). */
+.tup .nx-btn--danger{box-shadow:inset 0 0 0 1.5px rgba(240,138,126,.6)}
+.tup .nx-btn[aria-disabled="true"],.tup .tk-tog[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+
+/* Capitanía: who knocks, with the printed shirt of the ficha he asks for. */
+.tup .tc-knock__img{width:38px;height:auto}
+
+/* Avisos: «A medida» keeps its own blocks; no extra frame around it. */
+.tup .tc-ajav{min-width:0}

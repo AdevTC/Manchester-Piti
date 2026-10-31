@@ -305,7 +305,7 @@ function Muted({ inbox, a, h }: { inbox: Inbox; a: AvisoActions; h: ReactNode })
 
 // ---------- A medida
 
-function AMedida({ inbox, d, a, say }: { inbox: Inbox; d: ThisDevice; a: AvisoActions; say: (t: string) => void }) {
+export function AMedida({ inbox, d, a, say }: { inbox: Inbox; d: ThisDevice; a: AvisoActions; say: (t: string) => void }) {
   const { profile } = useAuth();
   const { matches, players } = useClubData();
   const [busy, setBusy] = useState<string | null>(null);
