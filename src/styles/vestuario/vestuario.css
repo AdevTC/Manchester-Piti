@@ -166,7 +166,7 @@
 .vst .ve-side{margin-top:30px}
 .vst .ve-hero{padding:0 0 18px}
 .vst .ve-hero .nx-h1{font-size:34px}
-.vst .ve-hero .nx-lede{font-size:15px;margin-top:6px!important}
+.vst .ve-hero .nx-lede{display:block;font-size:15px;margin-top:6px!important}
 .vst .ve-first{grid-template-columns:auto minmax(0,1fr);padding:16px}
 .vst .ve-first>.nx-btn{grid-column:1/-1}
 .vst .ve-todo{display:flex;overflow-x:auto;margin:0 -16px 24px;padding:2px 16px 6px;scrollbar-width:none}
