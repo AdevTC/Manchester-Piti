@@ -6,7 +6,7 @@
 // topics in Ajustes › Avisos) — and «A medida»: this device, the shortcuts, every topic, the pause, a test notice and
 // the calendar. A fan (no session) gets «A medida» only: the notices are the vestuario's. ProfilePage draws the sky,
 // the bars and the toast around this <main>; moving between filters goes through the router in a View Transition.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { DotsMenu, Switch, TuIcon } from "../../../components/vidrio/tu/ui";
 import { tuGo, type TuDir } from "../../../components/vidrio/tu/kit";
@@ -34,8 +34,9 @@ import { TodoCards } from "../tu/places/tu/TodoCards";
 import { useAvisoActions, type AvisoActions } from "./actions";
 import { useThisDevice, type ThisDevice } from "./device";
 import { PauseChips, PresetSeg } from "./deviceParts";
-import { actsOf, calendarBatch, collapseFixtures, filterOf, filterRows, iconOf, isNewFixture, kindOf, nextLine, pauseLine, pendTitle, pl, PRESET_NOTE, shownBy, stackLine, testNotice, tocaTitle, topicsFor, unreadText, verOf, type AvFilter } from "./model";
+import { actsOf, calendarBatch, filterOf, filterRows, iconOf, isNewFixture, kindOf, nextLine, pauseLine, pendTitle, pl, PRESET_NOTE, shownBy, stackLine, testNotice, tocaTitle, topicsFor, unreadText, verOf, type AvFilter } from "./model";
 import { takeFlyBell } from "./flyBell";
+import { CAL_ID, useCalendarFold } from "./useCalendar";
 import "../../../styles/tu-avisos.css";
 
 /** Where a member chooses topic by topic now (Ajustes › Avisos). */
@@ -124,8 +125,6 @@ function AMedidaMain({ inbox, d, a, say, onBandeja }: { inbox: Inbox; d: ThisDev
 /** A day group shows this many before «Ver N más»; a match group, its newest this many. */
 const DAY_MAX = 6;
 const STACK_MAX = 3;
-/** The fixture batch's id among the loose notices. */
-const CAL_ID = "__calendario";
 
 function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; items: readonly PendingItem[]; d: ThisDevice; a: AvisoActions; f: AvFilter; say: Say; fly: boolean; onFilter: (f: AvFilter) => void }) {
   const { matches } = useClubData();
@@ -136,17 +135,8 @@ function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; 
   const open = items.filter((p) => !p.done).length;
 
   // the season's fixture: one item instead of a stack per jornada
-  const { stacks: allStacks, batch } = useMemo(() => collapseFixtures(inbox.stacks), [inbox.stacks]);
-  const cal = useMemo(() => {
-    if (!batch.length) return null;
-    const byId = new Map(matches.map((m) => [m.id, m]));
-    return calendarBatch(batch, (id) => {
-      const m = byId.get(id);
-      return m ? { j: jornadaOf(matches, m), at: dateMillis(m.date), rival: m.rival?.trim() || "" } : null;
-    });
-  }, [batch, matches]);
+  const { stacks: allStacks, cal, unread: calUnread } = useCalendarFold(inbox);
   const calNotice: Notice | null = cal ? { id: CAL_ID, topic: "dates", title: cal.title, body: cal.body, url: "", at: cal.at, audience: "team" } : null;
-  const calUnread = !!cal && batch.some((n) => inbox.reads.unread(n));
 
   const partidosN = allStacks.reduce((s, x) => s + x.rows.length, 0);
   const rows = filterRows({ toca: open, unread: inbox.unread, partidos: partidosN, loose: inbox.loose, batch: !!cal });

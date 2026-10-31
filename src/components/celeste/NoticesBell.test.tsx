@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   navigate: vi.fn(async (_o: unknown) => undefined),
   mark: vi.fn(async (_ids: readonly string[], _v: boolean) => undefined),
   pick: vi.fn(async (_a: string) => undefined),
+  matches: [] as unknown[],
 }));
 vi.mock("../../firebase", () => ({ db: {}, functions: {}, auth: { currentUser: null }, FUNCTIONS_REGION: "europe-southwest1" }));
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => state.navigate }));
@@ -19,6 +20,7 @@ vi.mock("../../pages/perfil/bandeja/device", () => ({
   useThisDevice: () => ({ kind: "listo", ready: true, words: { tone: "ok", chip: "Listo", title: "Este móvil recibe avisos", dev: "", steps: [], btn: "" }, blocked: "", choice: "todo", vibrate: false, pause: null, line: "Todo", setPreset: async () => undefined, setVibrate: async () => undefined, refresh: () => undefined }),
 }));
 vi.mock("../../pages/perfil/bandeja/deviceParts", () => ({ PresetSeg: () => <div role="group" aria-label="Qué te avisamos" /> }));
+vi.mock("../../lib/clubData", async (importOriginal) => ({ ...(await importOriginal<object>()), useClubData: () => ({ matches: state.matches, players: [], loading: false, error: null }) }));
 
 const { NoticesBell, FanBell } = await import("./NoticesBell");
 const { NoticesGate } = await import("./NoticesGate");
@@ -116,6 +118,33 @@ describe("the member's bell", () => {
     expect(state.mark).toHaveBeenCalledWith(["a"], true);
     await vi.waitFor(() => expect(state.navigate).toHaveBeenCalledWith({ href: "/vestuario" }));
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("the season's fixture is ONE notice, not a stack per jornada; opening it reads them all in la bandeja", async () => {
+    const day = 86_400_000;
+    const fixture = (id: string, rival: string) => notice(`n-${id}`, { title: `Nuevo partido: ${rival}`, url: `/partidos/${id}`, at: now - 3_600_000 });
+    const stack = (id: string, rival: string) => ({ matchId: id, j: null, rival, ini: "", title: rival, res: null, gf: 0, ga: 0, when: "", sum: "", marks: [], dur: 50, alt: "", rows: [fixture(id, rival)] });
+    state.matches = [
+      { id: "m3", seasonId: "s1", status: "scheduled", date: now + 7 * day, rival: "Red Demons", home: true },
+      { id: "m4", seasonId: "s1", status: "scheduled", date: now + 14 * day, rival: "Sporting de Brugal", home: false },
+      { id: "m5", seasonId: "s1", status: "scheduled", date: now + 21 * day, rival: "SQUIRTLES FC", home: true },
+    ];
+    const loose = [notice("a")];
+    // (a jornada with something else too: its line no longer names the «Nuevo partido» that left)
+    const absent = notice("ausencia", { title: "PELLETE no puede del 20 al 23 nov (1 partido)", url: "/partidos/m5", at: now - 60_000 });
+    const m5 = { ...stack("m5", "SQUIRTLES FC"), rows: [absent, fixture("m5", "SQUIRTLES FC")], sum: "PELLETE no puede del 20 al 23 nov (1 partido) · Nuevo partido: SQUIRTLES FC" };
+    state.inbox = inboxWith({ list: loose, loose, feed: loose, stacks: [m5, stack("m3", "Red Demons"), stack("m4", "Sporting de Brugal")] as unknown as Inbox["stacks"] });
+    render(<NoticesBell />);
+    fireEvent.click(screen.getByRole("button", { name: /^Avisos/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Todo/ }));
+    expect(screen.queryByText(/Nuevo partido/)).toBeNull();
+    expect(screen.getAllByText("PELLETE no puede del 20 al 23 nov (1 partido)").length).toBeGreaterThan(0);
+    const cal = screen.getByRole("button", { name: "Calendario: 3 jornadas nuevas, sin leer. Ver en la bandeja" });
+    expect(screen.getByRole("button", { name: "Aviso a, sin leer. Abrir" })).toBeInTheDocument();
+    fireEvent.click(cal);
+    expect(state.mark).toHaveBeenCalledWith(["n-m5", "n-m3", "n-m4"], true);
+    await vi.waitFor(() => expect(state.navigate).toHaveBeenCalled());
+    state.matches = [];
   });
 
   it("nothing waiting and nothing kept: «Estás al día» and what comes next", () => {

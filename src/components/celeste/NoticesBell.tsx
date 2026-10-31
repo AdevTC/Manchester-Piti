@@ -8,7 +8,8 @@
 // goes back to the bell. The data: bandeja/useInbox; the pieces: bandeja/parts.
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
-import { bellLabel } from "../../lib/derived/notices";
+import { bellLabel, relativeTime, type Notice } from "../../lib/derived/notices";
+import { capital } from "../../lib/derived/words";
 import { DotsMenu, TuIcon, TuLayer } from "../vidrio/tu/ui";
 import { rove, useToast } from "../vidrio/tu/kit";
 import { useInbox, type Inbox } from "../../pages/perfil/bandeja/useInbox";
@@ -18,7 +19,8 @@ import { useThisDevice, type ThisDevice } from "../../pages/perfil/bandeja/devic
 import { PresetSeg } from "../../pages/perfil/bandeja/deviceParts";
 import { tuSurface } from "../vidrio/tu/surface";
 import { askFlyBell } from "../../pages/perfil/bandeja/flyBell";
-import { nextLine, pauseLine, unreadText } from "../../pages/perfil/bandeja/model";
+import { KIND_LABEL, nextLine, pauseLine, unreadText } from "../../pages/perfil/bandeja/model";
+import { CAL_ID, useCalendarFold, type CalendarFold } from "../../pages/perfil/bandeja/useCalendar";
 import "../../styles/tu-avisos.css";
 
 /** A member's bell: his notices and «Te toca». */
@@ -137,6 +139,15 @@ function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => 
     askFlyBell();
     a.goAv("bandeja", tab === "toca" ? "toca" : "todos");
   };
+  // the season's fixture as one notice (the bandeja's «Calendario»), not a stack per jornada
+  const fold = useCalendarFold(inbox);
+  const calNotice: Notice | null = fold.cal ? { id: CAL_ID, topic: "dates", title: fold.cal.title, body: fold.cal.body, url: "", at: fold.cal.at, audience: "team" } : null;
+  const loose = (calNotice ? [...inbox.loose, calNotice].sort((x, y) => y.at - x.at) : inbox.loose).slice(0, 3);
+  const openCal = () => {
+    if (fold.cal && fold.unread) a.markRead(fold.cal.ids, true);
+    askFlyBell();
+    a.goAv("bandeja", "vestuario");
+  };
   return (
     <div ref={ref} className="vd-glass vd-glass--deep tu-sheet tu-bell" role="dialog" aria-modal="true" aria-labelledby="tu-bell-t" onKeyDown={keys}>
       <span className="tu-grab" aria-hidden="true" />
@@ -213,14 +224,12 @@ function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => 
         ))}
         {list && tab === "todo" && (
           <>
-            {inbox.stacks.slice(0, 2).map((x) => (
+            {fold.stacks.slice(0, 2).map((x) => (
               <MatchStack key={x.matchId} x={x} inbox={inbox} a={a} exp={!!exp[x.matchId]} onToggle={() => setExp((e) => ({ ...e, [x.matchId]: !e[x.matchId] }))} />
             ))}
-            {inbox.loose.length > 0 && (
+            {loose.length > 0 && (
               <ol className="tu-nts">
-                {inbox.loose.slice(0, 3).map((n) => (
-                  <NoticeRow key={n.id} n={n} inbox={inbox} a={a} />
-                ))}
+                {loose.map((n) => (n.id === CAL_ID && fold.cal ? <CalRow key={CAL_ID} cal={fold.cal} unread={fold.unread} now={inbox.now} onOpen={openCal} /> : <NoticeRow key={n.id} n={n} inbox={inbox} a={a} />))}
               </ol>
             )}
           </>
@@ -228,6 +237,29 @@ function MemberSheet({ inbox, say, close }: { inbox: Inbox; say: (t: string) => 
       </div>
       <Foot d={d} a={a} member onAll={all} />
     </div>
+  );
+}
+
+/** The season's fixture as one notice: «Calendario: 20 jornadas nuevas»; opening it reads them all, in la bandeja. */
+function CalRow({ cal, unread, now, onOpen }: { cal: NonNullable<CalendarFold["cal"]>; unread: boolean; now: number; onOpen: () => void }) {
+  return (
+    <li className={`tu-nt${unread ? " is-new" : ""}`}>
+      <span className="tu-nt__i" aria-hidden="true">
+        <TuIcon name="cal" />
+      </span>
+      <div className="tu-nt__t">
+        <button type="button" className="tu-nt__open" data-nav="1" onClick={onOpen} aria-label={`${cal.title}${unread ? ", sin leer" : ""}. Ver en la bandeja`}>
+          <b className="tu-nt__h">{cal.title}</b>
+          <span className="tu-nt__b">{cal.body}</span>
+        </button>
+        <p className="tu-nt__m">
+          {unread && <span className="tu-nt__new">Nuevo</span>}
+          <span>{capital(relativeTime(cal.at, now))}</span>
+          <span aria-hidden="true">·</span>
+          <span>{KIND_LABEL.vestuario}</span>
+        </p>
+      </div>
+    </li>
   );
 }
 
