@@ -69,17 +69,21 @@ test("Catálogo: carga 24 al acercarse, reinicia filtros y conserva contexto al 
     await page.mouse.wheel(0, 350);
     await expect(rows).toHaveCount(48);
     // Reaching the old page end adds one batch, not the entire remaining catalogue.
-    await expect(page.getByRole("button", { name: /^Mostrar más \(48 de/ })).toBeAttached();
+    await expect(page.getByRole("button", { name: /^Ver 24 más \(48 de/ })).toBeAttached();
 
     const search = page.getByRole("searchbox", { name: "Buscar estadística", exact: true });
+    // (El palco's catalogue is a grid: 24 cards end within 1000px of a desktop screen, and a sentinel in view rightly
+    // loads the next batch. A shorter desktop keeps the batch's end out of view, as the old one-column list did.)
+    await page.setViewportSize({ width: 1440, height: 640 });
+    await search.scrollIntoViewIfNeeded();
     await search.fill("pases");
     await expect(rows).toHaveCount(24);
-    const first = list.getByRole("button", { name: /067 Pases intentados/ });
+    const first = list.getByRole("button", { name: /067\s*Pases intentados/ });
     await expect(first).toBeVisible();
     await first.click();
     const detail = page.getByRole("dialog", { name: /Pases intentados/ });
     await expect(detail).toBeVisible();
-    await expect(detail.locator(".nu-mt__v > b")).toHaveText("2");
+    await expect(detail.locator(".nx-ficha__v > b")).toHaveText("2");
     expect(new URL(page.url()).searchParams.get("partidos")).toBe(f.id);
     expect(new URL(page.url()).searchParams.get("temporada")).toBe(f.seasonId);
     await detail.getByRole("button", { name: "Cerrar", exact: true }).click();
@@ -92,9 +96,10 @@ test("Catálogo: carga 24 al acercarse, reinicia filtros y conserva contexto al 
     await page.mouse.wheel(0, 350);
     await expect(rows).toHaveCount(48);
     const families = page.getByRole("list", { name: "Familias del catálogo" });
-    await families.getByRole("button", { name: "Goles y marcador", exact: true }).click();
+    // (each family says its count beside its name)
+    await families.getByRole("button", { name: /^Goles y marcador\s*\d+$/ }).click();
     await expect(rows).toHaveCount(14);
-    await families.getByRole("button", { name: "Todas", exact: true }).click();
+    await families.getByRole("button", { name: /^Todas\s*\d+$/ }).click();
     await expect(rows).toHaveCount(24);
     await search.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath("catalog-desktop.png") });
@@ -122,7 +127,7 @@ test("Catálogo: Mostrar más sigue disponible sin IntersectionObserver", async 
     await page.goto(`/estadisticas/juego/catalogo?temporada=${f.seasonId}&partidos=${f.id}`);
     const rows = page.getByRole("list", { name: "Estadísticas del catálogo", exact: true }).locator(":scope > li");
     await expect(rows).toHaveCount(24);
-    await page.getByRole("button", { name: /^Mostrar más \(24 de/ }).click();
+    await page.getByRole("button", { name: /^Ver 24 más \(24 de/ }).click();
     await expect(rows).toHaveCount(48);
   } finally { await f.cleanup(); }
 });

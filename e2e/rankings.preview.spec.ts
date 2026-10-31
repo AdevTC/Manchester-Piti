@@ -22,13 +22,16 @@ test("los goleadores empatados conservan puesto y medalla entre plantilla y esta
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.goto("/estadisticas?temporada=preview-season");
-  // Números: the shared lead said in words in the race and in Jugadores, both names and the figure
-  await expect(page.locator(".nu-race__cap")).toContainText("En cabeza tras la J");
-  await expect(page.locator(".nu-race__cap b")).toContainText(/(Hugo y Mario|Mario y Hugo), 1/);
-  await expect(page.locator(".nu-said")).toContainText(/Pichichi compartido: (Hugo y Mario|Mario y Hugo), con 1\./);
+  // Estadísticas: the shared lead said in words under la carrera and in «Lo que dicen los números», and in Jugadores,
+  // both names and the figure
+  await expect(page.getByRole("list", { name: "La carrera de goles" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "La carrera" }).getByText(/^En cabeza tras la J\d+: (Hugo y Mario|Mario y Hugo), 1/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Lo que dicen los números" }).getByRole("listitem").filter({ hasText: /Pichichi compartido: (Hugo y Mario|Mario y Hugo), con 1\./ })).toHaveCount(1);
   await page.goto("/estadisticas/jugadores?temporada=preview-season");
   await expect(page.getByRole("heading", { level: 2, name: /^(Hugo y Mario|Mario y Hugo), 1 gol$/ })).toBeVisible();
-  const podium = page.getByRole("list", { name: "Los primeros" });
-  await expect(podium.locator(".nu-podium__rk")).toHaveText(["1º", "1º"]);
+  // the podium: the two on the first step, each «1º, name: 1», nobody else on it
+  const podium = page.locator(".nx-podium").getByRole("button");
+  await expect(podium).toHaveCount(2);
+  for (const name of ["Hugo", "Mario"]) await expect(page.locator(".nx-podium").getByRole("button", { name: new RegExp(`^1º, ${name}: 1`) })).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
