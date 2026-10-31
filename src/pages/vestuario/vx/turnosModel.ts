@@ -8,7 +8,7 @@
 // with the captains' pins (rotaTurns) and the absences known today. Nobody's future «No puedo» is known yet, so a
 // later column is what happens if nothing changes.
 import { dateMillis, type ClubMatch } from "../../../lib/clubData";
-import { jobApplies, playedTurns, rotaHistory, rotaPlayed, turnsFor, type Rota, type RotaAbsence, type RotaIconId, type RotaJob, type RotaMatch, type RotaTurnsDoc, type Turn } from "../../../lib/derived/rota";
+import { jobApplies, rotaPlayed, rotaSchedule, type Rota, type RotaAbsence, type RotaIconId, type RotaJob, type RotaMatch, type RotaTurnsDoc, type Turn } from "../../../lib/derived/rota";
 import { madridDate } from "../../../lib/derived/madrid";
 import type { VIcon } from "./icons";
 
@@ -94,13 +94,7 @@ export function ruedaSchedule(
   absences: readonly RotaAbsence[],
   now: number,
 ): { m: RotaMatch; turns: readonly Turn[] }[] {
-  if (!matches.length) return [];
-  const history = rotaHistory(matches[0], all, docs, rota, now);
-  return matches.map((m, i) => {
-    const turns = i === 0 ? nextTurns : turnsFor(m, rota, history, [], absences, docs[m.id]);
-    history.push({ id: m.id, turns: playedTurns(turns) });
-    return { m, turns };
-  });
+  return rotaSchedule(matches, rota, docs, all, now, { first: nextTurns, absences });
 }
 
 /** A wheel match as a column head: «J4», «Pitutis», «fuera · 8 nov». */

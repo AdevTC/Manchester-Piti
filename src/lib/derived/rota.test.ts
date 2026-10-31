@@ -14,6 +14,7 @@ import {
   rotaMatch,
   rotaNotice,
   rotaPlayed,
+  rotaSchedule,
   turnsFor,
   turnsLine,
   type RotaAbsence,
@@ -334,5 +335,22 @@ describe("turnos «Hecho»", () => {
   });
   it("«done» is a reserved job id", () => {
     expect(jobIdFor("done", [])).toBe("done-2");
+  });
+});
+
+describe("rotaSchedule: the next jornadas, one after another", () => {
+  it("chains each match after the ones before it (not the same member for every jornada)", () => {
+    // one played match (J1, Hugo washed), three to come; «now» between J1 and J2
+    const season = [m("j1", 0, { status: "finished" }), m("j2", 1), m("j3", 2, { home: false }), m("j4", 3)];
+    const now = sat(0) + DAY;
+    const sched = rotaSchedule(season.slice(1), ROTA, { j1: frozen({ lavar: "hugo" }) }, season, now);
+    expect(sched.map((x) => Object.fromEntries(x.turns.map((t) => [t.job.id, t.playerId])))).toEqual([{ lavar: "dani" }, { lavar: "leo", coche: "dani" }, { lavar: "hugo" }]);
+  });
+  it("keeps the first match's turns when given, and a captain's pin on a later one", () => {
+    const season = [m("j2", 1), m("j3", 2)];
+    const first = turnsFor(season[0], ROTA, [], [], [], undefined);
+    const sched = rotaSchedule(season, ROTA, { j3: { frozen: false, turns: { lavar: { playerId: "hugo" } } } }, season, sat(0), { first });
+    expect(sched[0].turns).toBe(first);
+    expect(sched[1].turns.find((t) => t.job.id === "lavar")?.playerId).toBe("hugo");
   });
 });

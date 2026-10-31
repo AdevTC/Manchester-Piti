@@ -8,7 +8,7 @@ import { RotaIcon } from "../../../../components/celeste/Turnos";
 import { VIcon } from "../../../../components/vidrio/VIcon";
 import { apiError } from "../../../../lib/clubApi";
 import { dateMillis, nameFor } from "../../../../lib/clubData";
-import { DEFAULT_JOBS, jobIdFor, ROTA_ICON_LABEL, ROTA_ICONS, ROTA_LIMITS, rotaHistory, rotaMatch, turnsFor, type RotaIconId, type RotaJob, type RotaTurnsDoc } from "../../../../lib/derived/rota";
+import { DEFAULT_JOBS, jobIdFor, ROTA_ICON_LABEL, ROTA_ICONS, ROTA_LIMITS, rotaMatch, rotaSchedule, type RotaIconId, type RotaJob, type RotaTurnsDoc } from "../../../../lib/derived/rota";
 import { plural } from "../../../../lib/derived/words";
 import { useRota } from "../../../../lib/useRotaTurns";
 import { useSeasonRotaTurns } from "../../../vestuario/live";
@@ -97,6 +97,8 @@ export function TurnosScreen() {
   const played = seasonMatches.filter((m) => m.status === "finished").sort((a, b) => dateMillis(b.date) - dateMillis(a.date)).slice(0, 6);
   const jOf = (id: string) => data.matches.find((m) => m.id === id)?.jornada;
   const rotaNow = jobs.length ? { jobs } : null;
+  // (each next match after the ones before it as they will be frozen: the same people don't get every jornada)
+  const ahead = new Map(rotaNow ? rotaSchedule(upcoming.map(rotaMatch), rotaNow, byId, all, data.now).map((x) => [x.m.id, x.turns]) : []);
   const uidOf = (pid: string | null) => (pid ? data.people.find((p) => p.playerId === pid)?.uid : undefined);
 
   const primary = draft
@@ -274,8 +276,7 @@ export function TurnosScreen() {
                 <h3 className="sc-h3">A quién le toca</h3>
                 <ul className="sc-rows">
                   {upcoming.map((m) => {
-                    const rm = rotaMatch(m);
-                    const turns = turnsFor(rm, rotaNow, rotaHistory(rm, all, byId, rotaNow, data.now), [], [], byId[m.id]);
+                    const turns = ahead.get(m.id) ?? [];
                     const at = dateMillis(m.date);
                     return (
                       <li key={m.id} className="sc-row cl-turn">
