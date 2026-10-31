@@ -1,0 +1,107 @@
+/* «El vestuario» · Vincula tu ficha: la sugerencia, la plantilla de camisetas, tu elección, los pasos y la ficha vinculada (ported from SalaFicha.dc.html) */
+.vst .vfi .nx-sub>b{color:var(--vd-ink-strong);font-weight:720}
+.vst .vfi-sug{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:18px 24px;margin-bottom:8px}
+.vst .vfi-sug>.vd-shirt{--s:112px}
+.vst .vfi .vfi-sug>.ve-acts{grid-column:2;margin-top:0}
+.vst .vfi-sug__t{min-width:0}
+.vst .vfi .vfi-sug__t>:is(h2,h3){font-size:34px;line-height:1.02;font-weight:770;letter-spacing:-.026em;font-variation-settings:'wdth' 96}
+.vst .vfi-sug__t>p{margin-top:6px!important}
+.vst .vfi-find{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 20px;margin-bottom:16px}
+.vst .vfi-q{flex:0 1 380px;min-width:0}
+.vst .vfi-q__box{position:relative}
+.vst .vfi-q__box>.nx-ic{position:absolute;left:14px;top:14px;color:var(--vd-ink2);pointer-events:none}
+.vst .vfi-q__box>.ve-in{padding-left:44px}
+.vst .vfi-key{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--vd-ink2)}
+.vst .vfi-key>li{display:inline-flex;align-items:center;gap:7px}
+.vst .vfi-key>li>i{width:12px;height:12px;border-radius:4px;box-shadow:inset 0 0 0 1.5px var(--vd-rule2)}
+.vst .vfi-key>li>i.is-free{background:rgba(108,171,221,.35);box-shadow:inset 0 0 0 1.5px rgba(108,171,221,.7)}
+.vst .vfi-key>li>i.is-on{box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+.vst .vfi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px}
+.vst .vfi-grid>li{display:flex;min-width:0}
+.vst .vfi-tile{--vd-r:20px;flex:1;min-width:0;display:grid;justify-items:center;align-content:start;gap:3px;min-height:138px;padding:14px 6px 12px;border:0;border-radius:20px;text-align:center;color:var(--vd-g-ink)}
+.vst .vfi-tile>.vd-shirt{--s:58px;margin-bottom:5px}
+.vst .vfi-tile>b{max-width:100%;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vst .vfi-tile>small{font-size:12px;font-weight:650;color:var(--vd-g-ink2)}
+.vst .vfi-tile.is-free>small{color:var(--vd-celeste-ink)}
+.vst .vfi-tile[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--vd-celeste),0 14px 30px -14px var(--vd-glow)}
+.vst .vfi-tile[aria-pressed="true"]>small{color:var(--vd-celeste-ink);font-weight:760}
+.vst .vfi-tile.is-taken{box-shadow:inset 0 0 0 1px var(--vd-rule);color:var(--vd-ink2)}
+.vst .vfi-tile.is-taken>.vd-shirt{opacity:.36;filter:grayscale(.8)}
+.vst .vfi-tile.is-taken>b{color:var(--vd-ink2);font-weight:620}
+.vst .vfi-tile.is-taken>small{color:var(--vd-ink2);font-weight:560}
+.vst .vfi-tile.is-mine{background:rgba(108,171,221,.14);box-shadow:inset 0 0 0 2px var(--vd-celeste),0 14px 30px -14px var(--vd-glow);color:var(--vd-ink)}
+.vst .vfi-tile.is-mine>b{color:var(--vd-ink-strong)}
+.vst .vfi-tile.is-mine>small{color:var(--vd-celeste-ink);font-weight:760}
+.vst .vfi-tile.is-idle{box-shadow:inset 0 0 0 1px rgba(108,171,221,.4);color:var(--vd-ink)}
+.vst .vfi-tile.is-idle>small{color:var(--vd-celeste-ink)}
+.vst .vfi-none{display:grid;justify-items:start;gap:8px;padding:18px 0}
+.vst .vfi-none>p{font-size:14.5px;color:var(--vd-ink2)}
+.vst .vfi-pick{display:grid;gap:14px}
+.vst .vfi-pick__top{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:16px}
+.vst .vfi-pick__top>.vd-shirt{--s:92px}
+.vst .vfi .vfi-pick__top :is(h2,h3){font-size:28px;line-height:1.05;font-weight:760;letter-spacing:-.022em}
+.vst .vfi-q-shirt{opacity:.4;filter:grayscale(.7)}
+.vst .vfi .vfi-pick .ve-acts{margin-top:0}
+.vst .vfi-pick .nx-btn--pri{min-width:150px}
+.vst .vfi-steps{display:grid}
+.vst .vfi-steps>li{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:12px;padding-bottom:18px}
+.vst .vfi-steps>li:last-child{padding-bottom:0}
+.vst .vfi-steps>li::before{content:"";position:absolute;left:17px;top:38px;bottom:2px;width:2px;border-radius:2px;background:var(--vd-rule2)}
+.vst .vfi-steps>li:last-child::before{display:none}
+.vst .vfi-steps>li.is-done::before{background:var(--vd-celeste)}
+.vst .vfi-dot{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--vd-ink2);box-shadow:inset 0 0 0 1.5px var(--vd-rule2)}
+.vst .vfi-dot>.nx-ic{width:17px;height:17px}
+.vst .vfi-steps>li.is-done>.vfi-dot{background:var(--vd-celeste);color:var(--vd-marino);box-shadow:none}
+.vst .vfi-steps>li.is-now>.vfi-dot{color:var(--vd-celeste-ink);box-shadow:inset 0 0 0 2px var(--vd-celeste);animation:vfi-now 2.2s var(--vd-ease) infinite}
+.vst .vfi-step{display:grid;gap:2px;padding-top:6px;min-width:0}
+.vst .vfi-step>b{font-size:15px;font-weight:700;line-height:1.3}
+.vst .vfi-step>small{font-size:12.5px;line-height:1.4;opacity:.8}
+.vst .vfi-steps>li.is-now .vfi-step>small{color:var(--vd-celeste-ink);opacity:1;font-weight:650}
+.vst .vfi-wait{display:grid;gap:22px}
+.vst .vfi-wait__top{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:22px}
+.vst .vfi-wait__top>.vd-shirt{--s:124px}
+.vst .vfi .vfi-wait__top :is(h2,h3){font-size:40px;line-height:1;font-weight:780;letter-spacing:-.03em;font-variation-settings:'wdth' 96;margin:4px 0 8px!important}
+.vst .vfi-wait__top p>b{color:var(--vd-g-ink)}
+.vst .vfi-wait__steps{padding-top:18px;border-top:1px solid var(--vd-rule)}
+.vst .vfi-done>.vfi-wait__top>.vd-shirt{--s:140px}
+.vst .vfi-meanwhile{display:grid;gap:10px}
+.vst .vfi-meanwhile>ul{display:grid;gap:8px}
+.vst .vfi-meanwhile>ul>li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--vd-ink)}
+.vst .vfi-meanwhile .ve-tile{width:34px;height:34px;border-radius:11px}
+.vst .vfi-meanwhile .ve-tile>.nx-ic{width:16px;height:16px}
+@container nx (min-width:700px){
+.vst .vfi-pick{position:sticky;top:20px}
+.vst .vfi-steps--row{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.vst .vfi-steps--row>li{grid-template-columns:minmax(0,1fr);padding-bottom:0}
+.vst .vfi-steps--row>li::before{left:46px;right:-4px;top:17px;bottom:auto;width:auto;height:2px}
+}
+@container nx (max-width:699px){
+.vst .vfi-sug{grid-template-columns:auto minmax(0,1fr);gap:14px}
+.vst .vfi-sug>.vd-shirt{--s:78px}
+.vst .vfi .vfi-sug>.ve-acts{grid-column:1/-1}
+.vst .vfi-sug>.ve-acts>.nx-btn{flex:1}
+.vst .vfi .vfi-sug__t>:is(h2,h3){font-size:27px}
+.vst .vfi-q{flex:1 1 100%}
+.vst .vfi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.vst .vfi-tile{--vd-r:16px;border-radius:16px;min-height:114px;padding:10px 3px}
+.vst .vfi-tile>.vd-shirt{--s:44px}
+.vst .vfi-tile>b{font-size:12.5px}
+.vst .vfi-tile>small{font-size:11.5px}
+.vst .vfi-pick__top>.vd-shirt{--s:72px}
+.vst .vfi-wait__top{gap:16px}
+.vst .vfi-wait__top>.vd-shirt{--s:84px}
+.vst .vfi .vfi-wait__top :is(h2,h3){font-size:30px}
+.vst .vfi-done>.vfi-wait__top>.vd-shirt{--s:92px}
+}
+/* (by hand) the free shirts are native radios in a fieldset: the chosen one is lit like the prototype's pressed tile,
+   the keyboard focus rings the tile, the fieldset keeps no box of its own */
+.vst .vfi-set{border:0;margin:0;padding:0;min-width:0}
+.vst .vfi-tile.is-free{cursor:pointer}
+.vst .vfi-tile.is-on{box-shadow:inset 0 0 0 2px var(--vd-celeste),0 14px 30px -14px var(--vd-glow)}
+.vst .vfi-tile.is-on>small{color:var(--vd-celeste-ink);font-weight:760}
+.vst .vfi-tile:has(>input:focus-visible){outline:2px solid var(--vd-celeste);outline-offset:2px}
+.vst .vfi-tile:has(>input:disabled){cursor:default;opacity:.7}
+@media (prefers-reduced-motion:reduce){
+.vst .vfi-steps>li.is-now>.vfi-dot{animation:none}
+}
+@keyframes vfi-now{0%,100%{box-shadow:inset 0 0 0 2px var(--vd-celeste),0 0 0 0 rgba(108,171,221,.5)}50%{box-shadow:inset 0 0 0 2px var(--vd-celeste),0 0 0 8px rgba(108,171,221,0)}}
