@@ -1,17 +1,20 @@
-// /perfil/compartir (TU boards tu-share): the studio — «Mi carta» or «¡Ya es oficial!», story or post, front or
-// back — with the preview, «Compartir» (the image to the phone's share sheet, else the link, else the clipboard),
-// «Descargar la imagen» and «Copiar el enlace». A sheet with its own address: Esc, the scrim or × go back to La carta.
-import { useContext, useEffect, useRef, useState } from "react";
-import { KitStillContext } from "../../../components/jersey3d/kitStill";
-import { Seg, TuIcon, TuLayer } from "../../../components/vidrio/tu/ui";
+// /perfil/compartir (TuCarta B, the studio sheet over Tu vitrina): «Mi carta» or «¡Ya es oficial!», Historia 9:16
+// or Post 4:5, Frente or Dorso — the preview, «Descargar» (the PNG of tu/shareDraw), «Compartir» (the image to the
+// phone's share sheet, else the link, else the clipboard) and «Copiar el enlace de tu página», with the privacy
+// line. A dialog (VSheet): the focus goes in and stays, Esc / × / the scrim go back.
+import { useContext, useState } from "react";
+import { Seg } from "../../stats/palco/kit";
 import { copyText, saveBlob } from "../fxRuntime";
 import { shareFileName, shareLink, shareOut, sharePlan, shareToast, shareWords, slugOf, type ShareNav } from "../share";
+import { niceName } from "../../../lib/derived/words";
 import type { ScreenProps } from "./screens/legacy";
-import { TuCard, type CardModel } from "./TuCard";
+import { Shirt, type CardModel } from "./TuCard";
+import { tierCls } from "./shell/tierCls";
 import { wantedNumber } from "./view";
 import { shareImage, type Fmt } from "./shareDraw";
-
-const FOCUSABLE = 'button:not([disabled]):not([aria-disabled="true"]), [href], [tabindex]:not([tabindex="-1"])';
+import { VSheet } from "./places/vitrina/Sheet";
+import { VIc } from "./places/vitrina/icons";
+import { KitStillContext } from "../../../components/jersey3d/kitStill";
 
 export function Compartir(p: ScreenProps & { card: CardModel; onClose: () => void }) {
   const { data, who, say, card, onClose } = p;
@@ -20,7 +23,6 @@ export function Compartir(p: ScreenProps & { card: CardModel; onClose: () => voi
   const [fmt, setFmt] = useState<Fmt>("historia");
   const [face, setFace] = useState<"frente" | "dorso">("frente");
   const [busy, setBusy] = useState(false);
-  const box = useRef<HTMLDivElement | null>(null);
   const still = useContext(KitStillContext);
   const pack = data.ficha.state === "pendiente";
   const num = vinc ? data.card.number : wantedNumber(data);
@@ -41,37 +43,6 @@ export function Compartir(p: ScreenProps & { card: CardModel; onClose: () => voi
   const slug = slugOf(vinc ? data.card.name || data.nickname : data.nickname);
   const file = shareFileName(isCarta ? "carta" : "poster", slug);
   const image = () => shareImage({ fmt, face, card: isCarta ? card : null, poster: isCarta ? null : poster, shirt: shirtSrc, crest: "/crest-128.webp" });
-
-  // a dialog: the focus goes in and stays; Esc closes
-  useEffect(() => {
-    const el = box.current;
-    const before = document.activeElement as HTMLElement | null;
-    el?.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab" || !el) return;
-      const f = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)];
-      if (!f.length) return;
-      const first = f[0];
-      const last = f[f.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", key);
-    return () => {
-      document.removeEventListener("keydown", key);
-      before?.focus?.({ preventScroll: true });
-    };
-  }, [onClose]);
 
   const download = async () => {
     if (busy) return;
@@ -97,104 +68,91 @@ export function Compartir(p: ScreenProps & { card: CardModel; onClose: () => voi
   };
   const copy = async () => say((await copyText(link)) ? `Enlace copiado: ${link.replace(/^https?:\/\//, "")}` : "No se ha podido copiar el enlace.");
 
+  // the preview (B's tc-prev): the frame in its format, its top line, the mini card, the name and its foot
+  const dorso = isCarta && face === "dorso";
+  const big = card.kind === "face" ? card.rating || "—" : card.kind === "carne" ? "S" : "?";
+  const shownName = isCarta ? (dorso ? `Carné · ${card.back.name}` : niceName(data.card.name || data.shirt.current || data.nickname)) : poster.name;
+  const top = isCarta ? `Manchester Piti · ${data.seasonName}` : poster.kick;
+  const foot = isCarta ? (dorso ? "Con el QR de tu página" : `${host}${card.back.path}`) : poster.line;
+  const aria = `${isCarta ? `Tu carta, ${dorso ? "el dorso con el carné y el QR" : "el frente"}` : `Póster «${poster.kick}»`}, formato ${fmt === "post" ? "post 4:5" : "historia 9:16"}.`;
+
   return (
-    <TuLayer cls="o-compartir">
-      <div className="tu-scrim" aria-hidden="true" onClick={onClose} />
-      <div ref={box} className="vd-glass vd-glass--deep tu-sheet tu-share" role="dialog" aria-modal="true" aria-labelledby="tu-sh-t" aria-describedby="tu-sh-d">
-        <span className="tu-grab" aria-hidden="true" />
-        <header className="tu-share__head">
+    <VSheet id="tv-st-h" kick="El estudio" title={vinc ? "Compartir mi carta" : "Compartir mi póster"} desc={lead} onClose={onClose} className="tv-studio">
+      <div className="tv-studio__in">
+        <div className="tk-form">
           <div>
-            <p className="tu-kick">Estudio</p>
-            <h2 id="tu-sh-t">{vinc ? "Compartir mi carta" : "Compartir mi póster"}</h2>
-            <p id="tu-sh-d">{lead}</p>
+            <p className="tk-card__k">Diseño</p>
+            <Seg
+              label="Diseño"
+              opts={[
+                { key: "carta", t: "Mi carta", on: isCarta, off: !vinc, pick: () => setDs("carta") },
+                { key: "poster", t: "¡Ya es oficial!", on: !isCarta, pick: () => setDs("poster") },
+              ]}
+            />
+            {!vinc && <p className="nx-meta tv-studio__note">«Mi carta», cuando tengas carta. {pack ? "Mientras el capitán confirma tu ficha, el póster dice «Fichaje en trámite»." : "Sin ficha, el póster te presenta como nuevo socio."}</p>}
           </div>
-          <button type="button" className="tu-x2" aria-label="Cerrar el estudio" onClick={onClose}>
-            <TuIcon name="close" />
-          </button>
-        </header>
-        <div className="tu-share__body">
-          <div className="tu-share__pv">
-            <div className={`tu-frame f-${fmt} d-${ds} tone-${tone}${face === "dorso" ? " is-dorso" : ""}`} role="img" aria-label={`${isCarta ? `Tu carta, ${face === "dorso" ? "el dorso con el carné y el QR" : "el frente"}` : `Póster «${poster.kick}»`}, formato ${fmt === "post" ? "post 4:5" : "historia 9:16"}.`}>
-              {isCarta ? (
-                <div className="tu-frame__card">
-                  <TuCard card={card} flip={face === "dorso"} run={0} label="" onTap={() => undefined} />
-                </div>
-              ) : (
-                <div className="tu-poster">
-                  <img className="tu-poster__crest" src="/crest-128.webp" alt="" />
-                  <b className="tu-poster__k">{poster.kick}</b>
-                  {shirtSrc ? <img className="tu-poster__img" src={shirtSrc} alt="" /> : <span className="tu-poster__img" />}
-                  <b className="tu-poster__n">{poster.name}</b>
-                  <span>{poster.line}</span>
-                  <small>{poster.foot}</small>
-                </div>
-              )}
+          <div>
+            <p className="tk-card__k">Formato</p>
+            <Seg
+              label="Formato"
+              opts={[
+                { key: "historia", t: "Historia 9:16", on: fmt === "historia", pick: () => setFmt("historia") },
+                { key: "post", t: "Post 4:5", on: fmt === "post", pick: () => setFmt("post") },
+              ]}
+            />
+          </div>
+          {isCarta && (
+            <div>
+              <p className="tk-card__k">Cara</p>
+              <Seg
+                label="Cara"
+                opts={[
+                  { key: "frente", t: "Frente", on: face === "frente", pick: () => setFace("frente") },
+                  { key: "dorso", t: "Dorso", on: face === "dorso", pick: () => setFace("dorso") },
+                ]}
+              />
             </div>
-          </div>
-          <div className="tu-share__ctl">
-            <p className="tu-label" id="tu-sh-ds">
-              Diseño
-            </p>
-            <Seg
-              cls="tu-oseg--tall"
-              labelledBy="tu-sh-ds"
-              value={ds}
-              onPick={setDs}
-              opts={[
-                { v: "carta", t: "Mi carta", sub: vinc ? "frente o dorso" : "cuando tengas carta", dis: !vinc },
-                { v: "poster", t: "¡Ya es oficial!", sub: vinc ? "tu fichaje" : pack ? "en trámite" : "nuevo socio" },
-              ]}
-            />
-            <p className="tu-label" id="tu-sh-fm">
-              Formato
-            </p>
-            <Seg
-              cls="tu-oseg--tall"
-              labelledBy="tu-sh-fm"
-              value={fmt}
-              onPick={setFmt}
-              opts={[
-                { v: "historia", t: "Historia", sub: "9:16" },
-                { v: "post", t: "Post", sub: "4:5" },
-              ]}
-            />
-            {isCarta && (
-              <>
-                <p className="tu-label" id="tu-sh-fc">
-                  Cara
-                </p>
-                <Seg
-                  cls="tu-oseg--tall"
-                  labelledBy="tu-sh-fc"
-                  value={face}
-                  onPick={setFace}
-                  opts={[
-                    { v: "frente", t: "Frente", sub: "tu carta" },
-                    { v: "dorso", t: "Dorso", sub: "carné y QR" },
-                  ]}
-                />
-              </>
+          )}
+        </div>
+        <div className="tc-prev">
+          <div className={`tc-prev__f ${fmt === "historia" ? "is-h" : "is-p"} tone-${tone}`} role="img" aria-label={aria}>
+            <span className="tc-prev__l">{top}</span>
+            {isCarta && !dorso ? (
+              <span className={`tc-mini ${tierCls(card)}`} aria-hidden="true">
+                <b>{big}</b>
+                <Shirt num={card.kind === "face" ? card.num : undefined} className="tc-mini__shirt" />
+              </span>
+            ) : dorso ? (
+              <span className="tv-prev__qr" aria-hidden="true">
+                <img src="/crest-128.webp" alt="" width="56" height="56" />
+                <i>QR</i>
+              </span>
+            ) : shirtSrc ? (
+              <img className={`tv-prev__shirt${tone === "off" ? " is-off" : ""}`} src={shirtSrc} alt="" />
+            ) : (
+              <span className="tv-prev__shirt" aria-hidden="true" />
             )}
-            <button type="button" className="vd-glass vd-press vd-btn vd-btn--pri tu-wide" aria-disabled={busy || undefined} onClick={() => void share()}>
-              <TuIcon name="share" />
-              Compartir
-            </button>
-            <div className="tu-row">
-              <button type="button" className="vd-link" onClick={() => void download()}>
-                Descargar la imagen
-              </button>
-              <button type="button" className="vd-link" onClick={() => void copy()}>
-                Copiar el enlace
-              </button>
-            </div>
-            <p className="tu-small">
-              <TuIcon name="lock" />
-              {isCarta ? "La imagen no lleva tu correo ni tu id: solo lo que ves. El dorso lleva el QR a tu página pública." : "El póster no lleva tu correo ni tu id: solo lo que ves."}
-            </p>
-            {!vinc && <p className="tu-small">{pack ? "Mientras el capitán confirma tu ficha, el póster dice «Fichaje en trámite»." : "Sin ficha, el póster te presenta como nuevo socio."}</p>}
+            <b>{shownName}</b>
+            <span className="tc-prev__l">{foot}</span>
           </div>
         </div>
       </div>
-    </TuLayer>
+      <div className="nx-sheet__btns">
+        <button type="button" className="vd-glass vd-press nx-btn nx-btn--pri" onClick={() => void download()} aria-disabled={busy || undefined}>
+          Descargar
+        </button>
+        <button type="button" className="vd-glass vd-press nx-btn" onClick={() => void share()} aria-disabled={busy || undefined}>
+          <VIc name="share" />
+          Compartir
+        </button>
+        <button type="button" className="nx-lnk" onClick={() => void copy()}>
+          Copiar el enlace de tu página
+        </button>
+      </div>
+      <p className="nx-meta tv-studio__priv">
+        <VIc name="lock" />
+        {isCarta ? "La imagen no lleva tu correo ni tu id: solo lo que ves. El dorso lleva el QR a tu página pública." : "El póster no lleva tu correo ni tu id: solo lo que ves."}
+      </p>
+    </VSheet>
   );
 }
