@@ -161,7 +161,8 @@ export function temporadaView(v: NuView, st: NuState, act: Act) {
   const pace = `M0 100 L${f2(N)} ${f2(Math.max(0, 100 - ((1.5 * N) / maxP) * 100))}`;
   const ptsDots = P.map(([x, y], n) => ({ key: pts[n].i, left: f2((x / N) * 100), top: f2(8 + y * 0.72), cls: [pts[n].prov ? "is-prov" : "", n === P.length - 1 ? "is-head" : ""].filter(Boolean).join(" ") }));
   const lastP = P[P.length - 1];
-  const ptsLab = lastP ? { left: f2((lastP[0] / N) * 100), top: f2(8 + lastP[1] * 0.72), v: plural(acc, "punto", "puntos") } : null;
+  // (the label sits left of the last point; early in the season it would fall off the cinta, so it goes right of it)
+  const ptsLab = lastP ? { left: f2((lastP[0] / N) * 100), top: f2(8 + lastP[1] * 0.72), v: plural(acc, "punto", "puntos"), after: lastP[0] / N < 0.25 } : null;
 
   // ---------- the jornada card
   const jm = metas.find((x) => x.m.id === jkey) ?? metas[0] ?? null;

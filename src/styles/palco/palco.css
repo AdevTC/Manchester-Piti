@@ -36,6 +36,12 @@ html[data-nu-dir="up"]{--nu-ex:10px;--nu-en:-14px}
 .nu-toast{position:fixed;left:50%;bottom:104px;z-index:90;display:flex;align-items:center;gap:8px;max-width:calc(100% - 32px);box-sizing:border-box;padding:10px 16px 10px 12px;border-radius:999px;background:var(--vd-solid);color:var(--vd-g-ink);font-family:var(--vd-sans);font-size:14px;font-weight:600;box-shadow:0 18px 40px -16px rgba(2,8,26,.6);transform:translate(-50%,12px);opacity:0;pointer-events:none;transition:opacity .2s var(--vd-ease),transform .3s var(--vd-spring,var(--vd-ease))}
 .nu-toast span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nu-toast.is-on{opacity:1;transform:translate(-50%,0)}
+/* (vidrio-paginas puts every child of .vd-pg in place with position:relative; in production its sheet comes after
+   this one, so these say it with more weight: the toast, and a sheet drawn in place before it moves to the body) */
+.palco>.nu-toast{position:fixed}
+.palco>.nx-scrim,.palco>.nx-sheet{position:fixed}
+.palco>.nx-scrim{z-index:80}
+.palco>.nx-sheet{z-index:81}
 .nu-toast .nx-ic{width:18px;height:18px;color:var(--vd-celeste)}
 @media (min-width:1024px){.nu-toast{bottom:28px}}
 @media (prefers-reduced-motion:reduce){.palco>.nu-sky-b,.nu-toast{transition:none!important}}

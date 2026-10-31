@@ -69,7 +69,7 @@ export function Temporada({ v, st, act }: PlaceProps) {
                 <span key={d.key} className={`nx-pts__dot ${d.cls}`.trim()} style={{ left: `${d.left}%`, top: `${d.top}px` }} />
               ))}
               {t.ptsLab && (
-                <span className="nx-pts__lab" style={{ left: `${t.ptsLab.left}%`, top: `${t.ptsLab.top}px` }}>
+                <span className={`nx-pts__lab${t.ptsLab.after ? " is-after" : ""}`} style={{ left: `${t.ptsLab.left}%`, top: `${t.ptsLab.top}px` }}>
                   {t.ptsLab.v}
                 </span>
               )}
