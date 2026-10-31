@@ -23,7 +23,7 @@ test("¿Vas? responde a la convocatoria, y entreno y tablón se guardan en tiemp
   await expect(rsvp.getByRole("radio", { name: "Duda" })).toHaveAttribute("aria-checked", "true");
   await rsvp.getByRole("radio", { name: "Voy", exact: true }).click();
   await expect(rsvp.getByRole("radio", { name: "Voy", exact: true })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByText(/^\d+ van · \d+ en duda/)).toBeVisible();
+  await expect(page.getByText(/^\d+ van? · \d+ en duda/)).toBeVisible();
 
   // Entrenos: a confirmed training left by an earlier run is reopened first.
   await openBlock(page, /^Entrenos:/, /\/vestuario\/entrenos$/);
@@ -37,7 +37,7 @@ test("¿Vas? responde a la convocatoria, y entreno y tablón se guardan en tiemp
   if (!(await slots.isVisible())) {
     const when = new Date(Date.now() + 3 * 86_400_000);
     const day = new Date(when.getTime() - when.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-    await page.getByRole("button", { name: /Otro día · proponer entreno/ }).click();
+    await page.getByRole("button", { name: "Proponer: otro día" }).click();
     await page.getByLabel("Hueco 1 · día").fill(day);
     await page.getByLabel("Hueco 1 · desde").fill("20:00");
     await page.getByLabel("Hueco 1 · hasta").fill("21:30");
