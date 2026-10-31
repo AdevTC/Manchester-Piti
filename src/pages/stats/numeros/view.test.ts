@@ -26,8 +26,9 @@ const BASE: NuState = {
   place: "temporada", upto: 99, playing: false, raceK: "goles", star: null, temporada: "esta", campo: "todo", jug: [], partidos: [], grow: null, sheet: null, sheetId: null,
   rankK: "goles", pick: null, rival: null, campoView: "pases", puesto: "", team: "us", parte: "all", recView: "rachas", cromoK: "todos", evoK: "goles", ysi: {}, sortK: "goles",
   q: "", rq: "", catQ: "", catFam: "", catN: 24, catX: false, allStats: false, colSet: "basico", wsSet: "resumen", clockK: "ambos", streakK: "g", evoIds: null, sq: "",
+  jugView: "ranking", vsOn: false, vsB: null, allRank: false, allTable: false, jkey: null, replay: false, exFmt: "json",
 };
-const act: Act = { set: vi.fn(), open: vi.fn(), closeSheet: vi.fn(), go: vi.fn(), grow: vi.fn(), say: vi.fn(), stop: vi.fn(), seek: vi.fn(), narrow: () => false, ask: vi.fn(), csv: vi.fn(), json: vi.fn() };
+const act: Act = { set: vi.fn(), open: vi.fn(), closeSheet: vi.fn(), go: vi.fn(), grow: vi.fn(), say: vi.fn(), stop: vi.fn(), seek: vi.fn(), play: vi.fn(), narrow: () => false, ask: vi.fn(), csv: vi.fn(), json: vi.fn() };
 const squad = squadOf(people, S.matches);
 const env = (p: Partial<Env> = {}): Env => ({
   nd: makeND(squad), S, moment: { edge: 2, live: false, closed: false }, others: [], catalog: null, demo: false, today: "2026-10-23",
@@ -57,7 +58,7 @@ describe("Números · the season without a table", () => {
 
 describe("Números · the boards' faults, fixed", () => {
   it("a one-match streak is singular and its range one jornada", () => {
-    const v = numerosView({ ...BASE, place: "records", upto: 1 }, env(), act);
+    const v = numerosView({ ...BASE, place: "temporada", upto: 1 }, env(), act);
     expect(v.records.title).toBe("1 victoria seguida");
     expect(v.records.players.find((p) => p.name === "Alcides")?.range).toBe("J1");
   });

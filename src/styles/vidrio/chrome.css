@@ -136,7 +136,7 @@ nav.vx-dock.vd-glass{left:14px;right:14px;bottom:calc(10px + env(safe-area-inset
      bars with two beads).
    - The sky, the ground and the footer swap at once under it, so the gap between the two never shows the bare html
      ground (it was a flash of another colour). */
-html[data-vd-page] :is(.in-screen,.in-subhead,.pp-tab__ind,.pp-screen,.sn-pitchcol,.sn-banq,.sn-cam,.sn-main,.sn-card,.nu-time__j b,.nu-rail__bead,.nu-screen,.nu-screen__title,.nu-grow,.pa-tab__bead,.pa-screen,.pa-cur,.pa-ftab__bead,.pa-fpanel,.pl-percha,.pl-hero__img,.tu-nav__bead,.tu-card,.tu-tu,.tu-bell,.tu-sr,.tu-share,.tu-story__in,[style*="view-transition-name"]:not(.vd-morph)){view-transition-name:none!important}
+html[data-vd-page] :is(.in-screen,.in-subhead,.pp-tab__ind,.pp-screen,.sn-pitchcol,.sn-banq,.sn-cam,.sn-main,.sn-card,.nu-time__j b,.nu-rail__bead,.nu-screen,.nu-screen__title,.nx-place,.nu-grow,.pa-tab__bead,.pa-screen,.pa-cur,.pa-ftab__bead,.pa-fpanel,.pl-percha,.pl-hero__img,.tu-nav__bead,.tu-card,.tu-tu,.tu-bell,.tu-sr,.tu-share,.tu-story__in,[style*="view-transition-name"]:not(.vd-morph)){view-transition-name:none!important}
 html[data-vd-page] .vx > :is(main,.nu-main){view-transition-name:vd-page}
 html[data-vd-page] .vx > :is(main,.nu-main)[data-vd-out]{view-transition-name:vd-page-out}
 html[data-vd-page]::view-transition-group(root){animation:none}

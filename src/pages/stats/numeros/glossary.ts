@@ -44,6 +44,18 @@ export const NU_METRICS: MetricRow[] = [
 ];
 export interface MetricDef { k: string; t: string; g: string; d: string; tech: boolean; low: boolean }
 export const NU_MET: Record<string, MetricDef> = Object.fromEntries(NU_METRICS.map((m) => [m[0], { k: m[0], t: m[1], g: m[2], d: m[3], tech: !!m[4], low: !!m[5] }]));
+/** A metric's label in running text: lower case, MVP kept («veces MVP», never «veces mvp»). */
+export const metricLower = (k: string): string => (k === "mvp" ? "veces MVP" : (NU_MET[k]?.t ?? k).toLowerCase());
+/** The word after one of a metric (the labels are plural): «1 gol», «1 vez MVP», «1 suplencia inicial». */
+const ONE_OF: Record<string, string> = {
+  goles: "gol", asist: "asistencia", ga: "gol o asistencia", mvp: "vez MVP", pj: "partido", min: "minuto", tit: "titularidad", ban: "suplencia inicial",
+  nc: "vez sin convocar", sin: "entrada", sout: "salida", yc: "amarilla", rc: "expulsión", dy: "doble amarilla", f: "falta cometida", fr: "falta recibida",
+  wood: "tiro al palo", ch: "ocasión", sv: "parada", psv: "penalti parado", gpen: "gol de penalti", gfk: "gol de falta", pms: "penalti fallado",
+  pcm: "penalti cometido", prc: "penalti recibido", pas: "pase", pok: "pase completado", kp: "pase que acaba en remate", cr: "centro", sh: "remate",
+  sot: "remate a puerta", rec: "recuperación", tov: "pérdida", int: "interceptación", tk: "entrada", cl: "despeje", du: "duelo", dr: "regate",
+};
+/** The unit after a number of a metric: «1 gol» · «3 goles», «1 vez MVP» · «2 veces MVP», «4 veces sin convocar». */
+export const unitOf = (k: string, n: number): string => (n === 1 && ONE_OF[k] ? ONE_OF[k] : k === "nc" ? "veces sin convocar" : metricLower(k));
 /** Plain words for every place, block and idea on the page (the «?» buttons). */
 export const NU_GLOSS: Record<string, [string, string]> = {
   temporada: ['La temporada', 'Cómo va el equipo: la clasificación de la liga, la forma, los números del equipo y la carrera del Pichichi.'],

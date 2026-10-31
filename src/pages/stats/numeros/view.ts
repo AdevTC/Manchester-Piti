@@ -6,19 +6,27 @@ import { numerosActions, numerosMatches, numerosMetrics } from "./analysis";
 import { buildAnalysisWorkspace, formatWorkspaceMetric, selectAnalysisMatches, sortAnalysisRows, workspaceMetricValue, ANALYSIS_WORKSPACE_PRESETS } from "../../../lib/analysisWorkspace";
 import { NARRATED_METRICS } from "../../../../functions/src/narrated/catalogIndex";
 import type { AnalysisFilters, MetricResult } from "../../../../functions/src/narrated/types";
-import { NU_GLOSS, NU_MET, NU_METRICS } from "./glossary";
+import { NU_GLOSS, NU_MET, NU_METRICS, metricLower, unitOf } from "./glossary";
 import type { CatRow } from "./catalog";
 import { tonightWord, TonightWord } from "../../../lib/derived/madrid";
 import { logoOf } from "../../../lib/derived/rivalLogo";
 import { clock, dec, list, pct, posWith, result, slug, strip, table, type Moment, type ND, type NMatch, type NSeasonData, type PRow, type Se, type TRow } from "./nd";
 
-export const PLACES = ["temporada", "jugadores", "campo", "juego", "rivales", "records"] as const;
+/** The sections the numbers are computed for (the round-3 screens); the page shows them in four places. */
+export const SECTIONS = ["temporada", "jugadores", "campo", "juego", "rivales", "records"] as const;
+export type Section = (typeof SECTIONS)[number];
+export const SECTION_LABEL: Record<Section, string> = { temporada: "Temporada", jugadores: "Jugadores", campo: "El campo", juego: "El juego", rivales: "Rivales", records: "Récords" };
+/** «El palco»: the four places on the shelf. El campo lives in Jugadores (and its systems in Temporada), Récords in both. */
+export const PLACES = ["temporada", "jugadores", "juego", "rivales"] as const;
 export type Place = (typeof PLACES)[number];
-export const PLACE_LABEL: Record<Place, string> = { temporada: "Temporada", jugadores: "Jugadores", campo: "El campo", juego: "El juego", rivales: "Rivales", records: "Récords" };
+export const PLACE_LABEL: Record<Place, string> = { temporada: "Temporada", jugadores: "Jugadores", juego: "El juego", rivales: "Rivales" };
+export const isPlace = (s: string): s is Place => (PLACES as readonly string[]).includes(s);
 export type Grow = "tabla" | "jugadores" | "mesa" | "catalogo" | "graficas" | "rivales";
-export type Sheet = "scope" | "ysi" | "player" | "rival" | "metric" | "info" | "search";
+export type Sheet = "scope" | "ysi" | "player" | "rival" | "metric" | "info" | "search" | "stats" | "export";
 export type CampoView = "pases" | "puestos" | "sistemas";
 export type RecView = "rachas" | "marcas" | "cromos" | "evolucion";
+/** Jugadores' three views: the ranking with the player's card, the pitch (pases de gol, puestos), the evolution. */
+export type JugView = "ranking" | "campo" | "evo";
 
 /** The page's state: the part in the address (NumerosPage reads and writes it) and the part that is only the screen's. */
 export interface NuState {
@@ -64,21 +72,36 @@ export interface NuState {
   streakK: "g" | "a" | "ga" | "p" | "c";
   evoIds: string[] | null;
   sq: string;
+  /** «El palco»: Jugadores' view, the second player of «Cara a cara» (on while vsOn), the whole ranking or table. */
+  jugView: JugView;
+  vsOn: boolean;
+  vsB: string | null;
+  allRank: boolean;
+  allTable: boolean;
+  /** The jornada picked on la cinta (its match key); null: the one the season is at. */
+  jkey: string | null;
+  /** `upto` was set by «Repasar la temporada» (paused or running), not by «Hasta la J…». */
+  replay: boolean;
+  /** The export sheet's format. */
+  exFmt: "json" | "csv";
 }
 
 export interface Act {
   set: (p: Partial<NuState>) => void;
   open: (sheet: Sheet, id?: string | null) => void;
   closeSheet: () => void;
-  go: (place: Place, patch?: Partial<NuState>) => void;
+  /** To a section: El campo and Récords land in the place that holds them now. */
+  go: (place: Section, patch?: Partial<NuState>) => void;
   grow: (g: Grow | null) => void;
   say: (t: string) => void;
   /** Leaves the moviola where it is and stops «Repasar». */
   stop: () => void;
   seek: (j: number) => void;
+  /** «Repasar la temporada»: play, or pause; a paused replay goes on from its jornada. */
+  play: () => void;
   narrow: () => boolean;
   /** A question or a search result: closes the sheet, sets the screen's view and goes there (then opens a sheet). */
-  ask: (place: Place, patch: Partial<NuState>, sheet?: Sheet, id?: string) => void;
+  ask: (place: Section, patch: Partial<NuState>, sheet?: Sheet, id?: string) => void;
   csv: (kind: "jugadores" | "mesa") => void;
   json: () => void;
 }
@@ -107,6 +130,8 @@ export interface Env {
   logos?: ReadonlyMap<string, string>;
 }
 
+/** «1 parada», «3 paradas»: a number with its word in the right number. */
+const nW = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 /** «1 partido marcando», never «1 partidos marcando». */
 const ONE_STREAK: Record<string, string> = { "Victorias seguidas": "Victoria seguida", "Partidos sin perder": "Partido sin perder", "Partidos marcando": "Partido marcando", "Porterías a cero": "Portería a cero" };
 
@@ -160,7 +185,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const myId = viewer.playerId;
   const liveM = se.matches.find((m) => m.st === "live") ?? null;
   const atM = se.matches.find((m) => m.j === upto) ?? null;
-  const place = st.place;
+  const place: Section = st.place;
   const set = (p: Partial<NuState>) => () => act.set(p);
   const you = (id: string | null | undefined) => !!id && id === myId;
   const fmtRes = (m: Pick<NMatch, "gf" | "ga"> | null | undefined) => (!m || m.gf == null ? "" : `${m.gf}–${m.ga}`);
@@ -192,14 +217,16 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const lede = all
     ? `${allNames.length > 1 ? `${list(allNames)}, juntas` : `${env.S.name}, entera`}. La moviola recorre una temporada: con todas, se ven los totales.`
     : se.closed
-      ? `${se.S.name}, cerrada después de ${se.jornadas} jornadas.${env.demo ? ` (Demo: la temporada larga cortada en la J${se.jornadas}.)` : ""}`
+      ? `${se.S.name}, cerrada después de ${nW(se.jornadas, "jornada", "jornadas")}.${env.demo ? ` (Demo: la temporada larga cortada en la J${se.jornadas}.)` : ""}`
       : withLive
         ? `${se.S.name}, con la J${edge} en directo: lo de borde discontinuo es «si acaba así» hasta que haya acta.`
         : scrubbed
           ? `Estás viendo la temporada tal como estaba tras la J${upto}.`
           : !gsDone.length
             ? `${se.S.name}. Aún no se ha jugado ninguna jornada: todos a cero${pendingN ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`
-            : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
+            : st.partidos.length
+              ? `${se.S.name}: ${st.partidos.length === 1 ? "solo el partido elegido" : `los ${st.partidos.length} partidos elegidos`}.`
+              : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
   let maxG = 1;
   se.matches.forEach((m) => {
     if (m.gf != null) maxG = Math.max(maxG, m.gf, m.ga ?? 0);
@@ -373,7 +400,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     const bestSv = ND.ranked(techRows, "sv")[0];
     const bestPok = ND.ranked(techRows, "pok")[0];
     const bestRec = ND.ranked(techRows, "rec")[0];
-    if (bestSv && bestSv.saves) said.push(`${bestSv.name} hizo ${bestSv.saves} paradas.`);
+    if (bestSv && bestSv.saves) said.push(`${bestSv.name} hizo ${nW(bestSv.saves, "parada", "paradas")}.`);
     if (bestPok && bestPok.pok) said.push(`${bestPok.name} es quien más pases completa: ${bestPok.pok}.`);
     if (bestRec && bestRec.rec) said.push(`${bestRec.name} recupera más balones que nadie: ${bestRec.rec}.`);
   }
@@ -406,7 +433,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         : withLive
           ? `${pos}, si acaba así`
           : `${pos} en la tabla`
-      : `${T.pts}${T.pts === 1 ? " punto" : " puntos"}${all ? ", todas las temporadas" : scrubbed ? ` tras la J${upto}` : !hasTable ? ` tras ${T.pj === 1 ? "la primera jornada" : `${T.pj} jornadas`}` : ` tras la J${upto}`}`,
+      : `${T.pts}${T.pts === 1 ? " punto" : " puntos"}${all ? ", todas las temporadas" : scrubbed ? ` tras la J${upto}` : nPart ? (nPart === 1 ? " en el partido elegido" : ` en los ${nPart} partidos elegidos`) : !hasTable ? ` tras ${T.pj === 1 ? "la primera jornada" : `${T.pj} jornadas`}` : ` tras la J${upto}`}`,
     sub: `${T.g}G ${T.e}E ${T.p}P · ${T.gf}–${T.ga}${st.campo !== "todo" ? (st.campo === "casa" ? " en casa" : " fuera") : ""}${!hasTable ? " · la liga aún no ha publicado la clasificación" : ""}`,
     prov: withLive && tableReal,
     showTable: hasTable && (tableReal || all || st.campo !== "todo" || nPart > 0),
@@ -521,7 +548,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         };
     r.alt = `La camiseta de ${r.name}, dorsal ${r.n}`;
   });
-  const unitWord = porra ? "puntos" : rkK === "min" && !minKnown ? "de titular" : MD.t.toLowerCase();
+  const unitWord = (n: number) => (porra ? (n === 1 ? "punto" : "puntos") : rkK === "min" && !minKnown ? "de titular" : unitOf(rkK, n));
   const meRow = rankRows.find((r) => r.you);
   const podium = locked || MD.low ? [] : rankRows.filter((r) => r.val > 0).slice(0, 3);
   const restFrom = podium.length;
@@ -582,7 +609,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ].concat(
         R.tech
           ? [
-              { t: "Pases completados", v: `${R.pok} completados de ${R.pas} intentados · ${R.pko} fallados${R.punk ? ` · ${R.punk} sin resultado` : ""}${R.passPct != null ? ` (${R.passPct} % de los resueltos)` : ""} · parcial` },
+              { t: "Pases completados", v: `${nW(R.pok, "completado", "completados")} de ${nW(R.pas, "intentado", "intentados")} · ${nW(R.pko, "fallado", "fallados")}${R.punk ? ` · ${R.punk} sin resultado` : ""}${R.passPct != null ? ` (${R.passPct} % de los resueltos)` : ""} · parcial` },
               { t: "Recuperaciones · pérdidas", v: `${R.rec} · ${R.tov} · parcial` },
             ]
           : [],
@@ -625,11 +652,13 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         ? "La porra, aún sin puntos"
         : MD.low
         ? nzRank
-          ? `${nzRank} con ${MD.t.toLowerCase()}`
-          : `Nadie con ${MD.t.toLowerCase()} todavía`
+          ? `${nzRank} con ${metricLower(rkK)}`
+          : `Nadie con ${metricLower(rkK)} todavía`
         : jLeaders.length
-          ? `${list(jLeaders.map((r) => r.name))}, ${jLeaders[0].val} ${jLeaders[0].val === 1 && rkK === "goles" ? "gol" : unitWord}`
-          : `Nadie todavía en ${MD.t.toLowerCase()}`,
+          ? `${list(jLeaders.map((r) => r.name))}, ${jLeaders[0].val} ${unitWord(jLeaders[0].val)}`
+          : rkK === "mvp"
+            ? "Nadie ha sido MVP todavía"
+            : `Nadie todavía en ${metricLower(rkK)}`,
     sub: porra
       ? member
         ? `${NU_GLOSS.porra[1]}${env.S.porra?.demo ? " Demo en estos datos." : ""}`
@@ -644,8 +673,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     /** (not on the boards: a season whose porra has no points yet) */
     porraEmpty: porra && !locked && !rankRows.length ? "Aún no hay puntos de porra esta temporada: llegan al cerrar la primera jornada con apuestas." : "",
     more: locked || porra ? 0 : Math.max(0, rankRows.length - restFrom - 5), moreT: `Todos los jugadores (${rankRows.length})`,
-    onlyOne: !locked && !MD.low && podium.length === 1 && rankRows.length > 1 ? `Solo ${podium[0].name} tiene ${MD.t.toLowerCase()} de momento; el resto, a cero.` : "",
-    meLine: meRow && rankRows.indexOf(meRow) >= restFrom + 5 ? `Tú, ${meRow.rank}º con ${meRow.val} ${unitWord}` : "",
+    onlyOne: !locked && !MD.low && podium.length === 1 && rankRows.length > 1 ? `Solo ${podium[0].name} tiene ${metricLower(rkK)} de momento; el resto, a cero.` : "",
+    meLine: meRow && rankRows.indexOf(meRow) >= restFrom + 5 ? `Tú, ${meRow.rank}º con ${meRow.val} ${unitWord(meRow.val)}` : "",
     hasMvp: rkK === "mvp" && played.some((m) => m.mvp),
     mvpList: rkK === "mvp" ? played.slice(-8).reverse().filter((m) => m.mvp).map((m) => ({ key: m.id, j: `J${m.j}`, name: list((m.mvps ?? [m.mvp as string]).map((x) => ND.name(x))) })) : [],
     voteOpen: rkK === "mvp" && lastVote && lastVote.open ? `La votación de la J${lastPlayed.j} sigue abierta: ${lastVote.total} de ${lastVote.eligible} han votado. El MVP sale al cerrarla.` : "",
@@ -703,7 +732,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     return {
       key: id, id, name: P.name, left: P.x, top: P.y, size: 12 + Math.min(40, r.ga * 3.4),
       cls: [r.ga ? "" : "is-dim", sel === id ? "is-sel" : "", sel && sel !== id && !lk.some((l) => (l.from === sel && l.to === id) || (l.to === sel && l.from === id)) ? "is-far" : "", you(id) ? "is-you" : "", P.y > 70 ? "is-low" : ""].join(" ").trim(),
-      label: `${P.name}: ${r.g} goles y ${r.a} asistencias`,
+      label: `${P.name}: ${nW(r.g, "gol", "goles")} y ${nW(r.a, "asistencia", "asistencias")}`,
       pick: () => act.set({ star: st.star === id ? null : id }),
     };
   });
@@ -910,10 +939,10 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     // Pass bars follow the selected team; the shot comparison needs both sides.
     // A player-only sample cannot make claims about the rival's total shots.
     const shots = clockActions?.tramos[i] ?? x;
-    const shotLabel = analysis.filters.playerIds?.length ? `${us ? x.sh : x.tsh} remates de los jugadores seleccionados` : `${shots.sh} remates nuestros y ${shots.tsh} del rival`;
+    const shotLabel = analysis.filters.playerIds?.length ? `${nW(us ? x.sh : x.tsh, "remate", "remates")} de los jugadores seleccionados` : `${nW(shots.sh, "remate nuestro", "remates nuestros")} y ${shots.tsh} del rival`;
     return {
       key: i, h: Math.round((x.pas / tmax) * 100), ok: Math.round((x.pok / tmax) * 100), lab: `${i * 5}′`, v: x.pas,
-      label: `Del ${i * 5}′ al ${i * 5 + 5}′: ${x.pas} pases, ${x.pok} completados, ${shotLabel}`,
+      label: `Del ${i * 5}′ al ${i * 5 + 5}′: ${nW(x.pas, "pase", "pases")}, ${nW(x.pok, "completado", "completados")}, ${shotLabel}`,
     };
   });
   const pairs: Record<string, number> = {};
@@ -1340,7 +1369,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   // ---------- the questions people ask, per screen (the nav teaches) and search across everything
   const nextRival = (se.matches.find((m) => m.st !== "fin") || se.matches[0])?.rival;
   const lastRival = played.length ? played[played.length - 1].rival : nextRival;
-  const QS: [string, Place, Partial<NuState>, Sheet?][] = [
+  const QS: [string, Section, Partial<NuState>, Sheet?][] = [
     ["¿Quién marca más?", "jugadores", { rankK: "goles", pick: null }], ["¿Quién da más pases de gol?", "jugadores", { rankK: "asist", pick: null }],
     [myId ? "¿Cuántos minutos llevo?" : "¿Quién juega más minutos?", "jugadores", { rankK: "min", pick: myId || null }], ["¿Quién ha sido MVP?", "jugadores", { rankK: "mvp", pick: null }],
     ["¿Quién ve más tarjetas?", "jugadores", { rankK: "yc", pick: null }], ["¿Cómo vamos en la liga?", "temporada", {}],
@@ -1367,7 +1396,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       .slice(0, 5)
       .forEach((id) => {
         const r = rowOf(id) ?? NO_ROW(id, ND.name(id));
-        res.push({ key: `p-${id}`, g: "Jugador", t: `${ND.name(id)} · ${ND.num(id)}`, s: `${r.g} goles · ${r.pj} partidos`, go: () => act.ask("jugadores", { pick: id }) });
+        res.push({ key: `p-${id}`, g: "Jugador", t: `${ND.name(id)} · ${ND.num(id)}`, s: `${nW(r.g, "gol", "goles")} · ${nW(r.pj, "partido", "partidos")}`, go: () => act.ask("jugadores", { pick: id }) });
       });
     rv.filter((r) => hit(r.rival))
       .slice(0, 4)
@@ -1375,11 +1404,11 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     askAll
       .filter((x) => hit(x.t))
       .slice(0, 4)
-      .forEach((x) => res.push({ key: `q-${x.t}`, g: "Pregunta", t: x.t, s: PLACE_LABEL[x.place], go: x.go }));
+      .forEach((x) => res.push({ key: `q-${x.t}`, g: "Pregunta", t: x.t, s: SECTION_LABEL[x.place], go: x.go }));
     NU_METRICS.filter((m) => hit(m[1]) || hit(m[3]))
       .slice(0, 5)
       .forEach((m) => res.push({ key: `m-${m[0]}`, g: "Ranking", t: m[1], s: `Jugadores › ${m[2]}`, go: () => act.ask("jugadores", { rankK: m[0], pick: null }) }));
-    PLACES.filter((p) => hit(PLACE_LABEL[p]) || hit(NU_GLOSS[p][1])).forEach((p) => res.push({ key: `s-${p}`, g: "Pantalla", t: PLACE_LABEL[p], s: NU_GLOSS[p][1], go: () => act.ask(p, {}) }));
+    SECTIONS.filter((p) => hit(SECTION_LABEL[p]) || hit(NU_GLOSS[p][1])).forEach((p) => res.push({ key: `s-${p}`, g: "Pantalla", t: SECTION_LABEL[p], s: NU_GLOSS[p][1], go: () => act.ask(p, {}) }));
     CAT.filter((c) => hit(c[2]))
       .slice(0, 6)
       .forEach((c) => res.push({ key: `c-${c[0]}`, g: "Estadística", t: c[2], s: `${c[1]} · ${c[0]}`, go: () => act.ask("juego", {}, "metric", c[0]) }));
@@ -1393,7 +1422,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ["rivales", "El cara a cara y el dossier de cada rival"],
       ["records", "Rachas, marcas, la colección de cromos, la evolución"],
     ] as const
-  ).map((x) => ({ key: x[0], t: PLACE_LABEL[x[0]], d: x[1], go: () => act.ask(x[0], {}) }));
+  ).map((x) => ({ key: x[0], t: SECTION_LABEL[x[0]], d: x[1], go: () => act.ask(x[0], {}) }));
   const search = {
     q: st.sq, setQ: (v: string) => act.set({ sq: v }), res, has: res.length > 0, none: !!sqn && res.length === 0, empty: !sqn, all: askAll, map,
     noneT: `Nada con «${st.sq}». Prueba con un nombre, un rival o una estadística: «pases», «${rv[0]?.rival.split(" ")[0] ?? "Orduña"}», «minutos».`,
@@ -1401,21 +1430,21 @@ export function numerosView(st: NuState, env: Env, act: Act) {
 
   // ---------- the rail: each section with its live headline (the nav informs)
   const pich = ND.ranked(rsAll, "goles").filter((r) => r.rank === 1 && r.g > 0);
-  const heads: Record<Place, string> = {
+  const heads: Record<Section, string> = {
     temporada: tableReal ? (se.closed ? `Así acabó: ${pos}` : withLive ? `${pos} si acaba así` : `${pos} · ${T.pts} puntos`) : `${T.pts}${T.pts === 1 ? " punto" : " puntos"} · ${T.g}G ${T.e}E ${T.p}P`,
     jugadores: pich.length ? `${list(pich.map((r) => r.name))}, ${pich[0].g}${pich[0].g === 1 ? " gol" : ""}` : "Por estrenar",
     campo: lk[0] ? `${ND.name(lk[0].from)} → ${ND.name(lk[0].to)}, ${lk[0].n}` : realPos ? `Puestos de ${rsAll.filter((r) => Object.keys(r.pos).length).length} jugadores` : "Sin pases de gol",
-    juego: nN ? partial : `${gU} goles · ${gs.length}${gs.length === 1 ? " acta" : " actas"}`,
+    juego: nN ? partial : `${nW(gU, "gol", "goles")} · ${nW(gs.length, "acta", "actas")}`,
     rivales: liveM && withLive ? `Hoy: ${liveM.rival}` : `Ahora: ${nextRival || "–"}`,
     records: `${col.filter((c) => c.got).length} de ${col.length} cromos`,
   };
-  const shorts: Record<Place, string> = {
+  const shorts: Record<Section, string> = {
     temporada: tableReal ? pos : `${T.pts} pts`, jugadores: pich[0] ? `${pich[0].name.split(" ")[0]} ${pich[0].g}` : "0",
-    campo: lk[0] ? `${lk[0].n}${lk[0].n === 1 ? " gol" : " goles"}` : "Puestos", juego: nN ? "Narrado" : `${gU} goles`,
-    rivales: liveM && withLive ? "Hoy" : String(rv.length), records: `${col.filter((c) => c.got).length} cromos`,
+    campo: lk[0] ? `${lk[0].n}${lk[0].n === 1 ? " gol" : " goles"}` : "Puestos", juego: nN ? "Narrado" : nW(gU, "gol", "goles"),
+    rivales: liveM && withLive ? "Hoy" : String(rv.length), records: nW(col.filter((c) => c.got).length, "cromo", "cromos"),
   };
   const icons = { temporada: "cal", jugadores: "shirt", campo: "pip", juego: "chart", rivales: "shield", records: "trophy" } as const;
-  const rail = PLACES.map((id) => ({ id, label: PLACE_LABEL[id], head: heads[id], short: shorts[id], icon: icons[id], on: place === id, title: NU_GLOSS[id][1] }));
+  const rail = SECTIONS.map((id) => ({ id, label: SECTION_LABEL[id], head: heads[id], short: shorts[id], icon: icons[id], on: place === id, title: NU_GLOSS[id][1] }));
 
   const screen = {
     kick: { temporada: tem.kick, jugadores: jug.kick, campo: campo.kick, juego: juego.kick, rivales: rivales.kick, records: records.kick }[place],

@@ -1,0 +1,40 @@
+/* «El palco» · Rivales: the next rival, the list and the dossier. */
+
+/* ———— RIVALES ———— */
+.nx-rivs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.nx-rivs>li{display:grid}
+.nx-rv{--vd-r:22px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px 14px;padding:12px 14px;border:0;text-align:left;color:var(--vd-g-ink)}
+.nx-rv[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--vd-celeste),0 12px 30px -18px var(--vd-glow)}
+.nx-ini{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--vd-rival);box-shadow:inset 0 0 0 2px var(--vd-rival);background:rgba(240,138,126,.08);overflow:hidden;flex:none}
+.nx-ini>img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.nx-ini--big{width:68px;height:68px;font-size:19px}
+.nx-rv__t>b{display:block;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nx-rv__t>span{display:block;font-size:12.5px;color:var(--vd-g-ink2)}
+.nx-rv__l{display:flex;gap:4px}
+.nx-rv__l>.vd-form__l{width:26px;height:26px;border-radius:8px;font-size:12px}
+.nx-rv__n{grid-column:2/-1;font-size:12.5px;color:var(--vd-g-ink2)}
+.nx-rv__gb{grid-column:2/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:3px;height:6px}
+.nx-rv__gb>i{display:block;height:100%;border-radius:3px}
+.nx-rv__gb>i:first-child{justify-self:end;background:var(--vd-celeste-ink)}
+.nx-rv__gb>i:last-child{background:var(--vd-rival)}
+.nx-next{--vd-r:28px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px 20px;padding:18px 20px;margin-bottom:18px}
+.nx-next__k{font-size:12.5px;font-weight:650;color:var(--vd-celeste-ink)}
+.nx-next__t{font-size:22px;font-weight:720;line-height:1.1;color:var(--vd-g-ink)}
+.nx-next__s{font-size:13.5px;color:var(--vd-g-ink2);margin-top:2px!important}
+.nx-dos__head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px 16px}
+.nx-dos__name{font-size:28px;line-height:1.05;font-weight:700;letter-spacing:-.02em;font-variation-settings:'wdth' 96;color:var(--vd-g-ink)}
+.nx-dos__rec{font-size:14px;color:var(--vd-g-ink2);margin-top:4px!important}
+.nx-games{display:grid;gap:8px;margin-top:18px}
+.nx-gm{display:grid;grid-template-columns:48px auto minmax(0,1fr);align-items:center;gap:4px 14px;padding:12px 14px;border-radius:18px;background:rgba(234,243,252,.06);box-shadow:inset 0 0 0 1px var(--vd-rule)}
+:root[data-theme="light"] .nx-gm{background:rgba(255,255,255,.55)}
+.nx-gm__j{font-size:13px;font-weight:700;color:var(--vd-g-ink2)}
+.nx-gm__r{font-size:26px;line-height:1;font-weight:800;font-variation-settings:'wdth' 112;letter-spacing:-.04em;font-feature-settings:'tnum' 1;color:var(--vd-g-ink)}
+.nx-gm__w{font-size:13px;color:var(--vd-g-ink2)}
+.nx-gm__w>b{display:block;color:var(--vd-g-ink);font-weight:620}
+.nx-gm.is-g .nx-gm__r{color:var(--vd-celeste-ink)}
+
+@container nx (max-width: 699px) {
+  .nx-rivs{grid-template-columns:minmax(0,1fr)}
+  .nx-next{grid-template-columns:auto minmax(0,1fr);padding:14px}
+  .nx-next>.nx-btn{grid-column:1/-1;justify-self:start}
+}
