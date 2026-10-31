@@ -56,16 +56,27 @@ const VESTUARIO_HASH: Record<string, string> = {
 // (#vx-rsvp, «¿Vas?», stays: it is the vestuario's own first block, and the anchor scrolls to its switch)
 const PROFILE_HASH: Record<string, string> = {
   carta: "/perfil",
-  temporada: "/perfil/temporada",
-  cromos: "/perfil/temporada/cromos",
+  temporada: "/perfil/partidos",
+  cromos: "/perfil/vitrina/cromos",
   avisos: "/avisos/a-medida",
   ajustes: "/perfil/ajustes",
-  cuenta: "/perfil/cuenta",
-  capitania: "/perfil/capitania",
-  "pe-nombre": "/perfil/nombre",
-  "pe-posiciones": "/perfil/posiciones",
+  cuenta: "/perfil/ajustes/cuenta",
+  capitania: "/perfil/ajustes/capitania",
+  "pe-nombre": "/perfil/ajustes/nombre",
+  "pe-posiciones": "/perfil/juego",
   "pe-pick": "/perfil",
   "pe-ficha": "/perfil",
+};
+
+// «Tú» before its four places (2026-11): the old screens' addresses, each where it lives now (push notifications
+// and old links still point to them). Their parameters stay (/perfil/cuenta?salir=1 opens the confirmation).
+export const PERFIL_MOVES: Readonly<Record<string, string>> = {
+  "/perfil/temporada": "/perfil/partidos",
+  "/perfil/temporada/cromos": "/perfil/vitrina/cromos",
+  "/perfil/posiciones": "/perfil/juego",
+  "/perfil/nombre": "/perfil/ajustes/nombre",
+  "/perfil/cuenta": "/perfil/ajustes/cuenta",
+  "/perfil/capitania": "/perfil/ajustes/capitania",
 };
 
 /** The screen an old /club or /vestuario #hash meant (search «Ponte la del Piti» → /club/equipo…), if any. */
@@ -182,6 +193,9 @@ export function legacyTarget(rawPathname: string, search: Search, rawHash = ""):
   if (pathname === "/vestuario" && VESTUARIO_HASH[hash]) return keep(VESTUARIO_HASH[hash], search, "");
   if (pathname === "/profile") return keep(PROFILE_HASH[hash] ?? "/perfil", search, PROFILE_HASH[hash] ? "" : hash);
   if ((seg[0] === "perfil" || seg[0] === "avisos") && PROFILE_HASH[hash]) return keep(PROFILE_HASH[hash], search, "");
+  // (the match's vestuario linked «Tu porra» as /perfil#porra: it lives in Tus partidos now)
+  if (pathname === "/perfil" && hash === "porra") return keep("/perfil/partidos", search, "porra");
+  if (PERFIL_MOVES[pathname]) return keep(PERFIL_MOVES[pathname]);
   if (pathname === "/plantilla" && hash === "sq-cara") return keep("/plantilla/cara-a-cara", search, "");
   if (pathname === "/plantilla/pichichi" || pathname === "/jugadores") return keep("/plantilla");
   if (seg[0] === "jugadores" && seg[1] && seg[2] === "posiciones" && seg.length === 3) return keep(`/jugadores/${seg[1]}/juego`);

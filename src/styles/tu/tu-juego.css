@@ -1,0 +1,35 @@
+/* «Tú» › Tu juego: the pitch, the proposal, the rank ladders, the partner, the comparison.
+   Ported from the Design canvas by scripts/port-tu-css.mjs: scoped .tup (the container nx), phone = @container nx
+   (max-width:699px). Above the «by hand» marker it is regenerated; below it, the app's own rules. */
+.tup .tc-ju{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:28px 52px;align-items:start}
+@container nx (max-width:699px){.tup .tc-ju{grid-template-columns:minmax(0,1fr)}}
+@container nx (max-width:1000px){
+.tup .tc-ju{grid-template-columns:minmax(0,1fr)}
+}
+.tup .tc-pitch{position:relative;width:100%;max-width:440px;aspect-ratio:3/4;border-radius:28px;background:linear-gradient(180deg,rgba(60,140,110,.22),rgba(30,90,80,.2));box-shadow:inset 0 0 0 1.5px var(--vd-rule2)}
+.tup .tc-pitch::before{content:"";position:absolute;left:24%;right:24%;top:0;height:16%;border:1.5px solid var(--vd-rule2);border-top:0;border-radius:0 0 14px 14px}
+.tup .tc-pitch::after{content:"";position:absolute;left:24%;right:24%;bottom:0;height:16%;border:1.5px solid var(--vd-rule2);border-bottom:0;border-radius:14px 14px 0 0}
+.tup .tc-pitch__mid{position:absolute;left:0;right:0;top:50%;border-top:1.5px solid var(--vd-rule2)}
+.tup .tc-pos{--vd-r:999px;position:absolute;transform:translate(-50%,-50%);width:54px;height:54px;border:0;padding:0;display:grid;place-items:center;align-content:center;gap:0;font-size:12.5px;font-weight:780;color:var(--vd-g-ink)}
+.tup .tc-pos>small{font-size:10.5px;font-weight:700;line-height:1}
+.tup .tc-pos.is-also{box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+.tup .tc-pos.is-star{background:var(--vd-celeste);color:#0c1733}
+.tup .tc-pos__min{position:absolute;top:100%;left:50%;transform:translate(-50%,3px);font-size:11px;font-weight:700;white-space:nowrap;color:var(--vd-ink)}
+.tup .tc-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--vd-ink2);margin-top:12px}
+.tup .tc-rank{display:grid;gap:0}
+.tup .tc-rk{display:grid;grid-template-columns:140px 92px minmax(0,1fr);align-items:center;gap:6px 16px;padding:12px 0;border-bottom:1px solid var(--vd-rule)}
+@container nx (max-width:699px){.tup .tc-rk{grid-template-columns:minmax(0,1fr) auto}}
+.tup .tc-rk>b{font-size:15px;font-weight:700;color:var(--vd-ink-strong)}
+.tup .tc-rk__v{font-size:15px;font-weight:760;font-variant-numeric:tabular-nums;text-align:right}
+.tup .tc-rk__l{display:grid;gap:5px;min-width:0}
+@container nx (max-width:699px){.tup .tc-rk__l{grid-column:1/-1}}
+.tup .tc-lad{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:3px;align-items:end;height:22px}
+.tup .tc-lad>i{display:block;height:8px;border-radius:3px;background:var(--vd-rule2)}
+.tup .tc-lad>i.is-me{height:22px;background:var(--vd-celeste)}
+.tup .tc-lad>i.is-none{background:var(--vd-rule)}
+.tup .tc-rk__l>span{font-size:12.5px;color:var(--vd-ink2)}
+.tup .tc-pair{display:flex;align-items:center;gap:16px}
+.tup .tc-pair>.vd-shirt{--s:64px}
+.tup .tc-pair b{display:block;font-size:22px;font-weight:740;color:var(--vd-ink-strong)}
+
+/* ── by hand ── */

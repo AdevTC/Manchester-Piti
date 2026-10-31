@@ -1,12 +1,12 @@
-// Tú (TU boards): one page mounted across /perfil/* and /avisos/* (the pathless layout `tu`), so the card travels
-// between the screens. It reads the screen from the address (tu/model screenAt) and draws the board's family:
+// Tú: one page mounted across /perfil/* and /avisos/* (the pathless layout `tu`), so the card travels between
+// the places. It reads the screen from the address (tu/model screenAt) and draws:
 //   · /perfil without a session: the door (what is inside and how to get in), never a redirect;
-//   · /perfil/*: «Mi página» — the identity (the small card, the name, the line), the sticky tabs that say what each
-//     screen holds, and the screen with its one primary action and «Más»; /perfil/compartir and
-//     /perfil/temporada/cromos are the studio and the cromos over their screen;
-//   · /avisos/*: the bandeja and «A medida» (bandeja/AvisosMain), for fans too.
+//   · /perfil/*: a member's page (tu/shell/Shell) — the stage or the masthead, the bar with his four places and
+//     the gear, the place (tu/places/*); /perfil/compartir and /perfil/vitrina/cromos open over Vitrina;
+//   · /avisos: la bandeja; /avisos/a-medida: «A medida», for fans too (bandeja/AvisosMain).
 // Every move is a View Transition (exit → morph → enter), with the address as an entry of the history. Only a
-// member's Mi página reads his profile (useProfileData): a fan's door and the avisos open no member listener.
+// member's page reads his profile (useProfileData): a fan's door and the avisos open no member listener.
+// The page's CSS: styles/tu/ (the shell and the kit, one file per place), scoped .tup under the container `nx`.
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -21,27 +21,39 @@ import { useTheme } from "../../hooks/useTheme";
 import { leaveDoorNotice } from "../../lib/doorNotice";
 import { savedTopics, setTopics } from "../../lib/push";
 import { readTuMaqueta, type TuMaqueta } from "../../components/vidrio/tu/maqueta";
-import { tuGo, useToast } from "../../components/vidrio/tu/kit";
+import { tuGo } from "../../components/vidrio/tu/kit";
 import { cancelPlayerClaim, leaveVestuario, nicknameTaken, proposePositions, requestPlayerClaim, setNickname, setShirtName } from "./api";
 import { useProfileData } from "./useProfileData";
-import { allowedSec, dirOf, screenAt, secPath, COMPARTIR_PATH, CROMOS_PATH, type Kind, type Screen, type Sec } from "./tu/model";
+import { allowedAj, allowedSec, dirOf, screenAt, screenPath, type Kind, type Screen } from "./tu/model";
 import { Door } from "./tu/Door";
-import { MiPagina, type TuActions } from "./tu/MiPagina";
 import { kindOf } from "./tu/view";
-import { PORRA_ID } from "./tu/screens/Porra";
+import { Shell } from "./tu/shell/Shell";
+import { Failed, Loading } from "./tu/shell/States";
+import { useTuToast } from "./tu/shell/useTuToast";
+import type { Go, PlaceQuery, Say, TuActions } from "./tu/places/types";
+import "../../styles/vidrio/tokens.css";
+import "../../styles/vidrio/glass.css";
+import "../../styles/vidrio/components.css";
+import "../../styles/vidrio/reading.css";
+import "../../styles/vidrio/sky.css";
+import "../../styles/palco/palco.css";
+import "../../styles/tu/tu.css";
+import "../../styles/tu/tu-tu.css";
+import "../../styles/tu/tu-partidos.css";
+import "../../styles/tu/tu-juego.css";
+import "../../styles/tu/tu-vitrina.css";
+import "../../styles/tu/tu-ajustes.css";
+import "../../styles/tu/tu-avisos.css";
 
-const keyOf = (s: Screen) => `${s.page}:${s.sec}:${s.open ?? ""}`;
+const keyOf = (s: Screen) => `${s.page}:${s.sec}:${s.aj ?? ""}:${s.open ?? ""}`;
 const AvisosMain = lazy(() => import("./bandeja/AvisosMain").then((m) => ({ default: m.AvisosMain })));
 const NO_STILLS: KitStills = () => undefined;
 
-type Go = (to: Screen, opts?: { replace?: boolean; search?: Record<string, string> }) => void;
-
 /** The page's frame: its sky, the top bar, the dock and the toast around the screen; its root carries the state
- *  classes the boards' CSS reads (page, viewer, screen, the back of the card, an open surface, Día). */
-function Frame({ screen, kind, sec, stills, toast, children }: { screen: Screen; kind: Kind; sec: Sec; stills: KitStills; toast: ReactNode; children: ReactNode }) {
+ *  classes (page, viewer, place, an open surface, Día). */
+function Frame({ screen, kind, stills, toast, children }: { screen: Screen; kind: Kind; stills: KitStills; toast: ReactNode; children: ReactNode }) {
   const { theme } = useTheme();
-  const back = screen.page === "perfil" && kind !== "fan" && (sec === "ajustes" || sec === "cuenta" || sec === "capitania");
-  const cls = ["vx", "vd-pg", "tu", `p-${screen.page}`, `k-${kind}`, `s-${sec}`, back ? "is-back" : "", screen.open ? `has-open o-${screen.open}` : "", theme === "light" ? "is-dia" : ""].filter(Boolean).join(" ");
+  const cls = ["vx", "vd-pg", "tu", "tu-pg", `p-${screen.page}`, `k-${kind}`, `s-${screen.sec}`, screen.open ? `has-open o-${screen.open}` : "", theme === "light" ? "is-dia" : ""].filter(Boolean).join(" ");
   return (
     <KitStillContext.Provider value={stills}>
       <div className={cls} style={{ "--vd-sky-h": "1100px" } as CSSProperties}>
@@ -61,7 +73,7 @@ export function ProfilePage() {
   const maq = readTuMaqueta();
   const { user, profile } = useAuth();
   const team = useTeam();
-  const { say, node: toast } = useToast();
+  const { say, node: toast } = useTuToast();
   const member = maq?.quien ? maq.quien !== "fan" : team.member && !!profile;
   // (the session being restored: no door flash before the page knows him)
   const checking = !maq?.quien && (!team.ready || (team.member && !profile));
@@ -79,59 +91,66 @@ export function ProfilePage() {
     const cur = shown.current;
     if (keyOf(cur) === urlKey) return;
     const to = screenAt(pathname);
-    const surface = cur.page === to.page && cur.sec === to.sec;
+    const surface = cur.page === to.page && cur.sec === to.sec && cur.aj === to.aj;
     tuGo(surface ? "left" : dirOf(cur, to), () => flushSync(() => setScreen(to)), surface);
     // (only the address drives this)
   }, [urlKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Goes to another screen (or opens/closes the studio or the cromos over this one). */
   const go: Go = (to, opts = {}) => {
-    const path = to.page === "avisos" ? "/avisos/a-medida" : to.open === "compartir" ? COMPARTIR_PATH : to.open === "cromos" ? CROMOS_PATH : secPath(to.sec);
-    const surface = to.page === screen.page && to.sec === screen.sec && to.open !== screen.open;
+    const surface = to.page === screen.page && to.sec === screen.sec && to.aj === screen.aj && to.open !== screen.open;
     tuGo(
       surface ? (to.open ? "up" : "left") : dirOf(screen, to),
       async () => {
         flushSync(() => setScreen(to));
-        await navigate({ to: path, search: opts.search ?? {}, replace: opts.replace, resetScroll: !surface } as never);
+        await navigate({ to: screenPath(to), search: opts.search ?? {}, hash: opts.hash, replace: opts.replace, resetScroll: !surface } as never);
       },
       surface,
     );
   };
 
-  if (screen.page === "perfil" && member && !checking) return <Member screen={screen} go={go} maq={maq} say={say} toast={toast} />;
+  // «Reintentar»: the member's page mounts again, and its readers reopen the listeners that failed (no reload)
+  const [attempt, setAttempt] = useState(0);
+  if (screen.page === "perfil" && member && !checking) return <Member key={attempt} screen={screen} go={go} maq={maq} say={say} toast={toast} onRetry={() => setAttempt((n) => n + 1)} />;
   return (
-    <Frame screen={screen} kind={member ? "socio" : "fan"} sec="carta" stills={NO_STILLS} toast={toast}>
+    <Frame screen={screen} kind={member ? "socio" : "fan"} stills={NO_STILLS} toast={toast}>
       {screen.page === "avisos" ? (
-        <Suspense fallback={<main className="tu-main tu-av" id="tu-main" aria-busy="true" />}>
+        <Suspense
+          fallback={
+            <main className="tu-main tu-av" id="tu-main" aria-busy="true">
+              <p className="vd-vh">Cargando los avisos…</p>
+            </main>
+          }
+        >
           <AvisosMain say={say} />
         </Suspense>
       ) : checking ? (
-        <main className="tu-main" id="tu-main" aria-busy="true" />
+        <main className="tup nx" id="tu-main">
+          <Loading />
+        </main>
       ) : (
-        <Door signedIn={!!user} onAvisos={() => go({ page: "avisos", sec: "carta", open: null })} />
+        <Door signedIn={!!user} onAvisos={() => void navigate({ to: "/avisos/a-medida" })} />
       )}
     </Frame>
   );
 }
 
-/** A member's Mi página: his profile, his card's screens and their actions. */
-function Member({ screen, go, maq, say, toast }: { screen: Screen; go: Go; maq: TuMaqueta | null; say: (t: string) => void; toast: ReactNode }) {
-  const navigate = useNavigate();
+/** A member's page: his profile, the place's address query, his writes. */
+function Member({ screen, go, maq, say, toast, onRetry }: { screen: Screen; go: Go; maq: TuMaqueta | null; say: Say; toast: ReactNode; onRetry: () => void }) {
   const { logout } = useAuth();
   const data = useProfileData(maq);
   const now = useClock(60_000);
   const { theme } = useTheme();
   const who = { kind: kindOf(data, maq), captain: data.isCaptain };
-  const sec: Sec = allowedSec(screen.sec, who);
-
-  // /perfil#porra (the match's vestuario links it): a player's «Tu recorrido en la porra» lives in Temporada
-  const porraHash = useLocation({ select: (l) => l.hash === PORRA_ID });
-  const toTemporada = porraHash && !data.loading && who.kind === "jugador" && screen.sec === "carta" && !screen.open;
-  useEffect(() => {
-    if (!toTemporada) return;
-    // (the address moves; the screen follows it, as on any other arrival)
-    void navigate({ to: secPath("temporada"), hash: PORRA_ID, replace: true });
-  }, [toTemporada]); // eslint-disable-line react-hooks/exhaustive-deps
+  const placed: Screen = { ...screen, sec: allowedSec(screen.sec, who), aj: allowedAj(screen.aj, who) };
+  const search = useLocation({ select: (l) => l.search as Record<string, unknown> });
+  const hash = useLocation({ select: (l) => l.hash });
+  const query: PlaceQuery = {
+    temporada: typeof search.temporada === "string" ? search.temporada : undefined,
+    j: typeof search.j === "number" ? search.j : undefined,
+    salir: search.salir === "1" || search.salir === 1,
+    hash,
+  };
 
   const uid = data.uid;
   const actions: TuActions = {
@@ -167,8 +186,18 @@ function Member({ screen, go, maq, say, toast }: { screen: Screen; go: Go; maq: 
   // ── the shirts: every player's printed still, both kits (the studio and «Tu nombre» wear the second)
   const stillOf = usePageKitStills({ on: typeof window !== "undefined", theme, kits: ["home", "away"], players: data.shirt.squad.map((s) => ({ name: s.name, num: s.number == null ? "" : String(s.number) })).filter((s) => s.num) });
   return (
-    <Frame screen={screen} kind={who.kind} sec={sec} stills={stillOf} toast={toast}>
-      {data.loading ? <main className="tu-main" id="tu-main" aria-busy="true" /> : <MiPagina data={data} who={who} sec={sec} open={screen.open} go={go} actions={actions} say={say} now={now} maq={maq} />}
+    <Frame screen={placed} kind={who.kind} stills={stillOf} toast={toast}>
+      {data.loading ? (
+        <main className="tup nx" id="tu-main">
+          <Loading />
+        </main>
+      ) : data.error ? (
+        <main className="tup nx" id="tu-main">
+          <Failed onRetry={onRetry} />
+        </main>
+      ) : (
+        <Shell data={data} who={who} screen={placed} go={go} actions={actions} say={say} now={now} maq={maq} query={query} />
+      )}
     </Frame>
   );
 }

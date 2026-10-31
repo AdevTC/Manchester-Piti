@@ -48,13 +48,13 @@ test('resumen personal en el vestuario del partido y cobertura sin confundir cer
 });
 
 // (the boards dropped «+20′ respecto a tu anterior partido» from «Tu partido»; «Tu recorrido en la porra» is on Mi
-// página, /perfil#porra: a player's at the end of Temporada, reached from «Lo tuyo en el vestuario › Tu porra»)
+// página, /perfil#porra → /perfil/partidos#porra: a player's, in Tus partidos)
 test('historial mensual de la porra en Mi página',async({page},testInfo)=>{
   await enterVestuario(page);
   await page.goto('/perfil#porra');
-  await expect(page).toHaveURL(/\/perfil\/temporada#porra$/);
+  await expect(page).toHaveURL(/\/perfil\/partidos#porra$/);
   await expect(page.getByRole('heading',{name:'16 puntos esta temporada'})).toBeVisible();
-  await page.goto('/perfil/temporada');
+  await page.goto('/perfil/partidos');
   await page.getByRole('button',{name:/^Tu porra/}).click();
   await expect(page.getByRole('heading',{name:'16 puntos esta temporada'})).toBeVisible();
   await page.getByLabel('Periodo de la porra').selectOption('2026-09');

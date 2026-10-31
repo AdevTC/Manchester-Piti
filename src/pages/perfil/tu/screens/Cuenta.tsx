@@ -5,8 +5,9 @@ import { useState } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { TuIcon } from "../../../../components/vidrio/tu/ui";
 import { copyText } from "../../fxRuntime";
-import { initials, secDesc, signOutFailText, sinceLong } from "../model";
-import type { ScreenProps } from "../MiPagina";
+import { initials, signOutFailText, sinceLong } from "../model";
+import { secDesc } from "./legacy";
+import type { ScreenProps } from "./legacy";
 import { wantedNumber } from "../view";
 import { Screen } from "./Head";
 
@@ -70,7 +71,7 @@ export function Cuenta(p: ScreenProps) {
           </dl>
           <p className="tu-small">
             Entras con tu Google: no hay contraseña del equipo. Los nombres se cambian en{" "}
-            <button type="button" className="vd-link" onClick={() => p.go({ page: "perfil", sec: "nombre", open: null })}>
+            <button type="button" className="vd-link" onClick={() => p.go({ page: "perfil", sec: "ajustes", aj: "nombre", open: null })}>
               Tu nombre
             </button>
             .

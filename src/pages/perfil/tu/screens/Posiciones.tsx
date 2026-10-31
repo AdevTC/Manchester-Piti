@@ -6,8 +6,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { POSITIONS, POS_CODES, type PosCode, type PositionSet } from "../../../../lib/positions";
 import { cyclePosition } from "../../../../lib/positionsEdit";
 import { canSendPositions, positionsNudge } from "../../profileData";
-import { secDesc } from "../model";
-import type { ScreenProps } from "../MiPagina";
+import { secDesc } from "./legacy";
+import type { ScreenProps } from "./legacy";
 import { Screen, type Act } from "./Head";
 
 /** The board's pitch (data.js POS): where each spot sits, in % of the pitch. */

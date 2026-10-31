@@ -5,8 +5,9 @@
 import { useEffect, useRef, useState } from "react";
 import { normalizeShirtName, nicknameCheck, shirtNameCheck, SHIRT_UNDO_MS, typeNickname, typeShirtName } from "../../rules";
 import { Seg } from "../../../../components/vidrio/tu/ui";
-import { fitWord, secDesc, secLabel } from "../model";
-import type { ScreenProps } from "../MiPagina";
+import { fitWord } from "../model";
+import { secDesc, secLabel } from "./legacy";
+import type { ScreenProps } from "./legacy";
 import { wantedNumber } from "../view";
 import { Shirt, Tee } from "../TuCard";
 import { Screen } from "./Head";
@@ -204,7 +205,7 @@ export function Nombre(p: ScreenProps) {
               </div>
               <p className="tu-blk__d" id="tu-shirt-lk">
                 {pack ? `En cuanto el capitán acepte tu ficha del ${wantedNumber(data)}, eliges lo que va en tu espalda.` : "Cuando tengas ficha podrás elegir lo que va en tu espalda."}{" "}
-                <button type="button" className="vd-link" onClick={() => p.go({ page: "perfil", sec: "carta", open: null })}>
+                <button type="button" className="vd-link" onClick={() => p.go({ page: "perfil", sec: "tu", aj: null, open: null })}>
                   {pack ? "Ver mi petición" : "Elegir mi dorsal"}
                 </button>
               </p>

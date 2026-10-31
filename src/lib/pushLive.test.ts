@@ -220,7 +220,7 @@ describe("personal notices (to the member's own devices)", () => {
       title: "El capitán revisó tus posiciones",
       body: "Ha aprobado tus posiciones: tu ficha ya sale así.",
       tag: "positions-erik",
-      url: "/perfil/posiciones",
+      url: "/perfil/juego",
       log: "positions-erik-1700000000000",
     });
     expect(positionsNotice("erik", undefined, review("ajustada"), "u1")?.body).toBe("Ha ajustado un poco tus posiciones. Mira cómo quedan en tu perfil.");

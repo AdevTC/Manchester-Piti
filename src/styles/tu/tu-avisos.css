@@ -1,0 +1,30 @@
+/* «Tú» › La bandeja: the filters, the stacks, «Este móvil».
+   Ported from the Design canvas by scripts/port-tu-css.mjs: scoped .tup (the container nx), phone = @container nx
+   (max-width:699px). Above the «by hand» marker it is regenerated; below it, the app's own rules. */
+.tup .tc-ib{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:28px 48px;align-items:start}
+@container nx (max-width:699px){.tup .tc-ib{grid-template-columns:minmax(0,1fr)}}
+@container nx (max-width:1000px){
+.tup .tc-ib{grid-template-columns:minmax(0,1fr)}
+}
+.tup .tc-filt{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:18px}
+@container nx (max-width:699px){.tup .tc-filt{margin:0 -16px 18px;padding:0 16px}}
+.tup .tc-filt>button{--vd-r:999px;flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 15px;border:0;font-weight:640;font-size:14px;color:var(--vd-g-ink)}
+.tup .tc-filt>button[aria-pressed="true"]{background:var(--vd-pri2);box-shadow:var(--vd-bead-shadow),inset 0 0 0 1.5px var(--vd-celeste)}
+.tup .tc-filt small{font-size:12px;font-weight:720;color:var(--vd-g-ink2)}
+.tup .tc-grp{margin-top:26px}
+.tup .tc-grp__h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 14px;margin-bottom:8px}
+.tup .tc-grp__h>h3{font-size:18px;font-weight:700;color:var(--vd-ink-strong)}
+.tup .tc-nt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--vd-rule)}
+.tup .tc-nt:last-child{border-bottom:0}
+.tup .tc-nt .tk-tile{width:38px;height:38px;border-radius:12px}
+.tup .tc-nt .tk-tile>.nx-ic{width:18px;height:18px}
+.tup .tc-nt__t{display:grid;gap:2px;min-width:0}
+.tup .tc-nt__t>b{font-size:15px;font-weight:700;color:var(--vd-ink-strong)}
+.tup .tc-nt__t>span{font-size:13.5px;line-height:1.45;color:var(--vd-ink2)}
+.tup .tc-nt__w{font-size:12.5px;color:var(--vd-ink2);text-align:right;display:grid;gap:4px;justify-items:end}
+.tup .tc-new{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:760;color:var(--vd-celeste-ink)}
+.tup .tc-new::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--vd-celeste)}
+.tup .tc-cal20{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tup .tc-cal20>li{font-size:12.5px;padding:4px 9px;border-radius:9px;box-shadow:inset 0 0 0 1px var(--vd-rule);color:var(--vd-ink)}
+
+/* ── by hand ── */

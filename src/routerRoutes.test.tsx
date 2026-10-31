@@ -67,7 +67,7 @@ describe("every new address resolves", () => {
     "la percha": ["/plantilla", "/plantilla/album", "/plantilla/cara-a-cara", "/jugadores/alcides", "/jugadores/alcides/temporada", "/jugadores/alcides/jornadas", "/jugadores/alcides/juego", "/jugadores/alcides/analisis", "/jugadores/alcides/cromo"],
     "el club": ["/club", "/club/vitrina", "/club/vitrina/escudo", "/club/historia", "/club/equipo", "/club/equipo/camiseta", "/club/gente"],
     "el vestuario": ["/vestuario", "/vestuario/caja", "/vestuario/encuestas", "/vestuario/encuestas/p1", "/vestuario/ausencias", "/vestuario/turnos", "/vestuario/entrenos", "/vestuario/tablon", "/vestuario/puerta", "/vestuario/ficha"],
-    "tu página": ["/perfil", "/perfil/temporada", "/perfil/temporada/cromos", "/perfil/posiciones", "/perfil/nombre", "/perfil/ajustes", "/perfil/cuenta", "/perfil/capitania", "/perfil/compartir", "/avisos", "/avisos/a-medida"],
+    "tu página": ["/perfil", "/perfil/partidos", "/perfil/juego", "/perfil/vitrina", "/perfil/vitrina/cromos", "/perfil/compartir", "/perfil/ajustes", "/perfil/ajustes/nombre", "/perfil/ajustes/avisos", "/perfil/ajustes/apariencia", "/perfil/ajustes/cuenta", "/perfil/ajustes/capitania", "/avisos", "/avisos/a-medida"],
     buscar: ["/buscar"],
   };
   it("none falls to the 404", () => {
@@ -118,7 +118,14 @@ describe("every old address redirects, with its parameters, replacing the old en
     ["/partidos?view=numeros&temporada=t0", "/partidos/balance?temporada=t0", "partidos"],
     ["/stats?view=positions&season=t1", "/estadisticas/campo/puestos?temporada=t1", "números"],
     ["/stats?view=compare&a=alcides&b=erik", "/plantilla/cara-a-cara?a=alcides&b=erik", "la percha"],
-    ["/profile#temporada", "/perfil/temporada", "tu página"],
+    ["/profile#temporada", "/perfil/partidos", "tu página"],
+    ["/perfil/temporada", "/perfil/partidos", "tu página"],
+    ["/perfil/posiciones", "/perfil/juego", "tu página"],
+    ["/perfil/temporada/cromos", "/perfil/vitrina/cromos", "tu página"],
+    ["/perfil/cuenta?salir=1", "/perfil/ajustes/cuenta?salir=1", "tu página"],
+    ["/perfil/capitania", "/perfil/ajustes/capitania", "tu página"],
+    ["/perfil/nombre", "/perfil/ajustes/nombre", "tu página"],
+    ["/perfil#porra", "/perfil/partidos#porra", "tu página"],
     ["/club#cl-kits", "/club/equipo", "el club"],
     ["/vestuario#vx-caja", "/vestuario/caja", "el vestuario"],
     ["/#temporada", "/estadisticas", "números"],
@@ -179,7 +186,7 @@ describe("tu página: /perfil and /avisos are one page", () => {
     const router = createAppRouter(createMemoryHistory({ initialEntries: ["/perfil"] }));
     render(<RouterProvider router={router} />);
     expect(await screen.findByRole("heading", { level: 1, name: "tu página" })).toBeInTheDocument();
-    for (const href of ["/perfil/temporada", "/avisos/a-medida", "/perfil/ajustes", "/perfil/temporada/cromos"]) {
+    for (const href of ["/perfil/partidos", "/avisos", "/perfil/ajustes/cuenta", "/perfil/vitrina/cromos", "/perfil/juego", "/avisos/a-medida"]) {
       await act(() => router.navigate({ href, replace: true }));
       expect(router.state.location.href).toBe(href);
     }

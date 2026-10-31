@@ -1,0 +1,22 @@
+/* «Tú» › Tú: under the stage (the next match · your form · the next thing for your card).
+   Ported from the Design canvas by scripts/port-tu-css.mjs: scoped .tup (the container nx), phone = @container nx
+   (max-width:699px). Above the «by hand» marker it is regenerated; below it, the app's own rules. */
+.tup .tc-trio{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:0}
+.tup .tc-tri{display:grid;align-content:start;gap:8px;padding:4px 30px 6px;border-left:1px solid var(--vd-rule)}
+.tup .tc-tri:first-child{padding-left:0;border-left:0}
+.tup .tc-trio.is-stack{grid-template-columns:minmax(0,1fr)}
+@container nx (max-width:699px){.tup .tc-trio{grid-template-columns:minmax(0,1fr)}}
+@container nx (max-width:699px){.tup .tc-tri{padding:20px 0 4px;border-left:0;border-top:1px solid var(--vd-rule)}}
+@container nx (max-width:1000px){
+.tup .tc-trio{grid-template-columns:minmax(0,1fr)}
+.tup .tc-tri{padding:20px 0 4px;border-left:0;border-top:1px solid var(--vd-rule)}
+}
+.tup .tc-tri__k{font-size:13px;font-weight:650;color:var(--vd-ink2)}
+.tup .tc-tri__big{font-size:40px;line-height:1;font-weight:760;letter-spacing:-.03em;font-variation-settings:'wdth' 96;color:var(--vd-ink-strong)}
+@container nx (max-width:699px){.tup .tc-tri__big{font-size:32px}}
+.tup .tc-tri__line{font-size:14.5px;line-height:1.45;color:var(--vd-ink)}
+.tup .tc-form{display:flex;flex-wrap:wrap;gap:6px}
+.tup .tc-bar{height:8px;border-radius:999px;background:var(--vd-rule);overflow:hidden}
+.tup .tc-bar>i{display:block;height:100%;border-radius:999px;background:var(--vd-celeste)}
+
+/* ── by hand ── */

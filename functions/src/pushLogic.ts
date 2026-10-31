@@ -436,7 +436,7 @@ export function positionsNotice(playerId: string, before: { positionsReview?: un
   if (at == null || r.by === memberUid) return null;
   const was = before?.positionsReview as { at?: unknown } | null | undefined;
   if (was && typeof was === "object" && millisOf(was.at) === at) return null;
-  return { topic: "personal", title: "El capitán revisó tus posiciones", body: REVIEW_BODY[r.status], tag: `positions-${playerId}`, url: "/perfil/posiciones", log: `positions-${playerId}-${at}` };
+  return { topic: "personal", title: "El capitán revisó tus posiciones", body: REVIEW_BODY[r.status], tag: `positions-${playerId}`, url: "/perfil/juego", log: `positions-${playerId}-${at}` };
 }
 
 /** The fields of a `lineups` board the «Ya está el siete» notice looks at. */

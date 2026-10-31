@@ -1,0 +1,45 @@
+/* «Tú» › Ajustes: the index and its sections.
+   Ported from the Design canvas by scripts/port-tu-css.mjs: scoped .tup (the container nx), phone = @container nx
+   (max-width:699px). Above the «by hand» marker it is regenerated; below it, the app's own rules. */
+.tup .tc-aj{display:grid;grid-template-columns:250px minmax(0,1fr);gap:28px 48px;align-items:start}
+@container nx (max-width:699px){.tup .tc-aj{grid-template-columns:minmax(0,1fr)}}
+@container nx (max-width:1000px){
+.tup .tc-aj{grid-template-columns:minmax(0,1fr)}
+}
+.tup .tc-ajnav{display:grid;gap:4px}
+@container nx (max-width:699px){.tup .tc-ajnav{display:flex;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px}}
+@container nx (max-width:1000px){
+.tup .tc-ajnav{display:flex;flex-wrap:wrap}
+}
+.tup .tc-ajb{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border:0;border-radius:16px;background:none;color:var(--vd-ink);font-weight:640;font-size:15px;text-align:left;flex:none}
+.tup .tc-ajb>span{display:grid}
+.tup .tc-ajb small{font-size:12px;font-weight:500;color:var(--vd-ink2)}
+.tup .tc-ajb[aria-current="page"]{background:var(--vd-pri2);box-shadow:var(--vd-bead-shadow)}
+@container nx (max-width:699px){.tup .tc-ajb small{display:none}}
+.tup .tc-ajp{display:grid;gap:26px;min-width:0}
+.tup .tc-ajp h3{font-size:21px;font-weight:700;color:var(--vd-ink-strong)}
+.tup .tc-ajrow{display:grid;gap:10px;padding-bottom:22px;border-bottom:1px solid var(--vd-rule)}
+.tup .tc-ajrow:last-child{border-bottom:0}
+.tup .tc-ajrow>p{font-size:14px;line-height:1.5;color:var(--vd-ink2);max-width:66ch}
+.tup .tc-back3{position:relative;display:grid;place-items:center;width:200px;height:230px;margin:0 auto}
+.tup .tc-back3>.vd-shirt{--s:170px}
+.tup .tc-back3>.vd-shirt>b{top:40%}
+.tup .tc-back3>i{position:absolute;z-index:2;top:21%;left:0;right:0;text-align:center;font-style:normal;font-weight:800;font-size:15px;letter-spacing:.04em;color:#0c1733;font-variation-settings:'wdth' 110}
+.tup .tc-shirtform{display:grid;grid-template-columns:200px minmax(0,1fr);gap:20px 28px;align-items:center}
+@container nx (max-width:699px){.tup .tc-shirtform{grid-template-columns:minmax(0,1fr)}}
+.tup .tc-inrow{display:flex;gap:10px;align-items:center}
+.tup .tc-inrow>.tk-in{flex:1}
+.tup .tc-at{position:relative;flex:1}
+.tup .tc-at>span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--vd-ink2);font-weight:700}
+.tup .tc-at>.tk-in{padding-left:30px}
+.tup .tc-togs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 24px}
+@container nx (max-width:699px){.tup .tc-togs{grid-template-columns:minmax(0,1fr)}}
+.tup .tc-pill{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:700;color:var(--vd-celeste-ink);box-shadow:inset 0 0 0 1px var(--vd-celeste)}
+.tup .tc-knock{display:grid;gap:0}
+.tup .tc-who{display:flex;align-items:center;gap:12px}
+.tup .tc-ini{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:760;font-size:13px;background:rgba(108,171,221,.18);color:var(--vd-celeste-ink)}
+.tup .tc-det{border-radius:16px;box-shadow:inset 0 0 0 1px var(--vd-rule);padding:4px 14px}
+.tup .tc-det>summary{min-height:44px;display:flex;align-items:center;font-weight:660;cursor:pointer}
+.tup .tc-det>div{display:grid;gap:8px;padding:4px 0 14px;font-size:14px;line-height:1.5;color:var(--vd-ink2)}
+
+/* ── by hand ── */

@@ -11,8 +11,9 @@ import { setAvailability as setAvisoAvailability, useMe } from "../../../vestuar
 import { TIERS } from "../../card";
 import { copyText } from "../../fxRuntime";
 import { Shirt, type CardModel } from "../TuCard";
-import { secDesc, secLabel, pl } from "../model";
-import type { ScreenProps } from "../MiPagina";
+import { pl } from "../model";
+import { secDesc, secLabel } from "./legacy";
+import type { ScreenProps } from "./legacy";
 import { wantedNumber } from "../view";
 import { matchTime } from "../../lines";
 import { dayName } from "../model";
@@ -42,7 +43,7 @@ export function Carta(p: ScreenProps & { cardNode: ReactNode; card: CardModel })
   const [rsvp, setRsvp] = useState<"yes" | "maybe" | "no" | null>(null);
   const c = data.card;
   const pid = data.ficha.playerId;
-  const share = () => go({ page: "perfil", sec: "carta", open: "compartir" });
+  const share = () => go({ page: "perfil", sec: "vitrina", aj: null, open: "compartir" });
   const copyPage = async () => {
     const ok = await copyText(`${p.origin}/jugadores/${pid ?? ""}`);
     say(ok ? "Enlace a tu página copiado." : "No se ha podido copiar el enlace.");

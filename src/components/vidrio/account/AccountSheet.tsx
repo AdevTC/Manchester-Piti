@@ -214,17 +214,17 @@ function MemberSheet({ inbox, say, close, sala }: { inbox: Inbox; say: (t: strin
   const doors = d.captain?.doorRequests.length ?? 0;
   const items: Item[] = [
     { t: who === "socio" ? "Tu carné" : "Tu carta", hint: jugador ? (rated ? `${card.tierName} · ${card.rating}` : "Nueva") : who === "socio" ? `Desde ${d.access.sinceText}` : pending ? "Pendiente" : "Por revelar", icon: who === "socio" ? "user" : "cardi", badge: 0, go: go("/perfil") },
-    ...(jugador ? [{ t: "Temporada", hint: card.totals.played ? pl(card.totals.played, "partido", "partidos") : "Sin partidos", icon: "chart" as const, badge: 0, go: go("/perfil/temporada") }] : []),
+    ...(jugador ? [{ t: "Tus partidos", hint: card.totals.played ? pl(card.totals.played, "partido", "partidos") : "Sin partidos", icon: "chart" as const, badge: 0, go: go("/perfil/partidos") }] : []),
     { t: "Avisos", hint: inbox.unread ? "" : "Al día", icon: "bell", badge: inbox.unread, go: go("/avisos") },
     { t: "Ajustes", hint: "", icon: "gear", badge: 0, go: go("/perfil/ajustes") },
-    { t: "Cuenta", hint: "", icon: "user", badge: 0, go: go("/perfil/cuenta") },
-    ...(inbox.viewer.captain ? [{ t: "Capitanía", hint: doors ? `${doors} en la puerta` : "Nadie en la puerta", icon: "door" as const, badge: doors, go: go("/perfil/capitania") }] : []),
+    { t: "Cuenta", hint: "", icon: "user", badge: 0, go: go("/perfil/ajustes/cuenta") },
+    ...(inbox.viewer.captain ? [{ t: "Capitanía", hint: doors ? `${doors} en la puerta` : "Nadie en la puerta", icon: "door" as const, badge: doors, go: go("/perfil/ajustes/capitania") }] : []),
     ...(sala ? [{ t: "Ver la web", hint: "La web del club", icon: "expand" as const, badge: 0, go: go("/") }] : inbox.viewer.captain ? [{ t: "Admin", hint: "Sala de control", icon: "shield" as const, badge: 0, go: go("/admin") }] : []),
   ];
   const salir = () => {
     close(false);
     tuGo("right", async () => {
-      await navigate({ to: "/perfil/cuenta", search: { salir: "1" } } as never);
+      await navigate({ to: "/perfil/ajustes/cuenta", search: { salir: "1" } } as never);
     });
   };
   return (

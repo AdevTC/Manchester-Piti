@@ -12,7 +12,7 @@ import { matchTime } from "../lines";
 import { dayName, pl } from "./model";
 
 const cap = (s: string) => s.charAt(0).toLocaleUpperCase("es") + s.slice(1);
-import type { ScreenProps } from "./MiPagina";
+import type { ScreenProps } from "./screens/legacy";
 import { cromoImage, cromosOf, type Cromo } from "./cromosModel";
 import { goalClock, minutesTogether, stretchesOf, winsWith } from "./season";
 

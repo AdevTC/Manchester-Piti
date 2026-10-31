@@ -29,7 +29,7 @@ describe("what each viewer finds (Main board, «Quién ve qué»)", () => {
     const socio: SrViewer = { kind: "socio", captain: false };
     const vote = { matchId: "m1", j: 1, rival: "Orduña fc", closes: "viernes" };
     expect(titles(socio, "accion", { vote })).toEqual(["Votar al MVP de la J1", "Hacer la porra", "Silenciar los avisos de este móvil", "Al calendario", "Cambiar a tema claro", "Ponte la del Piti"]);
-    expect(titles(socio, "tu")).toEqual(["Tu carné", "Tu nombre y tu apodo", "Avisos", "Avisos a medida", "Ajustes", "Tu cuenta"]);
+    expect(titles(socio, "tu")).toEqual(["Tu carné", "Tu vitrina", "Tu nombre y tu apodo", "Avisos", "Avisos a medida", "Ajustes", "Tu cuenta"]);
     expect(titles(socio, "seccion")).toContain("La caja");
   });
   it("a new account: «Pedir mi ficha»", () => {
@@ -38,7 +38,7 @@ describe("what each viewer finds (Main board, «Quién ve qué»)", () => {
   });
   it("a player: the convocatoria, his card, his back, an absence and his turn; his season and positions", () => {
     expect(titles(JUGADOR, "accion").slice(0, 5)).toEqual(["Responder a la convocatoria de la J2", "Compartir mi carta", "Cambiar el nombre de mi espalda", "Avisar de una ausencia", "Cambiar mi turno"]);
-    expect(titles(JUGADOR, "tu")).toEqual(expect.arrayContaining(["Tu carta", "Tu temporada", "Tus posiciones"]));
+    expect(titles(JUGADOR, "tu")).toEqual(expect.arrayContaining(["Tu carta", "Tus partidos", "Tu juego", "Tu vitrina"]));
     expect(titles(JUGADOR, "tu")).not.toContain("Capitanía");
   });
   it("a captain: Capitanía and Admin", () => {

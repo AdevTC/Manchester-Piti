@@ -310,7 +310,7 @@ export function useInbox(): Inbox {
         kind: "mvp",
         key: `mvp-${mvpMatch.id}`,
         noticeIds: tie((n) => n.id.startsWith(`mvp-open-${mvpMatch.id}`) || (n.topic === "mvp" && n.title === "Vota al MVP" && matchOf(n) === mvpMatch.id)),
-        title: `Vota al MVP${j ? ` del J${j}` : ""}`,
+        title: `Vota al MVP${j ? ` de la J${j}` : ""}`,
         body: mvpBody(res?.total ?? 0, res?.eligible ?? null, mvpMatch.voteClosesAt as number, now),
         icon: "star",
         gold: true,

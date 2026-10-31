@@ -5,8 +5,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { pushState, savedTopics } from "../../../../lib/push";
 import { TuIcon, type TuIconName } from "../../../../components/vidrio/tu/ui";
 import { ago } from "../../lines";
-import { adminLinks, doorLead, initials, secDesc, type AdminLinkKey } from "../model";
-import type { ScreenProps } from "../MiPagina";
+import { adminLinks, doorLead, initials, type AdminLinkKey } from "../model";
+import { secDesc } from "./legacy";
+import type { ScreenProps } from "./legacy";
 import { Shirt } from "../TuCard";
 import { Screen } from "./Head";
 
@@ -76,7 +77,7 @@ export function Capitania(p: ScreenProps) {
               type="button"
               className="vd-link"
               onClick={() => {
-                p.go({ page: "avisos", sec: "carta", open: null });
+                p.go({ page: "perfil", sec: "ajustes", aj: "avisos", open: null });
                 window.setTimeout(() => {
                   const el = document.getElementById("tu-tp-door");
                   el?.focus({ preventScroll: true });

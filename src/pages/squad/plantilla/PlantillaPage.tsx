@@ -1374,7 +1374,7 @@ function PlayerScreen(props: {
                       <p className="pl-review">
                         <b>{po.reviewT}</b> {po.review}{" "}
                         {po.reviewLink && (
-                          <Link className="vd-link" to="/perfil/posiciones">
+                          <Link className="vd-link" to="/perfil/juego">
                             {po.reviewLink}
                           </Link>
                         )}

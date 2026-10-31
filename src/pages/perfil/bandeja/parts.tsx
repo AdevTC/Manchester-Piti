@@ -42,7 +42,7 @@ export function PendItem({ p, a, stillOf, say }: { p: Pend; a: AvisoActions; sti
         </div>
       )}
       {p.kind === "mvp" && (
-        <div className="tu-mvp" data-scroll-x="1" role="group" aria-label={`Candidatos al MVP${p.matchJ ? ` del J${p.matchJ}` : ""}: los que jugaron`}>
+        <div className="tu-mvp" data-scroll-x="1" role="group" aria-label={`Candidatos al MVP${p.matchJ ? ` de la J${p.matchJ}` : ""}: los que jugaron`}>
           {p.cands.map((c) => {
             const src = stillOf(c.num);
             return (

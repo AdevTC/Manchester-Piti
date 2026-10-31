@@ -8,8 +8,9 @@ import { TuIcon, Seg } from "../../../../components/vidrio/tu/ui";
 import { seasonCalendar } from "../../card";
 import { ago, matchTime } from "../../lines";
 import { dayName } from "../model";
-import { pl, secDesc } from "../model";
-import type { ScreenProps } from "../MiPagina";
+import { pl } from "../model";
+import { secDesc } from "./legacy";
+import type { ScreenProps } from "./legacy";
 import { goalClock, minutesTogether, oneMatch, stretchesOf, watchedLine, winsWith } from "../season";
 import { Shirt } from "../TuCard";
 import { Screen, type Act } from "./Head";
@@ -91,13 +92,13 @@ export function Temporada(p: ScreenProps) {
   const stuff = [
     nx && { k: "conv", t: `¿Vas a ${nx.rival}?`, d: `J${nx.j ?? ""} · ${dayName(nx.dateMs)} · ${matchTime(nx.dateMs)}${nx.home === null ? "" : nx.home ? " · en casa" : " · fuera"}. ${answer ? ANSWERED[answer] : "Aún no has respondido."}`, icon: "check" as const, call: !answer, go: () => void navigate({ to: "/vestuario" }) },
     { k: "piz", t: "Tus pizarras", d: boards.count ? `${pl(boards.count, "tablero", "tableros")}${boards.last ? ` · el último, «${boards.last.name}», ${ago(boards.last.at, p.now)}` : ""}` : "Aún ningún tablero tuyo", icon: "poll" as const, call: false, go: () => void navigate({ to: "/pizarra", search: boards.last ? { tablero: boards.last.id } : {} } as never) },
-    { k: "porra", t: "Tu porra", d: porra ? `${pl(porra.predictions, "pronóstico", "pronósticos")} · ${pl(porra.exact, "exacto", "exactos")} · vas ${porra.rank}.º de ${porra.of}` : "Aún sin pronósticos esta temporada", icon: "star" as const, call: false, go: () => void navigate({ to: "/perfil/temporada", hash: PORRA_ID, replace: true, resetScroll: false }) },
+    { k: "porra", t: "Tu porra", d: porra ? `${pl(porra.predictions, "pronóstico", "pronósticos")} · ${pl(porra.exact, "exacto", "exactos")} · vas ${porra.rank}.º de ${porra.of}` : "Aún sin pronósticos esta temporada", icon: "star" as const, call: false, go: () => void navigate({ to: "/perfil/partidos", hash: PORRA_ID, replace: true, resetScroll: false }) },
     { k: "convs", t: "Convocatorias", d: conv.total ? `${conv.answered} de ${conv.total} respondidas` : "Aún ninguna esta temporada", icon: "cal" as const, call: false, go: () => void navigate({ to: "/vestuario" }) },
   ].filter((x): x is Exclude<typeof x, null | undefined | false> => !!x);
   const medals = (data.logros?.list ?? []).filter((m) => m.earned);
   const nexts = data.logros?.next ?? [];
 
-  const act: Act | null = started ? { t: "Ver tus cromos", icon: "play", go: () => go({ page: "perfil", sec: "temporada", open: "cromos" }) } : null;
+  const act: Act | null = started ? { t: "Ver tus cromos", icon: "play", go: () => go({ page: "perfil", sec: "vitrina", aj: null, open: "cromos" }) } : null;
   const more = [
     { t: "Tu página pública", icon: "arrow" as const, go: () => void navigate({ to: "/jugadores/$playerId/temporada", params: { playerId: pid } }) },
     { t: "Los números del equipo", icon: "chart" as const, go: () => void navigate({ to: "/estadisticas" }) },

@@ -250,15 +250,16 @@ const SECTIONS: [string, string, string, string, string, TuIconName, boolean][] 
 type Who = "all" | "card" | "player" | "member" | "cap";
 /** «Tu página y tus avisos» (TUD.FAMILY): id, title, detail, address, keywords, icon, who. */
 const FAMILY: [string, string, string, string, string, TuIconName, Who][] = [
-  ["carta", "Tu carta", "Mi página", "/perfil", "perfil carta valoracion evoluciones mi pagina tipos", "cardi", "card"],
-  ["temporada", "Tu temporada", "Mi página", "/perfil/temporada", "temporada numeros goles logros cromos", "chart", "player"],
-  ["posiciones", "Tus posiciones", "Mi página", "/perfil/posiciones", "posiciones donde juego puesto", "target", "player"],
-  ["nombre", "Tu nombre y tu apodo", "Mi página", "/perfil/nombre", "nombre apodo espalda camiseta estampar", "shirt", "member"],
+  ["carta", "Tu carta", "Tú: tu carta y lo que te toca", "/perfil", "perfil carta valoracion mi pagina te toca", "cardi", "card"],
+  ["temporada", "Tus partidos", "Jornada a jornada, con tu nota", "/perfil/partidos", "temporada partidos notas numeros goles porra", "chart", "player"],
+  ["posiciones", "Tu juego", "Tus posiciones y tu sitio en el equipo", "/perfil/juego", "posiciones donde juego puesto ranking sociedad", "target", "player"],
+  ["vitrina", "Tu vitrina", "El camino de tu carta, premios y cromos", "/perfil/vitrina", "vitrina logros evoluciones premios cromos tipos carta", "trophy", "card"],
+  ["nombre", "Tu nombre y tu apodo", "Mi página", "/perfil/ajustes/nombre", "nombre apodo espalda camiseta estampar", "shirt", "member"],
   ["bandeja", "Avisos", "Lo que te ha contado el club", "/avisos", "avisos notificaciones bandeja", "bell", "member"],
   ["amedida", "Avisos a medida", "Qué te llega a este móvil", "/avisos/a-medida", "avisos notificaciones push silenciar solo goles calendario", "bell", "all"],
-  ["ajustes", "Ajustes", "Tema, sonido, estadio en 3D", "/perfil/ajustes", "ajustes tema oscuro claro noche dia sonido 3d animaciones", "gear", "member"],
-  ["cuenta", "Tu cuenta", "Google, acceso, salir y baja", "/perfil/cuenta", "cuenta google salir sesion baja datos id", "user", "member"],
-  ["capitania", "Capitanía", "La puerta y administrar el club", "/perfil/capitania", "capitan puerta", "door", "cap"],
+  ["ajustes", "Ajustes", "Tema, sonido, estadio en 3D", "/perfil/ajustes/apariencia", "ajustes tema oscuro claro noche dia sonido 3d animaciones", "gear", "member"],
+  ["cuenta", "Tu cuenta", "Google, acceso, salir y baja", "/perfil/ajustes/cuenta", "cuenta google salir sesion baja datos id", "user", "member"],
+  ["capitania", "Capitanía", "La puerta del vestuario", "/perfil/ajustes/capitania", "capitan puerta", "door", "cap"],
   ["admin", "Admin", "Sala de control: partidos, plantilla, caja y temporadas", "/admin", "admin administrar sala control gestionar panel", "shield", "cap"],
 ];
 
@@ -344,7 +345,7 @@ export function buildEntries({ viewer, dia, players, games, next, vote }: SrInpu
   if (k === "jugador") {
     if (next) a("rsvp", `Responder a la convocatoria ${next.j ? `de la J${next.j}` : "del amistoso"}`, "Voy, duda o no voy, aquí mismo", "check", "convocatoria voy ir", { to: "account", href: "/vestuario" }, "Se abre «Tú»");
     a("compartir", "Compartir mi carta", "Historia o post, frente o dorso", "share", "compartir carta imagen instagram", { to: "href", href: "/perfil/compartir" }, "/perfil/compartir");
-    a("estampar", "Cambiar el nombre de mi espalda", "Lo estampas y sale en tu ficha", "shirt", "estampar nombre espalda camiseta", { to: "href", href: "/perfil/nombre" }, "/perfil/nombre");
+    a("estampar", "Cambiar el nombre de mi espalda", "Lo estampas y sale en tu ficha", "shirt", "estampar nombre espalda camiseta", { to: "href", href: "/perfil/ajustes/nombre" }, "/perfil/ajustes/nombre");
     a("ausencia", "Avisar de una ausencia", "Para que la pizarra lo sepa", "away", "ausencia no puedo vacaciones", { to: "href", href: "/vestuario/ausencias" }, "/vestuario/ausencias");
     a("turno", "Cambiar mi turno", "Lavar la equipación, los balones, los petos", "wash", "turno lavar equipacion", { to: "href", href: "/vestuario/turnos" }, "/vestuario/turnos");
   }

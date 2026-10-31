@@ -7,8 +7,8 @@ import { useTheme } from "../../../../hooks/useTheme";
 import { useReducedMotion } from "../../../../components/vidrio";
 import { Seg, Switch, TuIcon } from "../../../../components/vidrio/tu/ui";
 import { readProfilePrefs, readSharedPrefs, writeProfilePrefs, writeSharedPrefs, type IntroPref } from "../../prefs";
-import { secDesc } from "../model";
-import type { ScreenProps } from "../MiPagina";
+import { secDesc } from "./legacy";
+import type { ScreenProps } from "./legacy";
 import { Screen } from "./Head";
 
 export function Ajustes(p: ScreenProps) {
@@ -128,7 +128,7 @@ export function Ajustes(p: ScreenProps) {
             <b>Avisos</b>
             <small>Este móvil: {PRESET_LABELS[preset.choice]}. Se eligen en Avisos a medida.</small>
           </span>
-          <button type="button" className="vd-link" onClick={() => p.go({ page: "avisos", sec: "carta", open: null })}>
+          <button type="button" className="vd-link" onClick={() => p.go({ page: "perfil", sec: "ajustes", aj: "avisos", open: null })}>
             Avisos a medida
           </button>
         </li>

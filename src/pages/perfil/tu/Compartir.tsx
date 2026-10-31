@@ -6,7 +6,7 @@ import { KitStillContext } from "../../../components/jersey3d/kitStill";
 import { Seg, TuIcon, TuLayer } from "../../../components/vidrio/tu/ui";
 import { copyText, saveBlob } from "../fxRuntime";
 import { shareFileName, shareLink, shareOut, sharePlan, shareToast, shareWords, slugOf, type ShareNav } from "../share";
-import type { ScreenProps } from "./MiPagina";
+import type { ScreenProps } from "./screens/legacy";
 import { TuCard, type CardModel } from "./TuCard";
 import { wantedNumber } from "./view";
 import { shareImage, type Fmt } from "./shareDraw";

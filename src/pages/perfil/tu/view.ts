@@ -3,7 +3,7 @@
 import type { TuMaqueta } from "../../../components/vidrio/tu/maqueta";
 import type { ProfileData } from "../useProfileData";
 import type { CardModel, CardBack } from "./TuCard";
-import { pl, type Kind, type Sec } from "./model";
+import type { Kind } from "./model";
 
 /** Who looks, as the boards tell them apart: a linked ficha is a player; a pending or turned-down request a new
  *  account (the sobre, or the card face down to pick a dorsal); anybody else in the vestuario a socio (his carné,
@@ -97,33 +97,4 @@ export function identityOf(d: ProfileData, kind: Kind, captain: boolean): Identi
   const since = `${nick} · socio desde ${d.access.sinceText}`;
   if (kind === "nuevo") return { name, line: since, chips: [d.ficha.state === "pendiente" ? { t: "Ficha pendiente", cls: "is-warn" } : { t: "Sin ficha todavía", cls: "" }] };
   return { name, line: since, chips: [{ t: "Socio del club", cls: "" }, ...(captain ? [{ t: "Capitán del vestuario", cls: "is-cap" }] : [])] };
-}
-
-/** What each tab says it holds (component.js HINT). `avisos`: «Todo · 6 sin leer». */
-export function hintOf(id: Sec | "avisos", d: ProfileData, kind: Kind, o: { avisos: string; themePref: "light" | "dark" | "system"; doorN: number; posPending: boolean }): string {
-  const c = d.card;
-  switch (id) {
-    case "carta":
-      if (kind === "socio") return `Socio desde ${d.access.sinceText}`;
-      if (kind === "nuevo") return d.ficha.state === "pendiente" ? `Sobre cerrado · el ${wantedNumber(d)}` : "Por revelar";
-      return c.showNumbers && c.rating !== null ? `${c.tierName} · ${c.rating}${c.global?.status === "provisional" ? " · provisional" : ""}` : c.totals.played > 0 ? "GLOBAL pendiente" : "Nueva · se revela al jugar";
-    case "temporada": {
-      if (!c.started) return "Sin partidos aún";
-      const t = c.totals;
-      if (!t.played) return "Sin partidos aún";
-      return `${pl(t.played, "partido", "partidos")} · ${t.minutes !== null && t.minutes > 0 ? `${t.minutes}′` : pl(t.goals, "gol", "goles")}`;
-    }
-    case "posiciones":
-      return (c.posLong ?? "Sin posición") + (o.posPending ? " · enviada" : "");
-    case "nombre":
-      return kind === "socio" ? `@${d.nickname}` : `${kind === "jugador" && d.shirt.current ? `${d.shirt.current.toUpperCase()} · ` : ""}@${d.nickname}`;
-    case "avisos":
-      return o.avisos;
-    case "ajustes":
-      return o.themePref === "system" ? "Como tu móvil" : o.themePref === "light" ? "Día" : "Noche";
-    case "cuenta":
-      return "Google, acceso y baja";
-    case "capitania":
-      return `${o.doorN} ${o.doorN === 1 ? "llama" : "llaman"} a la puerta`;
-  }
 }

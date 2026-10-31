@@ -1,6 +1,8 @@
-// Tú (TU boards, component.js): who looks at /perfil, which screens his page has, what each tab says it holds
-// and which address each screen is. Pure: the page (TuPage) reads the screen from the address and draws it.
+// «Tú» (the four places, IMPL-SPEC 2026-11): who looks at /perfil, which places his page has (Tú · Partidos ·
+// Juego · Vitrina + the gear «Ajustes» with its sections), what each address shows and the direction a move
+// between them takes. Pure: the page (ProfilePage) reads the screen from the address and draws it.
 import { apiError } from "../../../lib/clubApi";
+import { PERFIL_MOVES } from "../../../lib/legacyUrls";
 
 /** «Salir en este dispositivo» failed: say why (the connection, Google…), not only that it failed. */
 export const signOutFailText = (e: unknown): string => `No se ha podido cerrar la sesión. ${apiError(e)}`;
@@ -8,43 +10,68 @@ export const signOutFailText = (e: unknown): string => `No se ha podido cerrar l
 /** Who looks: no session · a member without a ficha (his carné) · a new account whose ficha is pending or was
  *  turned down (the sobre / the pick) · a player with his ficha linked. */
 export type Kind = "fan" | "socio" | "nuevo" | "jugador";
-export type Sec = "carta" | "temporada" | "posiciones" | "nombre" | "ajustes" | "cuenta" | "capitania";
-/** The two surfaces with an address of their own (the studio and the cromos). */
+/** The places: the four of the bar and the gear. */
+export type Sec = "tu" | "partidos" | "juego" | "vitrina" | "ajustes";
+/** Ajustes' sections (/perfil/ajustes/<section>). */
+export type AjSec = "nombre" | "avisos" | "apariencia" | "cuenta" | "capitania";
+/** The two surfaces with an address of their own: the studio (over Vitrina… or wherever it was opened) and the
+ *  cromos viewer (over Vitrina). */
 export type Open = "compartir" | "cromos" | null;
 export type Page = "perfil" | "avisos";
 
 export interface Screen {
   page: Page;
   sec: Sec;
+  /** Ajustes' section (null: the index — the phone's list; on a desktop the first section beside it). */
+  aj: AjSec | null;
   open: Open;
 }
 
-/** The screens in their order (the move's direction follows it). */
-export const SECS: readonly Sec[] = ["carta", "temporada", "posiciones", "nombre", "ajustes", "cuenta", "capitania"];
-/** «Fuera del campo»: the card shows its back (the carné). */
-export const BACKSIDE: ReadonlySet<Sec> = new Set(["ajustes", "cuenta", "capitania"]);
+/** The places in their order (the move's direction follows it; the gear last). */
+export const SECS: readonly Sec[] = ["tu", "partidos", "juego", "vitrina", "ajustes"];
+/** Ajustes' sections in their order. */
+export const AJ_SECS: readonly AjSec[] = ["nombre", "avisos", "apariencia", "cuenta", "capitania"];
 
 const PATH: Record<Sec, string> = {
-  carta: "/perfil",
-  temporada: "/perfil/temporada",
-  posiciones: "/perfil/posiciones",
-  nombre: "/perfil/nombre",
+  tu: "/perfil",
+  partidos: "/perfil/partidos",
+  juego: "/perfil/juego",
+  vitrina: "/perfil/vitrina",
   ajustes: "/perfil/ajustes",
-  cuenta: "/perfil/cuenta",
-  capitania: "/perfil/capitania",
 };
-export const secPath = (s: Sec): string => PATH[s];
 export const COMPARTIR_PATH = "/perfil/compartir";
-export const CROMOS_PATH = "/perfil/temporada/cromos";
+export const CROMOS_PATH = "/perfil/vitrina/cromos";
+export const AVISOS_PATH = "/avisos";
+/** «A medida» outside the page (fans without an account and old links). */
+export const A_MEDIDA_PATH = "/avisos/a-medida";
 
-/** The screen an address shows (/perfil/compartir: La carta under the studio; …/cromos: Temporada under them). */
+/** A place's address (an Ajustes section: /perfil/ajustes/<section>). */
+export const secPath = (s: Sec, aj: AjSec | null = null): string => (s === "ajustes" && aj ? `${PATH.ajustes}/${aj}` : PATH[s]);
+
+/** The address of a screen (the inverse of screenAt). */
+export function screenPath(s: Screen): string {
+  if (s.page === "avisos") return AVISOS_PATH;
+  if (s.open === "compartir") return COMPARTIR_PATH;
+  if (s.open === "cromos") return CROMOS_PATH;
+  return secPath(s.sec, s.aj);
+}
+
+const at = (sec: Sec, aj: AjSec | null = null, open: Open = null): Screen => ({ page: "perfil", sec, aj, open });
+
+/** The screen an address shows (/perfil/compartir: Vitrina under the studio; /perfil/vitrina/cromos: Vitrina
+ *  under the cromos). An old screen's address (the router redirects it first) still lands on its place. */
 export function screenAt(pathname: string): Screen {
-  const p = pathname.replace(/\/+$/, "") || "/";
-  if (p === "/avisos" || p.startsWith("/avisos/")) return { page: "avisos", sec: "carta", open: null };
-  if (p === COMPARTIR_PATH) return { page: "perfil", sec: "carta", open: "compartir" };
-  if (p === CROMOS_PATH) return { page: "perfil", sec: "temporada", open: "cromos" };
-  const sec = (Object.keys(PATH) as Sec[]).find((s) => PATH[s] === p);
-  return { page: "perfil", sec: sec ?? "carta", open: null };
+  const raw = pathname.replace(/\/+$/, "") || "/";
+  const p = PERFIL_MOVES[raw] ?? raw;
+  if (p === AVISOS_PATH || p.startsWith(`${AVISOS_PATH}/`)) return { page: "avisos", sec: "tu", aj: null, open: null };
+  if (p === COMPARTIR_PATH) return at("vitrina", null, "compartir");
+  if (p === CROMOS_PATH) return at("vitrina", null, "cromos");
+  if (p.startsWith(`${PATH.ajustes}/`)) {
+    const aj = p.slice(PATH.ajustes.length + 1) as AjSec;
+    return at("ajustes", AJ_SECS.includes(aj) ? aj : null);
+  }
+  const sec = SECS.find((s) => PATH[s] === p);
+  return at(sec ?? "tu");
 }
 
 export interface Who {
@@ -52,36 +79,53 @@ export interface Who {
   captain: boolean;
 }
 
-/** The screens his page has (component.js secsOf): a player's season and positions, a captain's Capitanía. */
-export function secsOf(w: Who): { id: Sec | "avisos"; g: "campo" | "fuera" }[] {
-  if (w.kind === "fan") return [{ id: "carta", g: "campo" }];
-  const out: { id: Sec | "avisos"; g: "campo" | "fuera" }[] = [{ id: "carta", g: "campo" }];
-  if (w.kind === "jugador") out.push({ id: "temporada", g: "campo" }, { id: "posiciones", g: "campo" });
-  out.push({ id: "nombre", g: "campo" }, { id: "avisos", g: "fuera" }, { id: "ajustes", g: "fuera" }, { id: "cuenta", g: "fuera" });
-  if (w.captain) out.push({ id: "capitania", g: "fuera" });
-  return out;
+/** The places of his bar (not the gear): a player's four; a socio's and a new account's Tú + Vitrina (the carné);
+ *  a fan has only Tú (the door). */
+export function placesOf(w: Who): Sec[] {
+  if (w.kind === "fan") return ["tu"];
+  if (w.kind === "jugador") return ["tu", "partidos", "juego", "vitrina"];
+  return ["tu", "vitrina"];
 }
 
-/** A screen he can't have (Temporada for a socio, Capitanía for a player…) shows La carta. */
+/** Every place he can be in: his bar's and, for any member, Ajustes. */
+export function secsOf(w: Who): Sec[] {
+  return w.kind === "fan" ? ["tu"] : [...placesOf(w), "ajustes"];
+}
+
+/** Ajustes' sections he has (Capitanía only for a captain). */
+export function ajSecsOf(w: Who): AjSec[] {
+  return w.captain ? [...AJ_SECS] : AJ_SECS.filter((a) => a !== "capitania");
+}
+
+/** A place he can't have (Partidos for a socio…) shows Tú. */
 export function allowedSec(sec: Sec, w: Who): Sec {
-  return secsOf(w).some((x) => x.id === sec) ? sec : "carta";
+  return secsOf(w).includes(sec) ? sec : "tu";
 }
 
-/** Each tab's name (the socio's carta is his carné, his «nombre» his apodo). */
-export function secLabel(id: Sec | "avisos", kind: Kind): string {
+/** An Ajustes section he can't have (Capitanía for a player) shows the index. */
+export function allowedAj(aj: AjSec | null, w: Who): AjSec | null {
+  return aj && ajSecsOf(w).includes(aj) ? aj : null;
+}
+
+/** Each place's name in the bar. */
+export function secLabel(id: Sec): string {
+  return { tu: "Tú", partidos: "Partidos", juego: "Juego", vitrina: "Vitrina", ajustes: "Ajustes" }[id];
+}
+
+/** Each place's title on the phone's top bar and in its head. */
+export function secTitle(id: Sec): string {
+  return { tu: "Tú", partidos: "Tus partidos", juego: "Tu juego", vitrina: "Tu vitrina", ajustes: "Ajustes" }[id];
+}
+
+/** Each Ajustes section's name (a socio's «nombre» is his apodo). */
+export function ajLabel(id: AjSec, kind: Kind): string {
   switch (id) {
-    case "carta":
-      return kind === "socio" ? "Tu carné" : "Tu carta";
-    case "temporada":
-      return "Temporada";
-    case "posiciones":
-      return "Posiciones";
     case "nombre":
       return kind === "socio" ? "Tu apodo" : "Tu nombre";
     case "avisos":
       return "Avisos";
-    case "ajustes":
-      return "Ajustes";
+    case "apariencia":
+      return "Apariencia";
     case "cuenta":
       return "Cuenta";
     case "capitania":
@@ -89,23 +133,19 @@ export function secLabel(id: Sec | "avisos", kind: Kind): string {
   }
 }
 
-/** Each screen's line under its title (component.js SCRD). */
-export function secDesc(id: Sec, kind: Kind, pack: boolean): string {
+/** Each Ajustes section's line under its title (TuCarta ajSub). */
+export function ajDesc(id: AjSec): string {
   switch (id) {
-    case "carta":
-      return kind === "socio" ? "Lo que el club sabe de ti y desde cuándo." : kind === "nuevo" ? (pack ? "Tu petición, mientras el capitán la mira." : "Elige tu dorsal: el capitán lo confirma.") : "Lo que dice tu carta y cómo mejora.";
-    case "temporada":
-      return "Tus partidos, tus minutos y lo tuyo en el vestuario.";
-    case "posiciones":
-      return "Dónde has jugado y dónde quieres jugar.";
     case "nombre":
-      return kind === "socio" ? "Así te ven en la porra, el MVP y el vestuario." : "El que llevas a la espalda y el que usas en el vestuario.";
-    case "ajustes":
-      return "Cómo se ve y cómo suena la web en este móvil. Se guarda solo.";
+      return "Lo que va en tu espalda y cómo te llaman en el vestuario. Se cambia aquí mismo.";
+    case "avisos":
+      return "Qué te llega a este móvil. Se guarda solo.";
+    case "apariencia":
+      return "Cómo se ve la web en este móvil. Se guarda solo.";
     case "cuenta":
-      return "Tu Google, tu acceso, salir y tus datos.";
+      return "Tu acceso con Google, lo que guarda el club y la baja.";
     case "capitania":
-      return "Lo que solo ves tú como capitán.";
+      return "Solo lo tuyo de capitán: la puerta. Lo demás, en la sala de control.";
   }
 }
 
@@ -118,8 +158,7 @@ export function doorLead(n: number): string {
   return `${n <= 10 ? WORDS[n] : n} peticiones esperan tu sí o tu no.`;
 }
 
-/** Capitanía's «Administrar el club»: straight into the sala's places and the screens a captain opens most (r12
- *  addresses; Hoy is the sala de control itself). */
+/** Capitanía's «Administrar el club» (today's screen; the redesign keeps only «Ir a la Sala de control»). */
 export type AdminLinkKey = "hoy" | "partidos" | "convocatoria" | "plantilla" | "socios" | "caja" | "club";
 const ADMIN_LINKS: readonly { key: AdminLinkKey; t: string; hint: string; path: string }[] = [
   { key: "hoy", t: "Sala de control", hint: "Lo que te toca esta semana", path: "/admin" },
@@ -132,10 +171,14 @@ const ADMIN_LINKS: readonly { key: AdminLinkKey; t: string; hint: string; path: 
 ];
 export const adminLinks = (): { key: AdminLinkKey; t: string; hint: string; path: string }[] => ADMIN_LINKS.map((l) => ({ ...l }));
 
-/** The move's direction between two screens (an «Avisos» tab always goes right, coming back from it left). */
+/** The move's direction between two screens: by the places' order (Ajustes' sections by theirs); La bandeja
+ *  (/avisos) always to the right, coming back from it to the left. */
 export function dirOf(from: Screen, to: Screen): "left" | "right" {
   if (from.page !== to.page) return to.page === "avisos" ? "right" : "left";
-  return SECS.indexOf(to.sec) >= SECS.indexOf(from.sec) ? "right" : "left";
+  const a = SECS.indexOf(from.sec);
+  const b = SECS.indexOf(to.sec);
+  if (a !== b) return b > a ? "right" : "left";
+  return AJ_SECS.indexOf(to.aj ?? "nombre") >= AJ_SECS.indexOf(from.aj ?? "nombre") ? "right" : "left";
 }
 
 /** «Tu nombre»'s fit on the back (the board's words): up to 7 letters holgado, 10 justo, 12 al límite. */

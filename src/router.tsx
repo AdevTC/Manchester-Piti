@@ -117,6 +117,8 @@ export const vestuarioSearchSchema = z.object({
 // Partidos: Jornadas (/partidos), Tabla and Balance, each with ?temporada= for another season (page state
 // only, never the remembered choice). The old ?view=tabla|numeros redirects to /partidos/tabla|balance.
 export const partidosSearchSchema = z.object({ temporada: slug });
+// Tus partidos (/perfil/partidos): ?temporada= another season (as the rest of the web), ?j= the jornada in focus.
+export const tuPartidosSearchSchema = z.object({ temporada: slug, j: z.coerce.number().int().min(1).max(99).optional().catch(undefined) });
 export const jornadasSearchSchema = z.object({
   jornada,
   lente: z.enum(["previa", "directo", "acta"]).optional().catch(undefined),
@@ -347,15 +349,19 @@ const tuRoute = createRoute({
   component: lazyRouteComponent(() => import("./pages/perfil/ProfilePage"), "ProfilePage"),
 });
 const profileRoute = createRoute({ getParentRoute: () => tuRoute, path: "perfil" });
+// (the four places and the gear: tu/model screenAt reads them; the old screens' addresses redirect, lib/legacyUrls)
 const perfilIndexRoute = createRoute({ getParentRoute: () => profileRoute, path: "/" });
-const perfilTemporadaRoute = createRoute({ getParentRoute: () => profileRoute, path: "temporada" });
-const perfilCromosRoute = createRoute({ getParentRoute: () => profileRoute, path: "temporada/cromos" });
-const perfilPosicionesRoute = createRoute({ getParentRoute: () => profileRoute, path: "posiciones" });
-const perfilNombreRoute = createRoute({ getParentRoute: () => profileRoute, path: "nombre" });
-const perfilAjustesRoute = createRoute({ getParentRoute: () => profileRoute, path: "ajustes" });
-const perfilCuentaRoute = createRoute({ getParentRoute: () => profileRoute, path: "cuenta" });
-const perfilCapitaniaRoute = createRoute({ getParentRoute: () => profileRoute, path: "capitania" });
+const perfilPartidosRoute = createRoute({ getParentRoute: () => profileRoute, path: "partidos", validateSearch: tuPartidosSearchSchema });
+const perfilJuegoRoute = createRoute({ getParentRoute: () => profileRoute, path: "juego" });
+const perfilVitrinaRoute = createRoute({ getParentRoute: () => profileRoute, path: "vitrina" });
+const perfilCromosRoute = createRoute({ getParentRoute: () => profileRoute, path: "vitrina/cromos" });
 const perfilCompartirRoute = createRoute({ getParentRoute: () => profileRoute, path: "compartir" });
+const perfilAjustesRoute = createRoute({ getParentRoute: () => profileRoute, path: "ajustes" });
+const perfilAjNombreRoute = createRoute({ getParentRoute: () => profileRoute, path: "ajustes/nombre" });
+const perfilAjAvisosRoute = createRoute({ getParentRoute: () => profileRoute, path: "ajustes/avisos" });
+const perfilAjAparienciaRoute = createRoute({ getParentRoute: () => profileRoute, path: "ajustes/apariencia" });
+const perfilAjCuentaRoute = createRoute({ getParentRoute: () => profileRoute, path: "ajustes/cuenta" });
+const perfilAjCapitaniaRoute = createRoute({ getParentRoute: () => profileRoute, path: "ajustes/capitania" });
 // (today: the profile's Avisos tab, members only, until Tú lands; then /avisos opens «A medida» to anybody)
 const avisosRoute = createRoute({
   getParentRoute: () => tuRoute,
@@ -524,14 +530,17 @@ const routeTree = rootRoute.addChildren([
   tuRoute.addChildren([
     profileRoute.addChildren([
       perfilIndexRoute,
-      perfilTemporadaRoute,
+      perfilPartidosRoute,
+      perfilJuegoRoute,
+      perfilVitrinaRoute,
       perfilCromosRoute,
-      perfilPosicionesRoute,
-      perfilNombreRoute,
-      perfilAjustesRoute,
-      perfilCuentaRoute,
-      perfilCapitaniaRoute,
       perfilCompartirRoute,
+      perfilAjustesRoute,
+      perfilAjNombreRoute,
+      perfilAjAvisosRoute,
+      perfilAjAparienciaRoute,
+      perfilAjCuentaRoute,
+      perfilAjCapitaniaRoute,
     ]),
     avisosRoute.addChildren([avisosIndexRoute, avisosAMedidaRoute]),
   ]),

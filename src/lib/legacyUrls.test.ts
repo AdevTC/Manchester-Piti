@@ -148,22 +148,32 @@ describe("El vestuario: the old anchors", () => {
 describe("Tú: /profile and its tabs", () => {
   moves("/profile", "/perfil");
   moves("/profile#carta", "/perfil");
-  moves("/profile#temporada", "/perfil/temporada");
-  moves("/profile#cromos", "/perfil/temporada/cromos");
+  moves("/profile#temporada", "/perfil/partidos");
+  moves("/profile#cromos", "/perfil/vitrina/cromos");
   moves("/profile#avisos", "/avisos/a-medida");
   moves("/profile#ajustes", "/perfil/ajustes");
-  moves("/profile#cuenta", "/perfil/cuenta");
-  moves("/profile#capitania", "/perfil/capitania");
-  moves("/profile#pe-nombre", "/perfil/nombre");
-  moves("/profile#pe-posiciones", "/perfil/posiciones");
+  moves("/profile#cuenta", "/perfil/ajustes/cuenta");
+  moves("/profile#capitania", "/perfil/ajustes/capitania");
+  moves("/profile#pe-nombre", "/perfil/ajustes/nombre");
+  moves("/profile#pe-posiciones", "/perfil/juego");
   moves("/profile#pe-pick", "/perfil");
   moves("/profile#pe-ficha", "/perfil");
   // (the server's 301 keeps the hash: /profile#ajustes reaches the browser as /perfil#ajustes)
   moves("/perfil#ajustes", "/perfil/ajustes");
-  moves("/perfil/temporada#cuenta", "/perfil/cuenta");
+  moves("/perfil/temporada#cuenta", "/perfil/ajustes/cuenta");
   moves("/avisos/a-medida#ajustes", "/perfil/ajustes");
+  // (the four places: every old screen's address, with its parameters)
+  moves("/perfil/temporada", "/perfil/partidos");
+  moves("/perfil/temporada/", "/perfil/partidos");
+  moves("/perfil/temporada/cromos", "/perfil/vitrina/cromos");
+  moves("/perfil/posiciones", "/perfil/juego");
+  moves("/perfil/nombre", "/perfil/ajustes/nombre");
+  moves("/perfil/cuenta", "/perfil/ajustes/cuenta");
+  moves("/perfil/cuenta?salir=1", "/perfil/ajustes/cuenta?salir=1");
+  moves("/perfil/capitania", "/perfil/ajustes/capitania");
+  moves("/perfil#porra", "/perfil/partidos#porra");
   it("the new addresses stay", () => {
-    for (const href of ["/perfil", "/perfil/temporada/cromos", "/avisos", "/avisos?ver=sin-leer", "/avisos/a-medida", "/buscar?q=kevin"]) expect(legacyHref(href), href).toBeNull();
+    for (const href of ["/perfil", "/perfil/partidos", "/perfil/partidos?j=3", "/perfil/partidos#porra", "/perfil/juego", "/perfil/vitrina", "/perfil/vitrina/cromos", "/perfil/compartir", "/perfil/ajustes", "/perfil/ajustes/nombre", "/perfil/ajustes/avisos", "/perfil/ajustes/apariencia", "/perfil/ajustes/cuenta?salir=1", "/perfil/ajustes/capitania", "/avisos", "/avisos?ver=sin-leer", "/avisos/a-medida", "/buscar?q=kevin"]) expect(legacyHref(href), href).toBeNull();
   });
 });
 

@@ -828,7 +828,7 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
                           {cromoSaved ? "Guardado en tus cromos" : "Guardar"}
                         </button>
                         {cromoSaved && (
-                          <Go className="vd-link" href="/perfil/temporada/cromos">
+                          <Go className="vd-link" href="/perfil/vitrina/cromos">
                             Ver tus cromos
                           </Go>
                         )}
@@ -845,10 +845,10 @@ export function ScreenVestuario({ c, v }: { c: PageCtx; v: VestuarioState }) {
                   </div>
                   <p className="ves-p">Vincula tu ficha para ver aquí tus minutos, tus tramos y tus acciones de cada partido.</p>
                   <div className="ves-acts">
-                    <Go className="vd-link" href="/perfil/cuenta">
+                    <Go className="vd-link" href="/perfil/ajustes/cuenta">
                       Vincular mi ficha
                     </Go>
-                    <Go className="vd-link" href="/perfil#porra">
+                    <Go className="vd-link" href="/perfil/partidos#porra">
                       Tu recorrido en la porra
                     </Go>
                   </div>

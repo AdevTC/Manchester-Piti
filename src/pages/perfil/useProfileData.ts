@@ -49,6 +49,9 @@ import type { SquadShirt } from "./rules";
 import { upcomingRows, type UpcomingRow } from "./avisos";
 import { closedRecapSeason, recapOffer, type RecapOffer } from "./recapView";
 import type { TuMaqueta } from "../../components/vidrio/tu/maqueta";
+import type { PlayerDoc } from "../../lib/schemas";
+import type { MvpResult } from "../../lib/vestuario";
+import type { Standings } from "../../lib/standings";
 
 export type Role = "superadmin" | "admin" | "user";
 /** A ficha the member can still ask for (the claim picker): this season's, nobody linked to it. */
@@ -101,6 +104,10 @@ export interface ProfileData {
   logros: { list: Achievement[]; next: Achievement[] } | null;
   /** «Tu temporada en 10 cromos» (vinculada only): the season's recap once it can be opened. */
   recap: RecapOffer | null;
+  /** His convocatoria answers of the current season by match (the next one live). */
+  answers: ReadonlyMap<string, Answer>;
+  /** The shared reads as they are, for tu/me.ts (any season: Tus partidos' ?temporada=). */
+  raw: { matches: ClubMatch[]; players: PlayerDoc[]; seasons: { id: string; name: string; archived?: boolean }[]; mvpResults: Map<string, MvpResult>; standings: readonly Standings[] };
 }
 
 const toMillis = (v: unknown): number | null => {
@@ -246,5 +253,7 @@ export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
     captain: isCaptain ? { doorRequests: doorRequests.data, pendingClaims: pendingClaims.data } : null,
     logros: medals ? { list: medals, next: nextToChase(medals, 3) } : null,
     recap,
+    answers,
+    raw: { matches, players, seasons, mvpResults, standings },
   };
 }

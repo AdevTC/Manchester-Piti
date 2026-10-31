@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminLinks, allowedSec, dirOf, doorLead, fitWord, initials, screenAt, secLabel, secsOf, signOutFailText, sinceLong } from "./model";
+import { adminLinks, ajLabel, ajSecsOf, allowedAj, allowedSec, dirOf, doorLead, fitWord, initials, placesOf, screenAt, screenPath, secLabel, secPath, secsOf, secTitle, signOutFailText, sinceLong } from "./model";
 import { clubLineOf, firstName, kindOf } from "./view";
 import { cromosOf, type CromosInput } from "./cromosModel";
 import { goalClock } from "./season";
@@ -7,24 +7,60 @@ import { matchMarks } from "../../../lib/derived/vidrio/matchMarks";
 import type { ClubMatch } from "../../../lib/clubData";
 
 describe("Tú: the screen an address shows", () => {
+  const P = (sec: string, aj: string | null = null, open: string | null = null) => ({ page: "perfil", sec, aj, open });
   it("reads every /perfil and /avisos address", () => {
-    expect(screenAt("/perfil")).toEqual({ page: "perfil", sec: "carta", open: null });
-    expect(screenAt("/perfil/")).toEqual({ page: "perfil", sec: "carta", open: null });
-    expect(screenAt("/perfil/temporada")).toEqual({ page: "perfil", sec: "temporada", open: null });
-    expect(screenAt("/perfil/temporada/cromos")).toEqual({ page: "perfil", sec: "temporada", open: "cromos" });
-    expect(screenAt("/perfil/compartir")).toEqual({ page: "perfil", sec: "carta", open: "compartir" });
-    expect(screenAt("/perfil/capitania")).toEqual({ page: "perfil", sec: "capitania", open: null });
+    expect(screenAt("/perfil")).toEqual(P("tu"));
+    expect(screenAt("/perfil/")).toEqual(P("tu"));
+    expect(screenAt("/perfil/partidos")).toEqual(P("partidos"));
+    expect(screenAt("/perfil/juego")).toEqual(P("juego"));
+    expect(screenAt("/perfil/vitrina")).toEqual(P("vitrina"));
+    expect(screenAt("/perfil/vitrina/cromos")).toEqual(P("vitrina", null, "cromos"));
+    expect(screenAt("/perfil/compartir")).toEqual(P("vitrina", null, "compartir"));
+    expect(screenAt("/perfil/ajustes")).toEqual(P("ajustes"));
+    expect(screenAt("/perfil/ajustes/cuenta")).toEqual(P("ajustes", "cuenta"));
+    expect(screenAt("/perfil/ajustes/capitania")).toEqual(P("ajustes", "capitania"));
+    expect(screenAt("/perfil/ajustes/nada")).toEqual(P("ajustes"));
+    expect(screenAt("/perfil/nada")).toEqual(P("tu"));
     expect(screenAt("/avisos").page).toBe("avisos");
     expect(screenAt("/avisos/a-medida").page).toBe("avisos");
   });
-  it("gives each viewer his screens", () => {
-    expect(secsOf({ kind: "fan", captain: false }).map((x) => x.id)).toEqual(["carta"]);
-    expect(secsOf({ kind: "socio", captain: false }).map((x) => x.id)).toEqual(["carta", "nombre", "avisos", "ajustes", "cuenta"]);
-    expect(secsOf({ kind: "jugador", captain: true }).map((x) => x.id)).toEqual(["carta", "temporada", "posiciones", "nombre", "avisos", "ajustes", "cuenta", "capitania"]);
-    expect(allowedSec("temporada", { kind: "socio", captain: false })).toBe("carta");
-    expect(allowedSec("capitania", { kind: "jugador", captain: false })).toBe("carta");
-    expect(secLabel("carta", "socio")).toBe("Tu carné");
-    expect(secLabel("nombre", "socio")).toBe("Tu apodo");
+  it("an old screen's address lands on its place (the router redirects it first)", () => {
+    expect(screenAt("/perfil/temporada")).toEqual(P("partidos"));
+    expect(screenAt("/perfil/temporada/cromos")).toEqual(P("vitrina", null, "cromos"));
+    expect(screenAt("/perfil/posiciones")).toEqual(P("juego"));
+    expect(screenAt("/perfil/nombre")).toEqual(P("ajustes", "nombre"));
+    expect(screenAt("/perfil/cuenta")).toEqual(P("ajustes", "cuenta"));
+    expect(screenAt("/perfil/capitania")).toEqual(P("ajustes", "capitania"));
+  });
+  it("writes each screen's address back", () => {
+    for (const p of ["/perfil", "/perfil/partidos", "/perfil/juego", "/perfil/vitrina", "/perfil/vitrina/cromos", "/perfil/compartir", "/perfil/ajustes", "/perfil/ajustes/avisos", "/perfil/ajustes/capitania", "/avisos"]) expect(screenPath(screenAt(p))).toBe(p);
+    expect(secPath("ajustes", "nombre")).toBe("/perfil/ajustes/nombre");
+    expect(secPath("tu", "nombre")).toBe("/perfil");
+  });
+  it("gives each viewer his places", () => {
+    const fan = { kind: "fan", captain: false } as const;
+    const socio = { kind: "socio", captain: false } as const;
+    const nuevo = { kind: "nuevo", captain: false } as const;
+    const jugador = { kind: "jugador", captain: false } as const;
+    const capitan = { kind: "jugador", captain: true } as const;
+    expect(placesOf(fan)).toEqual(["tu"]);
+    expect(secsOf(fan)).toEqual(["tu"]);
+    expect(placesOf(socio)).toEqual(["tu", "vitrina"]);
+    expect(placesOf(nuevo)).toEqual(["tu", "vitrina"]);
+    expect(secsOf(socio)).toEqual(["tu", "vitrina", "ajustes"]);
+    expect(placesOf(jugador)).toEqual(["tu", "partidos", "juego", "vitrina"]);
+    expect(ajSecsOf(jugador)).toEqual(["nombre", "avisos", "apariencia", "cuenta"]);
+    expect(ajSecsOf(capitan)).toEqual(["nombre", "avisos", "apariencia", "cuenta", "capitania"]);
+    expect(allowedSec("partidos", socio)).toBe("tu");
+    expect(allowedSec("juego", nuevo)).toBe("tu");
+    expect(allowedSec("ajustes", fan)).toBe("tu");
+    expect(allowedSec("juego", jugador)).toBe("juego");
+    expect(allowedAj("capitania", jugador)).toBeNull();
+    expect(allowedAj("capitania", capitan)).toBe("capitania");
+    expect(secLabel("tu")).toBe("Tú");
+    expect(secTitle("partidos")).toBe("Tus partidos");
+    expect(ajLabel("nombre", "socio")).toBe("Tu apodo");
+    expect(ajLabel("nombre", "jugador")).toBe("Tu nombre");
   });
   it("Capitanía's «Administrar el club» goes straight into the admin's sections", () => {
     const links = adminLinks();
@@ -35,12 +71,14 @@ describe("Tú: the screen an address shows", () => {
   it("a «Salir» that fails says why", () => {
     expect(signOutFailText({ code: "auth/network-request-failed" })).toBe("No se ha podido cerrar la sesión. No se ha podido conectar con Google. Comprueba tu conexión y vuelve a intentarlo.");
   });
-  it("moves in the order of the tabs", () => {
-    const at = (sec: "carta" | "nombre", page: "perfil" | "avisos" = "perfil") => ({ page, sec, open: null });
-    expect(dirOf(at("carta"), at("nombre"))).toBe("right");
-    expect(dirOf(at("nombre"), at("carta"))).toBe("left");
-    expect(dirOf(at("nombre"), at("carta", "avisos"))).toBe("right");
-    expect(dirOf(at("carta", "avisos"), at("nombre"))).toBe("left");
+  it("moves in the order of the places; la bandeja always to the right", () => {
+    const at = (sec: "tu" | "partidos" | "vitrina" | "ajustes", aj: "nombre" | "cuenta" | null = null, page: "perfil" | "avisos" = "perfil") => ({ page, sec, aj, open: null });
+    expect(dirOf(at("tu"), at("partidos"))).toBe("right");
+    expect(dirOf(at("vitrina"), at("partidos"))).toBe("left");
+    expect(dirOf(at("ajustes", "nombre"), at("ajustes", "cuenta"))).toBe("right");
+    expect(dirOf(at("ajustes", "cuenta"), at("ajustes", "nombre"))).toBe("left");
+    expect(dirOf(at("ajustes"), at("tu", null, "avisos"))).toBe("right");
+    expect(dirOf(at("tu", null, "avisos"), at("ajustes"))).toBe("left");
   });
   it("words the door and the initials", () => {
     expect(doorLead(0)).toBe("Nadie llama ahora mismo.");
