@@ -259,6 +259,10 @@ const numerosRecordsRoute = createRoute({ getParentRoute: () => statsRoute, path
 const numerosMarcasRoute = createRoute({ getParentRoute: () => statsRoute, path: "records/marcas" });
 const numerosCromosRoute = createRoute({ getParentRoute: () => statsRoute, path: "records/cromos" });
 const numerosEvolucionRoute = createRoute({ getParentRoute: () => statsRoute, path: "records/evolucion" });
+// «El palco»: El campo and the evolution are Jugadores' views now (the round-3 addresses above still open them)
+const numerosJugCampoRoute = createRoute({ getParentRoute: () => statsRoute, path: "jugadores/campo" });
+const numerosJugPuestosRoute = createRoute({ getParentRoute: () => statsRoute, path: "jugadores/campo/puestos" });
+const numerosJugEvolucionRoute = createRoute({ getParentRoute: () => statsRoute, path: "jugadores/evolucion" });
 
 // ── Plantilla: el vestuario, el cara a cara, el álbum (?season= is the root's); a player and his sections
 export const plantillaSearchSchema = z.object({
@@ -496,6 +500,9 @@ const routeTree = rootRoute.addChildren([
     numerosMarcasRoute,
     numerosCromosRoute,
     numerosEvolucionRoute,
+    numerosJugCampoRoute,
+    numerosJugPuestosRoute,
+    numerosJugEvolucionRoute,
   ]),
   plantillaLayoutRoute.addChildren([
     plantillaRoute.addChildren([plantillaIndexRoute, plantillaAlbumRoute, caraACaraRoute]),

@@ -18,7 +18,7 @@ export const PAGES = [
   /^\/hoy\/(campo|jugadas)$/,
   /^\/camiseta$/,
   /^\/partidos(\/(tabla|balance))?$/,
-  /^\/estadisticas(\/(y-si|jugadores|campo(\/(puestos|sistemas))?|juego(\/(tabla|catalogo))?|rivales|records(\/(marcas|cromos|evolucion))?))?$/,
+  /^\/estadisticas(\/(y-si|jugadores(\/(campo(\/puestos)?|evolucion))?|campo(\/(puestos|sistemas))?|juego(\/(tabla|catalogo))?|rivales|records(\/(marcas|cromos|evolucion))?))?$/,
   /^\/plantilla(\/(album|cara-a-cara))?$/,
   /^\/jugadores\/[A-Za-z0-9_-]+(\/(temporada|jornadas|juego|analisis|cromo))?$/,
   /^\/club(\/(vitrina(\/[A-Za-z0-9_-]+)?|historia|equipo(\/camiseta)?|gente))?$/,
