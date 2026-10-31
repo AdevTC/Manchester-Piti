@@ -92,8 +92,8 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     await expect(detail.locator(".nx-ev").getByRole("listitem")).toHaveCount(2);
     await expect(detail.locator(".nx-ev")).toContainText(names[2]);
     await expect(detail).not.toContainText(privateQuote);
-    // (Esc: at 1280×720 the floating live score sits over the ficha's «Cerrar», reported apart)
-    await page.keyboard.press("Escape");
+    // (the sheets live in the body, over the floating live score: its «Cerrar» is clickable at 1280×720)
+    await detail.getByRole("button", { name: "Cerrar", exact: true }).click();
     await expect(detail).toHaveCount(0);
     await page.getByRole("region", { name: "Catálogo: una ficha para cada estadística" }).getByRole("button", { name: "Cerrar", exact: true }).click();
 
@@ -140,8 +140,7 @@ test("importar v2 conserva el acta, publica sus gráficos y comparte los filtros
     expect(exported.partidos.map((m: { id: string }) => m.id)).toEqual(expect.arrayContaining([id, otherId]));
     expect(exported.filtros.jugadores).toEqual([players[2]]);
     expect(String(exported.deUnVistazo.find((metric: { id: string }) => metric.id === "067").valor)).toBe("2");
-    // (Esc, as for the ficha: the floating live score covers the sheet's «Cerrar» here)
-    await page.keyboard.press("Escape");
+    await exportSheet.getByRole("button", { name: "Cerrar", exact: true }).click();
     await expect(exportSheet).toHaveCount(0);
     await page.setViewportSize({ width: 1440, height: 1050 });
     await page.locator('section[aria-labelledby="nx-g-h"]').screenshot({ path: testInfo.outputPath("narrated-juego-desktop.png") });
