@@ -35,6 +35,9 @@ test("la puerta: un fichaje elige camiseta, pide acceso y el capitán le abre", 
   // The captain sees the request in «La puerta» and opens it (after the undo window).
   const capCtx = await browser.newContext();
   const cap = await capCtx.newPage();
+  // (two windows: the one acting comes to the front — a covered window stops painting, and a View Transition left
+  // half-way there keeps its overlay over the page)
+  await cap.bringToFront();
   await enterVestuario(cap);
   await cap.getByRole("button", { name: "Abrir la puerta" }).click();
   await expect(cap).toHaveURL(/\/vestuario\/puerta$/);
@@ -45,6 +48,7 @@ test("la puerta: un fichaje elige camiseta, pide acceso y el capitán le abre", 
 
   // The waiting screen changes by itself: the door opens, then the walkout.
   await expect(fan.getByRole("button", { name: "Salir al campo" })).toBeVisible({ timeout: 20_000 });
+  await fan.bringToFront();
   await fan.getByRole("button", { name: "Salir al campo" }).click();
   await expect(fan.getByRole("heading", { name: new RegExp(`Bienvenido al vestuario, ${label}`, "i") })).toBeVisible();
   await fan.getByRole("button", { name: "Entrar al vestuario" }).click();

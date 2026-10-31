@@ -58,6 +58,9 @@ export function useDoor() {
   const [choseAt, setChoseAt] = useState<string | null>(null);
   const status = request?.status ?? "none";
   const choosing = choseAt === status;
+  // Each «Cambiar ficha» counts: a request still on its way back (the screen already says «En la puerta» once the
+  // request reaches the listener) must not close a chooser opened after it was sent.
+  const chose = useRef(0);
   const [busy, setBusy] = useState<"" | "google" | "send" | "push">("");
   const [error, setError] = useState<{ text: string; popup: boolean } | null>(null);
   const welcome = useWelcome();
@@ -153,10 +156,14 @@ export function useDoor() {
     error,
     clearError: () => setError(null),
     signIn: () => run("google", loginWithGoogle),
-    choose: () => setChoseAt(status),
+    choose: () => {
+      chose.current += 1;
+      setChoseAt(status);
+    },
     /** With a valid invitation: straight in. Without: ask the captain (old members walk back in). */
     send: (who: Who) =>
       run("send", async () => {
+        const at = chose.current;
         if (code && invite.data?.state === "valid") {
           await joinWithInvite({ code, ...who });
           startWelcome({ name: nameOf(who) || "NUEVO FICHAJE", num: numOf(who), phase: "walk" });
@@ -168,7 +175,7 @@ export function useDoor() {
             buzz([30, 60, 30, 60, 120]);
           }
         }
-        setChoseAt(null);
+        if (chose.current === at) setChoseAt(null);
         void qc.invalidateQueries({ queryKey: ["door-shirts"] });
       }),
     cancel: () =>
