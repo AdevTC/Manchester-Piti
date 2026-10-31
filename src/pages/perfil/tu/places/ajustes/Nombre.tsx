@@ -54,7 +54,7 @@ export function Nombre(p: PlaceProps) {
         p.actions
           .setShirtName(prev)
           .then(
-            () => say(`Deshecho: vuelve «${prev}» a tu espalda.`),
+            () => say(`Deshecho: vuelve «${normalizeShirtName(prev)}» a tu espalda.`),
             (e: unknown) => say(why(e, "No se ha podido deshacer. Inténtalo otra vez.")),
           )
           .finally(() => (undoing.current = false));
