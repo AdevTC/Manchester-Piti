@@ -1030,6 +1030,12 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     pairs: pairL, hasPairs: pairL.length > 0,
     cov: { ok: cov.complete.join(" · ") || "Ninguna", part: cov.partial.join(" · ") || "Ninguna", none: cov.unknown.join(" · ") || "Ninguna", hasNone: cov.unknown.length > 0 },
     note: narrated.map((m) => m.analysisNote).find(Boolean) ?? "",
+    // «El palco»: «Jugadas de» — who played in the selection (and whoever is already chosen); a player's plays are ours
+    who: ND.IDS.filter((id) => st.jug.includes(id) || rsAll.some((r) => r.id === id && r.pj > 0)).map((id) => {
+      const on = st.jug.includes(id);
+      return { key: id, t: ND.name(id), n: ND.num(id), on, pick: () => act.set(on ? { jug: st.jug.filter((x) => x !== id) } : { jug: [...st.jug, id], team: "us" }) };
+    }),
+    whoAll: () => act.set({ jug: [] }),
     openCharts: () => act.grow("graficas"), openMesa: () => act.grow("mesa"), openCat: () => act.grow("catalogo"), exportJson: () => act.json(),
     i: { vistazo: info("vistazo"), reloj: info("reloj"), tramos: info("conecta"), cobertura: info("cobertura"), estados: info("estados") },
   };
@@ -1037,7 +1043,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const presetNames = ["resumen", "pases", "remates", "defensa", "porteria", "rotaciones", "disciplina"];
   const preset = ANALYSIS_WORKSPACE_PRESETS[Math.max(0, presetNames.indexOf(st.wsSet || "resumen"))];
   const wsKeys = [...new Set(st.wsColumns ?? preset.metricIds)].filter(id => NARRATED_METRICS.some(m => m.id === id));
-  const workspace = tableOpen ? buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, wsKeys)
+  // (the export sheet's CSV is the mesa's table, so it needs the rows too)
+  const workspace = tableOpen || st.sheet === "export" ? buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, wsKeys)
     : { rows: [], total: new Map<string, MetricResult>() };
   const sortKey = wsKeys.includes(st.wsSort ?? "") ? st.wsSort! : wsKeys[0] ?? "001";
   const sortDirection = st.wsDirection ?? "desc";
@@ -1066,6 +1073,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     totalLabel: st.jug.length ? "Total de los jugadores seleccionados" : us ? "Total del Piti, incluidas acciones sin jugador" : "Total del rival",
     columns: wsColumns, query: st.wsQuery ?? "", setQuery: (value: string) => act.set({ wsQuery: value }),
     family: wsFamily, families: [...new Set(NARRATED_METRICS.map(m => m.category))], setFamily: (value: string) => act.set({ wsFamily: value }),
+    // «El palco»: every column's family count, the whole list and «Volver al resumen»
+    famN: NARRATED_METRICS.reduce<Record<string, number>>((o, m) => ((o[m.category] = (o[m.category] ?? 0) + 1), o), {}),
+    total: NARRATED_METRICS.length, custom: st.wsColumns !== undefined, resumen: [...ANALYSIS_WORKSPACE_PRESETS[0].metricIds] as string[],
     availableCount: availableColumns.length, selectedCount: wsKeys.length,
     selectAll: () => act.set({ wsColumns: availableColumns }), clearColumns: () => act.set({ wsColumns: [] }),
     csv: () => act.csv("mesa"),
@@ -1083,8 +1093,12 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     items: catAll.slice(0, st.catN).map((c) => {
       const t2 = TILE_V[c[0]];
       const s = t2 ? t2.status : c[5] ? "none" : "cfg";
-      return { key: c[0], id: c[0], t: c[2], fam: c[1], cls: `is-${s}`, st: t2 ? `${t2.statusT} · ${t2.v}` : c[5] ? "Necesita vídeo u otra fuente" : "Sin datos para esta selección", pick: () => act.open("metric", c[0]) };
+      return { key: c[0], id: c[0], t: c[2], fam: c[1], cls: `is-${s}`, st: t2 ? `${t2.statusT} · ${t2.v}` : c[5] ? "Necesita vídeo u otra fuente" : "Sin datos para esta selección", pick: () => act.open("metric", c[0]),
+        // «El palco»'s card: the definition, the value and the status word apart
+        def: c[3], v: t2 ? String(t2.v) : "–", stT: t2 ? t2.statusT : c[5] ? "Fuera del audio" : "Sin dato" };
     }),
+    n: catAll.length, excl: CAT.filter((c) => c[5]).length,
+    famN: CAT.filter((c) => st.catX || !c[5]).reduce<Record<string, number>>((o, c) => ((o[c[1]] = (o[c[1]] ?? 0) + 1), o), {}),
     count: env.catalog ? `${catAll.length} de las ${CAT.length} estadísticas${famSel ? ` · ${famSel}` : ""}${st.catX ? " · incluidas las de fuera del audio" : ""}` : "Cargando el catálogo…",
     more: catAll.length > st.catN, moreT: `Mostrar más (${Math.min(st.catN, catAll.length)} de ${catAll.length})`,
     showMore: () => act.set({ catN: st.catN + 24 }), empty: !!env.catalog && catAll.length === 0,
@@ -1309,6 +1323,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   let mt: null | {
     id: string; t: string; fam: string; v: number | string; st: string; cls: string; def: string; narr: string; scope: string; why: string;
     evid: { key: string; t: string; d: string; href: string }[]; noEv: boolean; evMore: string;
+    /** «El palco»: outside the audio; «Por jugador», the best eight with a value (bars against the first). */
+    excluded: boolean; rows: { key: string; name: string; n: number | string; v: string; w: number }[];
   } = null;
   if (st.sheet === "metric") {
     const c = CAT.find((x) => x[0] === st.sheetId);
@@ -1353,6 +1369,13 @@ export function numerosView(st: NuState, env: Env, act: Act) {
               ? "Necesita vídeo, seguimiento u otra fuente: no se puede sacar solo del audio de la mesa."
               : "Está definida, pero estos datos no la calculan todavía.",
           evid: evid.slice(0, 6), noEv: evid.length === 0, evMore: evid.length > 6 ? `${evid.length - 6} más` : "",
+          excluded: !!c[5], rows: (() => {
+            if (!hasAnalysisSource || !us) return [];
+            const per = buildAnalysisWorkspace(analysis.matches, ND.IDS.map(id => ({ id, name: ND.name(id), number: ND.num(id) })), analysis.filters, [c[0]]);
+            const list = sortAnalysisRows(per.rows, c[0], "desc").map(r => ({ r, x: workspaceMetricValue(r.results.get(c[0])) })).filter((o): o is { r: typeof o.r; x: number } => o.x != null && o.x > 0).slice(0, 8);
+            const mx = Math.max(1, ...list.map(o => o.x));
+            return list.map(({ r, x }) => ({ key: r.person.id, name: r.person.name, n: r.person.number ?? "", v: formatWorkspaceMetric(r.results.get(c[0])), w: Math.round((x / mx) * 100) }));
+          })(),
         }
       : null;
   }

@@ -50,6 +50,13 @@
 .nx-jfil{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:-10px 0 24px}
 .nx-jfil>.nx-pick{flex:none}
 .nx-jfil__k{font-size:13px;font-weight:620;color:var(--vd-ink2);margin-right:4px;flex:none}
+/* the app's additions: team and half stay radios (aria-checked), the clock dims what is outside the half, the
+   catalogue's families are a list, the column picker's links */
+.nx-seg .vd-seg__b[aria-checked="true"]{color:var(--vd-g-ink);font-weight:720}
+.nx-clock__c.is-off{opacity:.35}
+.nx-chiprow>li{flex:none;display:flex}
+.nx-colpick__head{margin-bottom:8px}
+.nx-colpick__head>.nx-links{gap:0 18px}
 
 @container nx (max-width: 699px) {
   .nx-fam3{grid-template-columns:minmax(0,1fr);gap:24px}
