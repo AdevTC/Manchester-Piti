@@ -100,6 +100,8 @@ export const createPoll = (me: Me, form: PollForm, now: number) => {
 /** A member's vote (and a changed vote: the same doc, overwritten), signed like the availability. */
 export const votePoll = (me: Me, poll: Pick<Poll, "id" | "options" | "multi">, optionIds: readonly string[]) =>
   viaFirebase((fb) => fb.setDoc(fb.doc(fb.db, "polls", poll.id, "votes", me.uid), { ...voteFields(me, poll, optionIds), at: fb.serverTimestamp() }));
+/** Your vote taken back (several answers, nothing ticked): the rules let you delete your own vote while the poll is open. */
+export const unvotePoll = (me: Pick<Me, "uid">, pollId: string) => viaFirebase((fb) => fb.deleteDoc(fb.doc(fb.db, "polls", pollId, "votes", me.uid)));
 /** «Cerrar ya» (the author or a captain): only `closedAt`, the server's time. */
 export const closePoll = (id: string) => viaFirebase((fb) => fb.updateDoc(fb.doc(fb.db, "polls", id), { closedAt: fb.serverTimestamp() }));
 /** «Borrar» (the author or a captain). */
