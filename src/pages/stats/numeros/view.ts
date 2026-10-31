@@ -553,7 +553,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const podium = locked || MD.low ? [] : rankRows.filter((r) => r.val > 0).slice(0, 3);
   const restFrom = podium.length;
   const jLeaders = rankRows.filter((r) => r.rank === 1 && r.val > 0);
-  let pickId = st.pick || (myId && (rkK === "min" || rkK === "pj") ? myId : jLeaders[0] && !porra ? jLeaders[0].id : myId || ND.IDS[0]);
+  // (one player in the filter: his card)
+  let pickId = st.pick || (st.jug.length === 1 ? st.jug[0] : myId && (rkK === "min" || rkK === "pj") ? myId : jLeaders[0] && !porra ? jLeaders[0].id : myId || ND.IDS[0]);
   if (!pickId || !ND.SQUAD[pickId]) pickId = ND.IDS[0] ?? "";
   const quick = [
     ["goles", "Goles"],
@@ -644,6 +645,12 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     : [];
   const showStints = ["min", "tit", "ban", "sin", "sout", "nc", "pj"].includes(rkK);
   const nzRank = rankRows.filter((r) => r.val > 0).length;
+  // «El palco»: cara a cara's second player (the first other one until another is picked)
+  const vsId = st.vsB && st.vsB !== pickId && ND.SQUAD[st.vsB] ? st.vsB : (ND.IDS.find((x) => x !== pickId) ?? "");
+  // «El palco»: la carrera under the goals' rankings, only for the season as it is (it counts every jornada)
+  const raceOn = (rkK === "goles" || rkK === "asist" || rkK === "ga") && !scrubbed && !all && st.campo === "todo" && !st.partidos.length && !st.jug.length;
+  const lead2 = raceOn ? (rkK === st.raceK ? lead : ND.inLead(se, upto, rkK)) : {};
+  const lead2Top = Object.keys(lead2).sort((a, b) => lead2[b] - lead2[a])[0];
   const jug = {
     kick: `Jugadores · ${porra ? "la porra" : MD.g.toLowerCase()}`,
     title: locked
@@ -674,7 +681,18 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     porraEmpty: porra && !locked && !rankRows.length ? "Aún no hay puntos de porra esta temporada: llegan al cerrar la primera jornada con apuestas." : "",
     more: locked || porra ? 0 : Math.max(0, rankRows.length - restFrom - 5), moreT: `Todos los jugadores (${rankRows.length})`,
     onlyOne: !locked && !MD.low && podium.length === 1 && rankRows.length > 1 ? `Solo ${podium[0].name} tiene ${metricLower(rkK)} de momento; el resto, a cero.` : "",
-    meLine: meRow && rankRows.indexOf(meRow) >= restFrom + 5 ? `Tú, ${meRow.rank}º con ${meRow.val} ${unitWord(meRow.val)}` : "",
+    meLine: meRow && rankRows.indexOf(meRow) >= restFrom + 8 ? `Tú, ${meRow.rank}º con ${meRow.val} ${unitWord(meRow.val)}` : "",
+    /** «El palco»: everyone after the podium (the place shows 8 and «Todos los jugadores»). */
+    restAll: locked ? [] : rankRows.slice(restFrom),
+    /** «El palco»: cara a cara's second card. */
+    vs: st.vsOn && vsId ? playerCard(vsId) : null,
+    race: raceOn
+      ? [
+          jLeaders.length ? `En cabeza tras la J${upto}: ${list(jLeaders.map((r) => r.name))}, ${jLeaders[0].val}` : `Nadie ${rkK === "asist" ? "ha dado un pase de gol" : "ha marcado"} aún: el primero estrena la carrera.`,
+          lead2Top && lead2[lead2Top] > 1 ? `Más jornadas en cabeza: ${ND.name(lead2Top)} (${lead2[lead2Top]})` : "",
+        ].filter(Boolean)
+      : [],
+    ganttNone: !SM && gs.length > 0 ? "Estas actas no traen los cambios minuto a minuto: los minutos llegan con el registro de la mesa." : "",
     hasMvp: rkK === "mvp" && played.some((m) => m.mvp),
     mvpList: rkK === "mvp" ? played.slice(-8).reverse().filter((m) => m.mvp).map((m) => ({ key: m.id, j: `J${m.j}`, name: list((m.mvps ?? [m.mvp as string]).map((x) => ND.name(x))) })) : [],
     voteOpen: rkK === "mvp" && lastVote && lastVote.open ? `La votación de la J${lastPlayed.j} sigue abierta: ${lastVote.total} de ${lastVote.eligible} han votado. El MVP sale al cerrarla.` : "",
@@ -684,7 +702,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     noStints: showStints && !SM && gs.length > 0 ? "Estas actas no traen los cambios minuto a minuto: los minutos llegan con el registro de la mesa." : "",
     info: info(`m:${rkK}`), infoTramos: info("tramos"),
   };
-  const sortK = st.sortK;
+  // («El palco» keeps the table's direction in the same key: «goles» goes down, «goles:asc» up)
+  const sortK = st.sortK.split(":")[0];
   const qn = st.q.toLowerCase();
   const PRESETS: Record<string, string[]> = {
     basico: ["pj", "min", "goles", "asist", "ga", "mvp", "yc"], minutos: ["pj", "min", "tit", "ban", "sin", "sout", "nc"], mesa: ["ch", "wood", "sv", "f", "fr", "rc", "dy"],
@@ -703,7 +722,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         act.grow(null);
         if (act.narrow()) act.open("player", r.id);
       },
-      heat: heatOf(r.id, 8),
+      heat: heatOf(r.id, 12),
     }));
   const gj = {
     n: colKeys.length, rows: full,
@@ -761,7 +780,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     x: number;
     y: number;
     min: number;
-    who: { name: string; min: number }[];
+    who: { id: string; name: string; min: number; g: number; a: number }[];
     empty: boolean;
     on: boolean;
     pick: () => void;
@@ -1158,7 +1177,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const evoMetric = evoK;
   const autoIds = ND.ranked(rDone, evoMetric)
     .filter((r) => ND.metricOf(r, evoMetric) > 0)
-    .slice(0, 4)
+    .slice(0, 6)
     .map((r) => r.id);
   const evoIds = st.evoIds && st.evoIds.length ? st.evoIds.filter((id) => ND.SQUAD[id]).slice(0, 6) : autoIds;
   const ev = ND.evo(se, upto, evoIds, evoK);
@@ -1257,7 +1276,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     }),
     evo: {
       d: ev.d, keys: evoIds.map((id, i) => ({ key: id, id, name: ND.name(id), v: evoK === "min" ? Math.round(ev.last[i]) : ev.last[i], cls: `nu-evo__k--${i}`, alt: `La camiseta de ${ND.name(id)}` })),
-      cap: `Acumulado de ${EVO_WORD[evoK]} hasta la J${upto}`, one: ev.n <= 1,
+      cap: `Acumulado de ${EVO_WORD[evoK]} hasta la J${upto}`, one: ev.n <= 1, n: ev.n,
     },
     hitos: ND.ranked(rDone, "goles")
       .filter((r) => r.g > 0)

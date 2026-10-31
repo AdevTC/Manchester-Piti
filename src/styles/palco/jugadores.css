@@ -134,6 +134,16 @@
 .nx-ir__t{display:block;font-size:13px;color:var(--vd-ink2)}
 .nx-ir__l{display:block;font-size:14px;font-weight:640}
 .nx-ir__v{font-size:28px;font-weight:800;font-variation-settings:'wdth' 110;color:var(--vd-ink-strong);font-feature-settings:'tnum' 1}
+/* (the app: a mark opens its player's card; the quick metrics show no bead while «Todas» picked another one; la porra's
+   door; the braces and hat-tricks under the marks) */
+button.nx-ir{width:100%;min-height:44px;border:0;border-top:1px solid var(--vd-rule);background:none;text-align:left;color:inherit;font:inherit;border-radius:0}
+button.nx-ir:hover{background:rgba(234,243,252,.04)}
+.nx-seg.is-none>.vd-shelf__bead{display:none}
+.nx-door{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:start;margin-bottom:16px}
+.nx-door>.nx-ic{width:26px;height:26px;color:var(--vd-celeste-ink)}
+.nx-door .nx-btn{margin-top:12px}
+.nx-racecap .nx-ic{width:14px;height:14px;margin-right:6px;vertical-align:-2px}
+.nx-multi{margin-top:18px}
 
 @container nx (max-width: 699px) {
   .nx-pod__v{font-size:34px}
