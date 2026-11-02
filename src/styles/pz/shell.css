@@ -183,3 +183,13 @@
 /* the phone's sheet at full height never reaches the board header (the header stays above it) */
 .pz.pz-l-phone .pz-s__ph{position:relative;z-index:36}
 .pz.pz-l-phone.is-full .pz-s__sheet{height:auto;top:56px}
+/* a narrow phone (< 400): the board's name reads whole («J3 · Red Demons») beside the live chip, the save state and
+   Deshacer — the save state is its icon only (its name stays in aria-label), the chevron goes, the gaps tighten */
+@media (max-width:399px){
+  .pz.pz-l-phone .pz-s__ph{gap:4px;padding:2px 8px 0}
+  .pz.pz-l-phone .pz-s__phb{padding:0 2px;gap:4px}
+  .pz.pz-l-phone .pz-s__phb>.nx-ic{display:none}
+  .pz.pz-l-phone .pz-s__ph .pz-s__chip:not(.pz-s__live)>.pz-s__chipt{display:none}
+  .pz.pz-l-phone .pz-s__ph .pz-s__chip{padding:0 8px;gap:4px}
+  .pz.pz-l-phone .pz-s__ph .nx-ib{width:40px;height:40px}
+}
