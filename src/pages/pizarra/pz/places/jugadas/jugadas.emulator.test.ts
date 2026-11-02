@@ -5,8 +5,10 @@
 //   PZ_EMU=1 VITE_USE_FIREBASE_EMULATOR=1 VITE_FIREBASE_PROJECT_ID=demo-manchester-piti VITE_FIREBASE_API_KEY=demo-key
 //   VITE_EMULATOR_FIRESTORE_PORT=28080 VITE_EMULATOR_AUTH_PORT=29099 vitest run <this file>
 import { describe, expect, it } from "vitest";
+import type { PjPlay, PjStep, XY } from "./jugadasView";
 
-const ON = process.env.PZ_EMU === "1";
+// (read through globalThis: the app's tsconfig has no Node types)
+const ON = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.PZ_EMU === "1";
 const BOARD = "pz-como-j1";
 const JORDI = "e5VyTucoVvZQVMI1T7al1kAnjr2d";
 
@@ -22,7 +24,7 @@ describe.skipIf(!ON)("Jugadas · save flows on the shared emulators (pz-como-j1)
     const { verOf } = await import("../../store/seven");
     const V = await import("./jugadasView");
 
-    const enc = (v: object) => Buffer.from(JSON.stringify(v)).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    const enc = (v: object) => btoa(JSON.stringify(v)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
     const token = enc({ alg: "none", typ: "JWT" }) + "." + enc({ sub: "preview-admin", email: "admin@piti.test", email_verified: true, name: "Administrador de pruebas", aud: "demo", iss: "https://accounts.google.com" }) + ".";
     await signInWithCredential(auth, GoogleAuthProvider.credential(token));
     expect(auth.currentUser?.uid).toBe(JORDI);
@@ -37,12 +39,12 @@ describe.skipIf(!ON)("Jugadas · save flows on the shared emulators (pz-como-j1)
       const L0 = (await read());
       const slots = verOf(L0, "titular").slots;
       // 1 · a new play from the seven (as «Nueva jugada»)
-      const p = slots.map((s) => [s.x, s.y] as V.XY);
-      const steps: V.PjStep[] = [
+      const p = slots.map((s) => [s.x, s.y] as XY);
+      const steps: PjStep[] = [
         { title: "Salida", note: "", p, r: [[50, 6]], b: [50, 88], dur: 2.3, c: {}, bk: null },
-        { title: "Paso nuevo", note: "", p: p.map((q) => [q[0], Math.max(5, q[1] - 12)] as V.XY), r: [[48, 10]], b: [40, 60], dur: 2.6, c: {}, bk: null },
+        { title: "Paso nuevo", note: "", p: p.map((q) => [q[0], Math.max(5, q[1] - 12)] as XY), r: [[48, 10]], b: [40, 60], dur: 2.6, c: {}, bk: null },
       ];
-      const pj: V.PjPlay = { id: "pz-emu-test", name: "Prueba del emulador", kind: "propia", own: true, play: { id: "pz-emu-test", name: "Prueba del emulador", kind: "propia", frames: [] }, ids: slots.map((s) => s.playerId), rivalIds: ["r1"], steps };
+      const pj: PjPlay = { id: "pz-emu-test", name: "Prueba del emulador", kind: "propia", own: true, play: { id: "pz-emu-test", name: "Prueba del emulador", kind: "propia", frames: [] }, ids: slots.map((s) => s.playerId), rivalIds: ["r1"], steps };
       const first = V.fromSteps(pj, steps);
       await updateDoc(ref, saveData({ ...L0, plays: [...(L0.plays ?? []), first] }));
       let L1 = (await read());
