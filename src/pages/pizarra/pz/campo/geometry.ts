@@ -190,6 +190,9 @@ export function dodgeRivals<T extends { id: string; kind: string; x: number; y: 
   ph: number,
   s: number,
   cos = 1,
+  /** words lying on the grass (a zone's «Aquí mordemos», a pachanga label): x/y in %, w/h in px, anchored at the
+   *  centre, at their right end (`end`) or their left (`start`) */
+  walls: readonly { x: number; y: number; w: number; h: number; ax?: "c" | "end" | "start" }[] = [],
 ): T[] {
   // (the rival's discs and the ghost of who comes on — «Entra 25′» — both give way to the seven)
   const movable = (t: T) => t.kind === "rival" || t.kind === "ghost";
@@ -209,6 +212,13 @@ export function dodgeRivals<T extends { id: string; kind: string; x: number; y: 
     return { l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 + tag };
   };
   const blocked: Box[] = ours.map((o) => manBox((o.x / 100) * pw, (o.y / 100) * sh, o.label, !!o.tagged, !!o.above));
+  for (const w of walls) {
+    const cx = (w.x / 100) * pw;
+    const cy = (w.y / 100) * sh;
+    const h = (w.h * (tilted ? cos : 1)) / 2;
+    const l = w.ax === "end" ? cx - w.w : w.ax === "start" ? cx : cx - w.w / 2;
+    blocked.push({ l, r: l + w.w, t: cy - h, b: cy + h });
+  }
   // a disc (its dorsal, the code under it) stands on its point at 70 % of its height (campo.css .pz-c__riv)
   const D = Math.max(28, s * 0.62);
   const r = D / 2 + 3;

@@ -99,6 +99,20 @@ describe("dodgeRivals", () => {
     }
   });
 
+  it("a word on the grass is a wall: the disc leaves «Aquí mordemos» (Plan › claves at 360)", () => {
+    const pw = 240;
+    const ph = 360;
+    const wall = { x: 92, y: 5, w: 14 * 12.5 * 0.6 + 20, h: 24, ax: "end" as const };
+    const out = dodgeRivals([{ id: "r", kind: "rival", x: 75, y: 6, code: "" }], [], pw, ph, 30, 1, [wall]);
+    const cx = (out[0].x / 100) * pw;
+    const cy = (out[0].y / 100) * ph;
+    const D = 28;
+    const wl = (wall.x / 100) * pw - wall.w;
+    const wy = (wall.y / 100) * ph;
+    const onIt = cx + D / 2 > wl && cx - D / 2 < (wall.x / 100) * pw && cy + 0.3 * D > wy - 12 && cy - 0.7 * D < wy + 12;
+    expect(onIt).toBe(false);
+  });
+
   it("a disc already free keeps its spot", () => {
     const out = dodgeRivals([{ id: "r", kind: "rival", x: 50, y: 30, code: "" }], [{ x: 50, y: 90, label: "EVANS" }], 400, 600, 50);
     expect(out[0]).toMatchObject({ x: 50, y: 30 });

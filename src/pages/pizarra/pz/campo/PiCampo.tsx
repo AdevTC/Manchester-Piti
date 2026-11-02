@@ -319,7 +319,16 @@ export function PiCampo(props: PiCampoProps) {
   ];
   // (a flat zoom scales the plane but keeps the people's size: measured against the zoomed plane)
   const zk = T.zs > 0 ? 1 / T.zs : 1;
-  const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw * zk, G.ph * zk, G.s, Math.cos(((RX_OF[cam] ?? 0) * Math.PI) / 180));
+  const ov = overlayPaths(view.overlay);
+  // (the words on the grass — a zone's name, a label — are walls too: a disc never sits on «Aquí mordemos»)
+  const wordW = (t: string, extra: number) => t.length * 12.5 * 0.6 + extra;
+  const walls = mini
+    ? []
+    : [
+        ...ov.labels.map((l) => ({ x: l.x, y: l.y, w: wordW(l.t, 20), h: 24, ax: l.cls === "is-end" ? ("end" as const) : ("c" as const) })),
+        ...view.labels.map((l) => ({ x: l.x, y: l.y, w: wordW(l.t, l.pat ? 42 : 22), h: 24, ax: l.align === "center" ? ("c" as const) : l.align === "right" ? ("end" as const) : ("start" as const) })),
+      ];
+  const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw * zk, G.ph * zk, G.s, Math.cos(((RX_OF[cam] ?? 0) * Math.PI) / 180), walls);
   const others = [...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, id: `s${s.i}` })), ...tokens.filter((o) => o.pid || o.kind === "us").map((o) => ({ x: o.x, y: o.y, id: o.id }))];
   const tokenModel = (t: Token) => {
     const pl = t.pid ? P.sel.player(t.pid) : null;
@@ -351,7 +360,6 @@ export function PiCampo(props: PiCampoProps) {
   const focusPid = handSel?.pid ?? hovered;
   const small = !mini && G.ph < 430;
   const lkWords = layer === "quimica" && focusPid && !small ? ls.filter((l) => l.a.pid === focusPid || l.b.pid === focusPid) : [];
-  const ov = overlayPaths(view.overlay);
   const labels = mini ? [] : view.labels;
   const handles = mini || inert ? [] : (view.overlay?.paths ?? []).filter((d) => d.handle && (d.pts?.length ?? 0) > 0);
   const legend: { cls: string; t: string }[] = [];
