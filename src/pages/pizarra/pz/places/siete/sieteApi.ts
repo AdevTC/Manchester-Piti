@@ -2,7 +2,7 @@
 // title is a function of its args only (registry.ts), so the place keeps a reference to the page's store: bound
 // when the shell asks the place for its sublabel or primary action (both get the store itself), and by the Siete's
 // regions and sheets when they mount (a sheet opened by its address on the phone, before anything else asked).
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { PzApi } from "../../store/api";
 
 let ref: PzApi | null = null;
@@ -10,11 +10,20 @@ export const sieteApi = (): PzApi | null => ref;
 export function bindSieteApi(P: PzApi): void {
   ref = P;
 }
-/** Bind on mount; if nothing had bound it yet, redraw once so the sheet's frame shows its real title. */
+/** A region binds it as it mounts. */
 export function useSieteApi(P: PzApi): void {
   useEffect(() => {
-    const had = !!ref;
     ref = P;
-    if (!had && P.state.sheet) P.act.setSheetHeight(P.state.sheetH);
+  }, [P]);
+}
+/** A sheet whose title reads the store binds it and redraws once on mount: its frame was drawn before the lazy
+ *  sheet (and maybe before anything bound the store), so the title shows «¿Quién al MC?» and not «Candidatos». */
+export function useSieteSheet(P: PzApi): void {
+  const done = useRef(false);
+  useEffect(() => {
+    ref = P;
+    if (done.current) return;
+    done.current = true;
+    if (P.state.sheet) P.act.setSheetHeight(P.state.sheetH);
   }, [P]);
 }

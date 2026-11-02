@@ -4,12 +4,12 @@ import { usePz } from "../../store/context";
 import type { SheetProps } from "../../store/types";
 import { RowShirt } from "../../places/siete/RowShirt";
 import { shirtLabel } from "../../places/siete/sieteView";
-import { useSieteApi } from "../../places/siete/sieteApi";
+import { useSieteSheet } from "../../places/siete/sieteApi";
 import "../../../../../styles/pz/siete.css";
 
 export function CandidatosSheet({ args }: SheetProps) {
   const P = usePz();
-  useSieteApi(P);
+  useSieteSheet(P);
   const v = P.sel.ver();
   const i = typeof args.hueco === "number" ? args.hueco : typeof args.slot === "number" ? args.slot : (P.state.slotPick ?? 0);
   const slot = v?.slots[i];

@@ -1,12 +1,12 @@
 // r14 «La pizarra» · «Mover a…»: every slot of the seven with how he fits there; a taken one swaps (no drag).
 import { usePz } from "../../store/context";
 import type { SheetProps } from "../../store/types";
-import { useSieteApi } from "../../places/siete/sieteApi";
+import { useSieteSheet } from "../../places/siete/sieteApi";
 import "../../../../../styles/pz/siete.css";
 
 export function MoverSheet({ args }: SheetProps) {
   const P = usePz();
-  useSieteApi(P);
+  useSieteSheet(P);
   const v = P.sel.ver();
   const pid = typeof args.pid === "string" ? args.pid : typeof args.jugador === "string" ? args.jugador : "";
   if (!v || !pid || !P.sel.player(pid)) return <p className="pz-line">Ese jugador ya no está en la plantilla.</p>;

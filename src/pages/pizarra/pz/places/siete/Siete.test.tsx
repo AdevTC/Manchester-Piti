@@ -10,6 +10,7 @@ import { CandidatosSheet } from "../../sheets/candidatos/Candidatos";
 import { MoverSheet } from "../../sheets/mover/Mover";
 import { SistemaSheet } from "../../sheets/sistema/Sistema";
 import { FichaSheet } from "../../sheets/ficha/Ficha";
+import "../../sheets/candidatos/register";
 import { benchGroups, countChips, publishCheck, verLine, ringOff, galRows } from "./sieteView";
 
 const guess = vi.hoisted(() => ({ current: null as null | { uid: string; slots: string[]; at: number | null }, save: vi.fn(async () => undefined) }));
@@ -161,6 +162,14 @@ describe("Siete · sheets", () => {
     fireEvent.click(screen.getAllByRole("button")[0]);
     await flush();
     expect(P.sel.ver()?.slots[6].playerId).not.toBeNull();
+  });
+
+  it("Candidatos' frame says which slot («¿Quién al DC?») once the sheet mounts", async () => {
+    const { P, flush } = renderWithPz(<CandidatosSheet layout="phone" args={{ hueco: 6 }} />, { layout: "phone" });
+    P.act.openSheet("candidatos", { hueco: 6 });
+    await flush();
+    const code = P.sel.ver()?.slots[6].code;
+    expect(P.sel.sheetMeta()?.title).toBe("¿Quién al " + code + "?");
   });
 
   it("Mover a: a taken slot swaps", async () => {
