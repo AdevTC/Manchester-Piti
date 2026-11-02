@@ -40,11 +40,13 @@ export interface BoardPlan {
   parado: Parado | null;
 }
 
+/** A player id as the rules accept it in a list (planOk idListOk): a ficha id or «guest:g1». */
+const ID_RE = /^[A-Za-z0-9_:-]{1,128}$/;
 const ids = (max: number) =>
   z
     .array(z.unknown())
     .catch([])
-    .transform((a) => [...new Set(a.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= PLAN_LIMITS.id))].slice(0, max));
+    .transform((a) => [...new Set(a.filter((x): x is string => typeof x === "string" && ID_RE.test(x)))].slice(0, max));
 const setPieceSchema = z
   .object({ playId: z.string().min(1).max(PLAN_LIMITS.id).nullable().optional().catch(null), box: ids(PLAN_LIMITS.box).optional() })
   .transform((s): SetPiece => ({ playId: s.playId ?? null, box: s.box ?? [] }));
@@ -98,7 +100,8 @@ export function parsePlan(raw: unknown, docId = "-"): BoardPlan | null | undefin
 /** Firestore payload (nothing undefined); null = taken off. */
 export function planToData(p: BoardPlan | null): Record<string, unknown> | null {
   if (!p) return null;
-  const claves = p.claves.slice(0, PLAN_LIMITS.claves);
+  // (firestore.rules planOk: each key 1–60, each box/rechace id-like: what the parser keeps)
+  const claves = p.claves.map((c) => cleanText(c, PLAN_LIMITS.clave)).filter(Boolean).slice(0, PLAN_LIMITS.claves);
   return {
     claves,
     viz: p.viz.slice(0, claves.length).map((v) => ({ icon: v.icon, zona: v.zona })),
