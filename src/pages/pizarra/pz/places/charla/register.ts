@@ -5,4 +5,9 @@ import { registerPlace } from "../../store/registry";
 
 registerPlace("charla", {
   Component: lazy(() => import("./Charla").then((m) => ({ default: m.Charla }))),
+  sub: (P) => {
+    const v = P.sel.ver(P.sel.board(), "titular");
+    return v ? P.sel.status(v).n + " de 7" : "";
+  },
+  share: "compartir",
 });

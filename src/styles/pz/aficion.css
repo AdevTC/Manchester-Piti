@@ -1,0 +1,65 @@
+/* r14 «La pizarra» · la vista de la afición (/aficion/<token>): the public, read-only seven. Root .af (a Vidrio page,
+   .vx.vd-pg.af): every rule under it, so it wins over the kit in production order. Phone first, 360–2560. */
+.af .af-main{position:relative;z-index:1;box-sizing:border-box;width:100%;max-width:1080px;margin:0 auto;padding:88px 16px 64px;display:grid;gap:22px;grid-template-columns:minmax(0,1fr);font-family:var(--vd-sans);color:var(--vd-ink)}
+.af .af-main *{box-sizing:border-box}
+.af .af-main :where(h1,h2,p,ol,ul){margin:0;padding:0}
+.af .af-main :where(ol,ul){list-style:none}
+.af .af-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.af .af-hero{display:grid;gap:10px;min-width:0}
+.af .af-kick{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:680;color:var(--vd-celeste-ink)}
+.af .af-kick>img{width:28px;height:28px;border-radius:50%;max-width:none}
+.af .af-h1{font-size:44px;line-height:1.02;font-weight:800;letter-spacing:-.035em;font-variation-settings:'wdth' 92;color:var(--vd-ink-strong);text-wrap:balance;overflow-wrap:anywhere}
+.af .af-line{display:grid;gap:2px;font-size:15.5px;line-height:1.45;color:var(--vd-ink2)}
+.af .af-line>b{font-size:18px;font-weight:740;color:var(--vd-ink)}
+.af .af-stats{display:flex;flex-wrap:wrap;gap:8px 22px;padding-top:6px}
+.af .af-stats>li{display:grid;gap:2px;min-width:0}
+.af .af-stats b{font-size:26px;font-weight:780;letter-spacing:-.02em;color:var(--vd-ink-strong);overflow-wrap:anywhere}
+.af .af-stats span{font-size:12.5px;font-weight:660;color:var(--vd-ink2)}
+.af .af-card{--vd-r:28px;display:grid;gap:12px;padding:12px;border-radius:28px;min-width:0}
+/* the pitch: flat, ours at the bottom; shirts at the snapshot's spots */
+.af .af-pitch{position:relative;width:100%;aspect-ratio:68/88;border-radius:18px;overflow:hidden;background:repeating-linear-gradient(180deg,#238545 0 10%,#1f7a3e 10% 20%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.78)}
+.af .af-pitch__lines>i{position:absolute;display:block;border:3px solid rgba(255,255,255,.7)}
+.af .af-pitch__half{left:0;right:0;top:50%;height:0;border-width:3px 0 0!important}
+.af .af-pitch__circle{left:50%;top:50%;width:26%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%)}
+.af .af-pitch__box{left:22%;right:22%;height:15%}
+.af .af-pitch__box.is-top{top:-3px}
+.af .af-pitch__box.is-bot{bottom:-3px}
+.af .af-pitch__sys{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:clamp(56px,18vw,150px);font-weight:820;letter-spacing:-.04em;color:rgba(255,255,255,.08);pointer-events:none;white-space:nowrap}
+.af .af-p{position:absolute;display:grid;justify-items:center;gap:2px;width:96px;transform:translate(-50%,-50%);pointer-events:none}
+.af .af-shirt{position:relative;display:block;width:clamp(38px,11vw,64px);aspect-ratio:1/1.327;overflow:hidden;filter:drop-shadow(0 6px 8px rgba(0,0,0,.4))}
+.af .af-shirt>img{position:absolute;max-width:none;width:130.75%;height:auto;left:-15.25%;top:-11.14%}
+.af .af-shirt>svg{display:block;width:100%;height:100%}
+.af .af-shirt .b{fill:#9fd0f2;stroke:rgba(12,23,51,.35);stroke-width:4}
+.af .af-shirt .n{fill:#0c1733;font:800 86px/1 var(--vd-sans)}
+.af .af-p__n{max-width:96px;padding:2px 7px;border-radius:7px;background:rgba(6,14,32,.86);color:#fff;font-size:11.5px;font-weight:780;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.af .af-p.is-guest .af-p__n{box-shadow:inset 0 0 0 1px #9fd0f2}
+.af .af-p__c{position:absolute;top:-6px;right:18px;z-index:1;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#ffc659;color:#2a1c00;font-style:normal;font-size:11px;font-weight:820}
+.af .af-rival{display:flex;align-items:center;gap:8px;padding:0 4px 4px;font-size:14px;line-height:1.4;color:var(--vd-g-ink2,var(--vd-ink2))}
+.af .af-rival__d{flex:none;width:14px;height:14px;border-radius:50%;background:#f08a7e;box-shadow:0 0 0 1.5px rgba(255,255,255,.8)}
+.af .af-sec{display:grid;gap:12px;min-width:0}
+.af .af-sec>h2{font-size:20px;font-weight:760;letter-spacing:-.01em;color:var(--vd-ink-strong)}
+.af .af-claves{display:grid;gap:10px}
+.af .af-claves>li{display:flex;gap:12px;align-items:flex-start;font-size:18px;line-height:1.3;font-weight:680;color:var(--vd-ink)}
+.af .af-claves>li>span{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:rgba(108,171,221,.18);color:var(--vd-celeste-ink);font-size:14px;font-weight:800}
+.af .af-foot>p{font-size:14px;line-height:1.5;color:var(--vd-ink2)}
+.af .af-acts{display:flex;flex-wrap:wrap;gap:10px}
+.af .af-btn{--vd-r:999px;display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border:0;border-radius:999px;font:inherit;font-size:15px;font-weight:720;color:var(--vd-g-ink,var(--vd-ink));text-decoration:none;cursor:pointer}
+.af .af-btn--pri{background:#6cabdd;color:#0c1733}
+.af .af-state{display:grid;gap:12px;padding:40px 0;max-width:560px}
+/* tablet and up: the hero beside the pitch */
+@media (min-width:700px){.af .af-main{padding-top:104px}}
+@media (min-width:820px){
+  .af .af-main{grid-template-columns:minmax(0,1fr) minmax(0,460px);column-gap:40px;align-items:start;padding:112px 40px 80px}
+  .af .af-hero{grid-column:1;align-self:center}
+  .af .af-card{grid-column:2;grid-row:1 / span 3}
+  .af .af-sec{grid-column:1}
+  .af .af-h1{font-size:72px}
+  .af .af-p{width:110px}
+  .af .af-p__n{font-size:12.5px;max-width:110px}
+}
+@media (min-width:1800px){
+  .af .af-main{max-width:1320px;grid-template-columns:minmax(0,1fr) minmax(0,560px)}
+  .af .af-h1{font-size:92px}
+}
+@media (max-width:380px){.af .af-p{width:84px}.af .af-p__n{max-width:84px;padding:2px 5px}}
+@media (prefers-reduced-motion:reduce){.af *{transition:none!important;animation:none!important}}

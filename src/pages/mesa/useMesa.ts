@@ -22,6 +22,7 @@ import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type Q
 import {
   buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
   boardExtrasOf, NO_EXTRAS, rivalInitialsOf, rivalShortOf, withLocal, type BoardExtras, type LocalPlay, type PlayerInfo,
+  mesaSuggestion, penaltyNow,
 } from "./model";
 import type { ClockAction, MesaActions, MesaAddOpts, MesaEditPatch, MesaNav, MesaPresence, MesaQueueState, MesaType, MesaView, MesaWaveItem } from "./types";
 
@@ -77,6 +78,17 @@ function usePresence(matchId: string | undefined, me: { uid: string; name: strin
 // ---------- the pizarra's plan (a listener on the official board: a sub planned or changed in the pizarra during
 // the match reaches «Toca» at once; the board's view is useBoardView's). With it, its galones, its takers and its
 // «2ª parte» (boardExtrasOf: what setMatchLineup copies to the official, B-PAR-01); a board without them reads empty.
+// r14 · the pizarra's «Si pasa…» that holds now (by the acta's minute and score) and the penalty taker.
+type Who = readonly { id: string; sentOff: boolean }[];
+function suggestOf(extras: BoardExtras, elapsed: number, score: { us: number; them: number }, field: Who, bench: Who, nameOf: (id: string) => string): MesaView["suggest"] {
+  const s = mesaSuggestion(extras.condPlan, { minute: Math.floor(elapsed / 60), us: score.us, them: score.them, field: field.map((p) => p.id), bench: bench.filter((p) => !p.sentOff).map((p) => p.id), nameOf });
+  return s ? { ...s, sub: s.sub ? { ...s.sub, inName: nameOf(s.sub.inId), outName: nameOf(s.sub.outId) } : null } : null;
+}
+function penaltyOf(events: Parameters<typeof penaltyNow>[0], takers: readonly string[], field: Who, nameOf: (id: string) => string): MesaView["penaltyTaker"] {
+  const id = penaltyNow(events, takers, field.map((p) => p.id));
+  return id ? { id, name: nameOf(id) } : null;
+}
+
 function useBoardExtras(boardId: string | null): BoardExtras {
   const [got, setGot] = useState<{ id: string; extras: BoardExtras } | null>(null);
   useEffect(() => {
@@ -464,6 +476,9 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
       scorerOptions,
       galones: { captainId: extras.captainId, viceId: extras.viceId, takers: extras.takers },
       secondHalf: extras.second,
+      planB: extras.planb,
+      suggest: suggestOf(extras, reading.elapsedSeconds, mesaScore(match.events), field, bench, nameOf),
+      penaltyTaker: penaltyOf(match.events ?? [], extras.takers.penalties, field, nameOf),
       nameOf,
       notice,
       actions,

@@ -38,6 +38,8 @@ export function Descanso({ v, b }: { v: MesaView; b: B }) {
   const field7 = h.sel.filter((id) => id !== h.keeper).map((id) => (all.find((p) => p.id === id)?.minutes ?? 0) + (v.match.duration - halfMin));
   const startT = !h.ok ? (h.sel.length !== 7 ? `Elige el siete: ${h.sel.length} de 7` : "Falta portero") : ins.length ? `Arrancar con ${plural(ins.length, "cambio", "cambios")}` : "Arrancar la 2ª parte";
   const second = v.secondHalf;
+  // r14: the board's Plan B, offered when the pizarra's «Si pasa…» that holds now sends to it
+  const planB = v.planB && v.suggest?.ver === "planb" ? v.planB : null;
   return (
     <section className="me-des me-scroll" aria-labelledby="me-de-h">
       <header className="me-sh vd-reg-2">
@@ -70,8 +72,11 @@ export function Descanso({ v, b }: { v: MesaView; b: B }) {
         <section className="me-des__who vd-reg-4" aria-labelledby="me-dw-t">
           <div className="me-sec__h"><h2 className="me-h3" id="me-dw-t">Quién juega la 2ª</h2><span className="me-sec__n">{h.sel.length} de 7</span></div>
           <p className="me-small">Toca para meter o sacar del siete. El portero se elige en su columna: puede ser cualquiera de los siete.</p>
-          {second && (
-            <p className="me-des__board"><button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={b.boardSecond}>El siete de la pizarra · 2ª parte</button></p>
+          {(second || planB) && (
+            <p className="me-des__board">
+              {second && <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={b.boardSecond}>El siete de la pizarra · 2ª parte</button>}
+              {planB && <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={b.boardPlanB}>Plan B · {v.suggest?.text.split(" → ")[0] ?? "Si pasa…"}</button>}
+            </p>
           )}
           <ul className="me-rows">
             {rows.map((p) => {
