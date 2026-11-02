@@ -325,7 +325,7 @@ export function buildCharla(P: PzApi, cs: CharlaChoices, voz: ReadonlyMap<string
           line: (k === 0 ? ps.title + ". " : "") + (ps.note ?? ""),
           base: (ps.dur ?? 1.6) + 1.6,
           chips: (ps.r ?? []).length ? [{ t: "En coral: " + (M?.rival ?? "el rival"), icon: "flag", cls: "is-bad" }] : [],
-          spec: { source: "jugada", play: pz, playId: chosen.id, step: k, camera: "grada", chrome: false, ghost: true, rate: speed, caption: "" },
+          spec: { source: "jugada", play: pz, playId: chosen.id, step: k, camera: "grada", chrome: false, ghost: true, rate: speed, caption: "", rivalCode: "" }, // (the chip says «En coral: <rival>»; in `jugada` their codes still slip under our plates)
           play: chosen.id,
         });
       });
