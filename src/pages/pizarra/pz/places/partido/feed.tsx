@@ -11,18 +11,8 @@ import { useMatchScorers, useMeetingNote } from "../../../../vestuario/live";
 import { useQuedada } from "../../../data/quedada";
 import { useMatchClock } from "../../../v2/useMatchDay";
 import { usePz } from "../../store/context";
-import type { PzApi } from "../../store/api";
-import { EMPTY_FEED, ptMatch, UI0, type PtFeed, type PtUi } from "./partidoView";
-
-export const FEED = "pt-feed";
-export const UI = "partido";
-
-/** The feed (EMPTY_FEED until the bridge has read). */
-export const feedOf = (P: PzApi): PtFeed => P.slice<PtFeed>(FEED, EMPTY_FEED).get() ?? EMPTY_FEED;
-/** The place's own state. */
-export const uiOf = (P: PzApi): PtUi => ({ ...UI0, ...(P.slice<PtUi>(UI, UI0).get() ?? {}) });
-/** A change of the place's own state that isn't undoable nor toasted (a view, a confirm, a pick). */
-export const setUi = (P: PzApi, patch: Partial<PtUi>) => P.slice<PtUi>(UI, UI0).set(patch, { undoable: false, toast: false });
+import { EMPTY_FEED, ptMatch, type PtFeed } from "./partidoView";
+import { FEED } from "./state";
 
 type Raw = ClubMatch & { lineup?: unknown; present?: unknown };
 

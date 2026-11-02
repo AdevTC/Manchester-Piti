@@ -3,8 +3,7 @@
 // mesa's Descanso and the pizarra's live «Hacer el cambio» of before), undone by deleting those events; «Mandar a la
 // mesa» through setMatchLineup; «Repartir minutos» / «Recalcular» with v2/cambios (generateWaves / replan) into the
 // board's `subs` by the session (act.saveBoard). All of it said in a toast and undoable where the server allows.
-import { apiError, mesaEvent, setMatchLineup } from "../../../../../lib/clubApi";
-import { addSubs, waveIds, type WaveSub } from "../../../../mesa/api";
+import type { WaveSub } from "../../../../mesa/api";
 import { newId } from "../../../drawings";
 import type { Sub } from "../../../formations";
 import type { FitGrade } from "../../../../../lib/positions";
@@ -13,7 +12,7 @@ import { slotZone } from "../../../v2/geometry";
 import type { PzApi } from "../../store/api";
 import { fmt } from "../../store/fmt";
 import type { PlaceBadge, PrimaryAction } from "../../store/types";
-import { feedOf, setUi, uiOf } from "./feed";
+import { feedOf, setUi, uiOf } from "./state";
 import { descPairs, intervals, mesaState, phaseOf, playedOf, ptMatch, ptModel, total, type PtModel } from "./partidoView";
 
 export const model = (P: PzApi): PtModel => ptModel(P, feedOf(P), uiOf(P));
@@ -26,16 +25,21 @@ const missingCallable = (err: unknown): boolean => {
   const msg = typeof e?.message === "string" ? e.message : "";
   return code === "functions/unimplemented" || (code === "functions/not-found" && /^(not[ _-]?found)?$/i.test(msg.trim()));
 };
+// (the writes load the callables on first use: the place's shell info stays light)
+const clubApi = () => import("../../../../../lib/clubApi");
+const mesaApi = () => import("../../../../mesa/api");
+const errText = async (e: unknown): Promise<string> => (await clubApi()).apiError(e);
 const rid = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "pt-" + Date.now() + "-" + Math.random().toString(36).slice(2));
 
 /** Writes a wave into the acta; resolves to its event ids. */
-async function writeWave(P: PzApi, X: PtModel, pairs: { out: string; in: string }[]): Promise<string[]> {
+async function writeWave(X: PtModel, pairs: { out: string; in: string }[]): Promise<string[]> {
   const M = X.M;
   if (!M) return [];
   const requestId = rid();
   const subs: WaveSub[] = pairs.map((r) => ({ playerId: r.out, inPlayerId: r.in, minute: X.now, ...(X.feed.revision != null ? { clockRevision: X.feed.revision } : {}) }));
-  await addSubs(M.id, requestId, subs);
-  return waveIds(requestId, subs.length);
+  const m = await mesaApi();
+  await m.addSubs(M.id, requestId, subs);
+  return m.waveIds(requestId, subs.length);
 }
 
 /** A wave into the acta with its toast and its 5 s «Deshacer» (the events deleted again). */
@@ -54,20 +58,22 @@ export async function apuntar(P: PzApi, pairs: { out: string; in: string }[], la
   const matchId = X.M.id;
   setUi(P, { busy: true, confirm: "" });
   try {
-    let ids = await writeWave(P, X, pairs);
+    let ids = await writeWave(X, pairs);
     const cant = { ...uiOf(P).cant };
     pairs.forEach((r) => delete cant[r.out]);
     setUi(P, { busy: false, cant, cond: uiOf(P).cond && !pairs.some((r) => X.next?.cond && r.out === X.next.out) });
     const undo = () => {
       const gone = ids;
-      void Promise.all(gone.map((eventId) => mesaEvent({ action: "delete", matchId, eventId }))).catch((e: unknown) => P.toast("No se ha podido deshacer: " + apiError(e), { icon: "warn" }));
+      void clubApi()
+        .then((c) => Promise.all(gone.map((eventId) => c.mesaEvent({ action: "delete", matchId, eventId }))))
+        .catch(async (e: unknown) => P.toast("No se ha podido deshacer: " + (await errText(e)), { icon: "warn" }));
     };
     const redo = () => {
-      void writeWave(P, model(P), pairs).then(
+      void writeWave(model(P), pairs).then(
         (x) => {
           ids = x;
         },
-        (e: unknown) => P.toast("No se ha podido apuntar: " + apiError(e), { icon: "warn" }),
+        async (e: unknown) => P.toast("No se ha podido apuntar: " + (await errText(e)), { icon: "warn" }),
       );
     };
     P.pushUndo("En el acta, " + label, undo, redo, { toast: false });
@@ -76,7 +82,7 @@ export async function apuntar(P: PzApi, pairs: { out: string; in: string }[], la
   } catch (e) {
     setUi(P, { busy: false });
     console.error("No se pudo apuntar el cambio", e);
-    P.toast(missingCallable(e) ? "La mesa aún no recibe cambios desde la pizarra en este servidor" : "No se ha podido apuntar: " + apiError(e), { icon: "warn" });
+    P.toast(missingCallable(e) ? "La mesa aún no recibe cambios desde la pizarra en este servidor" : "No se ha podido apuntar: " + (await errText(e)), { icon: "warn" });
     return false;
   }
 }
@@ -194,14 +200,14 @@ export async function sendMesa(P: PzApi): Promise<boolean> {
   }
   setUi(P, { busy: true });
   try {
-    const r = await setMatchLineup({ matchId: X.M.id, boardId: X.b.id });
+    const r = await (await clubApi()).setMatchLineup({ matchId: X.M.id, boardId: X.b.id });
     setUi(P, { busy: false, sent: { at: Date.now() } });
     P.toast(r.data.changed ? "Siete en la mesa · " + X.v!.formation : "La mesa ya tenía este siete", { icon: "check" });
     return true;
   } catch (e) {
     setUi(P, { busy: false });
     console.error("No se pudo mandar el siete a la mesa", e);
-    P.toast(missingCallable(e) ? "La mesa aún no recibe el siete desde la pizarra en este servidor" : "No se ha podido mandar: " + apiError(e), { icon: "warn" });
+    P.toast(missingCallable(e) ? "La mesa aún no recibe el siete desde la pizarra en este servidor" : "No se ha podido mandar: " + (await errText(e)), { icon: "warn" });
     return false;
   }
 }

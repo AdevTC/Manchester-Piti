@@ -245,3 +245,21 @@
 .pz .pt-pick .pz-shirt{--s:34px}
 .pz .pt-step{font-size:12.5px;font-weight:720;color:var(--vd-ink2)}
 @media (prefers-reduced-motion:reduce){.pz .pt *{transition:none!important;animation:none!important}}
+/* ── by hand (the app's pieces the prototype didn't have) ── */
+.pz .pt .pz-shirt.pt-drawn{display:inline-grid;place-items:center;border-radius:28% 28% 18% 18%;background:var(--vd-celeste);color:#0c1733;font-style:normal}
+.pz .pt .pz-shirt.pt-drawn>i{font-style:normal;font-family:var(--vd-mono);font-weight:700;font-size:calc(var(--s)*.42)}
+.pz .pt .pz-shirt.pt-drawn.is-out{filter:grayscale(.7) opacity(.6)}
+.pz .pt-sbline{text-align:center;max-width:none}
+.pz .pt-do__more{justify-content:space-between}
+.pz .pt-gal{font-weight:820;font-size:14px}
+.pz .pt-cd.is-sm{width:54px;height:54px}
+.pz .pt-cd.is-sm>span>b{font-size:16px}
+.pz .pt-cd.is-sm>span>small{font-size:11.5px}
+.pz .pt-focus{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pz .pt-peek__ask{flex-wrap:nowrap;gap:8px}
+.pz .pt-peek__ask>.pz-btn--pri{flex:1}
+.pz .pt a.pz-btn,.pz .pt-sh a.pz-btn,.pz .pt a.nx-lnk{text-decoration:none}
+.pz .pt a.nx-lnk{text-decoration:underline}
+.pz .pt-who small>.nx-ic{transform:rotate(-90deg)}
+.pz .pt-who>div+div small>.nx-ic{transform:rotate(90deg)}
+.pz .pt-crest{max-width:none}

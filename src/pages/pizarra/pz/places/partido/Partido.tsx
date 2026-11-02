@@ -11,7 +11,8 @@ import type { RegionProps } from "../../store/types";
 import { PzIcon } from "../../campo/Shirt";
 import { fmt } from "../../store/fmt";
 import "../../../../../styles/pz/partido.css";
-import { PtFeedBridge, setUi } from "./feed";
+import { PtFeedBridge } from "./feed";
+import { setUi } from "./state";
 import { applyProp, askNext, doDesc, doNext, model, primaryOf, propose } from "./actions";
 import { stageFor, type PtModel } from "./partidoView";
 import { antesOf, cantOf, condOf, descOf, despOf, eventsOf, galNowOf, kickerOf, minsOf, nextOf, planOf, propOf, scoreboardOf, stepsOf, youOf, type Seg } from "./partidoVals";
@@ -272,7 +273,7 @@ function Lead({ X }: { X: PtModel }) {
   const live = ph === "juego";
   const crest = (
     <>
-      <img className="pt-crest" src="/escudo.png" alt="" />
+      <img className="pt-crest" src="/crest-128.webp" alt="" />
       <b>Piti</b>
     </>
   );
@@ -949,7 +950,8 @@ function Peek({ X }: { X: PtModel }) {
   const showBtn = !!pri && !asking && !asking2 && !(ph === "juego" && !canChange);
   const ring = !!nx && !asking;
   const L = X.L;
-  const sb = L && ph !== "antes" ? scoreboardOf(P, X) : null;
+  // (live, the clock and the score are in the header's badge: the peek keeps its room for the change)
+  const sb = L && ph === "despues" ? scoreboardOf(P, X) : null;
   return (
     <div className="pt-peek">
       {sb && (

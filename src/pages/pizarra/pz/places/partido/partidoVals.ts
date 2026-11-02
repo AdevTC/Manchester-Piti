@@ -12,6 +12,16 @@ export interface Seg {
 }
 export const segsOf = (iv: Interval[] | undefined, cls: Seg["cls"], D: number): Seg[] => (iv ?? []).map((x) => ({ cls, l: Math.round((x.from / D) * 1000) / 10, w: Math.max(1.4, Math.round(((x.to - x.from) / D) * 1000) / 10) }));
 
+/** «CDM Palomeras» from «CDM PALOMERAS · Calle del Tranvía…» (the full address stays in the quedada). */
+export const venueShort = (v: string): string => {
+  const s = v.split(/ · |, /)[0].trim();
+  // (a shouted name reads as a name: «PALOMERAS» → «Palomeras»; acronyms like «CDM» stay)
+  return s
+    .split(" ")
+    .map((w) => (w.length > 3 && w === w.toUpperCase() ? w[0] + w.slice(1).toLowerCase() : w))
+    .join(" ");
+};
+
 const CANWORD: Record<Mark["k"], string> = { amarilla: "Amarilla", tocado: "Tocado", gol: "Gol", roja: "Roja" };
 const PART: Record<string, string> = { first: "1ª parte", second: "2ª parte", halftime: "Descanso", ended: "Final" };
 
@@ -21,7 +31,7 @@ export function kickerOf(P: PzApi, X: PtModel): string {
   const J = M.j ? "J" + M.j : "";
   const now = P.state.W.now;
   const today = X.ph === "antes" && M.at > now && M.at - now < 12 * 3600000 && fmt.day(M.at) === fmt.day(now);
-  return [J, M.rival, today ? "Hoy" : fmt.day(M.at), M.venue].filter(Boolean).join(" · ");
+  return [J, M.rival, today ? "Hoy" : fmt.day(M.at), venueShort(M.venue)].filter(Boolean).join(" · ");
 }
 
 export function stepsOf(X: PtModel) {
@@ -49,12 +59,12 @@ export function antesOf(P: PzApi, X: PtModel) {
   const min = Math.round(d / 60000);
   const head =
     d <= 0 ? "A punto de empezar" : min < 60 ? "Faltan " + min + " min" : min < 12 * 60 ? "Faltan " + Math.floor(min / 60) + " h" + (min % 60 ? " " + (min % 60) + " min" : "") : Math.round(d / 86400000) <= 1 ? "Mañana a las " + fmt.hm(M.at) : "Faltan " + Math.round(d / 86400000) + " días";
-  const line = "Pitido a las " + fmt.hm(M.at) + (M.venue ? " en " + M.venue : "") + (M.home == null ? "" : M.home ? ", en casa" : ", fuera") + "." + (X.st.full ? "" : X.b && X.st.n ? " El siete aún no está completo." : " Aún no hay siete.");
+  const line = "Pitido a las " + fmt.hm(M.at) + (M.venue ? " en " + venueShort(M.venue) : "") + (M.home == null ? "" : M.home ? ", en casa" : ", fuera") + "." + (X.st.full ? "" : X.b && X.st.n ? " El siete aún no está completo." : " Aún no hay siete.");
   const stats: { v: string; k: string; w: string }[] = [];
   const Q = X.feed.quedada;
   if (Q) stats.push({ v: fmt.hm(Q.at), k: "Quedada", w: Q.where });
   const W = X.feed.weather;
-  if (W) stats.push({ v: W.t + "°", k: "Tiempo", w: W.sky + (W.rain ? " · " + W.rain + "% lluvia" : "") });
+  if (W) stats.push({ v: W.t + "°", k: "Tiempo", w: W.sky + (W.rain && !/lluv/i.test(W.sky) ? " · " + W.rain + "% lluvia" : "") });
   const C = P.sel.counts();
   const anyAns = Object.keys(P.state.W.rsvp).length > 0;
   stats.push(anyAns ? { v: String(C.yes + C.guests), k: "Van", w: C.maybe ? fmt.plural(C.maybe, "duda", "dudan") : "Nadie duda" } : { v: "—", k: "Van", w: "Nadie ha respondido" });
@@ -104,7 +114,7 @@ export function antesOf(P: PzApi, X: PtModel) {
   return { head, line, stats, mesa, conv: { meta: anyAns ? "Respuestas a la convocatoria" : "", rows }, quedada };
 }
 
-export function scoreboardOf(P: PzApi, X: PtModel) {
+export function scoreboardOf(_P: PzApi, X: PtModel) {
   const M = X.M!;
   const L = X.L!;
   const us = M.home !== false;
@@ -186,13 +196,13 @@ export function cantOf(P: PzApi, X: PtModel) {
   X.field.forEach((pid) =>
     (L.marks[pid] ?? []).forEach((m, k) => {
       if (m.k !== "tocado" && m.k !== "amarilla") return;
-      flags.push({ id: pid + k, glyph: m.k === "amarilla" ? "" : "+", cls: m.k === "amarilla" ? "is-amarilla" : "is-tocado", min: m.short ?? "", t: m.k === "tocado" ? N(pid) + ", tocado" : "Amarilla a " + N(pid), s: m.k === "tocado" ? (X.decide ? "Lo apuntó la mesa · si no sigue, márcalo abajo" : "Lo apuntó la mesa") : "Otra y se va: en riesgo" });
+      flags.push({ id: pid + k, glyph: m.k === "amarilla" ? "" : "+", cls: m.k === "amarilla" ? "is-amarilla" : "is-tocado", min: (m.t.match(/[0-9]+′/) ?? [""])[0], t: m.k === "tocado" ? N(pid) + ", tocado" : "Amarilla a " + N(pid), s: m.k === "tocado" ? (X.decide ? "Lo apuntó la mesa · si no sigue, márcalo abajo" : "Lo apuntó la mesa") : "Otra y se va: en riesgo" });
     }),
   );
   const chips = [...X.field, ...X.present.filter((p) => !X.field.includes(p) && X.ui.cant[p])].map((pid) => {
     const on = !!X.ui.cant[pid];
     const mk = (L.marks[pid] ?? []).find((m) => m.k === "tocado" || m.k === "amarilla");
-    return { pid, name: N(pid), on, w: on ? "No puede" : mk ? CANWORD[mk.k] + " " + (mk.short ?? "") : "Sigue", aria: N(pid) + (on ? ": no puede seguir. Toca si puede" : ": sigue. Toca si no puede seguir") };
+    return { pid, name: N(pid), on, w: on ? "No puede" : mk ? mk.t : "Sigue", aria: N(pid) + (on ? ": no puede seguir. Toca si puede" : ": sigue. Toca si no puede seguir") };
   });
   return { flags, chips };
 }

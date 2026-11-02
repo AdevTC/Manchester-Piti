@@ -223,7 +223,7 @@ export function liveOf(feed: PtFeed, now: number, fallbackSlots: PzSlot[] | null
     if (OURS.has(e.type)) gf++;
     else if (THEIRS.has(e.type)) ga++;
     const k: Mark["k"] | null = GOAL_K.has(e.type) ? "gol" : e.type === "yellow_card" ? "amarilla" : e.type === "injury" ? "tocado" : RED_K.has(e.type) ? "roja" : null;
-    if (k && e.playerId) (marks[e.playerId] = marks[e.playerId] ?? []).push({ k, t: CANWORD[k] + " " + minOf(e) + "′", short: minOf(e) + "′" });
+    if (k && e.playerId) (marks[e.playerId] = marks[e.playerId] ?? []).push({ k, t: CANWORD[k] + " " + minOf(e) + "′" });
   });
   // the pitch keeps la mesa's seven slots: the ones a red emptied stay, without a player
   const slots: PzSlot[] = lineup.slots.map((s0) => {
