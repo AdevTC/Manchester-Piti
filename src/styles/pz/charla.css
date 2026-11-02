@@ -422,3 +422,13 @@
 .pz .pcs.is-phone .pcs-poster.is-h{width:min(288px,100%);height:auto;aspect-ratio:9/16}
 .pz .pcs.is-phone .pcs-poster.is-p{width:min(312px,100%);height:auto;aspect-ratio:4/5}
 .pz .pcs-vid>.pz-c{position:absolute;inset:0}
+/* the strip head: the title never breaks; the hint goes under it when there is no room */
+.pz .pc-strip__h{flex-wrap:wrap}
+.pz .pc-strip__h>h2{white-space:nowrap}
+.pz .pc.is-phone .pc-gobar .pc-seg>button{min-width:40px;padding:0 4px}
+.pz .pc.is-phone .pc-gobar>.pz-btn--pri{padding:0 12px;min-width:0}
+/* the presenter guion fades out under its tools instead of being cut */
+.pz .pc-pv__sc{-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 28px),transparent);padding-bottom:24px}
+/* the card's shirt never runs over its name */
+.pz .pc-card__art{min-height:0;overflow:hidden}
+.pz .pc.is-tablet .pc-card__art>.pz-shirt{--s:calc(var(--w)*.36)}
