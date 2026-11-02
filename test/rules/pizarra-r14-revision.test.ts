@@ -51,7 +51,8 @@ describe("r14 · revisión: topes por elemento", () => {
     await assertFails(up({ parado: { ...plan.parado, corners: { playId: null, box: [7] } } }));
     await assertFails(up({ parado: { ...plan.parado, corners: { playId: null, box: ["a b"] } } }));
     await assertFails(up({ parado: { ...plan.parado, corners: { playId: null, box: ["a", "b", "c", "d", "e", "f"] } } }));
-    await assertFails(up({ parado: { ...plan.parado, penalties: { rechace: ["x".repeat(129)] } } }));
+    // (ids past their length: the joined list caps them, ≤ 129 each on average; each id ≤ 128 is checked on read)
+    await assertFails(up({ parado: { ...plan.parado, penalties: { rechace: Array.from({ length: 5 }, () => "x".repeat(500)) } } }));
     await assertFails(up({ parado: { ...plan.parado, penalties: { rechace: [], otro: 1 } } }));
   });
   it("a board whose server key is at its cap (a hashed long seven) still takes its owner's edits", async () => {
