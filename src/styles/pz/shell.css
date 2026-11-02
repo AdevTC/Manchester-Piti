@@ -150,3 +150,22 @@
 .pz .pz-s__sheet .pz-ph{min-height:0;height:auto;padding:6px 4px;gap:4px;justify-items:start;text-align:left}
 .pz .pz-s__sheet.is-peek .pz-ph>span:not(.vx-tile),.pz .pz-s__sheet.is-peek .pz-ph>.vx-tile{display:none}
 .pz .pz-s__sheet .pz-ph>b{font-size:22px}
+/* 1800+: the grande frame keeps its own room (after the desktop padding above) */
+.pz.pz-s--xl .pz-s__body{padding:20px 40px 18px}
+/* a compact desktop (1100–1279): narrower columns so the pitch and its chrome keep their room */
+@media (max-width:1279px){
+  .pz.pz-l-desktop .pz-s__body{--lead:300px;--side:320px;gap:16px;padding:14px 20px 14px}
+  .pz.pz-l-desktop .pz-s__bar{margin:10px 20px 0}
+  .pz.pz-l-desktop .pz-s__place{padding:4px 6px;gap:6px}
+  .pz.pz-l-desktop .pz-c__layers>button{padding:0 9px;font-size:13px}
+}
+/* a short desktop (≤ 820 high): the board bar and the gaps tighten, the pitch keeps the height */
+@media (min-width:1100px) and (max-height:820px){
+  .pz.pz-l-desktop .pz-s__bar{margin-top:8px}
+  .pz.pz-l-desktop .pz-s__board,.pz.pz-l-desktop .pz-s__place{min-height:48px}
+  .pz.pz-l-desktop .pz-s__body{padding-top:12px;padding-bottom:12px}
+}
+/* the board line: the match gives way (ellipsis) before the save state, which always reads whole («Guardado 18:02») */
+.pz .pz-s__board small{min-width:0}
+.pz .pz-s__bm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pz .pz-s__save{flex:none;white-space:nowrap}

@@ -7,6 +7,8 @@ import type { CalMatch } from "../../v2/boards";
 import { pairOf, type Cromo, type Squad } from "../../v2/model";
 import { tierOf, TIER_NAME } from "../../../../lib/derived/card";
 import { currentSeasonId } from "../../../../lib/vestuario";
+import { playerPositions } from "../../../../lib/positionStats";
+import type { ClubMatch } from "../../../../lib/clubData";
 import type { PzBoard, PzMatch, PzPlayer, PzWorld } from "./types";
 
 /** A cromo as the pizarra reads him. */
@@ -74,8 +76,32 @@ function stripMeta(L: Lineup): Lineup {
   return { formation, freeMode, slots, bench, roles, tactics, playerPositions, pinned, subs, takers, rival, drawings, plays, variants, shapeOff, condPlan, style, tags, plan, seasonPlays };
 }
 
+/** Minutes per F7 puesto this season, from the actas (positionStats: the official board of each match, or his
+ *  preferida when the acta can't place him), by player. */
+export function playedAtOf(ids: readonly string[], games: ClubMatch[]): Map<string, Record<string, number>> {
+  const out = new Map<string, Record<string, number>>();
+  for (const id of ids) {
+    const p = playerPositions(id, games);
+    if (p.lines.length) out.set(id, Object.fromEntries(p.lines.map((l) => [l.code, Math.round(l.minutes)])));
+  }
+  return out;
+}
+
+/** A guest of the board's match (the acta's «invitados»: a name only) as a player. */
+export function guestOf(g: { id: string; name: string }): PzPlayer {
+  return { id: g.id, shirt: g.name.toLocaleUpperCase("es"), num: null, first: g.name, last: "", line: null, main: null, also: [], global: null, forma: null, provisional: true, type: "Invitado", pj: 0, starts: 0, min: 0, goals: 0, assists: 0, mvp: 0, notas: [], playedAt: {}, guest: true };
+}
+
 export interface WorldInputs {
   now: number;
+  /** Minutes per puesto by player (playedAtOf). */
+  playedAt?: Map<string, Record<string, number>>;
+  /** The guests of the board's match. */
+  guests?: { id: string; name: string }[];
+  /** The team's absences (vestuario useAbsences). */
+  absences?: { playerId: string | null; from: string; to: string; note: string }[];
+  /** The answers of the board's match that an absence wrote (player ids). */
+  byAbsence?: Set<string>;
   season: { id: string; name: string };
   squad: Squad;
   calendar: CalMatch[];
@@ -88,7 +114,11 @@ export interface WorldInputs {
 
 export function buildWorld(i: WorldInputs): PzWorld {
   const jornada = new Map(i.calendar.map((c) => [c.id, c.j] as const));
-  const squad = i.squad.list.map((c) => playerOf(c, (id) => jornada.get(id) ?? null));
+  const squad = i.squad.list.map((c) => {
+    const p = playerOf(c, (id) => jornada.get(id) ?? null);
+    const at = i.playedAt?.get(c.id);
+    return at ? { ...p, playedAt: at } : p;
+  });
   const boards = i.docs.map((d) => (i.session && d.id === i.session.id ? boardOf(d, i.session.lineup) : boardOf(d)));
   const s = i.session;
   if (s && !s.id) boards.unshift({ id: "nuevo", name: s.name, ownerUid: s.uid, ownerNick: s.nick, matchId: s.matchId, isOfficial: false, draft: true, createdAt: i.now, updatedAt: i.now, lineup: s.lineup });
@@ -98,13 +128,14 @@ export function buildWorld(i: WorldInputs): PzWorld {
   i.squad.list.forEach((c) => {
     if (c.cv === "voy") rsvp[c.id] = { v: "yes" };
     else if (c.cv === "duda") rsvp[c.id] = { v: "maybe" };
-    else if (c.cv === "no") rsvp[c.id] = { v: "no" };
+    else if (c.cv === "no") rsvp[c.id] = { v: "no", ...(i.byAbsence?.has(c.id) ? { why: "Puso una ausencia" } : {}) };
   });
   return {
     now: i.now,
     season: i.season,
     squad,
-    guests: [],
+    guests: (i.guests ?? []).map(guestOf),
+    absences: (i.absences ?? []).flatMap((a) => (a.playerId ? [{ pid: a.playerId, from: a.from, to: a.to, note: a.note }] : [])),
     matches: i.calendar.map(matchOf),
     next: i.next?.id ?? null,
     boards,
