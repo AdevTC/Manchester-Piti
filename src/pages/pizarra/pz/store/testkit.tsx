@@ -80,7 +80,7 @@ export function makeTestStore(o: { world?: PzWorld; me?: PzMe; boardId?: string;
     open: vi.fn(),
     duplicate: vi.fn(async (): Promise<string | void> => "b-copia"),
     remove: vi.fn(() => () => undefined),
-    publish: vi.fn(async () => undefined),
+    publish: vi.fn(async (_o: { convocatoria: boolean; boardId: string; matchId: string | null }) => undefined),
     unpublish: vi.fn(async () => undefined),
     react: vi.fn(),
     retry: vi.fn(),

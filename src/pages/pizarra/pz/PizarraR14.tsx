@@ -141,8 +141,10 @@ export function PizarraR14() {
         return nid;
       },
       remove: (id) => session.remove(id),
-      publish: async ({ convocatoria }) => {
-        const id = await session.publish(m?.id ?? null);
+      publish: async ({ convocatoria, boardId, matchId }) => {
+        // the session publishes the board on screen: never another one (a redo after opening a different board)
+        if (session.id !== boardId) throw new Error("ese tablero ya no es el que tienes abierto");
+        const id = await session.publish(matchId ?? m?.id ?? null);
         if (convocatoria && isAdmin && m && typeof id === "string") {
           const v = store.sel.ver(store.sel.board(), "titular");
           const starters = (v?.slots ?? []).map((s) => s.playerId).filter((x): x is string => !!x);
