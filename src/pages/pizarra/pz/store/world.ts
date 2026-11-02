@@ -158,9 +158,13 @@ export function buildWorld(i: WorldInputs): PzWorld {
 /**
  * The season the pizarra shows: the one asked for, else (none, «all», or one that isn't there) the current one —
  * the next match's, else the latest played, else the newest season. A board always belongs to one season, so «all»
- * would show none.
+ * would show none. Only a season in `seasons` is ever returned (else ""): SeasonUrlSync turns an unknown one into «all»
+ * and the pizarra would write it back, a navigation loop.
  */
 export function pizarraSeason(asked: string | undefined, seasons: readonly { id: string }[], next: Parameters<typeof currentSeasonId>[0], matches: Parameters<typeof currentSeasonId>[1]): string {
-  if (asked && asked !== "all" && seasons.some((s) => s.id === asked)) return asked;
-  return currentSeasonId(next, matches, seasons as { id: string }[]) || (asked && asked !== "all" ? asked : "");
+  const known = (id: string | undefined) => !!id && seasons.some((s) => s.id === id);
+  if (asked !== "all" && known(asked)) return asked as string;
+  const current = currentSeasonId(next, matches, seasons as { id: string }[]);
+  if (known(current)) return current;
+  return seasons.at(-1)?.id ?? "";
 }
