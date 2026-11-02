@@ -67,21 +67,27 @@ export const onLineupR14 = onDocumentWritten({ document: "lineups/{lineupId}", m
   }
 
   // ── PZ-D01: the official seven's version
+  // (contention-safe: every transaction here reads ONE document — the board — and does nothing else inside; lists
+  // are read outside any transaction. A transactional query or a second doc locked while the board keeps being
+  // written hung the shared emulator — writes answered `2 UNKNOWN`, then nothing — when a script moved J3 between
+  // moments.)
   const stamp = sevenStamp(before, after);
   const mid = typeof after.matchId === "string" && after.matchId ? after.matchId : null;
   if (stamp) {
     const done = await db.runTransaction(async (tx) => {
       const cur = (await tx.get(ref)).data() as R14Board | undefined;
-      // (PZ-D04: the first seven published for a match closes «Adivina el siete» for good — a one-way flag the
-      // rules read; unpublishing deletes the scope doc but never this)
-      const priv = cur?.isOfficial && mid ? await tx.get(db.doc(`matchPrivate/${mid}`)) : null;
       // (a newer write already moved it: that write's own run stamps it)
       if (!cur?.isOfficial || (cur.sevenKey ?? null) !== (after.sevenKey ?? null) || (cur.sevenRev ?? 0) !== (after.sevenRev ?? 0)) return false;
       if (stable(sevenOf(cur.slots).sort()) !== stable(sevenOf(after.slots).sort())) return false;
-      if (priv && priv.get("sieteOutAt") == null && (cur.matchId ?? null) === mid) tx.set(priv.ref, { sieteOutAt: FieldValue.serverTimestamp() }, { merge: true });
       tx.update(ref, { sevenKey: stamp.sevenKey, sevenRev: stamp.sevenRev });
       return true;
     });
+    // (PZ-D04: the first seven published for a match closes «Adivina el siete» for good — a one-way flag the rules
+    // read; unpublishing deletes the scope doc but never this. Outside the transaction: idempotent, set once.)
+    if (done && mid) {
+      const priv = db.doc(`matchPrivate/${mid}`);
+      if ((await priv.get()).get("sieteOutAt") == null) await priv.set({ sieteOutAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
     if (done && stamp.bumped) {
       // Old reactions go — but one given since this write (the second before the stamp, still at the old version)
       // answers this seven: it is kept and moved to the new version.
@@ -99,19 +105,25 @@ export const onLineupR14 = onDocumentWritten({ document: "lineups/{lineupId}", m
     }
   }
 
-  // ── PZ-D21T: the history (in a transaction that re-reads the board: a run landing after the board's delete —
-  // and after its cascade — writes nothing, so no history is left under a deleted board)
+  // ── PZ-D21T: the history. The list is read outside any transaction (merging a burst is best-effort); the snapshot
+  // is written in a transaction that reads only the board, so a run landing after the board's delete — and after
+  // its cascade — writes nothing; the old ones are trimmed afterwards.
   const kind = historyKind(before, after);
   if (kind) {
-    await db.runTransaction(async (tx) => {
-      const cur = await tx.get(ref);
-      if (!cur.exists) return;
-      const now = Date.now();
-      const existing = await tx.get(ref.collection("history").orderBy("at", "desc").limit(30));
-      const plan = historyPlan(existing.docs.map((d) => ({ id: d.id, kind: d.get("kind"), at: d.get("at") })), kind, now);
-      tx.set(plan.replace ? ref.collection("history").doc(plan.replace) : ref.collection("history").doc(), snapshotOf(after, kind, before, now));
-      plan.drop.forEach((hid) => tx.delete(ref.collection("history").doc(hid)));
+    const now = Date.now();
+    const existing = await ref.collection("history").orderBy("at", "desc").limit(30).get();
+    const plan = historyPlan(existing.docs.map((d) => ({ id: d.id, kind: d.get("kind"), at: d.get("at") })), kind, now);
+    const target = plan.replace ? ref.collection("history").doc(plan.replace) : ref.collection("history").doc();
+    const wrote = await db.runTransaction(async (tx) => {
+      if (!(await tx.get(ref)).exists) return false;
+      tx.set(target, snapshotOf(after, kind, before, now));
+      return true;
     });
+    if (wrote && plan.drop.length) {
+      const batch = db.batch();
+      plan.drop.forEach((hid) => batch.delete(ref.collection("history").doc(hid)));
+      await batch.commit();
+    }
   }
 
   // ── PZ-D21F: the fan view follows the board (fail-closed: writeFanBoard writes only what the board still is)
@@ -148,9 +160,10 @@ export async function writeFanBoard(id: string, token: string): Promise<boolean>
   }
   const at = first.updateTime?.toMillis() ?? 0;
   const fan = await buildFanBoard(board);
+  // (the fan doc is read outside the transaction: inside, only the board is read — contention-safe)
+  const old = await fanRef.get();
   return db.runTransaction(async (tx) => {
     const cur = await tx.get(ref);
-    const old = await tx.get(fanRef);
     if (!cur.exists || tokenOf(cur.data() as R14Board) !== token) {
       tx.delete(fanRef);
       return false;

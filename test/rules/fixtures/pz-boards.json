@@ -1,0 +1,972 @@
+{
+ "como": {
+  "formation": "3-2-1",
+  "freeMode": false,
+  "slots": [
+   {
+    "slotId": "pz-slot-0",
+    "playerId": "hoLC0Z34U7UGdNtD0k2X",
+    "position": "POR",
+    "zone": "POR",
+    "x": 50,
+    "y": 95
+   },
+   {
+    "slotId": "pz-slot-1",
+    "playerId": "wjggZhq9U449Hyh3NLyw",
+    "position": "LI",
+    "zone": "DEF",
+    "x": 18,
+    "y": 72
+   },
+   {
+    "slotId": "pz-slot-2",
+    "playerId": "ug0kCzhcWNnLkKKHJS2U",
+    "position": "DFC",
+    "zone": "DEF",
+    "x": 50,
+    "y": 74
+   },
+   {
+    "slotId": "pz-slot-3",
+    "playerId": "fxawOUv5ztgjRl0bOhOZ",
+    "position": "LD",
+    "zone": "DEF",
+    "x": 82,
+    "y": 72
+   },
+   {
+    "slotId": "pz-slot-4",
+    "playerId": "cJq0czDKLWgqONMmbpw1",
+    "position": "MC",
+    "zone": "MED",
+    "x": 25,
+    "y": 46
+   },
+   {
+    "slotId": "pz-slot-5",
+    "playerId": "BYCDNklHZG7Zr6qm38ow",
+    "position": "MC",
+    "zone": "MED",
+    "x": 75,
+    "y": 46
+   },
+   {
+    "slotId": "pz-slot-6",
+    "playerId": "uD4bun1wsuQ1rRnT3e1y",
+    "position": "DC",
+    "zone": "DEL",
+    "x": 50,
+    "y": 22
+   }
+  ],
+  "tactics": {
+   "defLine": "Baja",
+   "press": "Media",
+   "width": "Amplia",
+   "mentality": "Equilibrada",
+   "tempo": "Medio",
+   "buildup": "Corta",
+   "attackFocus": "Bandas"
+  },
+  "roles": {
+   "captainId": "cJq0czDKLWgqONMmbpw1",
+   "viceId": "fxawOUv5ztgjRl0bOhOZ",
+   "penaltiesId": "uD4bun1wsuQ1rRnT3e1y"
+  },
+  "takers": {
+   "penalties": [
+    "uD4bun1wsuQ1rRnT3e1y"
+   ],
+   "freekicks": [],
+   "corners": []
+  },
+  "playerPositions": {},
+  "subs": [],
+  "drawings": [],
+  "plays": [],
+  "variants": [],
+  "shapeOff": null,
+  "condPlan": [],
+  "style": "",
+  "tags": [
+   "Liga"
+  ],
+  "ownerUid": "e5VyTucoVvZQVMI1T7al1kAnjr2d",
+  "ownerNickname": "jordi",
+  "seasonId": "4XsrUAY2hhHRWGvQNtl3",
+  "name": "Como en J1 · Orduña fc",
+  "isOfficial": false,
+  "matchId": "3c1c616b-2866-4882-91c2-94065ecc5bc1",
+  "createdAt": {
+   "__ts": "2026-10-14T19:00:00Z"
+  },
+  "updatedAt": {
+   "__ts": "2026-10-18T15:00:00Z"
+  }
+ },
+ "j3": {
+  "formation": "3-2-1",
+  "freeMode": false,
+  "slots": [
+   {
+    "slotId": "pz-slot-0",
+    "playerId": "hoLC0Z34U7UGdNtD0k2X",
+    "position": "POR",
+    "zone": "POR",
+    "x": 50,
+    "y": 95
+   },
+   {
+    "slotId": "pz-slot-1",
+    "playerId": "wjggZhq9U449Hyh3NLyw",
+    "position": "LI",
+    "zone": "DEF",
+    "x": 18,
+    "y": 72
+   },
+   {
+    "slotId": "pz-slot-2",
+    "playerId": "ug0kCzhcWNnLkKKHJS2U",
+    "position": "DFC",
+    "zone": "DEF",
+    "x": 50,
+    "y": 74
+   },
+   {
+    "slotId": "pz-slot-3",
+    "playerId": "fxawOUv5ztgjRl0bOhOZ",
+    "position": "LD",
+    "zone": "DEF",
+    "x": 82,
+    "y": 72
+   },
+   {
+    "slotId": "pz-slot-4",
+    "playerId": "cJq0czDKLWgqONMmbpw1",
+    "position": "MC",
+    "zone": "MED",
+    "x": 25,
+    "y": 46
+   },
+   {
+    "slotId": "pz-slot-5",
+    "playerId": "BYCDNklHZG7Zr6qm38ow",
+    "position": "MC",
+    "zone": "MED",
+    "x": 75,
+    "y": 46
+   },
+   {
+    "slotId": "pz-slot-6",
+    "playerId": "uD4bun1wsuQ1rRnT3e1y",
+    "position": "DC",
+    "zone": "DEL",
+    "x": 50,
+    "y": 22
+   }
+  ],
+  "tactics": {
+   "defLine": "Media",
+   "press": "Alta",
+   "width": "Amplia",
+   "mentality": "Equilibrada",
+   "tempo": "Medio",
+   "buildup": "Corta",
+   "attackFocus": "Bandas"
+  },
+  "roles": {
+   "captainId": "cJq0czDKLWgqONMmbpw1",
+   "viceId": "fxawOUv5ztgjRl0bOhOZ",
+   "penaltiesId": "uD4bun1wsuQ1rRnT3e1y",
+   "freekicksId": "cJq0czDKLWgqONMmbpw1",
+   "cornersId": "BYCDNklHZG7Zr6qm38ow"
+  },
+  "takers": {
+   "penalties": [
+    "uD4bun1wsuQ1rRnT3e1y",
+    "ug0kCzhcWNnLkKKHJS2U"
+   ],
+   "freekicks": [
+    "cJq0czDKLWgqONMmbpw1",
+    "uD4bun1wsuQ1rRnT3e1y"
+   ],
+   "corners": [
+    "BYCDNklHZG7Zr6qm38ow",
+    "cJq0czDKLWgqONMmbpw1"
+   ]
+  },
+  "playerPositions": {},
+  "subs": [
+   {
+    "id": "s1",
+    "min": 15,
+    "out": "wjggZhq9U449Hyh3NLyw",
+    "in": "5cJCR67ZY3H4FjF8swPN"
+   },
+   {
+    "id": "s2",
+    "min": 25,
+    "out": "BYCDNklHZG7Zr6qm38ow",
+    "in": "U1EDxsjWWPWO3zCC8LGn"
+   },
+   {
+    "id": "s3",
+    "min": 35,
+    "out": "uD4bun1wsuQ1rRnT3e1y",
+    "in": "A78eliIFCgUf6ilqPhwD"
+   }
+  ],
+  "drawings": [
+   {
+    "id": "d1",
+    "kind": "carrera",
+    "color": "sky",
+    "points": [
+     {
+      "x": 88,
+      "y": 63
+     },
+     {
+      "x": 93,
+      "y": 44
+     },
+     {
+      "x": 88,
+      "y": 30
+     }
+    ]
+   },
+   {
+    "id": "d2",
+    "kind": "pase",
+    "color": "white",
+    "points": [
+     {
+      "x": 31,
+      "y": 40
+     },
+     {
+      "x": 64,
+      "y": 24
+     }
+    ]
+   },
+   {
+    "id": "d3",
+    "kind": "zona",
+    "color": "white",
+    "points": [
+     {
+      "x": 66,
+      "y": 9
+     },
+     {
+      "x": 92,
+      "y": 24
+     }
+    ],
+    "text": "Mordemos"
+   }
+  ],
+  "variants": [
+   {
+    "id": "v2",
+    "name": "2ª parte",
+    "formation": "3-2-1",
+    "freeMode": false,
+    "slots": [
+     {
+      "slotId": "pz-slot-0",
+      "playerId": "hoLC0Z34U7UGdNtD0k2X",
+      "position": "POR",
+      "zone": "POR",
+      "x": 50,
+      "y": 95
+     },
+     {
+      "slotId": "pz-slot-1",
+      "playerId": "5cJCR67ZY3H4FjF8swPN",
+      "position": "LI",
+      "zone": "DEF",
+      "x": 18,
+      "y": 72
+     },
+     {
+      "slotId": "pz-slot-2",
+      "playerId": "ug0kCzhcWNnLkKKHJS2U",
+      "position": "DFC",
+      "zone": "DEF",
+      "x": 50,
+      "y": 74
+     },
+     {
+      "slotId": "pz-slot-3",
+      "playerId": "fxawOUv5ztgjRl0bOhOZ",
+      "position": "LD",
+      "zone": "DEF",
+      "x": 82,
+      "y": 72
+     },
+     {
+      "slotId": "pz-slot-4",
+      "playerId": "cJq0czDKLWgqONMmbpw1",
+      "position": "MC",
+      "zone": "MED",
+      "x": 25,
+      "y": 46
+     },
+     {
+      "slotId": "pz-slot-5",
+      "playerId": "U1EDxsjWWPWO3zCC8LGn",
+      "position": "MC",
+      "zone": "MED",
+      "x": 75,
+      "y": 46
+     },
+     {
+      "slotId": "pz-slot-6",
+      "playerId": "A78eliIFCgUf6ilqPhwD",
+      "position": "DC",
+      "zone": "DEL",
+      "x": 50,
+      "y": 22
+     }
+    ],
+    "tactics": {
+     "defLine": "Media",
+     "press": "Media",
+     "width": "Amplia",
+     "mentality": "Equilibrada",
+     "tempo": "Medio",
+     "buildup": "Corta",
+     "attackFocus": "Bandas"
+    }
+   },
+   {
+    "id": "vb",
+    "name": "Plan B",
+    "formation": "2-3-1",
+    "freeMode": false,
+    "slots": [
+     {
+      "slotId": "pz-slot-0",
+      "playerId": "hoLC0Z34U7UGdNtD0k2X",
+      "position": "POR",
+      "zone": "POR",
+      "x": 50,
+      "y": 95
+     },
+     {
+      "slotId": "pz-slot-1",
+      "playerId": "ug0kCzhcWNnLkKKHJS2U",
+      "position": "DFC",
+      "zone": "DEF",
+      "x": 30,
+      "y": 74
+     },
+     {
+      "slotId": "pz-slot-2",
+      "playerId": "wjggZhq9U449Hyh3NLyw",
+      "position": "DFC",
+      "zone": "DEF",
+      "x": 70,
+      "y": 74
+     },
+     {
+      "slotId": "pz-slot-3",
+      "playerId": "fxawOUv5ztgjRl0bOhOZ",
+      "position": "MI",
+      "zone": "MED",
+      "x": 17,
+      "y": 49
+     },
+     {
+      "slotId": "pz-slot-4",
+      "playerId": "cJq0czDKLWgqONMmbpw1",
+      "position": "MC",
+      "zone": "MED",
+      "x": 50,
+      "y": 50
+     },
+     {
+      "slotId": "pz-slot-5",
+      "playerId": "BYCDNklHZG7Zr6qm38ow",
+      "position": "MD",
+      "zone": "MED",
+      "x": 83,
+      "y": 49
+     },
+     {
+      "slotId": "pz-slot-6",
+      "playerId": "uD4bun1wsuQ1rRnT3e1y",
+      "position": "DC",
+      "zone": "DEL",
+      "x": 50,
+      "y": 22
+     }
+    ],
+    "tactics": {
+     "defLine": "Media",
+     "press": "Alta",
+     "width": "Amplia",
+     "mentality": "Ofensiva",
+     "tempo": "Medio",
+     "buildup": "Corta",
+     "attackFocus": "Bandas"
+    }
+   }
+  ],
+  "shapeOff": {
+   "formation": "2-3-1",
+   "offs": [
+    {
+     "du": 0,
+     "dv": 0
+    },
+    {
+     "du": 0,
+     "dv": 0
+    },
+    {
+     "du": 0,
+     "dv": 0
+    },
+    {
+     "du": 0,
+     "dv": 0
+    },
+    {
+     "du": 0,
+     "dv": 0
+    },
+    {
+     "du": 0,
+     "dv": 0
+    },
+    {
+     "du": 0,
+     "dv": 0
+    }
+   ]
+  },
+  "style": "presion",
+  "tags": [
+   "Liga"
+  ],
+  "ownerUid": "e5VyTucoVvZQVMI1T7al1kAnjr2d",
+  "ownerNickname": "jordi",
+  "seasonId": "4XsrUAY2hhHRWGvQNtl3",
+  "name": "J3 · Red Demons",
+  "matchId": "415c66c2-d429-4e41-843e-ae0b36d23338",
+  "createdAt": {
+   "__ts": "2026-10-30T02:30:50.614Z"
+  },
+  "seasonPlays": [
+   "pz-sp-presion",
+   "pz-sp-rd-siete"
+  ],
+  "plays": [
+   {
+    "id": "pz-salida-jordi",
+    "name": "Salida por Jordi",
+    "kind": "propia",
+    "frames": [
+     {
+      "players": {
+       "hoLC0Z34U7UGdNtD0k2X": {
+        "x": 50,
+        "y": 92
+       },
+       "wjggZhq9U449Hyh3NLyw": {
+        "x": 18,
+        "y": 72
+       },
+       "ug0kCzhcWNnLkKKHJS2U": {
+        "x": 50,
+        "y": 76
+       },
+       "fxawOUv5ztgjRl0bOhOZ": {
+        "x": 86,
+        "y": 66
+       },
+       "cJq0czDKLWgqONMmbpw1": {
+        "x": 30,
+        "y": 50
+       },
+       "BYCDNklHZG7Zr6qm38ow": {
+        "x": 70,
+        "y": 48
+       },
+       "uD4bun1wsuQ1rRnT3e1y": {
+        "x": 50,
+        "y": 24
+       }
+      },
+      "ball": {
+       "x": 52,
+       "y": 90
+      },
+      "rivals": [
+       {
+        "id": "r1",
+        "x": 50,
+        "y": 40
+       },
+       {
+        "id": "r2",
+        "x": 36,
+        "y": 30
+       },
+       {
+        "id": "r3",
+        "x": 64,
+        "y": 30
+       }
+      ],
+      "arrows": [],
+      "title": "Saca el portero",
+      "note": "EVANS a JORDI, pegado a la cal."
+     },
+     {
+      "players": {
+       "hoLC0Z34U7UGdNtD0k2X": {
+        "x": 50,
+        "y": 90
+       },
+       "wjggZhq9U449Hyh3NLyw": {
+        "x": 18,
+        "y": 70
+       },
+       "ug0kCzhcWNnLkKKHJS2U": {
+        "x": 50,
+        "y": 72
+       },
+       "fxawOUv5ztgjRl0bOhOZ": {
+        "x": 84,
+        "y": 48
+       },
+       "cJq0czDKLWgqONMmbpw1": {
+        "x": 34,
+        "y": 46
+       },
+       "BYCDNklHZG7Zr6qm38ow": {
+        "x": 72,
+        "y": 40
+       },
+       "uD4bun1wsuQ1rRnT3e1y": {
+        "x": 50,
+        "y": 22
+       }
+      },
+      "ball": {
+       "x": 84,
+       "y": 48
+      },
+      "rivals": [
+       {
+        "id": "r1",
+        "x": 54,
+        "y": 36
+       },
+       {
+        "id": "r2",
+        "x": 40,
+        "y": 28
+       },
+       {
+        "id": "r3",
+        "x": 62,
+        "y": 26
+       }
+      ],
+      "arrows": [
+       {
+        "from": {
+         "x": 52,
+         "y": 90
+        },
+        "to": {
+         "x": 84,
+         "y": 48
+        },
+        "kind": "pase"
+       },
+       {
+        "from": {
+         "x": 86,
+         "y": 66
+        },
+        "to": {
+         "x": 84,
+         "y": 48
+        },
+        "kind": "carrera"
+       },
+       {
+        "from": {
+         "x": 70,
+         "y": 48
+        },
+        "to": {
+         "x": 72,
+         "y": 40
+        },
+        "kind": "carrera"
+       }
+      ],
+      "title": "Pared con Adrián",
+      "note": "JORDI la da y la recibe a la espalda."
+     },
+     {
+      "players": {
+       "hoLC0Z34U7UGdNtD0k2X": {
+        "x": 50,
+        "y": 88
+       },
+       "wjggZhq9U449Hyh3NLyw": {
+        "x": 20,
+        "y": 64
+       },
+       "ug0kCzhcWNnLkKKHJS2U": {
+        "x": 50,
+        "y": 66
+       },
+       "fxawOUv5ztgjRl0bOhOZ": {
+        "x": 86,
+        "y": 16
+       },
+       "cJq0czDKLWgqONMmbpw1": {
+        "x": 42,
+        "y": 30
+       },
+       "BYCDNklHZG7Zr6qm38ow": {
+        "x": 64,
+        "y": 22
+       },
+       "uD4bun1wsuQ1rRnT3e1y": {
+        "x": 50,
+        "y": 14
+       }
+      },
+      "ball": {
+       "x": 50,
+       "y": 14
+      },
+      "rivals": [
+       {
+        "id": "r1",
+        "x": 50,
+        "y": 5
+       },
+       {
+        "id": "r2",
+        "x": 36,
+        "y": 16
+       },
+       {
+        "id": "r3",
+        "x": 66,
+        "y": 12
+       }
+      ],
+      "arrows": [
+       {
+        "from": {
+         "x": 84,
+         "y": 48
+        },
+        "to": {
+         "x": 50,
+         "y": 14
+        },
+        "kind": "pase"
+       },
+       {
+        "from": {
+         "x": 84,
+         "y": 48
+        },
+        "to": {
+         "x": 86,
+         "y": 16
+        },
+        "kind": "carrera"
+       },
+       {
+        "from": {
+         "x": 34,
+         "y": 46
+        },
+        "to": {
+         "x": 42,
+         "y": 30
+        },
+        "kind": "carrera"
+       },
+       {
+        "from": {
+         "x": 72,
+         "y": 40
+        },
+        "to": {
+         "x": 64,
+         "y": 22
+        },
+        "kind": "carrera"
+       }
+      ],
+      "title": "Centro atrás",
+      "note": "Llega desde fuera y la pone al punto de penalti."
+     }
+    ]
+   },
+   {
+    "id": "pz-gol-alcides-j2",
+    "name": "El gol de Alcides a Pitutis",
+    "kind": "propia",
+    "frames": [
+     {
+      "players": {
+       "hoLC0Z34U7UGdNtD0k2X": {
+        "x": 50,
+        "y": 90
+       },
+       "wjggZhq9U449Hyh3NLyw": {
+        "x": 20,
+        "y": 66
+       },
+       "ug0kCzhcWNnLkKKHJS2U": {
+        "x": 50,
+        "y": 68
+       },
+       "fxawOUv5ztgjRl0bOhOZ": {
+        "x": 82,
+        "y": 60
+       },
+       "cJq0czDKLWgqONMmbpw1": {
+        "x": 36,
+        "y": 40
+       },
+       "BYCDNklHZG7Zr6qm38ow": {
+        "x": 64,
+        "y": 40
+       },
+       "uD4bun1wsuQ1rRnT3e1y": {
+        "x": 50,
+        "y": 24
+       }
+      },
+      "ball": {
+       "x": 36,
+       "y": 40
+      },
+      "rivals": [
+       {
+        "id": "r1",
+        "x": 50,
+        "y": 5
+       },
+       {
+        "id": "r2",
+        "x": 40,
+        "y": 22
+       },
+       {
+        "id": "r3",
+        "x": 60,
+        "y": 22
+       }
+      ],
+      "arrows": [],
+      "title": "Adrián levanta la cabeza",
+      "note": "Recibe entre líneas y ve el desmarque."
+     },
+     {
+      "players": {
+       "hoLC0Z34U7UGdNtD0k2X": {
+        "x": 50,
+        "y": 88
+       },
+       "wjggZhq9U449Hyh3NLyw": {
+        "x": 22,
+        "y": 60
+       },
+       "ug0kCzhcWNnLkKKHJS2U": {
+        "x": 50,
+        "y": 62
+       },
+       "fxawOUv5ztgjRl0bOhOZ": {
+        "x": 80,
+        "y": 50
+       },
+       "cJq0czDKLWgqONMmbpw1": {
+        "x": 38,
+        "y": 34
+       },
+       "BYCDNklHZG7Zr6qm38ow": {
+        "x": 62,
+        "y": 34
+       },
+       "uD4bun1wsuQ1rRnT3e1y": {
+        "x": 56,
+        "y": 10
+       }
+      },
+      "ball": {
+       "x": 56,
+       "y": 10
+      },
+      "rivals": [
+       {
+        "id": "r1",
+        "x": 52,
+        "y": 6
+       },
+       {
+        "id": "r2",
+        "x": 42,
+        "y": 18
+       },
+       {
+        "id": "r3",
+        "x": 62,
+        "y": 20
+       }
+      ],
+      "arrows": [
+       {
+        "from": {
+         "x": 36,
+         "y": 40
+        },
+        "to": {
+         "x": 56,
+         "y": 10
+        },
+        "kind": "pase"
+       },
+       {
+        "from": {
+         "x": 50,
+         "y": 24
+        },
+        "to": {
+         "x": 56,
+         "y": 10
+        },
+        "kind": "carrera"
+       }
+      ],
+      "title": "Al espacio y dentro",
+      "note": "ALCIDES gana la espalda y la cruza."
+     }
+    ],
+    "moment": {
+     "matchId": "0a6f7a34-b43f-44a7-a898-4f9979ba9469",
+     "min": 31,
+     "eventId": "80b4561a-37c0-469c-a176-06e73abe20f0"
+    }
+   }
+  ],
+  "plan": {
+   "claves": [
+    "Presión alta los diez primeros minutos",
+    "Que no gire su 7: ADRIÁN encima",
+    "Centros atrás, nunca colgados"
+   ],
+   "viz": [
+    {
+     "icon": "spark",
+     "zona": "arriba"
+    },
+    {
+     "icon": "eye",
+     "zona": "su7"
+    },
+    {
+     "icon": "flag",
+     "zona": "bandas"
+    }
+   ],
+   "notes": "Si nos encierran, Plan B con dos arriba.",
+   "parado": {
+    "corners": {
+     "playId": "lib-corner",
+     "box": [
+      "uD4bun1wsuQ1rRnT3e1y",
+      "ug0kCzhcWNnLkKKHJS2U",
+      "cJq0czDKLWgqONMmbpw1"
+     ]
+    },
+    "freekicks": {
+     "playId": null,
+     "box": [
+      "uD4bun1wsuQ1rRnT3e1y",
+      "ug0kCzhcWNnLkKKHJS2U"
+     ]
+    },
+    "penalties": {
+     "rechace": [
+      "ug0kCzhcWNnLkKKHJS2U",
+      "cJq0czDKLWgqONMmbpw1"
+     ]
+    }
+   }
+  },
+  "rival": {
+   "formation": "2-3-1",
+   "players": [
+    {
+     "num": 1
+    },
+    {
+     "num": 4,
+     "note": "Lento al girarse"
+    },
+    {
+     "num": 5
+    },
+    {
+     "num": 7,
+     "note": "Su mejor jugador: no le dejéis girarse"
+    },
+    {
+     "num": 8,
+     "note": "Organiza todo"
+    },
+    {
+     "num": 11
+    },
+    {
+     "num": 9,
+     "note": "Rápido a la espalda"
+    }
+   ],
+   "visible": true,
+   "danger": 3
+  },
+  "condPlan": [
+   {
+    "id": "c1",
+    "when": "perdiendo",
+    "by": 1,
+    "from": 35,
+    "key": "mentality",
+    "value": "Ofensiva",
+    "sub": {
+     "out": "uD4bun1wsuQ1rRnT3e1y",
+     "in": "A78eliIFCgUf6ilqPhwD"
+    },
+    "ver": "planb"
+   }
+  ],
+  "sevenKey": "BYCDNklHZG7Zr6qm38ow,cJq0czDKLWgqONMmbpw1,fxawOUv5ztgjRl0bOhOZ,hoLC0Z34U7UGdNtD0k2X,uD4bun1wsuQ1rRnT3e1y,ug0kCzhcWNnLkKKHJS2U,wjggZhq9U449Hyh3NLyw",
+  "fanToken": "L2HcSjmTjigacMm2h-jcQYQJ",
+  "isOfficial": true,
+  "updatedAt": {
+   "__ts": "2026-11-02T01:55:39.913Z"
+  },
+  "sevenRev": 4
+ }
+}

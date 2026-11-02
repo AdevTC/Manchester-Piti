@@ -19,7 +19,7 @@ import { parseSeasonPlayRefs, withSeasonPlay } from "./seasonPlayRefs";
 import { boardToData, dataToLineupDoc, extractLineup, lineupToData } from "../lineupDoc";
 import { emptySlots } from "../formations";
 import { defaultTactics } from "../tactics";
-import { playToData } from "../plays";
+import { parsePlays, playToData } from "../plays";
 import type { Play } from "../../../lib/schemas";
 
 const seven = ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"];
@@ -253,6 +253,23 @@ describe("tableros: charla, copias de la mesa, jugadas de la temporada, afición
     expect(fanPath("abc")).toBe("/aficion/abc");
     expect(parseFanBoard({ v: 1, seven: [], system: "2-3-1", title: "J3" })).not.toBeNull();
     expect(parseFanBoard({ v: 2 })).toBeNull();
+  });
+});
+
+describe("los pasos de una jugada: duración, paso clave y dibujos (JUGADAS)", () => {
+  it("keeps dur, key and d; drops a broken one alone", () => {
+    const stroke = { id: "k1", kind: "carrera", color: "gold", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] };
+    const f = (over: object) => ({ players: {}, ball: { x: 50, y: 50 }, rivals: [], arrows: [], ...over });
+    const raw = { id: "j", name: "Córner", kind: "corner", frames: [f({ dur: 1200, key: true, d: [stroke, { id: "bad" }] }), f({ dur: 50, key: "si" })] };
+    const [p] = parsePlays([raw]);
+    expect(p.frames[0]).toMatchObject({ dur: 1200, key: true, d: [stroke] });
+    expect(p.frames[1].dur).toBeUndefined();
+    expect(p.frames[1].key).toBeUndefined();
+    const back = playToData(p) as { frames: Record<string, unknown>[] };
+    expect(back.frames[0]).toMatchObject({ dur: 1200, key: true, d: [stroke] });
+    expect(back.frames[1]).not.toHaveProperty("dur");
+    // an old play (no new fields) writes none of them
+    expect(playToData(parsePlays([{ ...raw, frames: [f({}), f({})] }])[0])).not.toHaveProperty("frames.0.dur");
   });
 });
 
