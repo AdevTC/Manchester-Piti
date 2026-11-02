@@ -118,26 +118,10 @@ test("pachanga: del entreno confirmado salen los equipos, Mezclar los cambia y e
   }
 });
 
-test.only("charla: empieza, pasa por todos los pasos hasta «¡Vamos, Piti!» y Esc vuelve al siete", async ({ page }) => {
+test("charla: empieza, pasa por todos los pasos hasta «¡Vamos, Piti!» y Esc vuelve al siete", async ({ page }) => {
   const board = "e2e-charla-tablero";
   await clearAdminBoards();
   await seedBoard(board, "E2E · La charla");
-  page.on("console", (m) => console.log("[DBG console]", m.type(), m.text().slice(0, 300)));
-  page.on("pageerror", (e) => console.log("[DBG pageerror]", e.message.slice(0, 500)));
-  page.on("framenavigated", (f) => f === page.mainFrame() && console.log("[DBG nav]", f.url()));
-  await enterVestuario(page);
-  await page.goto(pizarraUrl("/pizarra/siete", { tablero: board }));
-  for (let k = 0; k < 6; k++) {
-    await page.waitForTimeout(2500);
-    const r = await Promise.race([page.evaluate(() => document.querySelector(".pz-s")?.className + " | " + document.body.innerText.slice(0, 300)), new Promise((res) => setTimeout(() => res("HUNG"), 4000))]);
-    console.log("[DBG probe siete]", k, r);
-  }
-  await page.goto(pizarraUrl("/pizarra/charla", { tablero: board }));
-  for (let k = 0; k < 6; k++) {
-    await page.waitForTimeout(2500);
-    const r = await Promise.race([page.evaluate(() => document.querySelector(".pz-s")?.className + " | " + document.body.innerText.slice(0, 300)), new Promise((res) => setTimeout(() => res("HUNG"), 4000))]);
-    console.log("[DBG probe charla]", k, r);
-  }
   try {
     await enterPizarra(page, "/pizarra/charla", { tablero: board });
     await expect(page.getByRole("region", { name: "La charla: así va, antes de empezar" })).toBeVisible();
