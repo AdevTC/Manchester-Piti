@@ -3,7 +3,7 @@
 // PZ.act.pg*), what the pitch shows, and the training's answers as the starting «¿Quién ha venido?».
 import type { PzApi, PzSlice } from "../../store/api";
 import type { Layout, StageLabel, StageSpec, Token } from "../../store/types";
-import { sonar } from "../../sheets/ajustes/prefsLive";
+import { lessMotion, sonar } from "../../sheets/ajustes/prefsLive";
 import * as V from "./pachangaView";
 import { fmt } from "../../store/fmt";
 import type { PgN, PgState, PgWho, WhoFn } from "./pachangaView";
@@ -181,7 +181,7 @@ export function pgStage(P: PzApi, layout: Layout): StageSpec {
       tokens.push({ id: "pg-" + id, kind: "us", ...(known ? { pid: id } : {}), x: ((k + 1) * 100) / (shown.length + 1), y: 50, label: w(id).shirt });
     });
     const need = 2 * st.n - st.comes.length;
-    return { source: "pachanga", tokens, labels, tappable: false, overlay: null, caption: st.comes.length ? `Faltan ${need} para hacer ${st.n} equipos` : "Marca quién ha venido", glideMs: 600 };
+    return { source: "pachanga", tokens, labels, tappable: false, overlay: null, caption: st.comes.length ? `Faltan ${need} para hacer ${st.n} equipos` : "Marca quién ha venido", glideMs: lessMotion(P) ? 0 : 600 };
   }
   const play = st.n === 3 ? st.playing : [0, 1];
   const stats = V.teamStats(w, st);
@@ -197,7 +197,7 @@ export function pgStage(P: PzApi, layout: Layout): StageSpec {
     });
     labels.push({ x: 3, y: top ? 2.6 : 97.4, t: V.PG_NAMES[st.n][t] + (layout === "phone" ? "" : " · " + stats[t].media), align: "left", pat });
   });
-  return { source: "pachanga", tokens, labels, tappable: true, overlay: null, caption: "", glideMs: 650 };
+  return { source: "pachanga", tokens, labels, tappable: true, overlay: null, caption: "", glideMs: lessMotion(P) ? 0 : 650 };
 }
 
 /** The places bar's sublabel. */
