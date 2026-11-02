@@ -276,7 +276,7 @@ export function Gallery({ tb, layout, split = false }: { tb: Tb; layout: Layout;
         <label className="vd-glass pb-search">
           <PzIcon name="search" />
           <span className="pz-vh">Buscar tableros</span>
-          <input type="search" placeholder="Nombre, rival o etiqueta" value={U.q} onChange={(e) => pb.set({ q: e.target.value })} />
+          <input type="search" placeholder={phone ? "Nombre, rival…" : "Nombre, rival o etiqueta"} value={U.q} onChange={(e) => pb.set({ q: e.target.value })} />
         </label>
         <select className="vd-glass pb-sel" aria-label="Ordenar los tableros" value={U.orden} onChange={(e) => pb.set({ orden: e.target.value as Orden })}>
           {(
