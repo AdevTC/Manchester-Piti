@@ -16,18 +16,30 @@ import { setConvocatoria } from "../../../lib/clubApi";
 import { useLineups } from "../useLineups";
 import { useReactions } from "../useReactions";
 import { usePizarraPrefs } from "../data/prefs";
-import { useBoardData } from "../v2/useBoardData";
+import { boardSeason, useBoardData } from "../v2/useBoardData";
+import { useSeasonLineupDocs } from "../seasonLineups";
+import { useAbsences, useAvailability } from "../../vestuario/live";
+import { madridDate } from "../../../lib/derived/absences";
+import { isCompleted } from "../../../lib/clubData";
 import { useBoardSession } from "../v2/useBoardSession";
 import { useConvocatoria } from "../v2/useConvocatoria";
 import { matchShort, officialFor, withConvocatoria } from "../v2/boards";
 import { createPzStore, type PzStore } from "./store/store";
 import { PzProvider } from "./store/PzProvider";
 import { parsePizarra } from "./store/routes";
-import { buildWorld, pizarraSeason } from "./store/world";
+import { buildWorld, pizarraSeason, playedAtOf } from "./store/world";
 import { useLayout } from "./shell/useLayout";
 import { Shell } from "./shell/Shell";
 import "./places";
 import "./sheets";
+
+/** Why the boards could not be read, in a sentence (the error state shows it). */
+function errorWords(e: unknown): string {
+  const code = typeof e === "object" && e && "code" in e ? String((e as { code: unknown }).code) : "";
+  if (code === "permission-denied") return "La pizarra no te deja leer los tableros de esta temporada (permiso denegado). Tus tableros siguen guardados.";
+  if (code === "unavailable" || code === "deadline-exceeded") return "Sin conexión con el club. No es que no tengas: tus tableros siguen guardados en el servidor.";
+  return "No se han podido leer los tableros" + (code ? ` (${code})` : "") + ". Siguen guardados en el servidor.";
+}
 
 export function PizarraR14() {
   const { user, profile } = useAuth();
@@ -55,6 +67,18 @@ export function PizarraR14() {
   const linked = data.calendar.find((c) => c.id === session.matchId) ?? null;
   const m = linked ?? data.next;
   const conv = useConvocatoria(m?.id ?? null);
+  // (the same shared listeners the vestuario opens: the answers an absence wrote, the team's absences)
+  const answers = useAvailability(m?.id);
+  const byAbsence = useMemo(() => new Set(answers.data.filter((a) => a.absenceId !== undefined && a.playerId).map((a) => a.playerId as string)), [answers.data]);
+  const absences = useAbsences(madridDate(now), !!member);
+  // the season's finished matches: minutes per puesto (the actas) and the board's match's guests
+  const games = useMemo(() => boardSeason(matches, seasonId).filter((g) => isCompleted(g)), [matches, seasonId]);
+  const playedAt = useMemo(() => playedAtOf(data.squadIds, games), [data.squadIds, games]);
+  const guests = useMemo(() => matches.find((g) => g.id === m?.id)?.guests ?? [], [matches, m?.id]);
+  // the boards could not be read (rules, network): useLineups keeps it to itself, the shared query says it
+  const adminUid = isAdmin ? (user?.uid ?? null) : null;
+  const docsQ = useSeasonLineupDocs(seasonId, !!seasonId, adminUid);
+  const readError = docsQ.error ? errorWords(docsQ.error) : "";
   const squad = useMemo(() => withConvocatoria(data.squad, conv.conv), [data.squad, conv.conv]);
   const official = session.official ? (lineups.official.find((d) => d.id === session.id) ?? null) : officialFor(session.officials, m?.id ?? null);
   const reactions = useReactions(official ? { id: official.id, isOfficial: official.isOfficial, sevenRev: official.sevenRev } : null);
@@ -123,6 +147,10 @@ export function PizarraR14() {
       docs: lineups.all,
       session: { id: session.id, name: session.name, lineup: session.lineup, uid: user?.uid ?? "", nick: profile?.nickname ?? "", matchId: session.matchId, official: session.official },
       official,
+      playedAt,
+      guests,
+      absences: absences.data,
+      byAbsence,
     });
     const pid = profile?.playerId ?? null;
     const inside = !!member && !!profile;
@@ -130,12 +158,13 @@ export function PizarraR14() {
       W,
       me: { uid: user?.uid ?? "", name: profile?.nickname ?? "", nick: profile?.nickname ?? "", label: profile?.nickname ?? "", pid, cap: isAdmin, general: profile?.role === "superadmin", socia: inside && !pid, jugador: inside && !!pid && !isAdmin, fuera: !inside, member: inside },
       boardId: session.id ?? "nuevo",
-      estado: !session.ready || data.loading ? "cargando" : !online ? "offline" : "normal",
+      estado: readError ? "error" : !session.ready || data.loading ? "cargando" : !online ? "offline" : "normal",
+      error: readError,
       saveStatus: session.status,
       saved: session.savedAt,
       reactions: official ? { ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, ...(reactions.who ? { who: reactions.who } : {}) } : undefined,
     });
-  }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, lineups.all, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
+  }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, lineups.all, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, prefs.prefs, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
 
   // what changed under the board (another tab, a new official, a failed save) is said
   useEffect(() => {

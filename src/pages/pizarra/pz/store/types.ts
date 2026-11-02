@@ -181,8 +181,11 @@ export interface PzWorld {
   boards: PzBoard[];
   /** The official of the board's match / the season (null = none). */
   official: { boardId: string; matchId: string | null } | null;
-  /** The answers of the board's match («Voy», «Duda», «No va»), by player id. */
+  /** The answers of the board's match («Voy», «Duda», «No va»), by player id (`why`: an answer written by an
+   *  absence says so). */
   rsvp: Record<string, { v: "yes" | "maybe" | "no"; why?: string; at?: number }>;
+  /** The team's absences still to come or under way («no puedo del 12 al 19»), by player (YYYY-MM-DD, Madrid). */
+  absences: { pid: string; from: string; to: string; note: string }[];
   /** Minutes two players were on the pitch together this season (pairKey a|b). */
   together: (a: string, b: string) => number;
   /** Matches the team has finished this season. */
