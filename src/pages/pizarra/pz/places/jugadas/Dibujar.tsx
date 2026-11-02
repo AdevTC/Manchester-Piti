@@ -400,8 +400,17 @@ export function Dibujar({ layout }: RegionProps) {
   let dockL = {};
   let dockR = {};
   let listSt = {};
+  // (a tablet's stage is about one pitch wide: no room beside it, so the docks go in rows — the colours above the
+  // pitch, the tools under it — instead of standing on the wings, over the men)
+  const narrow = !phone && !!g && g.x - 12 < 82 && g.w - (g.x + g.pw) - 12 < 82;
+  const rowDocks = phone || narrow;
   if (g) {
-    if (phone) {
+    if (narrow) {
+      const below = g.y + g.ph + 8;
+      dockR = { left: 8, right: 8, top: Math.round(Math.max(4, g.y - 58)) };
+      dockL = below + 58 <= g.h ? { left: 8, right: 8, top: Math.round(below) } : { left: 8, right: 8, bottom: 8 };
+      listSt = { left: 8, right: 8, top: Math.round(Math.max(8, g.y)), width: "auto", maxHeight: "calc(100% - 130px)" };
+    } else if (phone) {
       dockL = { left: 6, right: 6, bottom: 8 };
       dockR = { left: 6, right: 6, bottom: 62 };
       listSt = { left: 8, right: 8, top: 8, width: "auto", maxHeight: "calc(100% - 130px)" };
@@ -534,7 +543,7 @@ export function Dibujar({ layout }: RegionProps) {
           {!ro && (
             <>
               {tools.length > 0 && (
-                <div className={`vd-glass pd-dock${phone ? " is-row" : ""}`} style={dockL} role="toolbar" aria-label="Herramientas de dibujo" aria-orientation={phone ? "horizontal" : "vertical"}>
+                <div className={`vd-glass pd-dock${rowDocks ? " is-row" : ""}`} style={dockL} role="toolbar" aria-label="Herramientas de dibujo" aria-orientation={rowDocks ? "horizontal" : "vertical"}>
                   {tools.map(([id, t, help]) => (
                     <ToolBtn key={id} id={id} t={t} help={help} on={tool === id} pick={() => {
                         set(m === "jugada" ? { jtool: id, mark: null, text: null } : { tool: id, picks: [], text: null });
@@ -547,7 +556,7 @@ export function Dibujar({ layout }: RegionProps) {
                   ))}
                 </div>
               )}
-              <div className={`vd-glass pd-dock${phone ? " is-row" : ""}`} style={dockR} role="toolbar" aria-label="Color, deshacer y listo" aria-orientation={phone ? "horizontal" : "vertical"}>
+              <div className={`vd-glass pd-dock${rowDocks ? " is-row" : ""}`} style={dockR} role="toolbar" aria-label="Color, deshacer y listo" aria-orientation={rowDocks ? "horizontal" : "vertical"}>
                 {COLORS.map(([c, t, hex]) => (
                     <button
                       key={c}
