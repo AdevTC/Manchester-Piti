@@ -3,7 +3,6 @@
 // comes on, best fits first; written in the acta like «Hacer el cambio»).
 import { useState } from "react";
 import { usePz } from "../../store/context";
-import type { SheetProps } from "../../store/types";
 import { PzIcon } from "../../campo/Shirt";
 import { fmt } from "../../store/fmt";
 import "../../../../../styles/pz/partido.css";
@@ -13,7 +12,7 @@ import { PtShirt } from "./Partido";
 
 const Ic = ({ n }: { n: string }) => <PzIcon name={n} />;
 
-export function MesaSheet(_: SheetProps) {
+export function MesaSheet() {
   const P = usePz();
   const X = model(P);
   const M = X.M;
@@ -147,7 +146,7 @@ export function MesaSheet(_: SheetProps) {
   );
 }
 
-export function OtroSheet(_: SheetProps) {
+export function OtroSheet() {
   const P = usePz();
   const X = model(P);
   const [pick, setPick] = useState<{ out: string | null; in: string | null }>({ out: null, in: null });

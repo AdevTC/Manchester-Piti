@@ -17,7 +17,7 @@ import { FEED } from "./state";
 type Raw = ClubMatch & { lineup?: unknown; present?: unknown };
 
 /** The raw match → the feed (pure; exported for the tests). */
-export function feedFrom(raw: Raw | null, o: { matchId: string; tick: number; scorer: boolean; quedada: PtFeed["quedada"]; meetingNote: string; weather: PtFeed["weather"] }): PtFeed {
+function feedFrom(raw: Raw | null, o: { matchId: string; tick: number; scorer: boolean; quedada: PtFeed["quedada"]; meetingNote: string; weather: PtFeed["weather"] }): PtFeed {
   if (!raw) return { ...EMPTY_FEED, matchId: o.matchId, scorer: o.scorer, quedada: o.quedada, meetingNote: o.meetingNote, weather: o.weather };
   const l = parseMatchLineup(raw.lineup);
   const c = raw.clock;

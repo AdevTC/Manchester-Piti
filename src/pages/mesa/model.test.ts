@@ -223,6 +223,7 @@ describe("r14 · la pizarra llega a la mesa: «Si pasa…» y el lanzador de pen
     expect(penaltyNow([pen], ["pablo", "mario"], ["mario", "alex"])).toBe("mario");
     expect(penaltyNow([pen], ["pablo"], ["mario"])).toBeNull();
     expect(penaltyNow([pen, { id: "g", type: "goal_penalty", minute: 21, elapsedSeconds: 1210, period: 1 }], ["mario"], ["mario"])).toBeNull();
-    expect(penaltyNow([{ id: "y", type: "yellow_card", minute: 22, elapsedSeconds: 1300, period: 1 }, pen], ["mario"], ["mario"])).toBe("mario");
+    expect(penaltyNow([{ id: "y", type: "yellow_card", minute: 18, elapsedSeconds: 1050, period: 1 }, pen], ["mario"], ["mario"])).toBe("mario");
+    expect(penaltyNow([pen, { id: "y2", type: "yellow_card", minute: 22, elapsedSeconds: 1300, period: 1 }], ["mario"], ["mario"])).toBeNull();
   });
 });
