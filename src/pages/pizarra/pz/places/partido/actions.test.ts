@@ -4,6 +4,7 @@ import type { MatchEvent } from "../../../../../lib/clubData";
 import { fakeBoard, fakeLineup, fakeWorld, makeTestStore, ME_CAPTAIN, ME_PLAYER } from "../../store/testkit";
 import type { PzMatch } from "../../store/types";
 import { EMPTY_FEED, type PtFeed } from "./partidoView";
+import { matchAt } from "./testMatch";
 
 const addSubs = vi.fn(async () => ({ data: { events: 1 } }));
 const mesaEvent = vi.fn(async () => ({ data: { events: 0 } }));
@@ -21,7 +22,7 @@ function store(phase: PzMatch["phase"], o: { me?: typeof ME_CAPTAIN; ids?: (stri
   const W = fakeWorld();
   const L = { ...fakeLineup("3-2-1", o.ids ?? SEVEN), subs: [{ id: "s1", min: 25, out: "eguzquiza", in: "kevin" }] };
   if (o.variants) Object.assign(L, { variants: o.variants });
-  const h = makeTestStore({ world: { ...W, matches: [{ ...W.matches[0], phase }], boards: [fakeBoard({ isOfficial: true, lineup: L })], official: { boardId: "b1", matchId: "j3" }, rsvp: { kevin: { v: "yes" }, josito: { v: "yes" } } }, place: "partido", me: o.me ?? ME_CAPTAIN });
+  const h = makeTestStore({ world: { ...W, matches: [matchAt(W, phase)], boards: [fakeBoard({ isOfficial: true, lineup: L })], official: { boardId: "b1", matchId: "j3" }, rsvp: { kevin: { v: "yes" }, josito: { v: "yes" } } }, place: "partido", me: o.me ?? ME_CAPTAIN });
   return h;
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
