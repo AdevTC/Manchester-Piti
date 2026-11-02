@@ -314,9 +314,12 @@ export function PiCampo(props: PiCampoProps) {
   const plateOf = (shirt: string) => (shortPlates ? shirt.split(/[ .]/)[0] : shirt);
   const ours = [
     ...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, label: s.p ? plateOf(s.p.shirt) : s.code, tagged: !!s.ring })),
-    ...view.tokens.filter((o) => o.kind !== "rival" && o.kind !== "ghost" && (o.pid || o.kind === "us")).map((o) => ({ x: o.x, y: o.y, label: o.label ?? "", tagged: !!(o.tag || o.ring) })),
+    // (a token's plate stands over its shirt in Grada / Foco: campo.css)
+    ...view.tokens.filter((o) => o.kind !== "rival" && o.kind !== "ghost" && (o.pid || o.kind === "us")).map((o) => ({ x: o.x, y: o.y, label: o.label ?? "", tagged: !!(o.tag || o.ring), above: !flat })),
   ];
-  const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw, G.ph, G.s);
+  // (a flat zoom scales the plane but keeps the people's size: measured against the zoomed plane)
+  const zk = T.zs > 0 ? 1 / T.zs : 1;
+  const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw * zk, G.ph * zk, G.s, Math.cos(((RX_OF[cam] ?? 0) * Math.PI) / 180));
   const others = [...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, id: `s${s.i}` })), ...tokens.filter((o) => o.pid || o.kind === "us").map((o) => ({ x: o.x, y: o.y, id: o.id }))];
   const tokenModel = (t: Token) => {
     const pl = t.pid ? P.sel.player(t.pid) : null;

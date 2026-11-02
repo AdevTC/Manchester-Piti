@@ -179,25 +179,42 @@ const hits = (a: Box, b: Box) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.
  * The rival discs moved off our shirts and plates, in pixels (display only: the data keeps its spot). A shirt with
  * its plate is as wide as its name; a disc is its dorsal plus the code under it. Each disc takes the nearest free spot
  * around its own (12 directions, growing rings), inside the lines, never on another disc.
+ * `cos` is the plane's tilt on screen (Grada/Foco: cos of the tilt): the pitch's depth is foreshortened while the
+ * people, their plates and the discs stand up at full size, so the boxes are measured in screen pixels. `above`: that
+ * shirt's plate sits over it (the tokens' plates in Grada/Foco), not under it.
  */
 export function dodgeRivals<T extends { id: string; kind: string; x: number; y: number; code?: string; label?: string; tag?: string; ring?: string }>(
   tokens: readonly T[],
-  ours: readonly { x: number; y: number; label: string; tagged?: boolean }[],
+  ours: readonly { x: number; y: number; label: string; tagged?: boolean; above?: boolean }[],
   pw: number,
   ph: number,
   s: number,
+  cos = 1,
 ): T[] {
   // (the rival's discs and the ghost of who comes on — «Entra 25′» — both give way to the seven)
   const movable = (t: T) => t.kind === "rival" || t.kind === "ghost";
   if (!tokens.some(movable) || pw <= 0 || ph <= 0) return tokens.slice();
+  const tilted = cos > 0 && cos < 0.999;
+  // (the plane's height on screen: y in px below is screen px, x is the same in both)
+  const sh = tilted ? ph * cos : ph;
   const font = Math.max(12, Math.min(15, s * 0.215));
-  const blocked: Box[] = ours.map((o) => {
-    const cx = (o.x / 100) * pw;
-    const cy = (o.y / 100) * ph;
-    const half = Math.max(s * 0.55, (o.label.length * font * 0.62 + 16) / 2);
-    return { l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 + (o.tagged ? font + 10 : 0) };
-  });
-  const r = Math.max(14, s * 0.31) + 3;
+  // a shirt (anchored at 62 % of its man: shirt, plate, tag): its plate under it, or over it when `above`
+  const manBox = (cx: number, cy: number, label: string, tagged: boolean, above: boolean): Box => {
+    const half = Math.max(s * 0.55, (label.length * font * 0.62 + 16) / 2);
+    const tag = tagged ? font + 10 : 0;
+    if (above) {
+      const H = s * 1.327 + 2 + font + 10 + tag;
+      return { l: cx - half, r: cx + half, t: cy - 0.62 * H, b: cy + 0.38 * H };
+    }
+    return { l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 + tag };
+  };
+  const blocked: Box[] = ours.map((o) => manBox((o.x / 100) * pw, (o.y / 100) * sh, o.label, !!o.tagged, !!o.above));
+  // a disc (its dorsal, the code under it) stands on its point at 70 % of its height (campo.css .pz-c__riv)
+  const D = Math.max(28, s * 0.62);
+  const r = D / 2 + 3;
+  const discBox = (cx: number, cy: number, code: number): Box => ({ l: cx - r, r: cx + r, t: cy - 0.7 * (D + code) - 3, b: cy + 0.3 * (D + code) + 3 });
+  // inside the lines: the whole box on the flat board; the foot on a tilted one (a far man stands over the far line)
+  const inside = (b: Box, cy: number) => b.l >= 2 && b.r <= pw - 2 && b.b <= sh - 2 && (tilted ? cy >= 2 : b.t >= 2);
   const out: T[] = [];
   for (const t of tokens) {
     if (!movable(t)) {
@@ -208,14 +225,13 @@ export function dodgeRivals<T extends { id: string; kind: string; x: number; y: 
       // a ghost shirt: its plate and tag, like ours; it keeps its row and moves along it (then off it)
       const label = t.label ?? "";
       const half = Math.max(s * 0.55, (label.length * font * 0.62 + 16) / 2);
-      const tag = t.tag || t.ring ? font + 10 : 0;
-      const gBox = (cx: number, cy: number): Box => ({ l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 + tag });
+      const gBox = (cx: number, cy: number): Box => manBox(cx, cy, label, !!(t.tag || t.ring), tilted);
       const okG = (cx: number, cy: number) => {
         const b = gBox(cx, cy);
-        return b.l >= 0 && b.r <= pw && b.t >= 0 && b.b <= ph && !blocked.some((o) => hits(o, b));
+        return b.l >= 0 && b.r <= pw && b.b <= sh && (tilted ? cy >= 0 : b.t >= 0) && !blocked.some((o) => hits(o, b));
       };
       const gx = (t.x / 100) * pw;
-      const gy = (t.y / 100) * ph;
+      const gy = (t.y / 100) * sh;
       let spot: [number, number] | null = okG(gx, gy) ? [gx, gy] : null;
       for (let k = 1; !spot && k <= 16; k++) {
         for (const [dx, dy] of [
@@ -234,17 +250,16 @@ export function dodgeRivals<T extends { id: string; kind: string; x: number; y: 
       }
       const [sx, sy] = spot ?? [Math.max(half, Math.min(pw - half, gx)), gy];
       blocked.push(gBox(sx, sy));
-      out.push({ ...t, x: round2((sx / pw) * 100), y: round2((sy / ph) * 100) });
+      out.push({ ...t, x: round2((sx / pw) * 100), y: round2((sy / sh) * 100) });
       continue;
     }
     const x0 = (t.x / 100) * pw;
-    const y0 = (t.y / 100) * ph;
+    const y0 = (t.y / 100) * sh;
     // with its code under it first; on a crowded small pitch, the disc alone (the dorsal stays, the legend names them)
     const search = (code: number): [number, number] | null => {
-      const boxAt = (cx: number, cy: number): Box => ({ l: cx - r, r: cx + r, t: cy - r * 1.5, b: cy + r * 0.5 + code });
       const ok = (cx: number, cy: number) => {
-        const b = boxAt(cx, cy);
-        return b.l >= 2 && b.r <= pw - 2 && b.t >= 2 && b.b <= ph - 2 && !blocked.some((o) => hits(o, b));
+        const b = discBox(cx, cy, code);
+        return inside(b, cy) && !blocked.some((o) => hits(o, b));
       };
       if (ok(x0, y0)) return [x0, y0];
       for (let ring = 1; ring <= 12; ring++) {
@@ -266,9 +281,9 @@ export function dodgeRivals<T extends { id: string; kind: string; x: number; y: 
       best = search(0);
     }
     // nowhere free: at least inside the lines
-    const [bx, by] = best ?? [Math.max(r + 2, Math.min(pw - r - 2, x0)), Math.max(r * 1.5 + 2, Math.min(ph - r - code - 2, y0))];
-    blocked.push({ l: bx - r, r: bx + r, t: by - r * 1.5, b: by + r * 0.5 + code });
-    out.push({ ...t, x: round2((bx / pw) * 100), y: round2((by / ph) * 100), ...(code === withCode ? {} : { code: "" }) });
+    const [bx, by] = best ?? [Math.max(r + 2, Math.min(pw - r - 2, x0)), Math.max(tilted ? 2 : 0.7 * (D + code) + 5, Math.min(sh - 0.3 * (D + code) - 5, y0))];
+    blocked.push(discBox(bx, by, code));
+    out.push({ ...t, x: round2((bx / pw) * 100), y: round2((by / sh) * 100), ...(code === withCode ? {} : { code: "" }) });
   }
   return out;
 }
