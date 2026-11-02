@@ -264,12 +264,14 @@
 .pz .pb-src>.pz-mini,.pz .pb-src>.pb-mini0{flex:none}
 .pz .pb-gal{display:grid;min-width:0}
 /* the minis: a touch taller, so the printed shirts read (the prototype's were faint) */
-.pz .pb-card__pitch{height:168px}
-.pz .pb-feat .pb-card__pitch{height:232px}
-.pz.pz-s--xl .pb-card__pitch{height:190px}
-.pz.pz-s--xl .pb-grid{grid-template-columns:repeat(auto-fill,minmax(228px,1fr))}
-.pz.pz-l-phone .pb-card__pitch{height:132px}
-.pz.pz-l-phone .pb-feat .pb-card__pitch{height:170px}
+/* (the pitch's plane must reach 150 px wide for the printed shirts: below that the mini draws numbered discs) */
+.pz .pb-card__pitch{height:226px}
+.pz .pb-feat .pb-card__pitch{height:240px}
+.pz.pz-s--xl .pb-card__pitch{height:244px}
+.pz.pz-s--xl .pb-grid{grid-template-columns:repeat(auto-fill,minmax(236px,1fr))}
+.pz.pz-l-phone .pb-card__pitch{height:150px}
+.pz.pz-l-phone .pb-feat .pb-card__pitch{height:228px}
+.pz .pb-ver__p{height:112px}
 .pz .pb-card__pitch>.pz-c,.pz .pb-ver__p>.pz-c{position:absolute;inset:0}
 .pz .pb-card__acts .pz-btn{flex:1 1 auto}
 .pz .pb-feat__acts .pz-btn{flex:0 1 auto}
