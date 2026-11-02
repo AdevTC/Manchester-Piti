@@ -1,5 +1,5 @@
 // r14 «La pizarra» · the «Compartir» sheet (?hoja=compartir). Owned by the CHARLA agent.
-import { lazy } from "react";
+import { lazyPart } from "../../store/lazyPart";
 import { registerSheet } from "../../store/registry";
 
 registerSheet("compartir", {
@@ -8,5 +8,5 @@ registerSheet("compartir", {
     const b = P.sel.board();
     return "El estudio" + (b ? " · " + b.name : "");
   },
-  Component: lazy(() => import("./Compartir").then((m) => ({ default: m.CompartirSheet }))),
+  Component: lazyPart(() => import("./Compartir").then((m) => m.CompartirSheet)),
 });

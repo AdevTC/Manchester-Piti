@@ -1,6 +1,6 @@
 // r14 «La pizarra» · the «Mover a…» sheet (?hoja=mover&jugador=<pid>): the alternative to dragging. Owned by the
 // SIETE agent.
-import { lazy } from "react";
+import { lazyPart } from "../../store/lazyPart";
 import { registerSheet } from "../../store/registry";
 import { sieteApi } from "../../places/siete/sieteApi";
 
@@ -11,5 +11,5 @@ registerSheet("mover", {
     return P && pid ? "Mover a " + P.sel.name(pid) : "Mover a…";
   },
   kicker: "Sin arrastrar",
-  Component: lazy(() => import("./Mover").then((m) => ({ default: m.MoverSheet }))),
+  Component: lazyPart(() => import("./Mover").then((m) => m.MoverSheet)),
 });

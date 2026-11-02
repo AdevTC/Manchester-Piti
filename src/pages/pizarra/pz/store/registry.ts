@@ -4,6 +4,7 @@
 import type { ComponentType, LazyExoticComponent } from "react";
 import type { PzApi } from "./api";
 import type { OverlayPath, PlaceBadge, PlaceId, PrimaryAction, RegionProps, SheetProps } from "./types";
+import { partPreload } from "./lazyPart";
 
 /** A sheet's frame text: a string, or a function of its args and the store (the title can read the board). */
 export type SheetText = string | ((args: Record<string, unknown>, P: PzApi) => string);
@@ -58,6 +59,17 @@ export function registerTool(name: "dibujar", C: Comp<RegionProps>): void {
   changed();
 }
 export const toolReg = (name: "dibujar"): Comp<RegionProps> | undefined => tools[name];
+
+/** Fetches a place's regions ahead of the visit (null: already here, or nothing to fetch). */
+export const preloadPlace = (id: PlaceId | "perdido"): Promise<void> | null => (id === "perdido" ? null : partPreload(places[id]?.Component));
+/** Fetches every place, sheet and tool not loaded yet, one after another (the pizarra calls it when idle). */
+export async function preloadParts(order: PlaceId[] = []): Promise<void> {
+  const parts = [...order.map((id) => places[id]?.Component), ...Object.values(places).map((r) => r?.Component), ...Object.values(sheets).map((r) => r.Component), ...Object.values(tools)];
+  for (const C of parts) {
+    const p = partPreload(C);
+    if (p) await p.catch(() => undefined);
+  }
+}
 
 /** How a board's stored stroke is drawn on the pitch (Dibujar registers it; the default draws its kind and points). */
 type DrawingRenderer = (stroke: unknown) => OverlayPath | null;
