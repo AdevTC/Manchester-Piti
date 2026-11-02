@@ -121,13 +121,13 @@ export function Dibujar({ layout }: RegionProps) {
   }, [m]);
   useEffect(() => {
     if (m !== "siete" || !paths) return;
-    P.act.setStage({ overlay: { paths }, drawings: true });
+    P.act.setStage({ overlay: { paths }, drawings: true, ...(phone ? { chrome: false } : {}) });
     // oxlint-disable-next-line react/exhaustive-deps -- the key says when the strokes changed
   }, [m, pathsKey]);
   useEffect(
     () => () => {
       // leaving: the Siete draws the board's strokes again by itself
-      if (P.state.route.place === "siete") P.act.setStage({ overlay: null });
+      if (P.state.route.place === "siete") P.act.setStage({ overlay: null, chrome: true });
     },
     // oxlint-disable-next-line react/exhaustive-deps -- only on unmount
     [],
@@ -385,8 +385,8 @@ export function Dibujar({ layout }: RegionProps) {
   if (g) {
     if (phone) {
       dockL = { left: 6, right: 6, bottom: 8 };
-      dockR = { left: 6, right: 6, top: 6 };
-      listSt = { left: 8, right: 8, top: 66, width: "auto", maxHeight: "calc(100% - 140px)" };
+      dockR = { left: 6, right: 6, bottom: 62 };
+      listSt = { left: 8, right: 8, top: 8, width: "auto", maxHeight: "calc(100% - 130px)" };
     } else {
       const room = g.x - 12;
       const lx = room >= 82 ? Math.max(8, g.x - 86) : 8;

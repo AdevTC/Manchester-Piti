@@ -256,3 +256,8 @@
 .pz .pd.is-phone .pd-t .pd-n{font-size:11.5px}
 .pz .pd.is-phone .pd-t.is-pri{order:-1;min-width:76px;font-size:13px;gap:4px;grid-auto-flow:column}
 @media (prefers-reduced-motion:reduce){.pz .pj *,.pz .pd *{transition:none!important;animation:none!important}}
+/* the phone rows fit 360 without scrolling: narrower swatches and tools */
+.pz .pd.is-phone .pd-sw{min-width:38px}
+.pz .pd.is-phone .pd-t{min-width:42px}
+.pz .pd.is-phone .pd-t.is-pri{min-width:64px}
+.pz .pd.is-phone .pd-dock.is-row .pd-sep{margin:6px 2px}
