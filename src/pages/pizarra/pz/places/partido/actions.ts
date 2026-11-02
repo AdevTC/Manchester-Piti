@@ -13,7 +13,7 @@ import type { PzApi } from "../../store/api";
 import { fmt } from "../../store/fmt";
 import type { PlaceBadge, PrimaryAction } from "../../store/types";
 import { feedOf, setUi, uiOf } from "./state";
-import { descPairs, intervals, mesaState, phaseOf, playedOf, ptMatch, ptModel, total, type PtModel } from "./partidoView";
+import { descPairs, intervals, liveLine, mesaState, phaseOf, playedOf, ptMatch, ptModel, total, type PtModel } from "./partidoView";
 
 export const model = (P: PzApi): PtModel => ptModel(P, feedOf(P), uiOf(P));
 const N = (P: PzApi, id: string | null | undefined) => (id ? P.sel.name(id) : "—");
@@ -230,21 +230,43 @@ export function primaryOf(P: PzApi): PrimaryAction | null {
   return null;
 }
 
+/** Only while la mesa's clock says it is live (running, held or at half-time): the minute and the score, compact
+ *  («24′ 2–1», «2–1» at half-time) so the phone header keeps the board's name whole. Read from the calendar row, not
+ *  from the place's feed, so it is right on every place. */
 export function badgeOf(P: PzApi): PlaceBadge | null {
-  const X = model(P);
-  if (!X.L) return null;
-  if (X.ph === "juego") return { t: X.now + "′ · " + X.L.gf + "–" + X.L.ga, word: "En juego", live: true };
-  if (X.ph === "descanso") return { t: X.L.gf + "–" + X.L.ga, word: "Descanso", live: false };
-  return null;
+  const M = ptMatch(P);
+  if (!M) return null;
+  const now = P.state.W.now;
+  const ph = phaseOf(M, now);
+  if (ph !== "juego" && ph !== "descanso") return null;
+  const l = liveLine(M, now);
+  if (ph === "descanso") return { t: l.gf + "–" + l.ga, word: "Descanso", live: false };
+  return { t: (l.min != null ? l.min + "′ " : "") + l.gf + "–" + l.ga, word: "En juego", live: true };
 }
 
+/** The places bar's sublabel: «Hoy 18:00» / «dom 18:00» before, «En juego 24′» / «Descanso» live, «Jugado · 3–2». */
 export function subOf(P: PzApi): string {
   const M = ptMatch(P);
   if (!M) return "Sin partido";
-  const ph = phaseOf(M);
-  if (ph === "juego") return "En juego " + model(P).now + "′";
+  const now = P.state.W.now;
+  const ph = phaseOf(M, now);
+  if (ph === "juego") {
+    const l = liveLine(M, now);
+    return "En juego" + (l.min != null ? " " + l.min + "′" : "");
+  }
   if (ph === "descanso") return "Descanso";
-  if (ph === "despues") return "Jugado " + (M.gf != null && M.ga != null ? M.gf + "–" + M.ga : "");
-  const d = M.at - P.state.W.now;
-  return d > 0 && d < 12 * 3600000 ? "Hoy " + fmt.hm(M.at) : fmt.day(M.at).split(" ")[0] + " " + fmt.hm(M.at);
+  if (ph === "despues") {
+    const l = M.gf != null && M.ga != null ? { gf: M.gf, ga: M.ga } : liveLine(M, now);
+    return "Jugado · " + l.gf + "–" + l.ga;
+  }
+  const d = M.at - now;
+  return d > 0 && d < 12 * 3600000 && fmt.day(M.at) === fmt.day(now) ? "Hoy " + fmt.hm(M.at) : fmt.day(M.at).split(" ")[0] + " " + fmt.hm(M.at);
+}
+
+/** The phone sheet's resting height (MARCO § 12): the one-row summary (ring · who · button) fits 150 px in every
+ *  phase; while live, the confirm («Sí, apuntar» / «No») sits under it, so a little more. */
+export function peekOf(P: PzApi): number {
+  const M = ptMatch(P);
+  const ph = phaseOf(M, P.state.W.now);
+  return ph === "juego" || ph === "descanso" ? 176 : 150;
 }
