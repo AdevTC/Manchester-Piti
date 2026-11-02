@@ -1664,13 +1664,13 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     },
     inputs: () => inputs,
   };
-  /** A board change keeps what the place set that is not about the board (its source, the camera). */
   /** Two stage specs with the same keys and the same values (by identity). */
   function sameSpec(a: StageSpec, b: StageSpec): boolean {
     const ka = Object.keys(a) as (keyof StageSpec)[];
     if (ka.length !== Object.keys(b).length) return false;
     return ka.every((k) => k in b && Object.is(a[k], b[k]));
   }
+  /** A board change keeps what the place set that is not about the board (its source, the camera). */
   function pickPlaceStage(s: StageSpec): StageSpec {
     const out: StageSpec = {};
     if (s.source) out.source = s.source;
