@@ -12,7 +12,7 @@ vi.mock("../../../data/boards", async (orig) => ({ ...(await orig<typeof import(
 import { fakeBoard, fakeWorld, makeTestStore, ME_CAPTAIN, ME_PLAYER } from "../../store/testkit";
 import type { LineupDoc } from "../../../lineupDoc";
 import type { PzMatch, PzWorld } from "../../store/types";
-import { makeOps } from "./ops";
+import { looksLikeMesa, makeOps } from "./ops";
 import { pb } from "./pb";
 
 const docOf = (o: Partial<LineupDoc> & { id: string; name: string; ownerUid: string }): LineupDoc => ({ ownerNickname: "x", seasonId: "t1", isOfficial: false, matchId: null, fromMesa: false, fanToken: null, sevenKey: null, sevenRev: 0, ...fakeBoard().lineup, ...o }) as LineupDoc;
@@ -164,14 +164,27 @@ describe("new boards and copies", () => {
 describe("la mesa's copies (PZ-D22T)", () => {
   const played: PzMatch = { ...fakeWorld().matches[0], id: "j1", j: 1, played: true, phase: "jugado" };
   const world = fakeWorld({ matches: [played, ...fakeWorld().matches], boards: [fakeBoard(), fakeBoard({ id: "m1", name: "Siete del campo · J1", ownerUid: "u-fer", matchId: "j1" })] });
-  const docs = [docOf({ id: "b1", name: "J3 · Red Demons", ownerUid: "u-jordi", matchId: "j3" }), docOf({ id: "m1", name: "Siete del campo · J1", ownerUid: "u-fer", matchId: "j1" }), docOf({ id: "m3", name: "Siete del partido", ownerUid: "u-fer", matchId: "j3", fromMesa: true })];
-  it("only the copies of matches already played, deleted after 12 s (undo keeps them)", () => {
+  const docs = [
+    docOf({ id: "b1", name: "J3 · Red Demons", ownerUid: "u-jordi", matchId: "j3" }),
+    docOf({ id: "m1", name: "Siete del campo · J1", ownerUid: "u-fer", ownerNickname: "fer", matchId: "j1", fromMesa: true }),
+    docOf({ id: "m3", name: "Siete del partido", ownerUid: "u-fer", matchId: "j3", fromMesa: true }),
+    // a member marks his own board fromMesa (the rules let him): never offered
+    docOf({ id: "x1", name: "Mi siete", ownerUid: "u-erik", matchId: "j1", fromMesa: true }),
+    // named like la mesa but for another jornada than its match's
+    docOf({ id: "x2", name: "Siete del campo · J2", ownerUid: "u-erik", matchId: "j1", fromMesa: true }),
+    // an old scorer copy without the mark: not offered either
+    docOf({ id: "x3", name: "Siete del campo · J1 2", ownerUid: "u-fer", matchId: "j1" }),
+  ];
+  it("only real copies (fromMesa AND la mesa's name, its jornada) of matches already played; 12 s to undo", () => {
     vi.useFakeTimers();
     const { ops, P } = setup({ world, docs });
     expect(ops.isMesa("m1")).toBe(true);
     expect(ops.isMesa("m3")).toBe(true);
     expect(ops.isMesa("b1")).toBe(false);
-    expect(ops.mesaCopies()).toEqual(["m1"]);
+    expect(ops.isMesa("x1")).toBe(false);
+    expect(ops.isMesa("x2")).toBe(false);
+    expect(ops.isMesa("x3")).toBe(false);
+    expect(ops.mesaCopies()).toEqual([{ id: "m1", name: "Siete del campo · J1", owner: "fer", match: "J1 · Red Demons" }]);
     ops.cleanMesa();
     expect(pb.get().pend).toMatchObject({ kind: "mesa", ids: ["m1"] });
     P.act.undo();
@@ -185,6 +198,19 @@ describe("la mesa's copies (PZ-D22T)", () => {
     const { ops } = setup({ world, docs, me: ME_PLAYER });
     ops.cleanMesa();
     expect(pb.get().pend).toBeNull();
+  });
+});
+
+describe("looksLikeMesa", () => {
+  const j = (mid: string) => (mid === "j7" ? 7 : null);
+  it("needs the mark, a match and la mesa's name (with its jornada, a «2» when the name was taken)", () => {
+    expect(looksLikeMesa({ fromMesa: true, matchId: "j7", name: "Siete del campo · J7" }, j)).toBe(true);
+    expect(looksLikeMesa({ fromMesa: true, matchId: "j7", name: "Siete del campo · J7 2" }, j)).toBe(true);
+    expect(looksLikeMesa({ fromMesa: true, matchId: "j7", name: "Siete del partido" }, j)).toBe(true);
+    expect(looksLikeMesa({ fromMesa: true, matchId: "j7", name: "Siete del campo · J6" }, j)).toBe(false);
+    expect(looksLikeMesa({ fromMesa: true, matchId: "j7", name: "Mi siete" }, j)).toBe(false);
+    expect(looksLikeMesa({ fromMesa: true, matchId: null, name: "Siete del partido" }, j)).toBe(false);
+    expect(looksLikeMesa({ fromMesa: false, matchId: "j7", name: "Siete del campo · J7" }, j)).toBe(false);
   });
 });
 

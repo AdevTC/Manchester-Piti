@@ -12,7 +12,7 @@ const fake = vi.hoisted(() => ({
   ops: {
     doc: () => undefined,
     isMesa: (id: string) => id === "m1",
-    mesaCopies: () => ["m1"],
+    mesaCopies: () => [{ id: "m1", name: "Siete del campo · J3", owner: "fer", match: "J3 · Red Demons" }],
     create: vi.fn(async () => null),
     duplicate: vi.fn(async () => null),
     rename: vi.fn(async (_id: string, raw: string) => (raw.trim() ? "" : "Ponle un nombre al tablero")),
@@ -26,6 +26,7 @@ vi.mock("./ops", async (orig) => ({ ...(await orig<typeof import("./ops")>()), u
 
 import { fakeBoard, fakeWorld, ME_CAPTAIN, ME_PLAYER, renderWithPz } from "../../store/testkit";
 import { Tableros } from "./Tableros";
+import { MesaSheet } from "./Sheets";
 import { pb } from "./pb";
 
 const world = fakeWorld({
@@ -122,11 +123,47 @@ describe("the inspector", () => {
   it("a captain on la mesa's copy can clean them all; on the official, take it off", async () => {
     const { P, flush } = renderWithPz(<Tableros region="side" layout="desktop" />, { world, boardId: "m1", place: "tableros" });
     fireEvent.click(screen.getByRole("button", { name: "Borrar las copias de la mesa de partidos jugados" }));
-    expect(fake.ops.cleanMesa).toHaveBeenCalled();
+    // first the list (each copy with its owner and match), then the 12 s
+    expect(P.state.sheet?.name).toBe("pb-mesa");
+    expect(fake.ops.cleanMesa).not.toHaveBeenCalled();
+    act(() => P.act.closeSheet());
     act(() => pb.set({ sel: "off" }));
     await flush();
     fireEvent.click(screen.getByRole("button", { name: "Quitar «J3 · Red Demons» como oficial" }));
     expect(P.state.sheet?.name).toBe("pb-quitar");
+  });
+});
+
+describe("another match's official", () => {
+  it("says of which match it is official and can be taken off (not only the J3's)", async () => {
+    const j4 = { ...world.matches[0], id: "j4", j: 4, rival: "Sporting", cal: { ...world.matches[0].cal, id: "j4" } };
+    const w = { ...world, matches: [...world.matches, j4], boards: [...world.boards, fakeBoard({ id: "c4", name: "Copia del oficial", isOfficial: true, matchId: "j4", ids: ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"] })] };
+    const { P, r } = renderWithPz(
+      <>
+        <Tableros region="stage" layout="desktop" />
+        <Tableros region="side" layout="desktop" />
+      </>,
+      { world: w, boardId: "b1", place: "tableros" },
+    );
+    act(() => pb.set({ sel: "c4" }));
+    expect(r.container.textContent).toContain("Oficial · J4");
+    fireEvent.click(screen.getByRole("button", { name: "Quitar «Copia del oficial» como oficial" }));
+    expect(P.state.sheet).toMatchObject({ name: "pb-quitar", args: { id: "c4" } });
+  });
+});
+
+describe("«Borrar las copias de la mesa»", () => {
+  it("lists each copy with its owner and match before anything goes", async () => {
+    renderWithPz(<MesaSheet />, { world, boardId: "m1", place: "tableros" });
+    const list = screen.getByRole("list", { name: "Copias que se borran" });
+    expect(list.textContent).toContain("Siete del campo · J3");
+    expect(list.textContent).toContain("De @fer · J3 · Red Demons");
+    fireEvent.click(screen.getByRole("button", { name: /Borrar la copia/ }));
+    expect(fake.ops.cleanMesa).toHaveBeenCalledTimes(1);
+  });
+  it("a player sees nothing to delete", () => {
+    renderWithPz(<MesaSheet />, { world, me: ME_PLAYER, place: "tableros" });
+    expect(screen.queryByRole("button", { name: /Borrar/ })).toBeNull();
   });
 });
 
