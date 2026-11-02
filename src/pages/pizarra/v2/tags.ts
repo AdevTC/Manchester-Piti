@@ -12,8 +12,9 @@ export const TAG_SUGGEST = ["Liga", "Copa", "Entreno"] as const;
 
 export const tagSchema = z.string().trim().min(1).max(TAG_MAX);
 
-/** One tag as typed: spaces folded, trimmed, cut to TAG_MAX ("" = nothing to add). */
-export const cleanTag = (s: string): string => s.replace(/\s+/g, " ").trim().slice(0, TAG_MAX).trim();
+/** One tag as typed: «¬» dropped (firestore.rules joins the tags with it: one inside would refuse every later save of
+ *  the board), spaces folded, trimmed, cut to TAG_MAX ("" = nothing to add). */
+export const cleanTag = (s: string): string => s.replace(/¬/g, "").replace(/\s+/g, " ").trim().slice(0, TAG_MAX).trim();
 
 const same = (a: string, b: string): boolean => a.localeCompare(b, "es", { sensitivity: "base" }) === 0;
 
@@ -31,7 +32,9 @@ export function parseTags(raw: unknown, docId: string): string[] {
       reportDroppedDoc("lineups.tags", docId, r.error.issues);
       return;
     }
-    if (out.length < TAGS_MAX && !out.some((t) => same(t, r.data))) out.push(r.data);
+    // (a stored «¬» heals here: the next save writes the tag without it)
+    const t = cleanTag(r.data);
+    if (t && out.length < TAGS_MAX && !out.some((o) => same(o, t))) out.push(t);
   });
   return out;
 }

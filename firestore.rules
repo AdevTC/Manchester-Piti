@@ -526,6 +526,15 @@ service cloud.firestore {
           'createdAt','updatedAt','shapeOff','condPlan','style','rival','tags','voz','plan','fromMesa','seasonPlays',
           'fanToken','sevenKey','sevenRev'];
     }
+    // TOLERANT READERS (by design, for the budget): an update checks only the groups it changes, and inside a group
+    // only what refuses something, so some item shapes now pass on update — slots null or of the wrong length, takers
+    // null, tactics not a map, a variant's slots as a string, a stroke or a step with odd keys… Every reader of a board
+    // must stay tolerant (repair, never trust). Checked 2026-11-02: src/pages/pizarra/lineupDoc.ts dataToLineupDoc
+    // (readSlots, field() → fallbacks, parseVariants/parseRivalPlan/parseCondPlanR14/parseTags/parsePlan, drawings.ts,
+    // plays.ts), data/mesa.ts mesaPlanOf (through dataToLineupDoc), useMatchBoard.ts boardViewOfDoc (Array.isArray
+    // slots), officialBoard.ts boardSeven/sevenOf, functions/src/pizarraR14.ts + pizarraR14Logic.ts (sevenOf, plainMap,
+    // optional chaining on slots), the pz store (world.ts boardOf over the parsed LineupDoc). A new reader goes through
+    // dataToLineupDoc (or is as lenient) — add it to this list.
     // Each field with its type and cap, in five groups (a gate per group, not per key). An update validates only the
     // groups whose keys it changes (`ch`); a create validates them all. Every node counts towards the budget (≈ 10 per
     // «x.get(k, d).size() <= n»), so a check is there only when it refuses something: `.size()` alone caps a string,
