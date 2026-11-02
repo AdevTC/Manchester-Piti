@@ -1,8 +1,11 @@
-// r14 «La pizarra» · the «La ficha» sheet (?hoja=ficha). Owned by the SIETE agent.
+// r14 «La pizarra» · the «La ficha» sheet (?hoja=ficha&jugador=<pid>): La carta + his notas, where he has played,
+// his química in this seven, his answer and the actions. Owned by the SIETE agent. (The store titles it with his
+// name; where he plays in this seven is a chip under the card.)
 import { lazy } from "react";
 import { registerSheet } from "../../store/registry";
 
 registerSheet("ficha", {
   title: "",
+  kicker: "La ficha",
   Component: lazy(() => import("./Ficha").then((m) => ({ default: m.FichaSheet }))),
 });

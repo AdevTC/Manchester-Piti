@@ -4,5 +4,6 @@ import { registerSheet } from "../../store/registry";
 
 registerSheet("sistema", {
   title: "El sistema",
+  kicker: "Los 15 de fútbol 7",
   Component: lazy(() => import("./Sistema").then((m) => ({ default: m.SistemaSheet }))),
 });
