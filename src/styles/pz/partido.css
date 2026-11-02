@@ -225,7 +225,16 @@
 .pz .pt-peek__row>div{min-width:0}
 .pz .pt-peek__row .pz-btn{padding:0 14px;min-height:50px}
 .pz .pt-peek__row.no-ring{grid-template-columns:minmax(0,1fr) auto}
-.pz .pt-peek__row.is-ring{grid-template-columns:auto minmax(0,1fr);min-height:56px}
+.pz .pt-peek__row.is-ring{grid-template-columns:auto minmax(0,1fr) auto;gap:8px;min-height:52px}
+/* the phone's peek: one row that fits the frame's peek (ring · who · the button), 360 included */
+.pz .pt-peek__row.is-ring .pt-cd{width:48px;height:48px}
+.pz .pt-peek__row.is-ring .pt-cd>span{gap:1px}
+.pz .pt-peek__row.is-ring .pt-cd>span>b{font-size:15px}
+.pz .pt-peek__row.is-ring .pt-cd>span>small{font-size:11px}
+.pz .pt-peek__row.is-ring h1{font-size:19px}
+.pz .pt-peek__row .pz-btn{white-space:nowrap;gap:6px}
+.pz .pt-peek__row .pz-btn>.nx-ic{width:16px;height:16px}
+@media (max-width:374px){.pz .pt-peek__row .pz-btn{padding:0 11px;font-size:14px}.pz .pt-peek__row h1{font-size:18px}}
 .pz .pt-peek__go{width:100%;min-height:50px;font-size:15.5px}
 .pz .pt-peek__go kbd{font-family:var(--vd-mono);font-size:11.5px;padding:1px 6px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);opacity:.85}
 /* sheets */

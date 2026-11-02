@@ -1057,20 +1057,14 @@ function Peek({ X }: { X: PtModel }) {
           <h1>{t}</h1>
           <p>{s}</p>
         </div>
-        {showBtn && !ring && pri && (
-          <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri" onClick={pri.run} disabled={pri.disabled}>
+        {/* (one row: the peek's height is the frame's; the button keeps its short label, the full one is its name) */}
+        {showBtn && pri && (
+          <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri" onClick={pri.run} disabled={pri.disabled} aria-label={pri.label} aria-keyshortcuts={ph === "juego" || ph === "descanso" ? "H" : undefined}>
             <Ic n={pri.icon ?? "arrow"} />
             {pri.short ?? pri.label}
           </button>
         )}
       </div>
-      {showBtn && ring && pri && (
-        <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri pt-peek__go" onClick={pri.run} disabled={pri.disabled} aria-keyshortcuts="H">
-          <Ic n={pri.icon ?? "swap"} />
-          {pri.short ?? pri.label}
-          <kbd aria-hidden="true">H</kbd>
-        </button>
-      )}
       {(asking || asking2) && (
         <div className="pz-acts pt-peek__ask" role="group" aria-label={asking ? nx!.ask : "¿Apuntar la 2ª parte?"}>
           <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri" onClick={() => void (asking ? doNext(P) : doDesc(P))} disabled={X.ui.busy}>

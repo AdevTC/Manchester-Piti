@@ -54,6 +54,39 @@ describe("Partido · the regions", () => {
     expect(screen.getByText("Gol de ALCIDES")).toBeInTheDocument();
   });
 
+  it("B-PZ-19: «Volver a la mesa» only for who came from la mesa (?desde=mesa)", async () => {
+    const a = renderWithPz(<Partido region="lead" layout="desktop" />, { world: world("antes"), place: "partido", me: ME_CAPTAIN });
+    await a.flush();
+    expect(screen.queryByRole("link", { name: /Volver a la mesa/ })).toBeNull();
+    a.r.unmount();
+    const b = renderWithPz(<Partido region="lead" layout="desktop" />, { world: world("antes"), place: "partido", me: ME_CAPTAIN, q: { desde: "mesa", partido: "j3" } });
+    await b.flush();
+    expect(screen.getByRole("link", { name: /Volver a la mesa/ })).toHaveAttribute("href", "/partidos/j3/mesa");
+  });
+
+  it("B-PZ-21: one key, one name — H asks for «Hacer el cambio», M proposes «Recalcular desde el 23′»", async () => {
+    const h = renderWithPz(<Partido region="lead" layout="desktop" />, { world: world("juego"), place: "partido", me: ME_CAPTAIN });
+    act(() => void h.P.slice("pt-feed").set(feed({ minute: 23, clock: "first" }), { undoable: false, toast: false }));
+    await h.flush();
+    fireEvent.keyDown(document, { key: "h" });
+    expect(h.P.slice<{ confirm: string }>("partido").get().confirm).toBe("next");
+    fireEvent.keyDown(document, { key: "m" });
+    expect(h.P.slice<{ prop: { kind: string } | null }>("partido").get().prop?.kind).toBe("recalc");
+  });
+
+  it("B-PZ-22: the match's scorer (not a captain) makes the change; a plain player can't (H does nothing)", async () => {
+    const s = renderWithPz(<Partido region="side" layout="desktop" />, { world: world("juego"), place: "partido", me: ME_PLAYER });
+    act(() => void s.P.slice("pt-feed").set(feed({ minute: 23, clock: "first", scorer: true }), { undoable: false, toast: false }));
+    await s.flush();
+    expect(screen.getByRole("button", { name: /Hacer el cambio/ })).toBeEnabled();
+    s.r.unmount();
+    const p = renderWithPz(<Partido region="lead" layout="desktop" />, { world: world("juego"), place: "partido", me: ME_PLAYER });
+    act(() => void p.P.slice("pt-feed").set(feed({ minute: 23, clock: "first" }), { undoable: false, toast: false }));
+    await p.flush();
+    fireEvent.keyDown(document, { key: "h" });
+    expect(p.P.slice<{ confirm: string }>("partido").get().confirm).toBe("");
+  });
+
   it("phone peek: the next change at the thumb, «Sí, apuntar» in place", async () => {
     const h = renderWithPz(<Partido region="peek" layout="phone" />, { world: world("juego"), place: "partido", me: ME_CAPTAIN, layout: "phone" });
     act(() => void h.P.slice("pt-feed").set(feed({ minute: 23, clock: "first" }), { undoable: false, toast: false }));
