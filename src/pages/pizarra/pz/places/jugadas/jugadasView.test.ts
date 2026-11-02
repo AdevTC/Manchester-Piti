@@ -154,6 +154,14 @@ describe("jugadasView · what the pitch draws", () => {
     const salida = teamPlays(SLOTS, () => null).find((p) => p.kind === "salida")!;
     expect(zoomOf(salida.steps, { phone: false, editing: false })).toBeNull();
   });
+  it("a narrow stage (tablet, 1100 desktop: about one pitch wide) zooms no wider than the play: every man stays in", () => {
+    const corner = teamPlays(SLOTS, () => null)[0];
+    const wide = zoomOf(corner.steps, { phone: false, editing: false, room: 1.6 });
+    const narrow = zoomOf(corner.steps, { phone: false, editing: false, room: 1.02 });
+    const phone = zoomOf(corner.steps, { phone: true, editing: false });
+    expect(narrow?.s ?? 1).toBeLessThan(wide?.s ?? 1);
+    expect(narrow?.s ?? 1).toBe(phone?.s ?? 1);
+  });
   it("B-PZ-10: the signature changes with what a video shows (and the speed)", () => {
     const pj = teamPlays(SLOTS, () => null)[0];
     const s1 = playSig(pj, 1);

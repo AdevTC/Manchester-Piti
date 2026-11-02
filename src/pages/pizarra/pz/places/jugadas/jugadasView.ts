@@ -344,7 +344,7 @@ export function focusOf(steps: PjStep[], i: number): { x: number; y: number } {
   return { x: r1(clamp(fx, 28, 72)), y: r1(clamp(fy - 6, 2, 88)) };
 }
 /** A flat zoom on where the whole play happens (set pieces), or null (the whole pitch). */
-export function zoomOf(steps: PjStep[], o: { phone: boolean; editing: boolean }): { x: number; y: number; s: number } | null {
+export function zoomOf(steps: PjStep[], o: { phone: boolean; editing: boolean; room?: number }): { x: number; y: number; s: number } | null {
   const core: XY[] = [];
   steps.forEach((st) => (st.r || []).concat(st.b ? [st.b] : []).forEach((q) => core.push(q)));
   if (!core.length) return null;
@@ -367,7 +367,10 @@ export function zoomOf(steps: PjStep[], o: { phone: boolean; editing: boolean })
   if (hr > 62) return null;
   const xr = x1 - x0;
   const docks = !o.phone && o.editing;
-  const s = r1(Math.min(1.8, 100 / hr, (o.phone ? 104 : docks ? 106 : 150) / (xr + 8)));
+  // (`room`: how many pitch widths the stage shows side to side — 1.5 on a wide desktop, ≈ 1 on a tablet or a
+  // 1100 desktop, where a wider zoom would cut the play's own men at the stage's edges)
+  const wide = Math.max(104, Math.min(150, (o.room ?? 1.5) * 100));
+  const s = r1(Math.min(1.8, 100 / hr, (o.phone ? 104 : docks ? Math.min(106, wide) : wide) / (xr + 8)));
   if (s < 1.15) return null;
   const half = 50 / s;
   return { x: r1(clamp((x0 + x1) / 2, half, 100 - half)), y: r1(clamp((y0 + y1) / 2, half - 4, 100 - half + 4)), s };

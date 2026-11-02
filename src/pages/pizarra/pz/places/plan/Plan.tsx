@@ -385,8 +385,14 @@ function PartsStrip() {
   const subs = partSubs(P);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const el = ref.current?.querySelector<HTMLElement>('[aria-current="true"]');
-    if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    // (only the strip scrolls: scrollIntoView would also nudge the sheet and the page sideways)
+    const strip = ref.current;
+    const el = strip?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!strip || !el) return;
+    const l = el.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft;
+    const r = l + el.offsetWidth;
+    if (l < strip.scrollLeft) strip.scrollLeft = Math.max(0, l - 8);
+    else if (r > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = r - strip.clientWidth + 8;
   }, [part]);
   return (
     <div className="pp__strip" role="group" aria-label="Las partes del plan" data-scroll-x="1" ref={ref}>

@@ -10,6 +10,7 @@ import { playToData, type Play } from "../../../plays";
 import { boardSeasonPlays, updateSeasonPlay, type SeasonPlay } from "../../../data/seasonPlays";
 import { withSeasonPlay } from "../../../data/seasonPlayRefs";
 import { strokePath } from "./drawView";
+import { fitGeometry } from "../../campo/geometry";
 import {
   MAX_OWN,
   RATES,
@@ -232,7 +233,14 @@ const reduced = () => {
   }
 };
 function zoomFor(P: PzApi, steps: PjStep[]) {
-  return zoomOf(steps, { phone: P.state.layout === "phone", editing: U(P).mode === "editar" });
+  return zoomOf(steps, { phone: P.state.layout === "phone", editing: U(P).mode === "editar", room: stageRoom(P) });
+}
+/** How many pitch widths the main stage shows across (the flat pitch fills the stage's height or width). */
+function stageRoom(P: PzApi): number {
+  const el = typeof document !== "undefined" ? document.querySelector<HTMLElement>(".pz-c--main") : null;
+  if (!el || !el.clientWidth || !el.clientHeight) return P.state.layout === "desktop" ? 1.5 : 1.04;
+  const pw = fitGeometry("pizarra", P.state.layout, false, el.clientWidth, el.clientHeight).pw;
+  return pw > 0 ? (el.clientWidth - 16) / pw : 1.04;
 }
 /** Writes the stage from the route, the UI and the play (dur: the glide of this frame, s). */
 export function sync(P: PzApi, x: { pos?: { p: XY[]; r: XY[]; b: XY | null }; dur?: number; i?: number } = {}): void {
