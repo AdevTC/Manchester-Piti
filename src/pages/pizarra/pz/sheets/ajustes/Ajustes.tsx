@@ -58,7 +58,7 @@ export function AjustesSheet({ layout }: SheetProps) {
     <div className="pg-aj">
       <p className="pg-aj-where">
         <PzIcon name="lock" />
-        {signed ? "Solo para ti · te siguen al móvil y al ordenador" : `Se guardan en ${device} · el equipo no ve nada`}
+        {signed ? "Te siguen al móvil y al ordenador" : `Se guardan en ${device} · el equipo no ve nada`}
       </p>
 
       <section className="pg-aj-sec" aria-labelledby="pga-snd">

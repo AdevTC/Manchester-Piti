@@ -6,9 +6,10 @@ import type { Layout, StageLabel, StageSpec, Token } from "../../store/types";
 import { lessMotion, sonar } from "../../sheets/ajustes/prefsLive";
 import * as V from "./pachangaView";
 import { fmt } from "../../store/fmt";
+import { readLocalPg } from "./pgSource";
 import type { PgN, PgState, PgWho, WhoFn } from "./pachangaView";
 
-export const pgSlice = (P: PzApi): PzSlice<PgState> => P.slice<PgState>("pg", () => V.emptyPg());
+export const pgSlice = (P: PzApi): PzSlice<PgState> => P.slice<PgState>("pg", () => readLocalPg() ?? V.emptyPg());
 export const handSlice = (P: PzApi): PzSlice<{ id: string | null }> => P.slice<{ id: string | null }>("pg-hand", { id: null });
 export const handOf = (P: PzApi): string | null => handSlice(P).get()?.id ?? null;
 const setHand = (P: PzApi, id: string | null) => handSlice(P).set({ id }, { undoable: false, toast: false });

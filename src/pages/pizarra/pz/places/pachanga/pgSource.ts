@@ -2,7 +2,7 @@
 // its «voy» and its saved attendance (data/attendance.ts) and keeps them in the `pg-src` slice, so every region and
 // sheet reads the same thing; it also keeps the pachanga on this device (localStorage) between visits.
 import type { PzApi, PzSlice } from "../../store/api";
-import type { PgState } from "./pachangaView";
+import { emptyPg, type PgState } from "./pachangaView";
 import { fmt } from "../../store/fmt";
 
 export interface PgSource {
@@ -33,7 +33,7 @@ export function readLocalPg(): PgState | null {
     if (!raw) return null;
     const v = JSON.parse(raw) as Partial<PgState>;
     if (!v || !Array.isArray(v.comes) || !Array.isArray(v.teams) || (v.n !== 2 && v.n !== 3)) return null;
-    return v as PgState;
+    return { ...emptyPg(), ...v } as PgState;
   } catch {
     return null;
   }
