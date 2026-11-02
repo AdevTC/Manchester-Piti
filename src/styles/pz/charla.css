@@ -432,5 +432,3 @@
 /* the card's shirt never runs over its name */
 .pz .pc-card__art{min-height:0;overflow:hidden}
 .pz .pc.is-tablet .pc-card__art>.pz-shirt{--s:calc(var(--w)*.36)}
-/* the kit's primary button keeps its white words inside the pizarra (its button reset says inherit) */
-.pz .pcs .nx-btn--pri{color:#fff}

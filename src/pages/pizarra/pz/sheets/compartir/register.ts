@@ -4,6 +4,9 @@ import { registerSheet } from "../../store/registry";
 
 registerSheet("compartir", {
   title: "Compartir",
-  kicker: "El estudio",
+  kicker: (_args, P) => {
+    const b = P.sel.board();
+    return "El estudio" + (b ? " · " + b.name : "");
+  },
   Component: lazy(() => import("./Compartir").then((m) => ({ default: m.CompartirSheet }))),
 });
