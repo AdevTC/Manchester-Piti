@@ -5,14 +5,11 @@
 // store itself never changes identity, so `usePz()` hands out a new facade per version: the same store (its methods,
 // its live `state`) under a new object, with a new `sel`. A component that only calls `P.sel.*` still re-renders
 // with fresh answers. (Read through `P.sel` / `P.state`, never keep a selector's result across renders.)
-import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useSyncExternalStore } from "react";
 import type { PzApi } from "./api";
 
-const PzContext = createContext<PzApi | null>(null);
-
-export function PzProvider({ store, children }: { store: PzApi; children: ReactNode }) {
-  return <PzContext.Provider value={store}>{children}</PzContext.Provider>;
-}
+/** The page's store (PzProvider puts it here). */
+export const PzContext = createContext<PzApi | null>(null);
 
 /** The store under a new identity (its version's), so memoised renders see a change. */
 export function facade(P: PzApi, version: number): PzApi {

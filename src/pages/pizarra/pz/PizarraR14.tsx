@@ -21,7 +21,7 @@ import { useBoardSession } from "../v2/useBoardSession";
 import { useConvocatoria } from "../v2/useConvocatoria";
 import { matchShort, officialFor, withConvocatoria } from "../v2/boards";
 import { createPzStore, type PzStore } from "./store/store";
-import { PzProvider } from "./store/context";
+import { PzProvider } from "./store/PzProvider";
 import { parsePizarra } from "./store/routes";
 import { buildWorld, pizarraSeason } from "./store/world";
 import { useLayout } from "./shell/useLayout";

@@ -7,7 +7,7 @@ import type { ReactElement } from "react";
 import { FORMATIONS, slotIdFor, type FormationName, type Lineup } from "../../formations";
 import { defaultTactics } from "../../tactics";
 import { createPzStore, type PzHost, type PzInputs, type PzStore } from "./store";
-import { PzProvider } from "./context";
+import { PzProvider } from "./PzProvider";
 import type { Layout, PlaceId, PzBoard, PzMatch, PzMe, PzPlayer, PzWorld } from "./types";
 import type { PosCode } from "../../../../lib/positions";
 

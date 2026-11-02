@@ -106,6 +106,8 @@
 @media (prefers-reduced-motion:reduce){.pz.pz-s *{transition:none!important;animation:none!important}}
 
 /* ── by hand ── */
+/* (the local test environment's 30 px banner sits above the page: the one screen subtracts it, as the admin does) */
+.club-app:has(>.club-demo-banner) .pz.pz-s{height:calc(100vh - 30px);height:calc(100dvh - 30px)}
 /* the real page: one screen (the web's top bar in flow, the frame fills the rest; the regions scroll inside) */
 .pz.pz-s{position:relative;display:flex;flex-direction:column;height:100vh;height:100dvh;min-height:0;overflow:hidden;--vd-sky-h:100%}
 .pz.pz-s>.vd-sky{position:absolute;inset:0;height:100%;z-index:0}

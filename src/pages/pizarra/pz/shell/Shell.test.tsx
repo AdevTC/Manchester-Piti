@@ -28,13 +28,13 @@ describe("the shell", () => {
   it("the bar follows the store (a later change re-renders it)", async () => {
     const h = renderWithPz(<Shell />);
     await h.flush();
-    act(() => h.P.act.place("alcides", 6));
+    void act(() => h.P.act.place("alcides", 6));
     await h.flush();
     expect(screen.getByRole("button", { name: "Siete: Listo" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Deshacer: ALCIDES al DC/ })).toBeTruthy();
     // the toast with «Deshacer»
     const undo = screen.getByRole("button", { name: "Deshacer" });
-    act(() => fireEvent.click(undo));
+    void act(() => fireEvent.click(undo));
     await h.flush();
     expect(screen.getByRole("button", { name: "Siete: 6 de 7" })).toBeTruthy();
   });
@@ -43,13 +43,13 @@ describe("the shell", () => {
     const h = renderWithPz(<Shell />, { layout: "phone" });
     await h.flush();
     const grab = screen.getByRole("button", { name: "Subir la hoja" });
-    act(() => fireEvent.click(grab));
+    void act(() => fireEvent.click(grab));
     expect(h.P.state.sheetH).toBe("half");
-    act(() => fireEvent.keyDown(grab, { key: "ArrowUp" }));
+    void act(() => fireEvent.keyDown(grab, { key: "ArrowUp" }));
     expect(h.P.state.sheetH).toBe("full");
     const dock = screen.getAllByRole("navigation", { name: "La pizarra" }).at(-1) as HTMLElement;
     expect(dock.querySelectorAll("button")).toHaveLength(5);
-    act(() => fireEvent.click(screen.getByRole("button", { name: "Más" })));
+    void act(() => fireEvent.click(screen.getByRole("button", { name: "Más" })));
     await h.flush();
     expect(screen.getByRole("dialog", { name: "Más" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Volver a la web/ })).toBeTruthy();
@@ -58,23 +58,23 @@ describe("the shell", () => {
   it("desktop sheets open over the side column, Esc closes them", async () => {
     const h = renderWithPz(<Shell />);
     await h.flush();
-    act(() => h.P.act.openSheet("candidatos", { hueco: 6 }));
+    void act(() => h.P.act.openSheet("candidatos", { hueco: 6 }));
     await h.flush();
     const dlg = screen.getByRole("dialog", { name: "Candidatos" });
     expect(dlg.closest(".pz-s__side")).toBeTruthy();
-    act(() => fireEvent.keyDown(dlg, { key: "Escape" }));
+    void act(() => fireEvent.keyDown(dlg, { key: "Escape" }));
     expect(h.P.state.sheet).toBeNull();
   });
 
   it("the states: cargando, error al leer, the 404 inside the pizarra", async () => {
     const h = renderWithPz(<Shell />);
-    act(() => h.attach({ estado: "cargando" }));
+    void act(() => h.attach({ estado: "cargando" }));
     await h.flush();
     expect(screen.getAllByText("Cargando tus tableros…").length).toBeGreaterThan(0);
-    act(() => h.attach({ estado: "error", error: "Sin permiso para leer los tableros" }));
+    void act(() => h.attach({ estado: "error", error: "Sin permiso para leer los tableros" }));
     await h.flush();
     expect(screen.getByText("Sin permiso para leer los tableros")).toBeTruthy();
-    act(() => h.P.setRoute({ place: "perdido", sub: "/pizarra/nada", q: {} }));
+    void act(() => h.P.setRoute({ place: "perdido", sub: "/pizarra/nada", q: {} }));
     await h.flush();
     expect(screen.getByRole("heading", { name: "Esta parte de la pizarra no existe" })).toBeTruthy();
   });

@@ -5,17 +5,17 @@ import { usePz } from "../store/context";
 import { PLACES } from "../store/store";
 import { fmt } from "../store/fmt";
 import { PzIcon, CampoShirt } from "../campo/Shirt";
-import type { Layout, PlaceId } from "../store/types";
+import type { PlaceId } from "../store/types";
 
 const placeHref = (id: PlaceId) => "/pizarra/" + id;
 
 /** The board's line: its name, the match, the save state. */
-export function useBoardLine(phone: boolean) {
+function useBoardLine(phone: boolean, xl = false) {
   const P = usePz();
   const b = P.sel.board();
   const M = P.sel.match();
   const save = P.sel.saveLine();
-  const matchT = M ? (b && b.name.includes(M.rival) ? "" : `${M.j ? "J" + M.j + " · " : ""}${M.rival} · `) + fmt.day(M.at) + (M.at ? " · " + fmt.hm(M.at) : "") : "Sin partido";
+  const matchT = M ? (b && b.name.includes(M.rival) ? "" : `${M.j ? "J" + M.j + " · " : ""}${M.rival} · `) + fmt.day(M.at) + (M.at && (phone || xl || P.state.layout !== "desktop") ? " · " + fmt.hm(M.at) : "") : "Sin partido";
   return { name: b ? b.name : "Sin tablero", match: matchT + (phone ? "" : " · "), save, aria: `Tablero ${b ? b.name : "sin tablero"}, ${save.t}: ver los tableros` };
 }
 
@@ -23,7 +23,7 @@ export function BoardBar({ xl }: { xl: boolean }) {
   const P = usePz();
   const S = P.state;
   const place = S.route.place;
-  const line = useBoardLine(false);
+  const line = useBoardLine(false, xl);
   const pri = P.sel.primary(place === "perdido" ? "siete" : place);
   const desk = S.layout === "desktop";
   const label = pri ? (desk && !xl && pri.short && pri.label.length > 16 ? pri.short : pri.label) : "";
@@ -311,4 +311,3 @@ export function FullState({ id, kicker, title, line, children }: { id: string; k
   );
 }
 
-export const isPhone = (l: Layout) => l === "phone";

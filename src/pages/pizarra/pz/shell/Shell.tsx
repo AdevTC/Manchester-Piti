@@ -4,7 +4,7 @@
 // the states (cargando · error al leer · sin conexión), the door, the 404 and the charla takeover. Places only
 // render their regions: lead · side (desktop) · lead + side stacked (tablet) · peek / panel (phone sheet) · stage
 // (Tableros' gallery) · full (the charla) · dock (Dibujar).
-import { Suspense, useEffect, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createElement, Suspense, useEffect, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CelesteHeader } from "../../../../components/celeste/Chrome";
 import { VidrioSky } from "../../../../components/vidrio";
@@ -30,7 +30,7 @@ import "../../../../styles/pz/shell.css";
 const ORDER: SheetHeight[] = ["peek", "half", "full"];
 
 /** A place's region (its registered component), or the calm placeholder while the place isn't built. */
-function Region({ place, region, layout }: { place: PlaceId; region: Region; layout: Layout }) {
+function PlaceRegion({ place, region, layout }: { place: PlaceId; region: Region; layout: Layout }) {
   const C = placeReg(place)?.Component;
   const pl = placeOf(place);
   if (!C) return region === "lead" || region === "peek" || region === "full" ? <Missing icon={pl?.icon ?? "dots"} title={pl?.t ?? place} text="Esta parte de la pizarra llega con su propio archivo. El campo ya está listo para ella." /> : null;
@@ -50,10 +50,10 @@ function Stage({ layout, place, children }: { layout: Layout; place: PlaceId | n
   return (
     <div className={`pz-s__stage${dim ? " is-dim" : ""}`} aria-label="El campo">
       {!none && <PiCampo layout={layout} main />}
-      {none && place && <Region place={place} region="stage" layout={layout} />}
+      {none && place && <PlaceRegion place={place} region="stage" layout={layout} />}
       {S.drawing && Draw && (
         <Suspense fallback={null}>
-          <Draw region="dock" layout={layout} />
+          {createElement(Draw, { region: "dock", layout })}
         </Suspense>
       )}
       {S.drawing && !Draw && (
@@ -94,14 +94,14 @@ function Body({ layout, place }: { layout: Layout; place: PlaceId }) {
       <main className="pz-s__body" id="pz-main">
         <section className="pz-s__lead" aria-label={pl?.t}>
           <div className="pz-s__slot">
-            {ok && <Region place={place} region="lead" layout={layout} />}
+            {ok && <PlaceRegion place={place} region="lead" layout={layout} />}
             {loading && <Skeleton phone={false} />}
             {error && <ReadError phone={false} why={S.error} onRetry={() => P.act.retry()} />}
           </div>
         </section>
         <Stage layout={layout} place={place} />
         <aside className="pz-s__side" aria-label={`${pl?.t ?? ""}: ${place === "siete" ? "el banquillo" : "detalle"}`}>
-          <div className={`pz-s__slot${sheet ? " is-under" : ""}`}>{ok && <Region place={place} region="side" layout={layout} />}</div>
+          <div className={`pz-s__slot${sheet ? " is-under" : ""}`}>{ok && <PlaceRegion place={place} region="side" layout={layout} />}</div>
           <SheetFrame layout={layout} />
         </aside>
       </main>
@@ -113,8 +113,8 @@ function Body({ layout, place }: { layout: Layout; place: PlaceId }) {
         <Stage layout={layout} place={place} />
         <div className="pz-s__right">
           <div className={`pz-s__rin${sheet ? " is-under" : ""}`}>
-            {ok && <Region place={place} region="lead" layout={layout} />}
-            {ok && <Region place={place} region="side" layout={layout} />}
+            {ok && <PlaceRegion place={place} region="lead" layout={layout} />}
+            {ok && <PlaceRegion place={place} region="side" layout={layout} />}
             {loading && <Skeleton phone={false} />}
             {error && <ReadError phone={false} why={S.error} onRetry={() => P.act.retry()} />}
           </div>
@@ -167,7 +167,7 @@ function Body({ layout, place }: { layout: Layout; place: PlaceId }) {
           aria-keyshortcuts="ArrowUp ArrowDown"
         />
         <div className="pz-s__sheetin">
-          {ok && <Region place={place} region={h === "peek" ? "peek" : "panel"} layout={layout} />}
+          {ok && <PlaceRegion place={place} region={h === "peek" ? "peek" : "panel"} layout={layout} />}
           {loading && <Skeleton phone />}
           {error && <ReadError phone why={S.error} onRetry={() => P.act.retry()} />}
         </div>
@@ -264,7 +264,7 @@ export function Shell() {
       </div>
       {charla && (
         <div className="pz-s__takeover">
-          <Region place="charla" region="full" layout={layout} />
+          <PlaceRegion place="charla" region="full" layout={layout} />
         </div>
       )}
       {typeof document !== "undefined" &&
