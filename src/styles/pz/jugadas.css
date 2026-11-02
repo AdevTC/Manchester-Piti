@@ -261,3 +261,12 @@
 .pz .pd.is-phone .pd-t{min-width:42px}
 .pz .pd.is-phone .pd-t.is-pri{min-width:64px}
 .pz .pd.is-phone .pd-dock.is-row .pd-sep{margin:6px 2px}
+/* round 2: the step editor's off pieces, the step length, the board-size notice */
+.pz .pd-hit.is-off,.pz .pd-hd.is-off{pointer-events:none}
+.pz .pd-hd.is-off{opacity:0}
+.pz .pj-dur{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pz .pj-dur>b{min-width:62px;text-align:center;font-size:17px;font-weight:760;font-variant-numeric:tabular-nums;color:var(--vd-ink-strong)}
+.pz .pj-dur .nx-ib{width:44px;height:44px}
+.pz .pj-dur .vx-tog{margin-left:10px}
+.pz .pj-size{margin:6px 0 2px;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.4;color:var(--vd-ink);background:rgba(255,215,122,.1);box-shadow:inset 0 0 0 1px rgba(255,215,122,.4)}
+.pz .pj-size.is-full{background:rgba(229,72,77,.08);box-shadow:inset 0 0 0 1px rgba(229,72,77,.4)}

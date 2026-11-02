@@ -8,7 +8,7 @@
 // Also: what the pitch draws for a step (ghost rings, curved runs, the ball's line), the flat zoom on a set piece, the
 // Foco point, the key step, the signature a recorded video checks (B-PZ-10). No React, no store. Tested in
 // jugadasView.test.ts.
-import { PIZARRA_LIMITS, type BoardPoint } from "../../../../../lib/schemas";
+import { PIZARRA_LIMITS, type BoardPoint, type Stroke } from "../../../../../lib/schemas";
 import { PLAY_LIBRARY } from "../../../playLibrary";
 import { deriveArrows, type Play, type PlayFrame, type PlayKind } from "../../../plays";
 import type { RoleKey } from "../../../formations";
@@ -26,6 +26,10 @@ export interface PjStep {
   dur: number;
   c: Record<string, XY>;
   bk: BallWay | null;
+  /** «Paso clave» (marked by hand; none marked = the step with most movement). */
+  key?: boolean;
+  /** What is drawn inside the step (the app's strokes, ≤ 8). */
+  d?: Stroke[];
 }
 /** A play as the place reads it: its slot steps, who plays each slot's track (the app's player id key), its rivals. */
 export interface PjPlay {
@@ -33,6 +37,8 @@ export interface PjPlay {
   name: string;
   kind: PlayKind;
   own: boolean;
+  /** A season play this board uses (seasonPlays/{id}): edits change it on every board. */
+  season?: { id: string; scope: "mine" | "team"; ownerUid: string; ownerNick: string };
   /** The app's play (the board's own; for a team play, the library's built for this seven). */
   play: Play;
   /** Slot k → the player id whose track it runs (null: an empty slot, or one of the seven not in the play). */
@@ -201,7 +207,7 @@ export function ownPlay(play: Play, slots: PzSlot[]): PjPlay {
     });
     const prev = i > 0 ? frames[i - 1] : null;
     const bk: BallWay | null = prev && prev.arrows.some((a) => a.kind === "conduccion") ? "conduccion" : prev && prev.arrows.some((a) => a.kind === "pase") ? "pase" : null;
-    return { title: f.title || "Paso " + (i + 1), note: f.note || "", p, r: rivalIds.map((id) => R.get(id)![i]), b: xy(f.ball), dur: stepDur(i, n), c, bk };
+    return { title: f.title || "Paso " + (i + 1), note: f.note || "", p, r: rivalIds.map((id) => R.get(id)![i]), b: xy(f.ball), dur: f.dur ? f.dur / 1000 : stepDur(i, n), c, bk, ...(f.key ? { key: true } : {}), ...(f.d?.length ? { d: f.d.map((x) => structuredClone(x)) } : {}) };
   });
   return { id: play.id, name: play.name, kind: play.kind, own: true, play, ids, rivalIds, steps };
 }
@@ -228,6 +234,9 @@ export function fromSteps(pj: PjPlay, steps: PjStep[], o: { ids?: (string | null
     const nt = st.note.trim().slice(0, L.frameNote);
     if (nt) f.note = nt;
     if (Object.keys(curves).length) f.curves = curves;
+    f.dur = Math.round(clamp(st.dur, L.frameDurMin / 1000, L.frameDurMax / 1000) * 1000);
+    if (st.key) f.key = true;
+    if (st.d?.length) f.d = st.d.slice(0, L.frameStrokes).map((x) => structuredClone(x));
     return f;
   });
   frames.forEach((f, i) => {
@@ -245,6 +254,8 @@ export function fromSteps(pj: PjPlay, steps: PjStep[], o: { ids?: (string | null
 // ── reading a play ───────────────────────────────────────────────────────────────────────────────────────
 /** The key step: none is stored, so the step with the most movement (the ball counts double). */
 export function keyStep(steps: PjStep[]): number {
+  const marked = steps.findIndex((s) => s.key);
+  if (marked >= 0) return marked;
   if (steps.length < 2) return 0;
   let best = 1;
   let bv = -1;
@@ -293,7 +304,7 @@ export interface PathOpts {
   ball: boolean;
 }
 /** What the pitch draws for step i: where each one was (a chalk ring), the runs (curved when bent), the ball's way. */
-export function stepPaths(steps: PjStep[], i: number, o: PathOpts): OverlayPath[] {
+export function stepPaths(steps: PjStep[], i: number, o: PathOpts, draw?: (s: Stroke) => OverlayPath | null): OverlayPath[] {
   const st = steps[i];
   const prev = i > 0 ? steps[i - 1] : null;
   const out: OverlayPath[] = [];
@@ -309,6 +320,10 @@ export function stepPaths(steps: PjStep[], i: number, o: PathOpts): OverlayPath[
     });
     if (o.ball && prev.b && st.b && dist(prev.b, st.b) > 3) out.push({ kind: ballKind(prev, st), pts: [prev.b, st.b] });
   }
+  if (draw) (st.d ?? []).forEach((s) => {
+    const p = draw(s);
+    if (p) out.push(p);
+  });
   return out;
 }
 /** The y the window of a cropped mini shows (where the action of step i is). */
@@ -380,6 +395,8 @@ export interface FrameArgs {
   rivals: boolean;
   ball: boolean;
   short?: boolean;
+  /** How a step's own strokes are drawn (Dibujar's renderer). */
+  draw?: (s: Stroke) => OverlayPath | null;
   rivalName: string;
   rivalCode: string;
 }
@@ -401,7 +418,7 @@ export function frameSpec(steps: PjStep[], i: number, x: FrameArgs): StageSpec {
       },
     ],
   };
-  return { source: "jugada", plates: x.short ? "short" : "", play, step: 0, rate: 1, ghost: false, overlay: { paths: stepPaths(steps, i, x.o) }, rivalCode: x.rivalCode, caption: "", editable: false, rivalName: x.rivalName };
+  return { source: "jugada", plates: x.short ? "short" : "", play, step: 0, rate: 1, ghost: false, overlay: { paths: stepPaths(steps, i, x.o, x.draw) }, rivalCode: x.rivalCode, caption: "", editable: false, rivalName: x.rivalName };
 }
 /** The whole play as the `jugada` source reads it (PLAN and CHARLA replay with it): slot order, one step per paso. */
 export function toPzPlay(pj: PjPlay): PzPlay {
@@ -410,17 +427,22 @@ export function toPzPlay(pj: PjPlay): PzPlay {
 /** A recorded video's check: changes when anything it shows changes (B-PZ-10: a stale video says «caducado»). */
 export function playSig(pj: PjPlay | null, rate: number): string {
   if (!pj) return "";
-  const s = JSON.stringify([pj.name, pj.steps.map((x) => [x.p, x.r, x.b, x.dur, x.c, x.bk, x.title]), rate]);
+  const s = JSON.stringify([pj.name, pj.steps.map((x) => [x.p, x.r, x.b, x.dur, x.c, x.bk, x.title, !!x.key, x.d ?? []]), rate]);
   let h = 0;
   for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0;
   return String(h >>> 0);
 }
 
 // ── editing (slot steps; B-PZ-08 / B-PZ-16 in the step ops) ──────────────────────────────────────────────
-const cloneStep = (s: PjStep): PjStep => ({ ...s, p: s.p.map((q) => [q[0], q[1]] as XY), r: s.r.map((q) => [q[0], q[1]] as XY), b: s.b ? [s.b[0], s.b[1]] : null, c: Object.fromEntries(Object.entries(s.c).map(([k, q]) => [k, [q[0], q[1]] as XY])) });
+const cloneStep = (s: PjStep): PjStep => ({ ...s, p: s.p.map((q) => [q[0], q[1]] as XY), r: s.r.map((q) => [q[0], q[1]] as XY), b: s.b ? [s.b[0], s.b[1]] : null, c: Object.fromEntries(Object.entries(s.c).map(([k, q]) => [k, [q[0], q[1]] as XY])), ...(s.d ? { d: s.d.map((x) => structuredClone(x)) } : {}) });
 export const cloneSteps = (steps: PjStep[]) => steps.map(cloneStep);
 /** A blank copy of a step: positions only — never its curves (B-PZ-08). */
-const blankFrom = (s: PjStep, title: string): PjStep => ({ ...cloneStep(s), title, note: "", c: {}, bk: null });
+const blankFrom = (s: PjStep, title: string): PjStep => {
+  const c: PjStep = { ...cloneStep(s), title, note: "", c: {}, bk: null };
+  delete c.key;
+  delete c.d;
+  return c;
+};
 /** «Paso al final»: a copy of the LAST step (B-PZ-16). */
 export function addStepEnd(steps: PjStep[]): PjStep[] | null {
   if (steps.length >= MAX_STEPS) return null;
@@ -568,3 +590,52 @@ export function freeName(base: string, taken: string[]): string {
   }
 }
 export const COLOR_OF: Record<string, PathColor> = { white: "blanco", sky: "celeste", gold: "amarillo" };
+
+// ── the step's length, «Paso clave», its strokes ──────────────────────────────────────────────────────────
+export const DUR_MIN = 0.5;
+export const DUR_MAX = 5;
+export const MAX_STEP_STROKES = L.frameStrokes;
+/** Step i lasts d seconds (0,5–5 in half seconds; the server keeps 0,3–10). */
+export function setDurAt(steps: PjStep[], i: number, d: number): PjStep[] {
+  const out = cloneSteps(steps);
+  if (out[i]) out[i].dur = r1(clamp(d, DUR_MIN, DUR_MAX));
+  return out;
+}
+/** Marks step i as the key one (only one), or unmarks it (the most-movement step is the key again). */
+export function setKeyAt(steps: PjStep[], i: number, on: boolean): PjStep[] {
+  return cloneSteps(steps).map((s, k) => {
+    const c = { ...s };
+    delete c.key;
+    if (on && k === i) c.key = true;
+    return c;
+  });
+}
+/** Step i's own strokes (≤ 8). */
+export function setStrokesAt(steps: PjStep[], i: number, d: Stroke[]): PjStep[] {
+  const out = cloneSteps(steps);
+  if (!out[i]) return out;
+  if (d.length) out[i].d = d.slice(0, MAX_STEP_STROKES);
+  else delete out[i].d;
+  return out;
+}
+
+// ── the board's size (Firestore keeps ≤ 1 MiB per document: plays × steps × strokes can get close) ───────────
+/** Bytes the board takes, roughly (its JSON: field names and UTF-8 text, as Firestore counts them). */
+export function boardBytes(data: unknown): number {
+  try {
+    const s = JSON.stringify(data) ?? "";
+    let n = 0;
+    for (let k = 0; k < s.length; k++) {
+      const c = s.charCodeAt(k);
+      n += c < 0x80 ? 1 : c < 0x800 ? 2 : 3;
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+/** A calm warning from 700 KB; from 900 KB nothing grows (new plays, steps, strokes). */
+export const SIZE_WARN = 700_000;
+export const SIZE_FULL = 900_000;
+export type SizeState = "ok" | "warn" | "full";
+export const sizeState = (bytes: number): SizeState => (bytes >= SIZE_FULL ? "full" : bytes >= SIZE_WARN ? "warn" : "ok");

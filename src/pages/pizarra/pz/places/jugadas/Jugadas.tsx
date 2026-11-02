@@ -35,6 +35,10 @@ import {
   playSig,
   removeRivalAll,
   secs,
+  setDurAt,
+  setKeyAt,
+  DUR_MIN,
+  DUR_MAX,
   straighten,
   totalDur,
   typeOf,
@@ -64,6 +68,7 @@ import {
   setPjPrefs,
   setUi,
   slotsNow,
+  sizeOf,
   stepsOf,
   stopReplay,
   sync,
@@ -73,7 +78,7 @@ import {
 } from "./engine";
 import { videoHref } from "../../../v2/playVideo";
 import { Moment } from "./Moment";
-import { KeepForSeason, SeasonPlays } from "./SeasonPlays";
+import { KeepForSeason, SeasonPlays, SeasonSync } from "./SeasonPlays";
 import "../../../../../styles/pz/jugadas.css";
 
 const reduced = () => {
@@ -166,15 +171,23 @@ export function Jugadas({ region, layout }: RegionProps) {
   const P = usePz();
   const drive = region === "lead" || region === "peek" || region === "panel";
   useDriver(P, drive);
+  const sync0 = drive ? <SeasonSync /> : null;
   const phone = layout === "phone";
   const flow = phone || layout === "tablet";
   const pj = cur(P);
-  if (region === "peek") return <Peek layout={layout} />;
+  if (region === "peek")
+    return (
+      <>
+        {sync0}
+        <Peek layout={layout} />
+      </>
+    );
   if (region !== "lead" && region !== "side" && region !== "panel") return null;
   const lead = region === "lead" || region === "panel";
   const side = region === "side" || region === "panel";
   const body = (
     <>
+      {sync0}
       {lead && (pj ? <PlayLead key={pj.id} pj={pj} layout={layout} /> : <LibLead layout={layout} />)}
       {side && (pj ? <PlaySide pj={pj} /> : <LibSide layout={layout} />)}
     </>
@@ -276,11 +289,11 @@ function LibSide({ layout }: { layout: Layout }) {
       <section className="pz-sec pj-sec0 pj-own" aria-labelledby="pj-own">
         <div className="pz-sec__h">
           <h2 id="pj-own">Tuyas</h2>
-          <p>{`${O0.length} de ${MAX_OWN}${b ? ` · en «${b.name}»` : ""}`}</p>
+          <p>{`${O0.filter((x) => !x.season).length} de ${MAX_OWN}${b ? ` · en «${b.name}»` : ""}`}</p>
         </div>
         {mk && (
           <div className="pj-newrow">
-            <button type="button" className="vd-glass vd-press pz-btn" onClick={() => newPlay(P)} disabled={O0.length >= MAX_OWN}>
+            <button type="button" className="vd-glass vd-press pz-btn" onClick={() => newPlay(P)} disabled={O0.filter((x) => !x.season).length >= MAX_OWN}>
               <PzIcon name="plus" />
               Nueva jugada
             </button>
@@ -311,6 +324,7 @@ function LibSide({ layout }: { layout: Layout }) {
             <p>{noOwnP}</p>
           </div>
         )}
+        <SizeNote />
       </section>
       <SeasonPlays />
     </>
@@ -334,7 +348,7 @@ function Card({ pj, layout }: { pj: PjPlay; layout: Layout }) {
   }, [hov, n]);
   useEffect(() => () => clearTimeout(pvT.current), []);
   const tk = takerOf(P, pj);
-  const tag = tk ? `Lo tira ${P.sel.name(tk.pid)}` : pj.own ? "Tuya" : "";
+  const tag = tk ? `Lo tira ${P.sel.name(tk.pid)}` : pj.season ? "De la temporada" : pj.own ? "Tuya" : "";
   const kindT = pj.own ? (pj.kind !== "propia" ? `Tuya · de ${KIND_T[pj.kind].toLowerCase()}` : "Tuya") : KIND_T[pj.kind] || "Jugada";
   const u = U(P);
   const curr = u.preview === pj.id || (!u.preview && u.lastId === pj.id);
@@ -399,7 +413,7 @@ function PlayLead({ pj, layout }: { pj: PjPlay; layout: Layout }) {
   const edPl = canEditPlay(P, pj);
   const tk = takerOf(P, pj);
   const riv = rivalInfo(P);
-  const kick = pj.own ? "Tuya" : `Del equipo · ${KIND_T[pj.kind] || "jugada"} · para tu siete`;
+  const kick = pj.season ? (pj.season.scope === "team" ? "De la temporada · del equipo" : "De la temporada · tuya") : pj.own ? "Tuya" : `Del equipo · ${KIND_T[pj.kind] || "jugada"} · para tu siete`;
   const line = `${n} pasos · ${secs(totalDur(steps))}` + (tk ? (tk.on ? ` · la tira ${P.sel.name(tk.pid)}, el de los ${TAKER_T[tk.k]}` : ` · ${P.sel.name(tk.pid)} no está en el siete: la tira quien ocupa su sitio`) : "");
   const roNoteT = m.socia ? "Solo lectura: las jugadas se miran; las crean los capitanes y los jugadores en sus tableros." : b?.isOfficial ? "Es el oficial: solo lectura. Duplícalo para tener tus jugadas." : `Solo lectura: este tablero es de @${b?.ownerNick ?? ""}. Duplícalo para editar.`;
   const prevS = i > 0 ? steps[i - 1] : null;
@@ -429,14 +443,23 @@ function PlayLead({ pj, layout }: { pj: PjPlay; layout: Layout }) {
           Editar
         </button>
       </div>
-      {!mk && <p className="pj-hint pj-ro">{roNoteT}</p>}
+      {!mk && !pj.season && <p className="pj-hint pj-ro">{roNoteT}</p>}
+      {pj.season && (
+        <section className="pz-sec">
+          <div className="pj-ask" role="note">
+            <b>De la temporada</b>
+            <p>{edPl ? "Este tablero la usa sin copiarla: lo que cambies aquí se cambia en todos los tableros que la usan." : `La guardó @${pj.season.ownerNick || "alguien"}: la cambian quien la hizo y los capitanes. Duplícala para tener tu versión en este tablero.`}</p>
+          </div>
+        </section>
+      )}
+      <SizeNote />
       {!pj.own && mk && (editing || u.copyHot) && (
         <section className="pz-sec" aria-labelledby="pj-copy">
           <div className={`pj-ask${u.copyHot ? " is-hot" : ""}`} role={u.copyHot ? "alert" : "note"}>
             <b id="pj-copy">Es del equipo</b>
             <p>La usamos todos y se rehace para cada siete. Para cambiarla, haz tu copia: la del equipo se queda como está.</p>
             <div className="pj-acts">
-              <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri" onClick={() => makeCopy(P)} disabled={own(P).length >= MAX_OWN}>
+              <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri" onClick={() => makeCopy(P)} disabled={own(P).filter((x) => !x.season).length >= MAX_OWN}>
                 <PzIcon name="copy" />
                 Hacer mi copia
               </button>
@@ -656,6 +679,26 @@ function StepText({ pj, steps, i, write, isKey }: { pj: PjPlay; steps: PjStep[];
       <p className="pj-stepk" id="pj-step">
         {`Paso ${i + 1} de ${steps.length} · ${secs(st.dur)}${isKey ? " · paso clave" : ""}`}
       </p>
+      {write && (
+        <div className="pj-field">
+          <span>Duración del paso</span>
+          <div className="pj-dur">
+            <button type="button" className="vd-glass vd-press nx-ib" onClick={() => saveSteps(P, pj, setDurAt(steps, i, st.dur - 0.5), `Paso ${i + 1}: ${secs(Math.max(DUR_MIN, st.dur - 0.5))}`, { toast: false })} disabled={st.dur <= DUR_MIN} aria-label="Medio segundo menos">
+              <svg className="nx-ic" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+            <b aria-live="polite">{secs(st.dur)}</b>
+            <button type="button" className="vd-glass vd-press nx-ib" onClick={() => saveSteps(P, pj, setDurAt(steps, i, st.dur + 0.5), `Paso ${i + 1}: ${secs(Math.min(DUR_MAX, st.dur + 0.5))}`, { toast: false })} disabled={st.dur >= DUR_MAX} aria-label="Medio segundo más">
+              <PzIcon name="plus" />
+            </button>
+            <button type="button" className="vx-tog" aria-pressed={!!st.key} onClick={() => saveSteps(P, pj, setKeyAt(steps, i, !st.key), st.key ? "Paso clave: el de más movimiento" : `Paso clave: «${st.title}»`)}>
+              <span className="vx-tog__t" aria-hidden="true" />
+              Paso clave
+            </button>
+          </div>
+        </div>
+      )}
       {!write ? (
         <>
           <h2 className="pj-steph" aria-live="polite">
@@ -762,20 +805,26 @@ function PlayActions({ pj }: { pj: PjPlay }) {
           Mandarla en vídeo
         </button>
         {mk && (
-          <button type="button" className="vd-glass vd-press pz-btn" onClick={() => dupPlay(P)} disabled={own(P).length >= MAX_OWN}>
+          <button type="button" className="vd-glass vd-press pz-btn" onClick={() => dupPlay(P)} disabled={own(P).filter((x) => !x.season).length >= MAX_OWN}>
             <PzIcon name="copy" />
             {pj.own ? "Duplicar" : "Hacer mi copia"}
           </button>
         )}
-        {edPl && (
+        {pj.season && mk && (
+          <button type="button" className="vd-glass vd-press pz-btn pj-danger" onClick={() => delPlay(P)}>
+            <PzIcon name="trash" />
+            Quitar de este tablero
+          </button>
+        )}
+        {edPl && !pj.season && (
           <button type="button" className="vd-glass vd-press pz-btn pj-danger" onClick={() => setUi(P, { confirmDel: true })}>
             <PzIcon name="trash" />
             Borrar
           </button>
         )}
       </div>
-      {edPl && <KeepForSeason pj={pj} />}
-      {u.confirmDel && edPl && (
+      {edPl && !pj.season && <KeepForSeason pj={pj} />}
+      {u.confirmDel && edPl && !pj.season && (
         <div
           className="pj-ask is-bad"
           role="alertdialog"
@@ -976,11 +1025,11 @@ function PlaySide({ pj }: { pj: PjPlay }) {
         {editing && (
           <>
             <div className="pj-stepacts" role="group" aria-label="Los pasos">
-              <button type="button" className="vd-glass vd-press pz-btn" onClick={() => editSteps(P, `Paso ${n + 1} añadido: mueve las fichas`, addStepEnd, { goTo: (m) => m - 1 })} disabled={!edPl || n >= MAX_STEPS}>
+              <button type="button" className="vd-glass vd-press pz-btn" onClick={() => editSteps(P, `Paso ${n + 1} añadido: mueve las fichas`, addStepEnd, { goTo: (m) => m - 1, grow: true })} disabled={!edPl || n >= MAX_STEPS}>
                 <PzIcon name="plus" />
                 Paso al final
               </button>
-              <button type="button" className="vd-glass vd-press pz-btn" onClick={() => editSteps(P, `Paso ${i + 1} duplicado detrás`, (s) => dupStepAt(s, i), { goTo: () => i + 1 })} disabled={!edPl || n >= MAX_STEPS}>
+              <button type="button" className="vd-glass vd-press pz-btn" onClick={() => editSteps(P, `Paso ${i + 1} duplicado detrás`, (s) => dupStepAt(s, i), { goTo: () => i + 1, grow: true })} disabled={!edPl || n >= MAX_STEPS}>
                 <PzIcon name="copy" />
                 Duplicar este
               </button>
@@ -1225,7 +1274,7 @@ function Peek({ layout }: { layout: Layout }) {
           <p>{`${T0.length} del equipo · ${O0.length} ${O0.length === 1 ? "tuya" : "tuyas"}`}</p>
         </div>
         {canMake(P) && (
-          <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri" onClick={() => newPlay(P)} disabled={O0.length >= MAX_OWN}>
+          <button type="button" className="vd-glass vd-press pz-btn pz-btn--pri" onClick={() => newPlay(P)} disabled={O0.filter((x) => !x.season).length >= MAX_OWN}>
             <PzIcon name="plus" />
             Nueva
           </button>
@@ -1247,5 +1296,17 @@ function Strip({ children, label = "Los pasos" }: { children: ReactNode; label?:
     <div className="pj-strip" role="group" aria-label={label} data-scroll-x="1">
       {children}
     </div>
+  );
+}
+
+/** A calm notice when the board nears Firestore's 1 MiB per document (from 900 KB nothing grows). */
+function SizeNote() {
+  const P = usePz();
+  const st = sizeOf(P);
+  if (st === "ok") return null;
+  return (
+    <p className={st === "full" ? "pj-size is-full" : "pj-size"} role="status">
+      {st === "full" ? "El tablero está lleno: para añadir jugadas, pasos o trazos, quita los que no uses." : "El tablero se acerca a lo que cabe: si vas a seguir añadiendo, quita jugadas, pasos o trazos que no uses."}
+    </p>
   );
 }

@@ -13,8 +13,8 @@ import { drawingToPlay, convertible as appConvertible } from "../../../v2/playPa
 import { newId } from "../../../drawings";
 import { fmt } from "../../store/fmt";
 import { COLORS, COLOR_WORD, ICONS, MAX_STROKES, STICK, TOOLS, dd, hitStroke, nearPlayer, pinned, strokeFrom, strokeName, strokePath, bp, type DrawCtx, type ToolId } from "./drawView";
-import { MAX_OWN, bez, clamp, dist, freeName, nudgeIn, pieceAt, r1, bendTo, straighten, removeRivalAll, type XY, type PjStep } from "./jugadasView";
-import { U, askCopy, canEditPlay, cur, idsForMove, nameAt, pause, rivalInfo, saveSteps, setMode, setUi, stepsOf, sync } from "./engine";
+import { MAX_OWN, MAX_STEP_STROKES, setStrokesAt, bez, clamp, dist, freeName, nudgeIn, pieceAt, r1, bendTo, straighten, removeRivalAll, type XY, type PjStep } from "./jugadasView";
+import { U, askCopy, canEditPlay, cur, fullBoard, idsForMove, nameAt, pause, rivalInfo, saveSteps, setMode, setUi, stepsOf, sync } from "./engine";
 import "../../../../../styles/pz/jugadas.css";
 
 interface Geo {
@@ -27,6 +27,8 @@ interface Geo {
 }
 interface DrawUi {
   tool: ToolId;
+  /** The tool in Jugadas › Editar (Mover, or a drawing tool for the step). */
+  jtool: ToolId;
   color: StrokeColor;
   mark: string | null;
   list: boolean;
@@ -34,7 +36,7 @@ interface DrawUi {
   picks: string[];
   ask: boolean;
 }
-const UI0: DrawUi = { tool: "flecha", color: "white", mark: null, list: false, text: null, picks: [], ask: false };
+const UI0: DrawUi = { tool: "flecha", jtool: "mover", color: "white", mark: null, list: false, text: null, picks: [], ask: false };
 
 function surface(P: PzApi): "jugada" | "siete" {
   return P.state.route.place === "jugadas" && cur(P) && U(P).mode === "editar" ? "jugada" : "siete";
@@ -50,6 +52,7 @@ function ctxOf(P: PzApi): DrawCtx | null {
   return { places, lineup: { ...b.lineup, formation: v.formation, freeMode: true, slots: b.lineup.slots.map((s, i) => ({ ...s, x: v.slots[i]?.x ?? s.x, y: v.slots[i]?.y ?? s.y, playerId: v.slots[i]?.playerId ?? null })) }, name: (id) => P.sel.name(id) };
 }
 const strokesOf = (P: PzApi): Stroke[] => P.sel.board()?.lineup.drawings ?? [];
+const pj0 = (P: PzApi) => (surface(P) === "jugada" ? cur(P) : null);
 
 export function Dibujar({ layout }: RegionProps) {
   const P = usePz();
@@ -64,7 +67,11 @@ export function Dibujar({ layout }: RegionProps) {
   const m = surface(P);
   const b = P.sel.board();
   const ctx = ctxOf(P);
-  const L = strokesOf(P);
+  const stepPj = pj0(P);
+  const stepI = stepPj ? clamp(U(P).step, 0, stepsOf(P, stepPj).length - 1) : 0;
+  const L: Stroke[] = m === "jugada" && stepPj ? (stepsOf(P, stepPj)[stepI]?.d ?? []) : strokesOf(P);
+  const maxS = m === "jugada" ? MAX_STEP_STROKES : MAX_STROKES;
+  const tool: ToolId = m === "jugada" ? ui.jtool : ui.tool;
   const pj = m === "jugada" ? cur(P) : null;
   const ro = m === "siete" ? !(b && P.sel.canEdit(b)) : !(pj && canEditPlay(P, pj)) && !(pj && !pj.own && b && P.sel.canEdit(b));
 
@@ -144,6 +151,17 @@ export function Dibujar({ layout }: RegionProps) {
 
   // ── writing the board's strokes ──
   const commit = (label: string, next: Stroke[], o: { toast?: boolean; long?: boolean; say?: string } = {}) => {
+    const pjx = m === "jugada" ? cur(P) : null;
+    if (pjx) {
+      // (a play's step: its own strokes, written with the play)
+      if (!canEditPlay(P, pjx)) {
+        askCopy(P);
+        return false;
+      }
+      const ok = saveSteps(P, pjx, setStrokesAt(stepsOf(P, pjx), stepI, next), label, { toast: o.toast ?? false, long: o.long });
+      if (ok && o.say) P.say(o.say);
+      return ok;
+    }
     const bb = P.sel.board();
     if (!bb) return false;
     if (!P.sel.canEdit(bb)) {
@@ -155,10 +173,11 @@ export function Dibujar({ layout }: RegionProps) {
     return ok;
   };
   const addStroke = (s: Stroke, from?: string | null) => {
-    if (L.length >= MAX_STROKES) {
-      P.toast(`Ya hay ${MAX_STROKES} trazos: borra alguno para dibujar más`, { icon: "warn" });
+    if (L.length >= maxS) {
+      P.toast(m === "jugada" ? `Ya hay ${maxS} trazos en este paso: borra alguno para dibujar más` : `Ya hay ${maxS} trazos: borra alguno para dibujar más`, { icon: "warn" });
       return;
     }
+    if (fullBoard(P, m === "jugada" ? cur(P) : null)) return;
     const nm = strokeName(s, ctx, from);
     commit(`${nm} en el césped`, [...L, s], { say: `${nm} · ${COLOR_WORD[s.color]}. Deshacer con Control Z` });
   };
@@ -181,8 +200,7 @@ export function Dibujar({ layout }: RegionProps) {
   // ── the pen on the grass ──
   const padDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button > 0 || !g) return;
-    const tool = m === "jugada" ? "mover" : ui.tool;
-    if (m === "jugada") {
+    if (m === "jugada" && tool === "mover") {
       if (U(P).sel.length) setUi(P, { sel: [] });
       return;
     }
@@ -393,7 +411,7 @@ export function Dibujar({ layout }: RegionProps) {
       const rx = g.w - (g.x + g.pw) - 12 >= 82 ? g.x + g.pw + 12 : g.w - 82;
       // the tools' column (≈ 12 tools of 48 px) starts level with the grass, or higher when the stage is short;
       // it never runs past the stage's bottom (it scrolls inside, the last tool never cut)
-      const need = (m === "siete" ? 12 * 48 + 30 : 5 * 50 + 24) + 12;
+      const need = (m === "siete" ? 12 * 48 + 30 : 8 * 48 + 24) + 12;
       const top = Math.round(Math.max(8, Math.min(g.y, g.h - need - 8)));
       const maxHeight = Math.round(g.h - top - 8);
       dockL = { left: Math.round(lx), top, maxHeight };
@@ -404,7 +422,7 @@ export function Dibujar({ layout }: RegionProps) {
   const px = (q: XY): XY => (g ? [g.x + (q[0] / 100) * g.pw, g.y + (q[1] / 100) * g.ph] : [0, 0]);
   const marked = ui.mark ? (L.find((s) => s.id === ui.mark) ?? null) : null;
   const mr = marked ? strokePath(marked, ctx) : null;
-  const tools = m === "jugada" ? [] : TOOLS;
+  const tools: [ToolId, string, string][] = m === "jugada" ? [["mover", "Mover", "Arrastra fichas; el asa del medio curva la carrera"], ...TOOLS] : TOOLS;
   const canUndo = P.sel.canUndo();
   const canRedo = P.sel.canRedo();
   const done = () => {
@@ -444,7 +462,7 @@ export function Dibujar({ layout }: RegionProps) {
       {g && (
         <>
           <div
-            className={`pd-pad${ro ? " is-off" : m === "jugada" ? " is-move" : ui.tool === "borrar" ? " is-erase" : ""}`}
+            className={`pd-pad${ro ? " is-off" : tool === "mover" ? " is-move" : tool === "borrar" ? " is-erase" : ""}`}
             style={{ left: r1(g.x), top: r1(g.y), width: r1(g.pw), height: r1(g.ph) }}
             onPointerDown={padDown}
             aria-hidden="true"
@@ -457,7 +475,7 @@ export function Dibujar({ layout }: RegionProps) {
               {liveD && <path className={`lv c-${ui.color}${live?.tool === "zona" ? " zn" : ""}`} d={liveD} />}
             </svg>
           </div>
-          {m === "jugada" && pj && <Pieces g={g} rootRef={rootRef} />}
+          {m === "jugada" && pj && <Pieces g={g} rootRef={rootRef} off={tool !== "mover"} />}
           {ui.text && (
             <div className="vd-glass vd-glass--deep pd-text" style={{ left: Math.round(clamp(px(ui.text)[0], 130, g.w - 130)), top: Math.round(px(ui.text)[1]) }}>
               <label className="pz-vh" htmlFor="pd-txt">
@@ -518,21 +536,19 @@ export function Dibujar({ layout }: RegionProps) {
               {tools.length > 0 && (
                 <div className={`vd-glass pd-dock${phone ? " is-row" : ""}`} style={dockL} role="toolbar" aria-label="Herramientas de dibujo" aria-orientation={phone ? "horizontal" : "vertical"}>
                   {tools.map(([id, t, help]) => (
-                    <ToolBtn key={id} id={id} t={t} help={help} on={ui.tool === id} pick={() => {
-                        set({ tool: id, picks: [], text: null });
+                    <ToolBtn key={id} id={id} t={t} help={help} on={tool === id} pick={() => {
+                        set(m === "jugada" ? { jtool: id, mark: null, text: null } : { tool: id, picks: [], text: null });
                         P.say(`${t}: ${help}`);
                       }} />
                   ))}
-                  <span className="pd-sep" aria-hidden="true" />
-                  {STICK.map(([id, t, help]) => (
+                  {m === "siete" && <span className="pd-sep" aria-hidden="true" />}
+                  {m === "siete" && STICK.map(([id, t, help]) => (
                     <ToolBtn key={id} id={id} t={t} help={help} on={ui.tool === id || (id === "fuera" && L.some((s) => s.kind === "fuera"))} pick={() => pickStick(id, t, help)} />
                   ))}
                 </div>
               )}
               <div className={`vd-glass pd-dock${phone ? " is-row" : ""}`} style={dockR} role="toolbar" aria-label="Color, deshacer y listo" aria-orientation={phone ? "horizontal" : "vertical"}>
-                {m === "jugada" && <ToolBtn id="mover" t="Mover" help="Arrastra fichas; el asa del medio curva la carrera" on pick={() => P.say("Mover: arrastra fichas; el asa del medio curva la carrera")} />}
-                {m === "siete" &&
-                  COLORS.map(([c, t, hex]) => (
+                {COLORS.map(([c, t, hex]) => (
                     <button
                       key={c}
                       type="button"
@@ -682,7 +698,7 @@ function ToolBtn({ id, t, help, on, pick }: { id: ToolId; t: string; help: strin
 }
 
 // ── the pieces of a play's step (Jugadas › Editar) ──────────────────────────────────────────────────────────
-function Pieces({ g, rootRef }: { g: Geo; rootRef: RefObject<HTMLDivElement | null> }) {
+function Pieces({ g, rootRef, off }: { g: Geo; rootRef: RefObject<HTMLDivElement | null>; off: boolean }) {
   const P = usePz();
   const pj = cur(P);
   if (!pj) return null;
@@ -897,7 +913,7 @@ function Pieces({ g, rootRef }: { g: Geo; rootRef: RefObject<HTMLDivElement | nu
           <button
             key={"m" + k}
             type="button"
-            className="pd-hit k-man"
+            className={`pd-hit k-man${off ? " is-off" : ""}`}
             style={{ left: Math.round(c[0] - w / 2), top: Math.round(c[1] - h * 0.86), width: Math.round(w), height: Math.round(h) }}
             onPointerDown={(e) => pieceDown(e, "m" + k)}
             onKeyDown={(e) => pieceKey(e, "m" + k)}
@@ -915,7 +931,7 @@ function Pieces({ g, rootRef }: { g: Geo; rootRef: RefObject<HTMLDivElement | nu
           <button
             key={"r" + k}
             type="button"
-            className="pd-hit k-riv"
+            className={`pd-hit k-riv${off ? " is-off" : ""}`}
             style={{ left: Math.round(c[0] - 22), top: Math.round(c[1] - 22), width: 44, height: 44 }}
             onPointerDown={(e) => pieceDown(e, "r" + k)}
             onKeyDown={(e) => pieceKey(e, "r" + k)}
@@ -933,7 +949,7 @@ function Pieces({ g, rootRef }: { g: Geo; rootRef: RefObject<HTMLDivElement | nu
           return (
             <button
               type="button"
-              className="pd-hit k-ball"
+              className={`pd-hit k-ball${off ? " is-off" : ""}`}
               style={{ left: Math.round(c[0] - 22), top: Math.round(c[1] - 22), width: 44, height: 44 }}
               onPointerDown={(e) => pieceDown(e, "b")}
               onKeyDown={(e) => pieceKey(e, "b")}
@@ -956,7 +972,7 @@ function Pieces({ g, rootRef }: { g: Geo; rootRef: RefObject<HTMLDivElement | nu
             <button
               key={"h" + k}
               type="button"
-              className={`pd-hd${c0 ? " is-curved" : ""}`}
+              className={`pd-hd${c0 ? " is-curved" : ""}${off ? " is-off" : ""}`}
               style={{ left: Math.round(c[0]), top: Math.round(c[1]) }}
               onPointerDown={(e) => handleDown(e, k)}
               onKeyDown={(e) => handleKey(e, k, a, q, c0)}
