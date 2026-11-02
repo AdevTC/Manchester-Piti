@@ -39,14 +39,16 @@ type Vars = Record<`--${string}`, string | number>;
 const vars = (o: Vars): CSSProperties => o as CSSProperties;
 
 /** The box's size (ResizeObserver; jsdom and the server have none: the geometry falls back to a default box). */
-function useBoxSize(ref: RefObject<HTMLDivElement | null>): { w: number; h: number } {
-  const [size, setSize] = useState({ w: 0, h: 0 });
+function useBoxSize(ref: RefObject<HTMLDivElement | null>): { w: number; h: number; read: boolean } {
+  // (`read`: the box was looked at — its first layout effect ran —, measured or not)
+  const [size, setSize] = useState({ w: 0, h: 0, read: false });
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const read = (w: number, h: number) => setSize((s) => (Math.abs(s.w - w) > 1 || Math.abs(s.h - h) > 1 ? { w, h } : s));
+    const read = (w: number, h: number) => setSize((s) => (Math.abs(s.w - w) > 1 || Math.abs(s.h - h) > 1 ? { w, h, read: true } : s));
     const r = el.getBoundingClientRect();
     if (r.width && r.height) read(r.width, r.height);
+    else setSize((s) => (s.read ? s : { ...s, read: true }));
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((es) => {
       const c = es[0]?.contentRect;
@@ -116,6 +118,11 @@ export function PiCampo(props: PiCampoProps) {
     const t = window.setTimeout(() => setTrack((x) => ({ ...x, sweep: false })), 1400);
     return () => window.clearTimeout(t);
   }, [track.sweepN]);
+  // A mini is drawn once its box has been measured (its layout effect measures it before the first paint, so it never
+  // shows empty): drawing it first at the default size made the browser lay out every mini of a list twice — Jugadas'
+  // and Tableros' cards, inside the change of place (impl/perf/BEFORE.txt). (A box with no size — hidden, jsdom —
+  // draws at the default size, as before.)
+  if (mini && !box.read) return <div ref={rootRef} className={`pz-c pz-c--mini is-${cam}`} data-pz-campo="1" role="img" aria-label="El campo" />;
   // (nobody is hovered once the board changes under the pointer)
   const hovered = hover && view.slots.some((s) => s.pid === hover) ? hover : null;
 

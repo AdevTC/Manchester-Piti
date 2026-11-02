@@ -239,6 +239,10 @@ export interface PzApi {
   define(name: string, fn: (P: PzApi, ...args: unknown[]) => unknown): void;
   action(name: string, fn: (P: PzApi, ...args: unknown[]) => unknown): void;
   subscribe(fn: () => void): () => void;
+  /** The quiet version: what only the toast shows changed (its own expiry). Read by usePzToast; nobody else
+   *  re-renders for it. (Optional: a test's fake store has none.) */
+  readonly tv?: number;
+  subscribeQuiet?(fn: () => void): () => void;
   layout(): Layout;
   estado(): Estado;
   route(): PzRoute;

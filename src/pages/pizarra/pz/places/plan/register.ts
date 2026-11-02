@@ -1,13 +1,13 @@
 // r14 «La pizarra» · Plan: what the place tells the shell (MARCO.txt § registerPlace). Owned by the PLAN agent.
 // Loaded eagerly by places/index.ts (keep it light: the components are lazy).
-import { lazy } from "react";
+import { lazyPart } from "../../store/lazyPart";
 import { registerPlace, registerSheet } from "../../store/registry";
 import { fmt } from "../../store/fmt";
 import { partsStatus } from "./planPlace";
 import { PLAN_PARTS, planOf } from "./planView";
 
 registerPlace("plan", {
-  Component: lazy(() => import("./Plan").then((m) => ({ default: m.Plan }))),
+  Component: lazyPart(() => import("./Plan").then((m) => m.Plan)),
   sub: (P) => {
     const b = P.sel.board();
     if (!b) return "Sin tablero";
@@ -29,10 +29,10 @@ registerPlace("plan", {
 registerSheet("plan-vistazo", {
   title: "El plan de un vistazo",
   kicker: "Lo que cuenta la charla",
-  Component: lazy(() => import("./PlanSheets").then((m) => ({ default: m.GlanceSheet }))),
+  Component: lazyPart(() => import("./PlanSheets").then((m) => m.GlanceSheet)),
 });
 registerSheet("plan-jugada", {
   title: (a) => "La jugada " + (a.k === "freekicks" ? "de la falta" : "del córner"),
   kicker: "Pelotas paradas",
-  Component: lazy(() => import("./PlanSheets").then((m) => ({ default: m.PlayPickSheet }))),
+  Component: lazyPart(() => import("./PlanSheets").then((m) => m.PlayPickSheet)),
 });

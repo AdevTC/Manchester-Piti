@@ -1,5 +1,5 @@
 // r14 «La pizarra» · the «Candidatos» sheet (?hoja=candidatos&hueco=<i>): «¿Quién al MC?». Owned by the SIETE agent.
-import { lazy } from "react";
+import { lazyPart } from "../../store/lazyPart";
 import { registerSheet } from "../../store/registry";
 import { sieteApi } from "../../places/siete/sieteApi";
 
@@ -11,5 +11,5 @@ registerSheet("candidatos", {
     return code ? "¿Quién al " + code + "?" : "Candidatos";
   },
   kicker: "Los que mejor encajan, primero",
-  Component: lazy(() => import("./Candidatos").then((m) => ({ default: m.CandidatosSheet }))),
+  Component: lazyPart(() => import("./Candidatos").then((m) => m.CandidatosSheet)),
 });

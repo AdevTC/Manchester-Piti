@@ -30,6 +30,7 @@ import { createPzStore, type PzStore } from "./store/store";
 import { PzProvider } from "./store/PzProvider";
 import { parsePizarra } from "./store/routes";
 import { buildWorld, pizarraSeason, playedAtOf } from "./store/world";
+import { preloadParts } from "./store/registry";
 import { useLayout } from "./shell/useLayout";
 import { Shell } from "./shell/Shell";
 import "./places";
@@ -196,6 +197,21 @@ export function PizarraR14() {
       reactions: official ? { ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, ...(reactions.who ? { who: reactions.who } : {}) } : undefined,
     });
   }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, visibleDocs, memberAnswers, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, prefs.prefs, stills, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
+
+  // the other places (and the sheets) are fetched when the page is idle, so the first visit of each one is drawn in
+  // its View Transition instead of popping in after it
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    // (~460 KB of JS in all, ~120 KB compressed: not on a «save data» connection — P.nav still fetches the place it goes to)
+    if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) return;
+    const go = () => void preloadParts(["siete", "plan", "jugadas", "partido", "tableros", "pachanga", "charla"]);
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(go, { timeout: 4000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(go, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   // a new version waits while the pizarra is busy (unsaved edit, sheet, drawing, charla, undo window), not longer
   useEffect(() => holdUpdatesWhile(() => store.sel.busy()), [store]);

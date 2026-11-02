@@ -51,9 +51,15 @@ export function dayWord(P: PzApi, ms: number): string {
   return fmt.day(ms) === fmt.day(P.state.W.now) ? "hoy" : fmt.day(ms);
 }
 /** Madrid YYYY-MM-DD of a moment (the absences' format). */
+// (one formatter and the last answer: building an Intl.DateTimeFormat per call cost ~20 ms of every Pachanga render
+// with the CPU ×4 — outOn asks it once per player, twice — impl/perf)
+const isoFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
+let isoLast: { ms: number; iso: string } | null = null;
 export function isoDay(ms: number): string {
-  const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
-  return p;
+  if (isoLast?.ms === ms) return isoLast.iso;
+  const iso = isoFmt.format(new Date(ms));
+  isoLast = { ms, iso };
+  return iso;
 }
 /** «12 nov» of a YYYY-MM-DD. */
 export function isoShort(iso: string): string {

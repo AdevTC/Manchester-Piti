@@ -1,6 +1,6 @@
 // r14 «La pizarra» · Siete: what the place tells the shell (MARCO.txt § registerPlace) and its own sheets
 // («Empezar desde…», a galón). Loaded eagerly by places/index.ts (keep it light: the components are lazy).
-import { lazy } from "react";
+import { lazyPart } from "../../store/lazyPart";
 import { registerPlace, registerSheet } from "../../store/registry";
 import { GALONES } from "../../store/store";
 import { bindSieteApi } from "./sieteApi";
@@ -25,16 +25,16 @@ registerPlace("siete", {
     return charla;
   },
   share: "compartir",
-  Component: lazy(() => import("./Siete").then((m) => ({ default: m.Siete }))),
+  Component: lazyPart(() => import("./Siete").then((m) => m.Siete)),
 });
 
 registerSheet("desde", {
   title: "Empezar desde…",
   kicker: "Un punto de partida",
-  Component: lazy(() => import("./SieteSheets").then((m) => ({ default: m.DesdeSheet }))),
+  Component: lazyPart(() => import("./SieteSheets").then((m) => m.DesdeSheet)),
 });
 registerSheet("galones", {
   title: (a) => GALONES.find((g) => g.k === a.k)?.t ?? "Galones",
   kicker: "Galones y lanzadores",
-  Component: lazy(() => import("./SieteSheets").then((m) => ({ default: m.GalonesSheet }))),
+  Component: lazyPart(() => import("./SieteSheets").then((m) => m.GalonesSheet)),
 });

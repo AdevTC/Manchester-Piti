@@ -15,7 +15,7 @@ import { fmt } from "./fmt";
 import { madridDate } from "../../../../../functions/src/madrid";
 import { readLocalPrefs } from "../../data/prefs";
 import { parsePizarra, pizarraHref } from "./routes";
-import { onRegistry, placeReg, sheetReg } from "./registry";
+import { onRegistry, placeReg, preloadPlace, sheetReg } from "./registry";
 import { VERS, verDef, verOf, slotsOf, withVer, slotsForSystem, setPid, snapSeven, restoreSeven, type SevenSnap } from "./seven";
 import { resolveView } from "./view";
 import type {
@@ -162,6 +162,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
   let toastT: ReturnType<typeof setTimeout> | undefined;
   let sayFlip = false;
   const subs: (() => void)[] = [];
+  let quietV = 0;
+  const quietSubs: (() => void)[] = [];
   const bus: Record<string, ((d: unknown) => void)[]> = {};
   const sliceDefs: Record<string, unknown | ((W: PzWorld, P: PzApi) => unknown)> = {};
   /** The sheet was opened by a push of the address (closing goes back). */
@@ -214,6 +216,18 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       });
     });
   }
+  function bumpQuiet() {
+    quietV++;
+    void Promise.resolve().then(() => {
+      quietSubs.slice().forEach((fn) => {
+        try {
+          fn();
+        } catch (e) {
+          console.error("[pizarra] subscriber", e);
+        }
+      });
+    });
+  }
   function emit(evt: string, data?: unknown) {
     (bus[evt] ?? []).slice().forEach((fn) => {
       try {
@@ -243,7 +257,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     if (o.long && undo) holdUntil = Math.max(holdUntil, Date.now() + 12500);
     toastT = setTimeout(() => {
       S.toast = null;
-      bump();
+      // (only the toast shows it: the rest of the pizarra — the pitch, the regions — isn't redrawn for it)
+      bumpQuiet();
     }, o.ms ?? (o.long ? 12000 : undo || o.action ? 5000 : 3200));
     if (o.say !== false) say(text);
     bump();
@@ -830,26 +845,37 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     if (season) q.season = season;
     return r.place === "perdido" ? u.pathname : pizarraHref(r.place, r.sub, q);
   }
-  function vt(fn: () => void) {
+  /** A View Transition will run (supported, motion allowed). */
+  function vtRuns(): boolean {
     const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    return typeof document !== "undefined" && typeof (document as Document & { startViewTransition?: unknown }).startViewTransition === "function" && !reduce;
+  }
+  function vt(fn: () => void) {
     const doc = typeof document !== "undefined" ? (document as Document & { startViewTransition?: (cb: () => Promise<void>) => unknown }) : null;
-    if (!doc?.startViewTransition || reduce) {
+    if (!doc?.startViewTransition || !vtRuns()) {
       fn();
       return;
     }
-    // the callback waits for the router to show the new address (or 400 ms), then two frames
-    const waitRoute = () =>
+    // The callback waits for the router to show the new address (or 400 ms), then ONE TASK for React to commit it.
+    // Never a frame: while the update callback runs the page does not render, so requestAnimationFrame never fires —
+    // Chrome then gives up after 4 s, aborts the transition and the screen stays frozen all that time (measured:
+    // a 4 s frame on every change of place, impl/perf/BEFORE.txt). The store's update is a sync React update
+    // (useSyncExternalStore, flushed in a microtask), so it has committed when the task runs.
+    const waitRoute = (from: PzRoute) =>
       new Promise<void>((res) => {
+        // (a router that answered while `fn` ran: the address is in already)
+        if (S.route !== from) return res();
         const t = setTimeout(res, 400);
         routeWaiters.push(() => {
           clearTimeout(t);
           res();
         });
-      }).then(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+      }).then(() => new Promise<void>((r) => setTimeout(r, 0)));
     try {
       doc.startViewTransition(() => {
+        const from = S.route;
         fn();
-        return waitRoute();
+        return waitRoute(from);
       });
     } catch {
       fn();
@@ -1328,7 +1354,11 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       bump();
     },
     setStage(spec, o) {
-      S.stage = o?.replace ? { ...stageDefaults(S.route.place), ...spec } : { ...S.stage, ...spec };
+      const next = o?.replace ? { ...stageDefaults(S.route.place), ...spec } : { ...S.stage, ...spec };
+      // (a place sets its stage in an effect on arriving; the same stage again redrew the whole pizarra a second
+      // time in every change of place — impl/perf: no change, no render)
+      if (sameSpec(next, S.stage)) return;
+      S.stage = next;
       bump();
     },
     go(url, o) {
@@ -1482,10 +1512,12 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     },
     sel,
     act: new Proxy(act, {
-      // every action ends with a bump (a no-op change costs one render)
+      // every action ends with a bump (a no-op change costs one render) — but setStage, which bumps itself only
+      // when the stage changed
       get(target, prop: string) {
         const f = target[prop];
         if (typeof f !== "function") return f;
+        if (prop === "setStage") return f;
         return (...args: unknown[]) => {
           const r = (f as (...a: unknown[]) => unknown)(...args);
           bump();
@@ -1522,7 +1554,16 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       active: () => !!S.drag,
       state: () => S.drag,
     },
-    nav: (url) => vt(() => act.go(url)),
+    nav: (url) => {
+      // a place not fetched yet (the idle preload hasn't reached it): wait for its chunk — ≤ 700 ms, the screen still
+      // live — so the transition captures the new place drawn, not an empty region that pops in after it
+      const goes = vtRuns() ? preloadPlace(parsePizarra(new URL(url, "http://x").pathname, {}).place) : null;
+      if (!goes) {
+        vt(() => act.go(url));
+        return;
+      }
+      void Promise.race([goes.catch(() => undefined), new Promise<void>((r) => setTimeout(r, 700))]).then(() => vt(() => act.go(url)));
+    },
     vt,
     toast,
     say,
@@ -1554,6 +1595,16 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       return () => {
         const k = subs.indexOf(fn);
         if (k >= 0) subs.splice(k, 1);
+      };
+    },
+    get tv() {
+      return quietV;
+    },
+    subscribeQuiet(fn) {
+      quietSubs.push(fn);
+      return () => {
+        const k = quietSubs.indexOf(fn);
+        if (k >= 0) quietSubs.splice(k, 1);
       };
     },
     layout: () => S.layout,
@@ -1613,6 +1664,12 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     },
     inputs: () => inputs,
   };
+  /** Two stage specs with the same keys and the same values (by identity). */
+  function sameSpec(a: StageSpec, b: StageSpec): boolean {
+    const ka = Object.keys(a) as (keyof StageSpec)[];
+    if (ka.length !== Object.keys(b).length) return false;
+    return ka.every((k) => k in b && Object.is(a[k], b[k]));
+  }
   /** A board change keeps what the place set that is not about the board (its source, the camera). */
   function pickPlaceStage(s: StageSpec): StageSpec {
     const out: StageSpec = {};
