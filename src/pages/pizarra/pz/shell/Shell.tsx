@@ -15,6 +15,7 @@ import { placeOf } from "../store/store";
 import { PiCampo } from "../campo/PiCampo";
 import { BoardBar, Dock, FullState, Ghost, Missing, PhoneHeader, ReadError, Skeleton, Toast } from "./parts";
 import { SheetFrame } from "./SheetFrame";
+import { useXl } from "./useLayout";
 import type { Layout, PlaceId, Region, SheetHeight } from "../store/types";
 import "../../../../styles/vidrio/tokens.css";
 import "../../../../styles/vidrio/glass.css";
@@ -191,7 +192,7 @@ export function Shell() {
   const charla = place === "charla" && !m.fuera;
   const sheetH = phone ? (S.sheetH === "full" ? "calc(100% - 196px)" : S.sheetH === "half" ? "262px" : "150px") : "0px";
   const vars = { "--sh": sheetH, "--peek": "150px", "--stb": S.sheetH === "peek" ? "150px" : "262px" } as CSSProperties;
-  const xl = typeof window !== "undefined" && window.matchMedia?.("(min-width: 1800px)").matches;
+  const xl = useXl();
 
   // Ctrl Z / Ctrl ⇧ Z / Ctrl Y and Esc (sheet → drawing → charla → the hand)
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {

@@ -34,7 +34,7 @@ export function BoardBar({ xl }: { xl: boolean }) {
         <span>
           <b>{line.name}</b>
           <small>
-            {line.match}
+            <span className="pz-s__bm">{line.match}</span>
             <span className={`pz-s__save is-${line.save.tone}`}>
               <PzIcon name={line.save.icon || "check"} />
               {line.save.t}

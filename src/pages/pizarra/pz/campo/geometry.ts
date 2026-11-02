@@ -88,7 +88,8 @@ export function fitGeometry(cam: Camera, layout: Layout, mini: boolean, boxW: nu
   const ph = Math.max(10, Math.min((h - padT - padB) / (1 + hang), (w - padX * 2) * 1.5));
   const pw = ph / 1.5;
   let ty = (padT - padB) / 2 - (ph * hang) / 2;
-  if (layout === "tablet") ty -= Math.max(0, (h - padT - padB - ph) / 2);
+  // (tablet: the pitch sits right under the layer switch, never under it)
+  if (layout === "tablet") ty = padT + 4 - (h - ph) / 2;
   return { w, h, pw, ph, persp: 1200, rx, ty, s: shirtSize(pw, mini) };
 }
 
