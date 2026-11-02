@@ -407,8 +407,9 @@ export function Dibujar({ layout }: RegionProps) {
   if (g) {
     if (narrow) {
       const below = g.y + g.ph + 8;
-      dockR = { left: 8, right: 8, top: Math.round(Math.max(4, g.y - 58)) };
-      dockL = below + 58 <= g.h ? { left: 8, right: 8, top: Math.round(below) } : { left: 8, right: 8, bottom: 8 };
+      // (a row with its words is ≈ 70 px; on a short stage the tools sit over the camera switch's row, never on it)
+      dockR = { left: 8, right: 8, top: Math.round(Math.max(4, g.y - 74)) };
+      dockL = below + 72 <= g.h ? { left: 8, right: 8, top: Math.round(below) } : { left: 8, right: 8, bottom: 64 };
       listSt = { left: 8, right: 8, top: Math.round(Math.max(8, g.y)), width: "auto", maxHeight: "calc(100% - 130px)" };
     } else if (phone) {
       dockL = { left: 6, right: 6, bottom: 8 };

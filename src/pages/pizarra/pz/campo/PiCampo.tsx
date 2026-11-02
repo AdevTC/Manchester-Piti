@@ -8,7 +8,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject, type PointerEvent as ReactPointerEvent } from "react";
 import { usePz } from "../store/context";
 import type { Camera, Layout, StageSpec, Token, ViewSlot } from "../store/types";
-import { CAMPO_LAYERS, RX as RX_OF, captionRoom, dodgeRivals, fitGeometry, plateCrowd, planeTransform, round2, shapeLines, slotAhead } from "./geometry";
+import { CAMPO_LAYERS, RX as RX_OF, captionRoom, dodgeRivals, fitGeometry, plateCrowd, planeProjector, planeTransform, round2, shapeLines, slotAhead } from "./geometry";
 import { overlayPaths } from "./overlayPaths";
 import { CampoShirt, PzIcon } from "./Shirt";
 import "../../../../styles/pz/campo.css";
@@ -328,7 +328,7 @@ export function PiCampo(props: PiCampoProps) {
         ...ov.labels.map((l) => ({ x: l.x, y: l.y, w: wordW(l.t, 20), h: 24, ax: l.cls === "is-end" ? ("end" as const) : ("c" as const) })),
         ...view.labels.map((l) => ({ x: l.x, y: l.y, w: wordW(l.t, l.pat ? 42 : 22), h: 24, ax: l.align === "center" ? ("c" as const) : l.align === "right" ? ("end" as const) : ("start" as const) })),
       ];
-  const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw * zk, G.ph * zk, G.s, Math.cos(((RX_OF[cam] ?? 0) * Math.PI) / 180), walls);
+  const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw * zk, G.ph * zk, G.s, Math.cos(((RX_OF[cam] ?? 0) * Math.PI) / 180), walls, flat ? undefined : planeProjector(G, cam));
   const others = [...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, id: `s${s.i}` })), ...tokens.filter((o) => o.pid || o.kind === "us").map((o) => ({ x: o.x, y: o.y, id: o.id }))];
   const tokenModel = (t: Token) => {
     const pl = t.pid ? P.sel.player(t.pid) : null;
