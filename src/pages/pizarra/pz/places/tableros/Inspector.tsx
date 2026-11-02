@@ -32,7 +32,11 @@ export function Inspector({ tb, b, layout }: { tb: Tb; b: PzBoard; layout: Layou
   const ce = P.sel.canEdit(b);
   const mine = b.ownerUid === m.uid;
   const isCur = b.id === cur?.id;
-  const isOff = b.isOfficial && b.id === off?.id;
+  // (several officials can live at once: one per match and one for the season; the reactions the store reads are
+  // those of the board's match's official — `off`)
+  const quitting = U.pend?.kind === "quitar" && U.pend.ids.includes(b.id);
+  const official = b.isOfficial && !quitting;
+  const isOff = official && b.id === off?.id;
   const v = verOf(b.lineup, "titular");
   const st = P.sel.status(v);
   const M = matchById(P, b.matchId);
@@ -157,7 +161,7 @@ export function Inspector({ tb, b, layout }: { tb: Tb; b: PzBoard; layout: Layou
         P.act.openSheet("publicar");
       },
     });
-  if (m.cap && isOff) acts.push({ t: "Quitar el oficial", icon: "close", aria: "Quitar «" + b.name + "» como oficial", run: () => P.act.openSheet("pb-quitar", { id: b.id }) });
+  if (m.cap && official) acts.push({ t: "Quitar el oficial", icon: "close", aria: "Quitar «" + b.name + "» como oficial", run: () => P.act.openSheet("pb-quitar", { id: b.id }, { kicker: b.name }) });
   if (ce && !b.isOfficial) acts.push({ t: "Borrar", icon: "trash", danger: true, aria: "Borrar «" + b.name + "»", run: () => (mine ? del(P, b, "mine") : pb.set({ confirmDel: b.id })) });
   let note = "";
   if (m.cap && !b.isOfficial && !st.full) note = "Para hacerlo oficial, completa el titular (" + st.n + "/7).";
@@ -166,7 +170,7 @@ export function Inspector({ tb, b, layout }: { tb: Tb; b: PzBoard; layout: Layou
   const mesaN = m.cap ? ops.mesaCopies().length : 0;
   if (isMesa && m.cap) {
     note = M?.played ? "Copia que hizo la mesa el día del partido. Ya jugado: se puede borrar." : "Copia que hizo la mesa el día del partido.";
-    if (mesaN > 0) acts.push({ t: mesaN === 1 ? "Borrar la copia de la mesa" : "Borrar las " + mesaN + " copias de la mesa", icon: "trash", danger: true, aria: "Borrar las copias de la mesa de partidos jugados", run: () => ops.cleanMesa() });
+    if (mesaN > 0) acts.push({ t: mesaN === 1 ? "Borrar la copia de la mesa" : "Borrar las " + mesaN + " copias de la mesa", icon: "trash", danger: true, aria: "Borrar las copias de la mesa de partidos jugados", run: () => P.act.openSheet("pb-mesa") });
   }
   let line: string;
   if (!ce) line = b.isOfficial ? "El oficial es de solo lectura: duplícalo para cambiarlo." : m.socia || !m.member ? "Solo lectura." : "Es de @" + b.ownerNick + ": solo lectura. Duplícalo para tener tu copia.";
