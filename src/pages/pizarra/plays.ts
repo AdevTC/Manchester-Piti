@@ -326,6 +326,8 @@ export function playToData(play: Play): Record<string, unknown> {
     kind: play.kind,
     frames: play.frames.map((f) => ({ ...cloneFrame(f) })),
     ...(play.video ? { video: { url: play.video.url, at: play.video.at } } : {}),
+    // (r14, PZ-D21J: the acta's moment it happened in)
+    ...(play.moment ? { moment: { matchId: play.moment.matchId, min: play.moment.min, ...(play.moment.eventId ? { eventId: play.moment.eventId } : {}) } } : {}),
   };
 }
 

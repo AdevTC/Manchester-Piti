@@ -761,8 +761,13 @@ service cloud.firestore {
     // La vista de la afición (PZ-D21F): a public, read-only snapshot of a board (its cartel and its seven: shirt
     // names and dorsales, never full names, notas or notes), at an unguessable token. Only the server writes it
     // (setBoardFanLink, and refreshed when the board changes); anyone with the link reads it, nobody lists them.
+    // Fail-closed: it is served only while its board still exists and still names this token (a revoked,
+    // rotated or deleted link reads nothing even if a stale doc were left behind).
     match /fanBoards/{token} {
-      allow get: if true;
+      allow get: if resource == null
+        || (resource.data.get('boardId', null) is string
+          && exists(/databases/$(database)/documents/lineups/$(resource.data.boardId))
+          && get(/databases/$(database)/documents/lineups/$(resource.data.boardId)).data.get('fanToken', null) == token);
       allow list: if false;
       allow write: if false;
     }

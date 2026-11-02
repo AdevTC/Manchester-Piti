@@ -427,6 +427,15 @@ export const playVideoSchema = z.object({
 });
 export type PlayVideo = z.infer<typeof playVideoSchema>;
 
+/** r14 · «La jugada de verdad» (PZ-D21J): the acta's moment a play happened in («J2 · 23′ · gol de ALCIDES»):
+ *  the match, the minute and the acta's event (src/pages/pizarra/data/moment.ts names it). */
+export const playMomentSchema = z.object({
+  matchId: z.string().min(1).max(128),
+  min: z.number().int().min(0).max(200),
+  eventId: z.string().min(1).max(128).optional(),
+});
+export type PlayMoment = z.infer<typeof playMomentSchema>;
+
 export const PLAY_KINDS = ["propia", "corner", "falta", "banda", "salida"] as const;
 export const playSchema = z.object({
   id: itemId,
@@ -435,6 +444,8 @@ export const playSchema = z.object({
   frames: z.array(playFrameSchema).min(PIZARRA_LIMITS.framesMin).max(PIZARRA_LIMITS.framesMax),
   /** (lenient: a broken link is dropped, never the jugada) */
   video: playVideoSchema.optional().catch(undefined),
+  /** (r14, lenient like the video: a broken moment is dropped, never the jugada) */
+  moment: playMomentSchema.optional().catch(undefined),
 });
 export type Play = z.infer<typeof playSchema>;
 export type PlayKind = Play["kind"];

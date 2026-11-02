@@ -105,42 +105,87 @@ export const onLineupR14 = onDocumentWritten({ document: "lineups/{lineupId}", m
     await batch.commit();
   }
 
-  // ── PZ-D21F: the fan view follows the board
+  // ── PZ-D21F: the fan view follows the board (fail-closed: writeFanBoard writes only what the board still is)
   const token = typeof after.fanToken === "string" && after.fanToken ? after.fanToken : null;
-  if (token && (before?.fanToken !== token || fanFieldsChanged(before, after))) {
-    await db.doc(`fanBoards/${token}`).set(await buildFanBoard(after));
-  }
+  if (token && (before?.fanToken !== token || fanFieldsChanged(before, after))) await writeFanBoard(id, token);
   if (typeof before?.fanToken === "string" && before.fanToken && before.fanToken !== token) await db.doc(`fanBoards/${before.fanToken}`).delete();
 });
 
-const fanInput = z.object({ boardId: idSchema, on: z.boolean() });
+const tokenOf = (b: R14Board | undefined): string | null => (typeof b?.fanToken === "string" && b.fanToken ? b.fanToken : null);
 
-/** The board's fan link: `on` makes (or keeps) it and returns its token; off deletes it. The board's owner or a
- *  captain. Errors: not-found (no board), permission-denied (not yours), failed-precondition (no seven). */
+/**
+ * Writes the fan view of board `id` at `token`, FAIL-CLOSED (a revoke, a new token or a delete racing with a
+ * slow run never brings a public link back): the snapshot is built from a fresh read of the board, then a
+ * transaction re-reads it and writes only when the board still exists, still carries `token` and has not
+ * changed since the snapshot was built (its updateTime); otherwise nothing is written — and when the board
+ * no longer carries `token`, any fan doc left at it is deleted. The fan doc keeps `boardId` and `boardAt` (the
+ * board version it shows): the rules only serve it while the board still names that token. Returns whether it
+ * wrote. A newer write of the board has its own trigger run, which writes the newer snapshot.
+ */
+export async function writeFanBoard(id: string, token: string): Promise<boolean> {
+  const ref = db.doc(`lineups/${id}`);
+  const fanRef = db.doc(`fanBoards/${token}`);
+  const first = await ref.get();
+  const board = first.data() as R14Board | undefined;
+  if (!first.exists || !board || tokenOf(board) !== token) {
+    await db.runTransaction(async (tx) => {
+      const cur = await tx.get(ref);
+      if (!cur.exists || tokenOf(cur.data() as R14Board) !== token) tx.delete(fanRef);
+    });
+    return false;
+  }
+  const at = first.updateTime?.toMillis() ?? 0;
+  const fan = await buildFanBoard(board);
+  return db.runTransaction(async (tx) => {
+    const cur = await tx.get(ref);
+    const old = await tx.get(fanRef);
+    if (!cur.exists || tokenOf(cur.data() as R14Board) !== token) {
+      tx.delete(fanRef);
+      return false;
+    }
+    // (what the fans see moved on since this snapshot — that write's own run writes the newer one —, or a newer
+    // snapshot is already there: leave it)
+    if (fanFieldsChanged(board, cur.data() as R14Board)) return false;
+    const now = cur.updateTime?.toMillis() ?? at;
+    if (old.exists && typeof old.get("boardAt") === "number" && (old.get("boardAt") as number) > now) return false;
+    tx.set(fanRef, { ...fan, boardId: id, boardAt: now });
+    return true;
+  });
+}
+
+const fanInput = z.object({ boardId: idSchema, on: z.boolean(), rotate: z.boolean().optional() });
+
+/** The board's fan link: `on` makes (or keeps) it and returns its token — `rotate` gives it a new token (the old
+ *  link stops working at once); off deletes it. The board's owner or a captain. Errors: not-found (no board),
+ *  permission-denied (not yours), failed-precondition (no seven). The token changes in one transaction with the
+ *  old fan doc's deletion; the new fan doc is then written fail-closed (writeFanBoard). */
 export const setBoardFanLink = onCall(async (req): Promise<{ ok: true; token: string | null }> => {
   const actor = await memberAs(req);
-  const { boardId, on } = parse(fanInput, req.data);
+  const { boardId, on, rotate } = parse(fanInput, req.data);
   const ref = db.doc(`lineups/${boardId}`);
-  const snap = await ref.get();
-  const board = snap.data() as R14Board | undefined;
-  if (!snap.exists || !board) throw new HttpsError("not-found", "Ese tablero ya no existe.");
-  if (!actor.isAdmin && board.ownerUid !== actor.uid) throw new HttpsError("permission-denied", "Solo el dueño del tablero o un capitán comparte su enlace para la afición.");
-  const old = typeof board.fanToken === "string" && board.fanToken ? board.fanToken : null;
-  if (!on) {
-    if (old) {
-      const batch = db.batch();
-      batch.delete(db.doc(`fanBoards/${old}`));
-      batch.update(ref, { fanToken: FieldValue.delete() });
-      await batch.commit();
+  const token = await db.runTransaction(async (tx): Promise<string | null> => {
+    const snap = await tx.get(ref);
+    const board = snap.data() as R14Board | undefined;
+    if (!snap.exists || !board) throw new HttpsError("not-found", "Ese tablero ya no existe.");
+    if (!actor.isAdmin && board.ownerUid !== actor.uid) throw new HttpsError("permission-denied", "Solo el dueño del tablero o un capitán comparte su enlace para la afición.");
+    const old = tokenOf(board);
+    if (!on || rotate) {
+      if (old) tx.delete(db.doc(`fanBoards/${old}`));
+      if (!on) {
+        if (old) tx.update(ref, { fanToken: FieldValue.delete() });
+        return null;
+      }
     }
-    return { ok: true, token: null };
+    if (sevenOf(board.slots).length === 0) throw new HttpsError("failed-precondition", "Pon al menos un jugador en el siete antes de compartirlo.");
+    if (old && !rotate) return old;
+    const next = fanTokenOf(randomBytes(24));
+    tx.update(ref, { fanToken: next });
+    return next;
+  });
+  // (the trigger of the token's write writes it too: whichever runs first, both only write the board's current state)
+  if (token && !(await writeFanBoard(boardId, token)) && !(await db.doc(`fanBoards/${token}`).get()).exists) {
+    // (the board changed while it was being built: once more, from its newest state)
+    await writeFanBoard(boardId, token);
   }
-  if (sevenOf(board.slots).length === 0) throw new HttpsError("failed-precondition", "Pon al menos un jugador en el siete antes de compartirlo.");
-  const token = old ?? fanTokenOf(randomBytes(24));
-  const fan = await buildFanBoard(board);
-  const batch = db.batch();
-  batch.set(db.doc(`fanBoards/${token}`), fan);
-  if (!old) batch.update(ref, { fanToken: token });
-  await batch.commit();
   return { ok: true, token };
 });

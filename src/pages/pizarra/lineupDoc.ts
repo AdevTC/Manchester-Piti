@@ -8,8 +8,11 @@ import { migrateTakers, takersOf } from "./v2/takers";
 import { defaultTactics, TACTICS, type Tactics } from "./tactics";
 import { parseDrawings, strokeToData } from "./drawings";
 import { parsePlays, playToData } from "./plays";
-import { copyTactica, parseCondPlan, parseShapeOff, parseStyle, tacticaToData } from "./v2/tacticaData";
-import { copyRival, parseRival, rivalToData } from "./v2/rival";
+import { copyTactica, parseShapeOff, parseStyle, tacticaToData } from "./v2/tacticaData";
+import { condPlanToData, parseCondPlanR14 } from "./data/condPlan";
+import { copyRivalPlan, parseRivalPlan, rivalPlanToData } from "./data/rival";
+import { copyPlan, parsePlan, planToData } from "./data/plan";
+import { parseSeasonPlayRefs } from "./data/seasonPlayRefs";
 import { parseTags } from "./v2/tags";
 import { reportDroppedDoc } from "../../lib/docTelemetry";
 import {
@@ -35,17 +38,28 @@ export interface LineupMeta {
   name: string;
   isOfficial: boolean;
   matchId: string | null; // null = season-scoped official (or not official)
+  /** r14 (PZ-D22T): a scorer's copy made from la mesa («De la mesa» in Tableros). Written only on create. */
+  fromMesa?: boolean;
+}
+
+/** r14 · the server's own fields of a board (functions/src/pizarraR14.ts): read-only for the client. */
+export interface LineupServerMeta {
+  /** The fan view's token (PZ-D21F), null = no public link. */
+  fanToken?: string | null;
+  /** The official seven's fingerprint and version (PZ-D01): a reaction counts only with `rev === sevenRev`. */
+  sevenKey?: string | null;
+  sevenRev?: number;
 }
 
 /** A full board as held in memory after loading from the store. */
-export interface LineupDoc extends Lineup, LineupMeta {
+export interface LineupDoc extends Lineup, LineupMeta, LineupServerMeta {
   id: string;
   createdAt: number | null; // ms epoch; null while a local write is pending
   updatedAt: number | null;
 }
 
 /** The fields the board itself edits (an autosave writes only these: never the metadata). */
-export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants", "shapeOff", "condPlan", "style", "rival", "tags"] as const;
+export const BOARD_FIELDS = ["formation", "freeMode", "slots", "roles", "tactics", "playerPositions", "drawings", "plays", "subs", "takers", "variants", "shapeOff", "condPlan", "style", "rival", "tags", "plan", "seasonPlays"] as const;
 
 /** A Firestore Timestamp-ish value (avoids importing the class for a type). */
 interface TimestampLike {
@@ -82,12 +96,14 @@ export function extractLineup(d: LineupDoc): Lineup {
     pinned: [...d.pinned],
     ...(d.subs ? { subs: d.subs.map((x) => ({ ...x })) } : {}),
     ...(d.takers ? { takers: copyTakers(d.takers) } : {}),
-    ...(d.rival !== undefined ? { rival: d.rival ? copyRival(d.rival) : null } : {}),
+    ...(d.rival !== undefined ? { rival: d.rival ? copyRivalPlan(d.rival) : null } : {}),
     drawings: structuredClone(d.drawings),
     plays: structuredClone(d.plays),
     variants: structuredClone(d.variants ?? []),
     ...copyTactica(d),
     ...(d.tags ? { tags: [...d.tags] } : {}),
+    ...(d.plan !== undefined ? { plan: d.plan ? copyPlan(d.plan) : null } : {}),
+    ...(d.seasonPlays ? { seasonPlays: [...d.seasonPlays] } : {}),
   };
 }
 
@@ -106,13 +122,18 @@ export function boardToData(lineup: Lineup): Record<string, unknown> {
     subs: (lineup.subs ?? []).map((x) => ({ id: x.id, min: x.min, out: x.out, in: x.in })),
     takers: copyTakers(takersOf(lineup)),
     // (only once a rival was ever set: null takes it off; older rules never see the field otherwise)
-    ...(lineup.rival !== undefined ? { rival: rivalToData(lineup.rival) } : {}),
+    ...(lineup.rival !== undefined ? { rival: rivalPlanToData(lineup.rival) } : {}),
     drawings: (lineup.drawings ?? []).map(strokeToData),
     plays: (lineup.plays ?? []).map(playToData),
     variants: (lineup.variants ?? []).map(variantToData),
     ...tacticaToData(lineup),
+    // (r14: the rules keep their «ver», PZ-D07)
+    condPlan: condPlanToData(lineup.condPlan),
     // (only once tags were ever set: older rules never see the field otherwise)
     ...(lineup.tags !== undefined ? { tags: [...lineup.tags] } : {}),
+    // (r14: only once set, like the rival and the tags)
+    ...(lineup.plan !== undefined ? { plan: planToData(lineup.plan) } : {}),
+    ...(lineup.seasonPlays !== undefined ? { seasonPlays: [...lineup.seasonPlays] } : {}),
   };
 }
 
@@ -131,6 +152,7 @@ export function lineupToData(lineup: Lineup, meta: LineupMeta): Record<string, u
     name: meta.name,
     isOfficial: meta.isOfficial,
     matchId: meta.matchId ?? null,
+    ...(meta.fromMesa ? { fromMesa: true } : {}),
   };
 }
 
@@ -240,21 +262,27 @@ export function dataToLineupDoc(id: string, data: Record<string, unknown>): Line
     // boards saved before the cambios plan none; the old single galones read as one-item lists
     subs: readSubs(data.subs, id),
     takers: migrateTakers(field(lineupTakersSchema.nullable(), data.takers, null, id, "takers"), roles),
-    ...(data.rival !== undefined ? { rival: parseRival(data.rival, id) ?? null } : {}),
+    ...(data.rival !== undefined ? { rival: parseRivalPlan(data.rival, id) ?? null } : {}),
     // boards saved before drawings/jugadas existed load with none; invalid items are dropped
     drawings: parseDrawings(data.drawings, id),
     plays: parsePlays(data.plays, id),
     variants: parseVariants(data.variants, id),
     shapeOff: parseShapeOff(data.shapeOff, id),
-    condPlan: parseCondPlan(data.condPlan, id),
+    condPlan: parseCondPlanR14(data.condPlan, id),
     style: parseStyle(data.style, id),
     ...(data.tags !== undefined ? { tags: parseTags(data.tags, id) } : {}),
+    ...(data.plan !== undefined ? { plan: parsePlan(data.plan, id) ?? null } : {}),
+    ...(data.seasonPlays !== undefined ? { seasonPlays: parseSeasonPlayRefs(data.seasonPlays, id) } : {}),
     ownerUid: str(data.ownerUid, LINEUP_LIMITS.id, ""),
     ownerNickname: str(data.ownerNickname, LINEUP_LIMITS.nickname, ""),
     seasonId: str(data.seasonId, LINEUP_LIMITS.id, "all"),
     name: str(data.name, LINEUP_LIMITS.name, "Sin nombre") || "Sin nombre",
     isOfficial: data.isOfficial === true,
     matchId: typeof data.matchId === "string" && data.matchId ? data.matchId : null,
+    fromMesa: data.fromMesa === true,
+    fanToken: typeof data.fanToken === "string" && data.fanToken ? data.fanToken : null,
+    sevenKey: typeof data.sevenKey === "string" ? data.sevenKey : null,
+    sevenRev: typeof data.sevenRev === "number" && Number.isInteger(data.sevenRev) && data.sevenRev >= 0 ? data.sevenRev : 0,
     createdAt: toMillis(data.createdAt),
     updatedAt: toMillis(data.updatedAt),
   };
