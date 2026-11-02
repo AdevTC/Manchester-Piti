@@ -379,6 +379,15 @@ export function setMode(P: PzApi, m: "ver" | "editar") {
     setUi(P, { mode: "ver", sel: [], copyHot: false });
     if (P.state.drawing) P.act.setDrawing(false);
   }
+  // the address says the mode too (a reload stays in it): `open` is set to the new route's key first, so onRoute
+  // only syncs instead of reopening the play
+  const id = P.state.route.sub || "";
+  if (P.state.route.place === "jugadas" && id) {
+    const paso = String(U(P).step + 1);
+    const modo = m === "editar" ? "editar" : "";
+    setUi(P, { open: id + "|" + modo + "|" + paso });
+    P.act.go(`/pizarra/jugadas/${id}?${modo ? "modo=editar&" : ""}paso=${paso}`, { replace: true });
+  }
   sync(P);
 }
 
