@@ -8,11 +8,18 @@ const MONTHS_L = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio"
 const partsFmt = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", weekday: "short", hourCycle: "h23" });
 const WD: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
+const madridSeen = new Map<number, { y: number; m: number; d: number; h: number; mi: number; wd: number }>();
 /** A moment's wall clock in Madrid. */
 export function madrid(ms: number): { y: number; m: number; d: number; h: number; mi: number; wd: number } {
+  // (the same few moments — the match, now, the save — are asked on every render of the bar: remembered)
+  const hit = madridSeen.get(ms);
+  if (hit) return { ...hit };
   const o: Record<string, string> = {};
   for (const p of partsFmt.formatToParts(new Date(ms))) o[p.type] = p.value;
-  return { y: +o.year, m: +o.month - 1, d: +o.day, h: +o.hour % 24, mi: +o.minute, wd: WD[o.weekday] ?? 0 };
+  const r = { y: +o.year, m: +o.month - 1, d: +o.day, h: +o.hour % 24, mi: +o.minute, wd: WD[o.weekday] ?? 0 };
+  if (madridSeen.size > 200) madridSeen.clear();
+  madridSeen.set(ms, r);
+  return { ...r };
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");

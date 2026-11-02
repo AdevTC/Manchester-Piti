@@ -1339,7 +1339,11 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       bump();
     },
     setStage(spec, o) {
-      S.stage = o?.replace ? { ...stageDefaults(S.route.place), ...spec } : { ...S.stage, ...spec };
+      const next = o?.replace ? { ...stageDefaults(S.route.place), ...spec } : { ...S.stage, ...spec };
+      // (a place sets its stage in an effect on arriving; the same stage again redrew the whole pizarra a second
+      // time in every change of place — impl/perf: no change, no render)
+      if (sameSpec(next, S.stage)) return;
+      S.stage = next;
       bump();
     },
     go(url, o) {
@@ -1493,10 +1497,12 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     },
     sel,
     act: new Proxy(act, {
-      // every action ends with a bump (a no-op change costs one render)
+      // every action ends with a bump (a no-op change costs one render) — but setStage, which bumps itself only
+      // when the stage changed
       get(target, prop: string) {
         const f = target[prop];
         if (typeof f !== "function") return f;
+        if (prop === "setStage") return f;
         return (...args: unknown[]) => {
           const r = (f as (...a: unknown[]) => unknown)(...args);
           bump();
@@ -1634,6 +1640,12 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     inputs: () => inputs,
   };
   /** A board change keeps what the place set that is not about the board (its source, the camera). */
+  /** Two stage specs with the same keys and the same values (by identity). */
+  function sameSpec(a: StageSpec, b: StageSpec): boolean {
+    const ka = Object.keys(a) as (keyof StageSpec)[];
+    if (ka.length !== Object.keys(b).length) return false;
+    return ka.every((k) => k in b && Object.is(a[k], b[k]));
+  }
   function pickPlaceStage(s: StageSpec): StageSpec {
     const out: StageSpec = {};
     if (s.source) out.source = s.source;

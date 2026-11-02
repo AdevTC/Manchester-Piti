@@ -57,6 +57,35 @@ describe("P.nav's View Transition", () => {
   });
 });
 
+describe("setStage", () => {
+  it("the same stage again re-renders nobody; a different one does", () => {
+    const { P } = makeTestStore({ place: "plan" });
+    const v0 = P.v;
+    P.act.setStage({ ...P.state.stage });
+    expect(P.v).toBe(v0);
+    P.act.setStage({ camera: "grada" });
+    expect(P.v).toBeGreaterThan(v0);
+    expect(P.state.stage.camera).toBe("grada");
+    const v1 = P.v;
+    P.act.setStage({ camera: "grada" });
+    expect(P.v).toBe(v1);
+  });
+});
+
+describe("Madrid dates", () => {
+  it("the remembered answer is the same and can't be changed from outside", async () => {
+    const { madrid } = await import("./fmt");
+    const { isoDay } = await import("../places/pachanga/pgSource");
+    const t = Date.UTC(2026, 10, 1, 23, 30);
+    const a = madrid(t);
+    a.d = 99;
+    expect(madrid(t)).toEqual({ y: 2026, m: 10, d: 2, h: 0, mi: 30, wd: 1 });
+    expect(isoDay(t)).toBe("2026-11-02");
+    expect(isoDay(t)).toBe("2026-11-02");
+    expect(isoDay(Date.UTC(2026, 10, 1, 12))).toBe("2026-11-01");
+  });
+});
+
 describe("lazyPart", () => {
   it("suspends before its chunk is here, renders directly once preloaded", async () => {
     const load = vi.fn(async () => (p: { t: string }) => <b>{p.t}</b>);
