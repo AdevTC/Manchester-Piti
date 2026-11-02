@@ -105,7 +105,8 @@ export async function cleanupDeletedMatch(id: string): Promise<void> {
   // The tombstone transaction already removed the public document and blocks its recreation.
   // Its descendants can outlive it; clean those trees without deleting the absent root again.
   for (const collection of await db.doc(`matches/${id}`).listCollections()) await db.recursiveDelete(collection);
-  for (const collection of ['matchPrivate', 'matchDrafts', 'mvpResults', 'convocatoriaReminders']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
+  // (r14: the match's quedada, PZ-D03; its guesses live under matchPrivate)
+  for (const collection of ['matchPrivate', 'matchDrafts', 'mvpResults', 'convocatoriaReminders', 'quedadas']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
 }
 
 export { archivedMatch };
