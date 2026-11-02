@@ -16,7 +16,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db, idSchema, memberAs, parse } from "./common.js";
-import { jornadaOf } from "./jornada.js";
+import { jornadaOf, type JornadaMatch } from "./jornada.js";
+import { archivedMatch } from "./matchAccess.js";
 import { sevenOf } from "./pushLogic.js";
 import { fanBoardOf, fanTokenOf, historyKind, historyPlan, reactionCurrent, sevenStamp, snapshotOf, type FanPlayerSource, type R14Board } from "./pizarraR14Logic.js";
 
@@ -33,12 +34,8 @@ export const fanFieldsChanged = (a: R14Board | undefined, b: R14Board | undefine
 
 async function seasonJornada(seasonId: string, matchId: string): Promise<number | null> {
   const all = await db.collection("matches").where("seasonId", "==", seasonId).get();
-  return jornadaOf(
-    all.docs
-      .filter((d) => d.get("archived") !== true)
-      .map((d) => ({ id: d.id, seasonId: d.get("seasonId") as string | undefined, date: d.get("date") as unknown, status: d.get("status") as string | undefined })),
-    matchId,
-  );
+  // (every field the numbering reads — published, archived, individuallyArchived, deleting, status — as the web)
+  return jornadaOf(all.docs.map((d) => ({ ...(d.data() as JornadaMatch), id: d.id })), matchId);
 }
 
 /** The public snapshot of a board (reads its players, its match and the jornada). */
@@ -48,22 +45,12 @@ export async function buildFanBoard(board: R14Board) {
   const players = new Map<string, FanPlayerSource>(snaps.filter((s) => s.exists).map((s) => [s.id, s.data() as FanPlayerSource]));
   const mid = typeof board.matchId === "string" && board.matchId ? board.matchId : null;
   const match = mid ? (await db.doc(`matches/${mid}`).get()).data() : undefined;
-  const live = match && match.archived !== true ? match : null;
+  const live = match && !archivedMatch(match) && match.published !== false && match.deleting !== true ? match : null;
   const jornada = mid && live && typeof board.seasonId === "string" ? await seasonJornada(board.seasonId, mid) : null;
   const guests = Array.isArray(live?.guests) ? (live.guests as { id: string; name: string }[]) : [];
   return fanBoardOf(board, { players, guests, match: live ? { rival: live.rival, date: live.date, venue: live.venue ?? live.location, home: live.home } : null, jornada, now: Date.now() });
 }
 
-async function deleteAll(q: FirebaseFirestore.Query, keep: (d: FirebaseFirestore.QueryDocumentSnapshot) => boolean = () => false): Promise<number> {
-  const snap = await q.get();
-  const gone = snap.docs.filter((d) => !keep(d));
-  for (let i = 0; i < gone.length; i += 400) {
-    const batch = db.batch();
-    gone.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
-    await batch.commit();
-  }
-  return gone.length;
-}
 
 export const onLineupR14 = onDocumentWritten({ document: "lineups/{lineupId}", maxInstances: 10 }, async (event) => {
   const id = event.params.lineupId;
@@ -81,28 +68,47 @@ export const onLineupR14 = onDocumentWritten({ document: "lineups/{lineupId}", m
 
   // ── PZ-D01: the official seven's version
   const stamp = sevenStamp(before, after);
+  const mid = typeof after.matchId === "string" && after.matchId ? after.matchId : null;
   if (stamp) {
     const done = await db.runTransaction(async (tx) => {
       const cur = (await tx.get(ref)).data() as R14Board | undefined;
+      // (PZ-D04: the first seven published for a match closes «Adivina el siete» for good — a one-way flag the
+      // rules read; unpublishing deletes the scope doc but never this)
+      const priv = cur?.isOfficial && mid ? await tx.get(db.doc(`matchPrivate/${mid}`)) : null;
       // (a newer write already moved it: that write's own run stamps it)
       if (!cur?.isOfficial || (cur.sevenKey ?? null) !== (after.sevenKey ?? null) || (cur.sevenRev ?? 0) !== (after.sevenRev ?? 0)) return false;
       if (stable(sevenOf(cur.slots).sort()) !== stable(sevenOf(after.slots).sort())) return false;
+      if (priv && priv.get("sieteOutAt") == null && (cur.matchId ?? null) === mid) tx.set(priv.ref, { sieteOutAt: FieldValue.serverTimestamp() }, { merge: true });
       tx.update(ref, { sevenKey: stamp.sevenKey, sevenRev: stamp.sevenRev });
       return true;
     });
-    if (done && stamp.bumped) await deleteAll(ref.collection("reactions"), (d) => reactionCurrent(d.data(), { sevenRev: stamp.sevenRev }));
+    if (done && stamp.bumped) {
+      // Old reactions go — but one given since this write (the second before the stamp, still at the old version)
+      // answers this seven: it is kept and moved to the new version.
+      const since = event.data?.after.updateTime?.toMillis() ?? Infinity;
+      const snap = await ref.collection("reactions").get();
+      for (const r of snap.docs) {
+        if (reactionCurrent(r.data(), { sevenRev: stamp.sevenRev })) continue;
+        const at = r.get("at");
+        const ms = at && typeof at.toMillis === "function" ? (at.toMillis() as number) : -Infinity;
+        await (ms >= since ? r.ref.update({ rev: stamp.sevenRev }) : r.ref.delete()).catch(() => undefined);
+      }
+    }
   }
 
-  // ── PZ-D21T: the history
+  // ── PZ-D21T: the history (in a transaction that re-reads the board: a run landing after the board's delete —
+  // and after its cascade — writes nothing, so no history is left under a deleted board)
   const kind = historyKind(before, after);
   if (kind) {
-    const now = Date.now();
-    const existing = await ref.collection("history").orderBy("at", "desc").limit(30).get();
-    const plan = historyPlan(existing.docs.map((d) => ({ id: d.id, kind: d.get("kind"), at: d.get("at") })), kind, now);
-    const batch = db.batch();
-    batch.set(plan.replace ? ref.collection("history").doc(plan.replace) : ref.collection("history").doc(), snapshotOf(after, kind, before, now));
-    plan.drop.forEach((hid) => batch.delete(ref.collection("history").doc(hid)));
-    await batch.commit();
+    await db.runTransaction(async (tx) => {
+      const cur = await tx.get(ref);
+      if (!cur.exists) return;
+      const now = Date.now();
+      const existing = await tx.get(ref.collection("history").orderBy("at", "desc").limit(30));
+      const plan = historyPlan(existing.docs.map((d) => ({ id: d.id, kind: d.get("kind"), at: d.get("at") })), kind, now);
+      tx.set(plan.replace ? ref.collection("history").doc(plan.replace) : ref.collection("history").doc(), snapshotOf(after, kind, before, now));
+      plan.drop.forEach((hid) => tx.delete(ref.collection("history").doc(hid)));
+    });
   }
 
   // ── PZ-D21F: the fan view follows the board (fail-closed: writeFanBoard writes only what the board still is)

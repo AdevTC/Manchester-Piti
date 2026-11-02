@@ -31,7 +31,9 @@ service cloud.firestore {
     }
     function upcoming(matchId) {
       let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
-      return activeMatch(matchId) && m.status == 'scheduled' && m.date > request.time;
+      // (the date as a Timestamp, or as millis — older and seeded matches store a number)
+      return activeMatch(matchId) && m.status == 'scheduled'
+        && ((m.date is timestamp && m.date > request.time) || (m.date is number && m.date > request.time.toMillis()));
     }
     function superadminEmail() {
       return signedIn() && request.auth.token.email == 'adriantomascv@gmail.com' && request.auth.token.email_verified == true;
@@ -256,8 +258,13 @@ service cloud.firestore {
       }
     }
     // The match's official seven is out: its scope doc (lineupOfficials/{season}__{match}) exists.
+    // The match's official seven is out: the server's one-way flag (matchPrivate/{m}.sieteOutAt, set by onLineupR14
+    // the first time a seven is published for the match: unpublishing never reopens the guesses), or — in the
+    // second before the trigger runs — the official's scope doc (lineupOfficials/{season}__{match}).
     function sieteOut(matchId) {
-      return exists(/databases/$(database)/documents/lineupOfficials/$(get(/databases/$(database)/documents/matches/$(matchId)).data.get('seasonId', '-') + '__' + matchId));
+      return (exists(/databases/$(database)/documents/matchPrivate/$(matchId))
+          && get(/databases/$(database)/documents/matchPrivate/$(matchId)).data.get('sieteOutAt', null) != null)
+        || exists(/databases/$(database)/documents/lineupOfficials/$(get(/databases/$(database)/documents/matches/$(matchId)).data.get('seasonId', '-') + '__' + matchId));
     }
     function guessId(v) { return v is string && v.size() >= 1 && v.size() <= 128; }
     function guessSlotsOk(s) {
@@ -425,15 +432,23 @@ service cloud.firestore {
         && request.resource.data.read.size() <= 200
         && request.resource.data.read.values().hasOnly([true, false]);
     }
-    // r14 · los ajustes de la pizarra te siguen (PZ-D21E): one private doc per member, only theirs. `prefs` is a
-    // small map (≤ 24 keys; its content is validated on read: src/pages/pizarra/data/prefs.ts) and the device
-    // keeps a copy (localStorage) as cache and fallback.
+    // r14 · los ajustes de la pizarra te siguen (PZ-D21E): one private doc per member, only theirs. `prefs` holds only
+    // the known settings, each with its type (src/pages/pizarra/data/prefs.ts PizarraPrefs); the device keeps a copy
+    // (localStorage) as cache and fallback.
+    function prefsOk(p) {
+      return p is map
+        && p.keys().hasOnly(['sonido','camara','capa','nombre','galones','mov','vozMute'])
+        && p.get('sonido', false) is bool && p.get('nombre', true) is bool
+        && p.get('galones', true) is bool && p.get('vozMute', false) is bool
+        && p.get('camara', 'sitio') in ['sitio','pizarra','grada','foco']
+        && p.get('mov', 'sistema') in ['sistema','menos']
+        && p.get('capa', 'nada') is string && p.get('capa', 'nada').matches('[a-z0-9_-]{1,20}');
+    }
     match /users/{uid}/private/pizarra {
       allow read, delete: if signedIn() && request.auth.uid == uid;
       allow create, update: if signedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['prefs','at'])
-        && request.resource.data.prefs is map
-        && request.resource.data.prefs.size() <= 24
+        && prefsOk(request.resource.data.prefs)
         && request.resource.data.at == request.time;
     }
     // ---- El centro de avisos: every push notice kept (functions/src/push.ts sendTo, noticesLogic.ts), read
@@ -479,17 +494,37 @@ service cloud.firestore {
     // r14 · el plan (PZ-D22P/D23P): the keys (≤ 3 texts), each one's light on the pitch (`viz`, ≤ 3 maps), the
     // notes for the charla and the set pieces (`parado`: corners / freekicks / penalties maps). Their content
     // is validated on read (src/pages/pizarra/data/plan.ts); here, the shape and the caps.
+    // A key: a text of 1–60. Its light: { icon, zona }, two short ids.
+    function claveOk(l, i) { return l.size() <= i || (l[i] is string && l[i].size() >= 1 && l[i].size() <= 60); }
+    function vizOk(l, i) {
+      return l.size() <= i || (l[i] is map && l[i].keys().hasOnly(['icon','zona'])
+        && l[i].get('icon', '') is string && l[i].get('icon', '').size() <= 12
+        && l[i].get('zona', '') is string && l[i].get('zona', '').size() <= 12);
+    }
+    // A list of at most `max` player ids (each 1–128 id characters, «guest:g1» too), checked in one regex.
+    function idListOk(l, max) {
+      return l is list && l.size() <= max && (l.size() == 0 || l.join(',').matches('[A-Za-z0-9_:-]{1,128}(,[A-Za-z0-9_:-]{1,128})*'));
+    }
+    // A corner / free kick: the play it runs (null or an id) and who goes into the box (≤ 5 ids).
+    function setPieceOk(p) {
+      return p is map && p.keys().hasOnly(['playId','box'])
+        && (p.get('playId', null) == null || (p.playId is string && p.playId.size() <= 128))
+        && idListOk(p.get('box', []), 5);
+    }
     function planOk(d) {
       return d.get('plan', null) == null || (d.plan is map
         && d.plan.keys().hasOnly(['claves','notes','viz','parado'])
         && d.plan.get('claves', []) is list && d.plan.get('claves', []).size() <= 3
+        && claveOk(d.plan.get('claves', []), 0) && claveOk(d.plan.get('claves', []), 1) && claveOk(d.plan.get('claves', []), 2)
         && d.plan.get('viz', []) is list && d.plan.get('viz', []).size() <= 3
+        && vizOk(d.plan.get('viz', []), 0) && vizOk(d.plan.get('viz', []), 1) && vizOk(d.plan.get('viz', []), 2)
         && d.plan.get('notes', '') is string && d.plan.get('notes', '').size() <= 400
         && (d.plan.get('parado', null) == null || (d.plan.parado is map
           && d.plan.parado.keys().hasOnly(['corners','freekicks','penalties'])
-          && d.plan.parado.get('corners', {}) is map && d.plan.parado.get('corners', {}).size() <= 2
-          && d.plan.parado.get('freekicks', {}) is map && d.plan.parado.get('freekicks', {}).size() <= 2
-          && d.plan.parado.get('penalties', {}) is map && d.plan.parado.get('penalties', {}).size() <= 1)));
+          && setPieceOk(d.plan.parado.get('corners', {}))
+          && setPieceOk(d.plan.parado.get('freekicks', {}))
+          && d.plan.parado.get('penalties', {}) is map && d.plan.parado.get('penalties', {}).keys().hasOnly(['rechace'])
+          && idListOk(d.plan.parado.get('penalties', {}).get('rechace', []), 5))));
     }
     // r14: the board's other new fields. `seasonPlays` (PZ-D05) names the season plays it uses (ids, ≤ 24);
     // `fromMesa` marks a scorer's copy made from la mesa (PZ-D22T); `fanToken` (the fan view's link,
@@ -513,10 +548,15 @@ service cloud.firestore {
       return !(k in d) || (d[k] is string && d[k].size() <= max);
     }
     // The seven: exactly seven slot maps (their content is validated on read, see lineupDoc.ts).
+    // (r14: each slot's player id is null or ≤ 128 characters, so the server's `sevenKey` — the seven ids joined —
+    // always fits its own cap below and never locks the board's updates)
+    function slotOk(s) {
+      return s is map && (s.get('playerId', null) == null || (s.playerId is string && s.playerId.size() <= 128));
+    }
     function slotsOk(d) {
       return !('slots' in d) || (d.slots is list && d.slots.size() == 7
-        && d.slots[0] is map && d.slots[1] is map && d.slots[2] is map && d.slots[3] is map
-        && d.slots[4] is map && d.slots[5] is map && d.slots[6] is map);
+        && slotOk(d.slots[0]) && slotOk(d.slots[1]) && slotOk(d.slots[2]) && slotOk(d.slots[3])
+        && slotOk(d.slots[4]) && slotOk(d.slots[5]) && slotOk(d.slots[6]));
     }
     // The other versions of the seven («2ª parte», «Plan B»): at most two maps, each with its own seven
     // slots (their content is validated on read, see lineupDoc.ts parseVariants).
@@ -645,7 +685,7 @@ service cloud.firestore {
           && slot in ['v0','v1','v2','v3','v4','v5']
           && request.resource.data.keys().hasOnly(['step','mime','ms','data','by','at'])
           && request.resource.data.step is string
-          && request.resource.data.step.matches('(sistema|banquillo|balon|plan|quedada|final|suplentes|galones|rival|vamos|siete-[1-7]|jugada-[1-8]|siete:[A-Za-z0-9_-]{1,128}|jugada:[A-Za-z0-9_-]{1,64}(:[0-9]{1,2})?)')
+          && request.resource.data.step.matches('(sistema|banquillo|balon|plan|quedada|final|suplentes|galones|rival|vamos|siete-[1-7]|jugada-[1-8]|siete:(guest:)?[A-Za-z0-9_-]{1,128}|jugada:[A-Za-z0-9_-]{1,64}(:[0-9]{1,2})?)')
           && request.resource.data.mime is string && request.resource.data.mime.size() <= 60
           && request.resource.data.mime.matches('audio/[a-z0-9.+-]+(;.*)?')
           && request.resource.data.ms is int && request.resource.data.ms > 0 && request.resource.data.ms <= 30000
@@ -721,8 +761,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['slotId','present','guests','by','at'])
         && request.resource.data.keys().hasAll(['slotId','present','by','at'])
         && request.resource.data.slotId == get(/databases/$(database)/documents/trainings/$(trainingId)).data.confirmed.slotId
-        && request.resource.data.present is list && request.resource.data.present.size() <= 40
-        && request.resource.data.get('guests', []) is list && request.resource.data.get('guests', []).size() <= 12
+        && idListOk(request.resource.data.present, 40)
+        && namesOk(request.resource.data.get('guests', []), 12, 40)
         && request.resource.data.by == request.auth.uid
         && request.resource.data.at == request.time;
       allow delete: if teamMember() && attendanceAllowed(trainingId);
@@ -730,6 +770,10 @@ service cloud.firestore {
     function attendanceAllowed(trainingId) {
       let t = get(/databases/$(database)/documents/trainings/$(trainingId)).data;
       return 'confirmed' in t && (admin() || t.get('proposedBy', '') == request.auth.uid);
+    }
+    // At most `max` names of 1–40 characters (no «|»), checked in one regex.
+    function namesOk(l, max, len) {
+      return l is list && l.size() <= max && (l.size() == 0 || l.join('|').matches('[^|]{1,' + string(len) + '}([|][^|]{1,' + string(len) + '})*'));
     }
     // Jugadas de la temporada (PZ-D05): a play kept outside any board, so it moves from one board to another
     // without copying it (a board names the ones it uses in `seasonPlays`). `scope` «mine» (the member's own,

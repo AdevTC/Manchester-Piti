@@ -1,10 +1,22 @@
 // r14 · the server's pure rules (functions/src/pizarraR14Logic.ts): the official seven's version, the board's
 // history and the fan view (nothing private ever reaches it).
 import { describe, expect, it } from "vitest";
-import { fanBoardOf, fanShirt, fanTokenOf, historyKind, historyPlan, HISTORY_MAX, reactionCurrent, sevenStamp, snapshotOf } from "../../functions/src/pizarraR14Logic";
+import { boardSevenKey, fanBoardOf, fanShirt, fanTokenOf, historyKind, historyPlan, HISTORY_MAX, reactionCurrent, SEVEN_KEY_MAX, sevenStamp, snapshotOf } from "../../functions/src/pizarraR14Logic";
 
 const slots = (ids: (string | null)[]) => ids.map((playerId) => ({ playerId }));
 const seven = ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"];
+
+describe("sevenKey always fits its rule (revisión)", () => {
+  it("normal ids as is; ids past the rules' cap hashed, stable and distinct", () => {
+    expect(boardSevenKey({ slots: slots(seven) })).toBe([...seven].sort().join(","));
+    const long = (c: string) => slots(Array.from({ length: 7 }, (_, i) => c.repeat(200) + i));
+    const k = boardSevenKey({ slots: long("a") });
+    expect(k.length).toBeLessThanOrEqual(SEVEN_KEY_MAX);
+    expect(k).toMatch(/^h:/);
+    expect(boardSevenKey({ slots: long("a") })).toBe(k);
+    expect(boardSevenKey({ slots: long("b") })).not.toBe(k);
+  });
+});
 
 describe("sevenStamp (PZ-D01)", () => {
   it("publishing bumps the version; the same seven again does nothing", () => {
