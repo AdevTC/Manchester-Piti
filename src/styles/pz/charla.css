@@ -415,3 +415,10 @@
 .pz .pcs-poster__pitch>.pcs-poster__ro{position:absolute;inset:0;z-index:5}
 .pz .pcs-err{font-size:13.5px;color:#ffb4ac}
 :root[data-theme="light"] .pz .pcs-err{color:#a32630}
+/* the cartel preview IS the PNG */
+.pz .pcs-poster.pcs-poster--img{padding:0}
+.pz .pcs-poster--img>img{display:block;width:100%;height:100%;max-width:none;object-fit:cover}
+.pz .pcs-poster__wait{margin:auto;font-size:13px;font-weight:650;color:#c3d5ec}
+.pz .pcs.is-phone .pcs-poster.is-h{width:min(288px,100%);height:auto;aspect-ratio:9/16}
+.pz .pcs.is-phone .pcs-poster.is-p{width:min(312px,100%);height:auto;aspect-ratio:4/5}
+.pz .pcs-vid>.pz-c{position:absolute;inset:0}

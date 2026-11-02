@@ -95,7 +95,9 @@ export function useCharlaVoz(o: { boardId: string | null; on: boolean; uid: stri
   useEffect(() => {
     if (!o.on) {
       discard();
-      stopAudio();
+      const a = audio.current;
+      audio.current = null;
+      a?.el.pause();
     }
   }, [o.on]);
   useEffect(
