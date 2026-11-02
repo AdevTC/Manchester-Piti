@@ -210,7 +210,10 @@
 .pz .pg-empty{display:grid;gap:12px;justify-items:start;padding:8px 0}
 .pz .pg-empty>p{font-size:13.5px;color:var(--vd-ink2)}
 .pz .pg-seg>button .nx-ic{width:16px;height:16px}
-.pz .pg-sh{display:grid;gap:16px;min-width:0}
+.pz .pg-sh{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+.pz .pg-card{grid-template-columns:minmax(0,1fr)}
+.pz .pg-sh .pz-acts{flex-wrap:wrap}
+.pz .pg-sh .pg-seg>button{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .pz .pg-img__top img{max-width:none}
 .pz .pg-aj-opt>.pg-aj-mini{overflow:hidden;border-radius:8px}
 .pz .pg-aj .pz-row:disabled{opacity:.5;cursor:default}
