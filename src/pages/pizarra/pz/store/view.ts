@@ -87,7 +87,11 @@ function resolveSiete(spec: StageSpec, c: ViewCtx): Base {
   const rv = spec.rival ? c.rivalOf(b) : null;
   if (rv) rv.players.forEach((rp, k) => {
     const q = rivalSpotNear(rp.x, rp.y, slots);
-    tokens.push({ id: "r" + k, kind: "rival", x: q.x, y: q.y, num: rp.num ?? "", code: spec.rivalCode ?? rv.name.slice(0, 3).toUpperCase(), label: rp.code, note: rp.note });
+    // (a disc stays inside the lines; its code goes when it would sit on one of our plates — the dorsal stays)
+    const x = Math.max(9, Math.min(91, q.x));
+    const y = Math.max(6, Math.min(94, q.y));
+    const crowded = slots.some((s) => s.pid && Math.abs(s.x - x) < 17 && Math.abs(s.y - y) < 12);
+    tokens.push({ id: "r" + k, kind: "rival", x, y, num: rp.num ?? "", code: crowded ? "" : (spec.rivalCode ?? rv.name.slice(0, 3).toUpperCase()), label: rp.code, note: rp.note });
   });
   let overlay = spec.overlay ?? null;
   if (!overlay && spec.drawings && b) {

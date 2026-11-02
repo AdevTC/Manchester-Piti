@@ -146,3 +146,7 @@
 .pz .pz-s__ghost>.pz-c__shirt>img{max-width:none;position:absolute;width:calc(54px*1.3075);height:auto;left:calc(54px*-.1525);top:calc(54px*-.1114)}
 .pz .pz-s__full{position:absolute;inset:0}
 @media (prefers-reduced-motion:reduce){.pz.pz-float *{transition:none!important;animation:none!important}}
+/* a place not built yet, in the phone's peek: one calm line, never under the dock */
+.pz .pz-s__sheet .pz-ph{min-height:0;height:auto;padding:6px 4px;gap:4px;justify-items:start;text-align:left}
+.pz .pz-s__sheet.is-peek .pz-ph>span:not(.vx-tile),.pz .pz-s__sheet.is-peek .pz-ph>.vx-tile{display:none}
+.pz .pz-s__sheet .pz-ph>b{font-size:22px}
