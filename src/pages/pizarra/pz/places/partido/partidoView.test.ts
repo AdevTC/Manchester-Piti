@@ -79,6 +79,15 @@ describe("Partido · the live model (la mesa's lineup + the acta's events are th
 });
 
 describe("Partido · phases, la mesa and the stage", () => {
+  it("the day is never planned on another match's board (the official or the one on screen must be this match's)", () => {
+    const W = world("antes");
+    const other = { ...W, boards: [fakeBoard({ isOfficial: true, matchId: "j9", lineup: fakeLineup("3-2-1", SEVEN) })], official: { boardId: "b1", matchId: "j9" } };
+    const { P } = makeTestStore({ world: other, place: "partido" });
+    const X = ptModel(P, feed(), UI0);
+    expect(X.b).toBeNull();
+    expect(stageFor(P, X).source).toBe("siete");
+  });
+
   it("la mesa: sin siete · al día · otro siete", () => {
     const { P } = makeTestStore({ world: world("antes"), place: "partido" });
     expect(mesaState(ptModel(P, feed({ lineup: null }), UI0))).toBe("sin");

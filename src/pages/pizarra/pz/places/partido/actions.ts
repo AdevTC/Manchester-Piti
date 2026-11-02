@@ -16,6 +16,9 @@ import { feedOf, setUi, uiOf } from "./state";
 import { descPairs, intervals, liveLine, mesaState, phaseOf, playedOf, ptMatch, ptModel, total, type PtModel } from "./partidoView";
 
 export const model = (P: PzApi): PtModel => ptModel(P, feedOf(P), uiOf(P));
+/** How long «Deshacer» of a change written in the acta lasts (the toast's time, plus a breath). */
+export const UNDO_MS = 5000;
+const UNDO_GRACE = 1000;
 const N = (P: PzApi, id: string | null | undefined) => (id ? P.sel.name(id) : "—");
 
 /** setMatchLineup / liveEvent not deployed on this server (an emulator or a backend behind the web). */
@@ -62,13 +65,25 @@ export async function apuntar(P: PzApi, pairs: { out: string; in: string }[], la
     const cant = { ...uiOf(P).cant };
     pairs.forEach((r) => delete cant[r.out]);
     setUi(P, { busy: false, cant, cond: uiOf(P).cond && !pairs.some((r) => X.next?.cond && r.out === X.next.out) });
+    // «Deshacer» only inside the toast's window: later, a Ctrl+Z would delete acta events the mesa may have built on
+    // (the change is then corrected in la mesa). Redo only re-writes what this undo removed.
+    const at = Date.now();
+    let undone = false;
     const undo = () => {
+      if (Date.now() - at > UNDO_MS + UNDO_GRACE) {
+        // (after the store's own «Deshecho» toast, which this one replaces: nothing was undone)
+        setTimeout(() => P.toast("Ese cambio ya está en el acta: se corrige desde la mesa", { icon: "lock" }), 0);
+        return;
+      }
+      undone = true;
       const gone = ids;
       void clubApi()
         .then((c) => Promise.all(gone.map((eventId) => c.mesaEvent({ action: "delete", matchId, eventId }))))
         .catch(async (e: unknown) => P.toast("No se ha podido deshacer: " + (await errText(e)), { icon: "warn" }));
     };
     const redo = () => {
+      if (!undone) return;
+      undone = false;
       void writeWave(model(P), pairs).then(
         (x) => {
           ids = x;
@@ -77,7 +92,7 @@ export async function apuntar(P: PzApi, pairs: { out: string; in: string }[], la
       );
     };
     P.pushUndo("En el acta, " + label, undo, redo, { toast: false });
-    P.toast("En el acta, " + label, { undo: true, ms: 5000, icon: "check" });
+    P.toast("En el acta, " + label, { undo: true, ms: UNDO_MS, icon: "check" });
     return true;
   } catch (e) {
     setUi(P, { busy: false });
@@ -108,13 +123,13 @@ export function doNext(P: PzApi): Promise<boolean> {
     P.toast(N(P, nx.in) + " no puede entrar: no está en el banquillo", { icon: "warn" });
     return Promise.resolve(false);
   }
-  return apuntar(P, [{ out: nx.out, in: nx.in }], X.now + "′: entra " + N(P, nx.in) + " por " + N(P, nx.out));
+  return apuntar(P, [{ out: nx.out, in: nx.in }], X.shown + "′: entra " + N(P, nx.in) + " por " + N(P, nx.out));
 }
 
 /** «Otro cambio…»: any one off for any one on the bench. */
 export function doOtro(P: PzApi, out: string, inn: string): Promise<boolean> {
   const X = model(P);
-  return apuntar(P, [{ out, in: inn }], X.now + "′: entra " + N(P, inn) + " por " + N(P, out));
+  return apuntar(P, [{ out, in: inn }], X.shown + "′: entra " + N(P, inn) + " por " + N(P, out));
 }
 
 /** Descanso: the 2ª parte in one wave. */
@@ -122,7 +137,7 @@ export function doDesc(P: PzApi): Promise<boolean> {
   const X = model(P);
   const pairs = descPairs(X);
   if (!pairs.length) return Promise.resolve(false);
-  return apuntar(P, pairs, X.now + "′: " + pairs.map((r) => "entra " + N(P, r.in) + " por " + N(P, r.out)).join(" y "));
+  return apuntar(P, pairs, X.shown + "′: " + pairs.map((r) => "entra " + N(P, r.in) + " por " + N(P, r.out)).join(" y "));
 }
 
 // ── the minutes plan: «Repartir minutos» (before) and «Recalcular desde el 23′» (live) ──
@@ -161,7 +176,7 @@ export function propose(P: PzApi): void {
     const acc: Record<string, number> = {};
     [...X.present, ...X.field].forEach((p) => (acc[p] = total(iv[p])));
     setUi(P, { prop: { kind: "recalc", subs, acc } });
-    P.say("Recalculado desde el " + X.now + "′: aplícalo o descártalo");
+    P.say("Recalculado desde el " + X.shown + "′: aplícalo o descártalo");
   }
 }
 
@@ -170,7 +185,7 @@ export function applyProp(P: PzApi): void {
   const pr = X.ui.prop;
   if (!pr || !X.b) return;
   const subs: Sub[] = pr.subs;
-  const label = pr.kind === "recalc" ? "Plan recalculado desde el " + X.now + "′" : "Minutos repartidos: " + fmt.plural(subs.length, "cambio", "cambios");
+  const label = pr.kind === "recalc" ? "Plan recalculado desde el " + X.shown + "′" : "Minutos repartidos: " + fmt.plural(subs.length, "cambio", "cambios");
   const ok = P.act.saveBoard({ subs }, label, { boardId: X.b.id });
   if (ok) setUi(P, { prop: null, focus: null });
 }

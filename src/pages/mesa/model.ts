@@ -8,7 +8,7 @@ import { lineupField } from "../../lib/derived/lineupField";
 import { lineupWalk, type MatchLineup } from "../../lib/matchLineup";
 import type { MesaClock, MesaEvent, MesaPhase, MesaPlayer, MesaScreen, MesaStint, MesaType } from "./types";
 import { liveRules, parseCondPlanR14, type CondRuleR14 } from "../pizarra/data/condPlan";
-import { planRuleText } from "../pizarra/pz/places/plan/planView";
+import { planRuleText } from "../pizarra/pz/places/plan/ruleText";
 
 // ---------- the screen
 /** The phase picks the screen; `?vista=cronica` asks for «Lo que va pasando» whatever the phase. */
@@ -539,9 +539,12 @@ export function mesaSuggestion(
   rules: readonly CondRuleR14[],
   o: { minute: number; us: number; them: number; field: readonly string[]; bench: readonly string[]; nameOf: (id: string) => string },
 ): { text: string; sub: { inId: string; outId: string } | null; ver: "segunda" | "planb" | null } | null {
-  const r = liveRules(rules, { minute: o.minute, gf: o.us, ga: o.them, onPitch: new Set(o.field) })[0];
+  const holding = liveRules(rules, { minute: o.minute, gf: o.us, ga: o.them, onPitch: new Set(o.field) });
+  const doable = (x: (typeof holding)[number]) => !!x.sub && o.bench.includes(x.sub.in);
+  // (the first rule whose cambio can be made; else the first that holds, said without a cambio)
+  const r = holding.find(doable) ?? holding[0];
   if (!r) return null;
-  const sub = r.sub && o.bench.includes(r.sub.in) ? { inId: r.sub.in, outId: r.sub.out } : null;
+  const sub = doable(r) && r.sub ? { inId: r.sub.in, outId: r.sub.out } : null;
   return { text: planRuleText(r.rule, (id) => o.nameOf(id).toUpperCase()), sub, ver: r.ver };
 }
 
