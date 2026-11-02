@@ -370,8 +370,9 @@ export function stageFor(P: PzApi, X: PtModel): StageSpec {
       const g = L.marks[k].filter((m) => m.k === "gol");
       if (g.length) marks[k] = g;
     });
-    return { ...base, source: "ahora", slots, marks, next: null, entra: false, caption: (view === "empezo" ? "Empezaron" : view === "plan" ? "Lo planeado para el final" : "Acabaron") + " · " + L.gf + "–" + L.ga + (Object.keys(X.feed.notas).length ? " · las notas, congeladas" : "") };
+    return { ...base, source: "ahora", slots, marks, next: null, entra: false, caption: phone ? (view === "empezo" ? "Empezaron" : view === "plan" ? "Lo planeado" : "") : (view === "empezo" ? "Empezaron" : view === "plan" ? "Lo planeado para el final" : "Acabaron") + " · " + L.gf + "–" + L.ga + (Object.keys(X.feed.notas).length ? " · las notas, congeladas" : "") };
   }
+  if (X.ph === "descanso") return { ...base, source: "ahora", slots: L.slots, marks: L.marks, next: null, caption: phone ? "" : "Descanso · " + L.gf + "–" + L.ga + " · «Cómo sale la 2ª» enseña los cambios" };
   const nx = X.next;
   const cap = phone
     ? ""

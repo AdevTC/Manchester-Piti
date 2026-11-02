@@ -318,6 +318,13 @@ export interface MesaView {
   galones: { captainId: string | null; viceId: string | null; takers: { penalties: string[]; freekicks: string[]; corners: string[] } };
   /** The board's «2ª parte» seven (Descanso offers it), null when it has none. */
   secondHalf: { seven: string[]; keeper: string | null; codes: Record<string, string> } | null;
+  /** r14 · the board's «Plan B» seven (Descanso offers it when a «Si pasa…» rule sends to it), null when none. */
+  planB: { seven: string[]; keeper: string | null; codes: Record<string, string> } | null;
+  /** r14 · the pizarra's «Si pasa…» that holds now (PZ-D07): its sentence, the cambio it asks for (when it can be
+   *  made) and the version it sends to; null when no rule holds. */
+  suggest: { text: string; sub: { inId: string; outId: string; inName: string; outName: string } | null; ver: "segunda" | "planb" | null } | null;
+  /** r14 · after a «Penalti a favor»: who takes it (the first of the board's list on the pitch, PZ-D10). */
+  penaltyTaker: { id: string; name: string } | null;
   nameOf(id: string): string;
   /** A short message to show (a refused clock action, a failed publish); "" when none. */
   notice: string;

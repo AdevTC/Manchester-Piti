@@ -492,6 +492,12 @@ export function useBoard(view: MesaView, vista: string | undefined, sheetCtl?: S
     const s = secondHalfUi(vRef.current, half.base);
     if (s) setUi({ half: s });
   };
+  /** r14 · «Plan B» (offered when the pizarra's «Si pasa…» sends to it): the board's Plan B as the seven of the 2ª. */
+  const boardPlanB = () => {
+    const cur = vRef.current;
+    const s = secondHalfUi({ ...cur, secondHalf: cur.planB }, half.base);
+    if (s) setUi({ half: s });
+  };
   const startSecond = () => {
     const cur = vRef.current;
     const plan = halfPlan(cur.field, cur.bench, ui.half);
@@ -715,7 +721,7 @@ export function useBoard(view: MesaView, vista: string | undefined, sheetCtl?: S
       setUi, setSub, setMode, setLista, openSheet, closeSheet, say, fail,
       golPiti, golTo, play, rivalGoal, change: doSub, swapStart: startSwap, assistLast, pickFor, laterScorer, ownGoalTheirs, setAssist,
       tapField, tapBench, tapHole, undo, clockAct, kickOff, setDuration,
-      toggleHalf, keeperHalf, fair, boardSecond, startSecond, holdStart, holdEnd, finScorer, finPass,
+      toggleHalf, keeperHalf, fair, boardSecond, boardPlanB, startSecond, holdStart, holdEnd, finScorer, finPass,
       editOpen, editSave, remove, dupSame, dupTwo, addGuest, addScorer, saveReport, skip,
   };
 }

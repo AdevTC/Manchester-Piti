@@ -7,6 +7,8 @@ import { POSITIONS, isPosCode, type PosCode } from "../../../functions/src/posit
 import { lineupField } from "../../lib/derived/lineupField";
 import { lineupWalk, type MatchLineup } from "../../lib/matchLineup";
 import type { MesaClock, MesaEvent, MesaPhase, MesaPlayer, MesaScreen, MesaStint, MesaType } from "./types";
+import { liveRules, parseCondPlanR14, type CondRuleR14 } from "../pizarra/data/condPlan";
+import { planRuleText } from "../pizarra/pz/places/plan/planView";
 
 // ---------- the screen
 /** The phase picks the screen; `?vista=cronica` asks for «Lo que va pasando» whatever the phase. */
@@ -496,8 +498,22 @@ export interface BoardExtras {
   takers: { penalties: string[]; freekicks: string[]; corners: string[] };
   /** The board's «2ª parte»: its seven (slot order) and who keeps goal in it. */
   second: { seven: string[]; keeper: string | null; codes: Record<string, string> } | null;
+  /** r14 · the board's «Plan B» (same shape), offered at half-time when a «Si pasa…» rule sends to it. */
+  planb: { seven: string[]; keeper: string | null; codes: Record<string, string> } | null;
+  /** r14 · the «Si pasa…» rules (PZ-D07): la mesa suggests the one that holds. */
+  condPlan: CondRuleR14[];
 }
-export const NO_EXTRAS: BoardExtras = { subs: [], captainId: null, viceId: null, takers: { penalties: [], freekicks: [], corners: [] }, second: null };
+export const NO_EXTRAS: BoardExtras = { subs: [], captainId: null, viceId: null, takers: { penalties: [], freekicks: [], corners: [] }, second: null, planb: null, condPlan: [] };
+/** A board variant's seven («v2» = 2ª parte, «vb» = Plan B), null when the board hasn't got it. */
+function variantSeven(doc: Record<string, unknown>, id: "v2" | "vb"): BoardExtras["second"] {
+  const v = Array.isArray(doc.variants) ? ((doc.variants as unknown[]).find((x) => !!x && typeof x === "object" && (x as { id?: unknown }).id === id) as { slots?: unknown } | undefined) : undefined;
+  if (!v || !Array.isArray(v.slots)) return null;
+  const slots = v.slots.flatMap((s: unknown) => {
+    const o = s && typeof s === "object" ? (s as { playerId?: unknown; position?: unknown }) : {};
+    return typeof o.playerId === "string" && o.playerId ? [{ id: o.playerId, code: typeof o.position === "string" ? o.position : "" }] : [];
+  });
+  return slots.length ? { seven: slots.map((s) => s.id), keeper: slots.find((s) => s.code === "POR")?.id ?? null, codes: Object.fromEntries(slots.map((s) => [s.id, s.code])) } : null;
+}
 const idOrNull = (x: unknown): string | null => (typeof x === "string" && x ? x : null);
 const ids = (x: unknown): string[] => (Array.isArray(x) ? x.filter((y): y is string => typeof y === "string" && !!y).slice(0, 3) : []);
 export function boardExtrasOf(doc: Record<string, unknown> | undefined | null): BoardExtras {
@@ -506,22 +522,37 @@ export function boardExtrasOf(doc: Record<string, unknown> | undefined | null): 
   const stored = doc.takers && typeof doc.takers === "object" ? (doc.takers as Record<string, unknown>) : null;
   // (a board saved before the ordered lists carries one id per galón)
   const list = (kind: "penalties" | "freekicks" | "corners", legacy: string) => (stored ? ids(stored[kind]) : idOrNull(roles[legacy]) ? [roles[legacy] as string] : []);
-  const v2 = Array.isArray(doc.variants) ? (doc.variants as unknown[]).find((v) => !!v && typeof v === "object" && (v as { id?: unknown }).id === "v2") as { slots?: unknown } | undefined : undefined;
-  let second: BoardExtras["second"] = null;
-  if (v2 && Array.isArray(v2.slots)) {
-    const slots = v2.slots.flatMap((s: unknown) => {
-      const o = s && typeof s === "object" ? (s as { playerId?: unknown; position?: unknown }) : {};
-      return typeof o.playerId === "string" && o.playerId ? [{ id: o.playerId, code: typeof o.position === "string" ? o.position : "" }] : [];
-    });
-    if (slots.length) second = { seven: slots.map((s) => s.id), keeper: slots.find((s) => s.code === "POR")?.id ?? null, codes: Object.fromEntries(slots.map((s) => [s.id, s.code])) };
-  }
   return {
     subs: plannedSubsOf(doc.subs),
     captainId: idOrNull(roles.captainId),
     viceId: idOrNull(roles.viceId),
     takers: { penalties: list("penalties", "penaltiesId"), freekicks: list("freekicks", "freekicksId"), corners: list("corners", "cornersId") },
-    second,
+    second: variantSeven(doc, "v2"),
+    planb: variantSeven(doc, "vb"),
+    condPlan: parseCondPlanR14(doc.condPlan, "mesa"),
   };
+}
+
+/** r14 · «Si pasa…» (PZ-D07): the first rule that holds now, in la mesa's words (null: none holds). The cambio is
+ *  offered only when its «out» is on the pitch and its «in» on the bench. */
+export function mesaSuggestion(
+  rules: readonly CondRuleR14[],
+  o: { minute: number; us: number; them: number; field: readonly string[]; bench: readonly string[]; nameOf: (id: string) => string },
+): { text: string; sub: { inId: string; outId: string } | null; ver: "segunda" | "planb" | null } | null {
+  const r = liveRules(rules, { minute: o.minute, gf: o.us, ga: o.them, onPitch: new Set(o.field) })[0];
+  if (!r) return null;
+  const sub = r.sub && o.bench.includes(r.sub.in) ? { inId: r.sub.in, outId: r.sub.out } : null;
+  return { text: planRuleText(r.rule, (id) => o.nameOf(id).toUpperCase()), sub, ver: r.ver };
+}
+
+/** r14 · the penalty taker (PZ-D10): right after a «Penalti a favor» (the last play written), the first of the list
+ *  on the pitch. Whatever is written next (the shot, or anything else) closes it. */
+export function penaltyNow(events: readonly { type: string; minute?: number | null; elapsedSeconds?: number | null; period?: number | null; dupOf?: string | null; dupOk?: boolean | null }[], takers: readonly string[], field: readonly string[]): string | null {
+  const when = (e: (typeof events)[number]) => (e.period === 2 ? 1e6 : 0) + (typeof e.elapsedSeconds === "number" ? e.elapsedSeconds : (e.minute ?? 0) * 60);
+  const ev = events.filter((e) => !(e.dupOf && e.dupOk !== true)).map((e, i) => ({ e, i })).sort((a, b) => when(a.e) - when(b.e) || a.i - b.i).map((x) => x.e);
+  const last = ev[ev.length - 1];
+  if (!last || last.type !== "penalty_received") return null;
+  return takers.find((id) => field.includes(id)) ?? null;
 }
 
 export function plannedSubsOf(raw: unknown): { min?: number; out: string; in: string }[] {

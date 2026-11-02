@@ -224,6 +224,24 @@ export function Juego({ v, b, now }: { v: MesaView; b: B; now: number }) {
             <button type="button" className="vd-btn vd-glass vd-press vd-btn--sm" onClick={() => b.skip(next)}>Saltar</button>
           </div>
         )}
+        {v.penaltyTaker && !m && (
+          <p className="me-pz me-pz--pen" role="status">
+            <Icon name="ball" />
+            <span><b>Penalti a favor: lo tira {upper(v.penaltyTaker.name)}</b><small>El primero de la lista de la pizarra que está en el campo</small></span>
+          </p>
+        )}
+        {v.suggest && !m && running && (
+          <div className="me-plan me-pz" role="status">
+            {v.suggest.sub && !(next && next.outId === v.suggest.sub.outId && next.inId === v.suggest.sub.inId) ? (
+              <button type="button" className="vd-btn vd-glass vd-press me-plan__go" onClick={() => b.change(v.suggest!.sub!.outId, v.suggest!.sub!.inId, true)}>
+                <Icon name="swap" />
+                <span className="me-plan__t"><b>Si pasa…: entra {upper(v.suggest.sub.inName)} por {upper(v.suggest.sub.outName)}</b><small>{v.suggest.text}</small></span>
+              </button>
+            ) : (
+              <span className="me-plan__t me-pz__t"><b>Toca el plan «Si pasa…»</b><small>{v.suggest.text}</small></span>
+            )}
+          </div>
+        )}
         <div className="me-bench" role="group" aria-label="Banquillo: toca para que entre">
           <p className="me-bench__h"><b>Banquillo</b><span>{bench.length ? (unplayed ? `${unplayed} sin jugar` : "todos han jugado") : ""}</span></p>
           <div className="me-bench__row">
