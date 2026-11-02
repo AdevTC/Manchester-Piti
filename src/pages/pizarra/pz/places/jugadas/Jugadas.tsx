@@ -152,6 +152,8 @@ function useDriver(P: PzApi, drive: boolean) {
       if (P.state.route.place !== "jugadas") {
         stopReplay(P);
         const u = U(P);
+        // (the step editor's dock must not follow you to the Siete: there it would draw on the board)
+        if (u.mode === "editar" && P.state.drawing && P.state.route.q.modo !== "dibujar") P.act.setDrawing(false);
         if (u.playing || u.mode === "editar" || u.open) setUi(P, { playing: false, anim: null, mode: "ver", open: null, draft: null, sel: [] });
       }
     };
@@ -355,17 +357,17 @@ function Card({ pj, layout }: { pj: PjPlay; layout: Layout }) {
   };
   const show = frameSpec(steps, k, { o: { ghost: false, trails: true, ball: true }, rivals: true, ball: true, rivalName: riv.name, rivalCode: "" });
   return (
-    <button
-      type="button"
-      className="vd-glass vd-press pj-card"
-      aria-current={curr}
-      onClick={() => P.nav(`/pizarra/jugadas/${pj.id}`)}
-      onMouseEnter={layout === "desktop" ? on : undefined}
-      onMouseLeave={layout === "desktop" ? off : undefined}
-      onFocus={on}
-      onBlur={off}
-      aria-label={`${pj.name}. ${kindT}, ${n} pasos, ${secs(totalDur(steps))}${tag ? `. ${tag}` : ""}. Abrir`}
-    >
+    // (a glass box with a stretched button: a button can't hold the mini pitch's own buttons)
+    <div className="vd-glass vd-press pj-card" data-cur={curr ? "1" : undefined} onMouseEnter={layout === "desktop" ? on : undefined} onMouseLeave={layout === "desktop" ? off : undefined}>
+      <button
+        type="button"
+        className="pj-card__hit"
+        onClick={() => P.nav(`/pizarra/jugadas/${pj.id}`)}
+        onFocus={on}
+        onBlur={off}
+        aria-current={curr}
+        aria-label={`${pj.name}. ${kindT}, ${n} pasos, ${secs(totalDur(steps))}${tag ? `. ${tag}` : ""}. Abrir`}
+      />
       <span className="pj-thumb" style={{ ["--cy" as string]: String(actionY(steps, k)) }} aria-hidden="true">
         <span className="pj-thumb__in">
           <PiCampo layout={layout} mini show={show} camera="pizarra" />
@@ -376,7 +378,7 @@ function Card({ pj, layout }: { pj: PjPlay; layout: Layout }) {
         <small>{`${kindT} · ${n} pasos · ${secs(totalDur(steps))}`}</small>
       </span>
       {tag && <span className={`pj-tag${tk ? " is-taker" : ""}`}>{tag}</span>}
-    </button>
+    </div>
   );
 }
 
@@ -1134,7 +1136,7 @@ function Track({ steps, i, canDrag }: { steps: PjStep[]; i: number; canDrag: boo
           <li key={k} className={`pj-fr${cls ? " " + cls : ""}`} aria-current={k === i ? "step" : undefined} data-pj-fr={k}>
             <button
               type="button"
-              className="pj-fr__b"
+              className="pj-fr__hit"
               onClick={() => {
                 if (Date.now() < justDragged.current) return;
                 goStep(P, k);
@@ -1142,14 +1144,15 @@ function Track({ steps, i, canDrag }: { steps: PjStep[]; i: number; canDrag: boo
               onPointerDown={(e) => down(e, k)}
               onContextMenu={(e) => canDrag && e.preventDefault()}
               aria-label={`Paso ${k + 1} de ${n}: ${s.title}, ${secs(s.dur)}${k === key ? ", paso clave" : ""}${k === i ? ", en el campo" : ""}`}
-            >
-              <span className="pj-fr__th" style={{ ["--cy" as string]: String(actionY(steps, k)) }} aria-hidden="true">
+            />
+            <span className="pj-fr__b" aria-hidden="true">
+              <span className="pj-fr__th" style={{ ["--cy" as string]: String(actionY(steps, k)) }}>
                 <span className="pj-thumb__in">
                   <PiCampo layout={P.state.layout} mini show={show} camera="pizarra" />
                 </span>
               </span>
               <span className="pj-fr__t">{s.title}</span>
-            </button>
+            </span>
             <span className="pj-fr__d">
               <span>{secs(s.dur)}</span>
             </span>

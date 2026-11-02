@@ -37,7 +37,8 @@ function Stage({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-const savedPlays = (commit: ReturnType<typeof vi.fn>): Play[] => (commit.mock.calls.at(-1)?.[0] as Lineup).plays ?? [];
+const lastL = (commit: ReturnType<typeof vi.fn>): Lineup => (commit.mock.calls.length ? commit.mock.calls[commit.mock.calls.length - 1][0] : {}) as Lineup;
+const savedPlays = (commit: ReturnType<typeof vi.fn>): Play[] => lastL(commit).plays ?? [];
 
 beforeEach(() => {
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
@@ -288,7 +289,7 @@ describe("Dibujar · on the Siete", () => {
     fireEvent.pointerMove(window, { pointerType: "mouse", pointerId: 1, clientX: 300, clientY: 200 });
     fireEvent.pointerUp(window, { pointerType: "mouse", pointerId: 1, clientX: 300, clientY: 200 });
     await flush();
-    const d = (host.commit.mock.calls.at(-1)?.[0] as Lineup).drawings;
+    const d = lastL(host.commit).drawings;
     expect(d.length).toBe(1);
     expect(d[0].kind).toBe("carrera");
     expect(d[0].points).toEqual([
@@ -300,9 +301,9 @@ describe("Dibujar · on the Siete", () => {
     await flush();
     fireEvent.click(screen.getByRole("button", { name: "Borrar: Flecha" }));
     await flush();
-    expect((host.commit.mock.calls.at(-1)?.[0] as Lineup).drawings.length).toBe(0);
+    expect(lastL(host.commit).drawings.length).toBe(0);
     P.act.undo();
-    expect((host.commit.mock.calls.at(-1)?.[0] as Lineup).drawings.length).toBe(1);
+    expect(lastL(host.commit).drawings.length).toBe(1);
   });
   it("Texto: a tap opens the field and «Poner» writes it", async () => {
     const { host, flush } = siete();
@@ -315,7 +316,7 @@ describe("Dibujar · on the Siete", () => {
     fireEvent.change(screen.getByLabelText("Texto para el campo"), { target: { value: "¡PRESIÓN!" } });
     fireEvent.click(screen.getByRole("button", { name: "Poner" }));
     await flush();
-    const d = (host.commit.mock.calls.at(-1)?.[0] as Lineup).drawings;
+    const d = lastL(host.commit).drawings;
     expect(d[0]).toMatchObject({ kind: "texto", text: "¡PRESIÓN!", points: [{ x: 50, y: 50 }] });
   });
   it("«Jugada» turns a run that leaves a player into a two-step play", async () => {
@@ -332,7 +333,7 @@ describe("Dibujar · on the Siete", () => {
     await flush();
     fireEvent.click(screen.getByRole("button", { name: /Convertir en jugada: 1 trazo sale/ }));
     await flush();
-    const plays = (host.commit.mock.calls.at(-1)?.[0] as Lineup).plays ?? [];
+    const plays = lastL(host.commit).plays ?? [];
     expect(plays.length).toBe(1);
     expect(plays[0].frames[1].players.jordi.y).toBeLessThan(plays[0].frames[0].players.jordi.y);
     expect(host.navigate.mock.calls.at(-1)?.[0]).toMatch(/pizarra.jugadas.+modo=editar/);

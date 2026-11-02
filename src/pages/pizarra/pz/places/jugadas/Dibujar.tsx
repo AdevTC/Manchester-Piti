@@ -391,10 +391,14 @@ export function Dibujar({ layout }: RegionProps) {
       const room = g.x - 12;
       const lx = room >= 82 ? Math.max(8, g.x - 86) : 8;
       const rx = g.w - (g.x + g.pw) - 12 >= 82 ? g.x + g.pw + 12 : g.w - 82;
-      const top = Math.round(Math.max(8, g.y));
-      dockL = { left: Math.round(lx), top };
-      dockR = { left: Math.round(rx), top };
-      listSt = { left: Math.round(Math.max(8, rx - 312)), top };
+      // the tools' column (≈ 12 tools of 48 px) starts level with the grass, or higher when the stage is short;
+      // it never runs past the stage's bottom (it scrolls inside, the last tool never cut)
+      const need = (m === "siete" ? 12 * 48 + 30 : 5 * 50 + 24) + 12;
+      const top = Math.round(Math.max(8, Math.min(g.y, g.h - need - 8)));
+      const maxHeight = Math.round(g.h - top - 8);
+      dockL = { left: Math.round(lx), top, maxHeight };
+      dockR = { left: Math.round(rx), top: Math.round(Math.max(8, g.y)), maxHeight: Math.round(g.h - Math.max(8, g.y) - 8) };
+      listSt = { left: Math.round(Math.max(8, rx - 312)), top: Math.round(Math.max(8, g.y)) };
     }
   }
   const px = (q: XY): XY => (g ? [g.x + (q[0] / 100) * g.pw, g.y + (q[1] / 100) * g.ph] : [0, 0]);
@@ -507,11 +511,8 @@ export function Dibujar({ layout }: RegionProps) {
               </button>
             </div>
           )}
-          {hint && !phone && (
-            <p className="pd-hint" style={{ top: Math.round(g.y + 10), maxWidth: Math.round(Math.max(200, g.pw - 40)) }} role="status">
-              {hint}
-            </p>
-          )}
+          {/* (the tool's help is said and lives in each tool's title: a line over the grass would cover the strokes) */}
+          {hint && <p className="pz-vh">{hint}</p>}
           {!ro && (
             <>
               {tools.length > 0 && (
@@ -528,7 +529,7 @@ export function Dibujar({ layout }: RegionProps) {
                   ))}
                 </div>
               )}
-              <div className={`vd-glass pd-dock${phone ? " is-row" : ""}${m === "jugada" && !phone ? " is-solo" : ""}`} style={m === "jugada" && !phone ? dockL : dockR} role="toolbar" aria-label="Color, deshacer y listo" aria-orientation={phone ? "horizontal" : "vertical"}>
+              <div className={`vd-glass pd-dock${phone ? " is-row" : ""}`} style={dockR} role="toolbar" aria-label="Color, deshacer y listo" aria-orientation={phone ? "horizontal" : "vertical"}>
                 {m === "jugada" && <ToolBtn id="mover" t="Mover" help="Arrastra fichas; el asa del medio curva la carrera" on pick={() => P.say("Mover: arrastra fichas; el asa del medio curva la carrera")} />}
                 {m === "siete" &&
                   COLORS.map(([c, t, hex]) => (
