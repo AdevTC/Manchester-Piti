@@ -4,6 +4,7 @@
 // the web (the real header and sky) and works for a stranger on a phone.
 import { useContext } from "react";
 import { useParams } from "@tanstack/react-router";
+import "../../../../styles/vidrio-paginas.css";
 import "../../../../styles/pz/aficion.css";
 import { CelesteHeader } from "../../../../components/celeste/Chrome";
 import { VidrioSky } from "../../../../components/vidrio";
@@ -25,7 +26,7 @@ function when(ms: number | null): string {
 function fanMatchLine(f: FanBoard): string {
   const m = f.match;
   if (!m) return "";
-  return [m.jornada != null ? "J" + m.jornada : "", m.rival ? "contra " + m.rival : "", when(m.date), m.home === true ? "en casa" : m.home === false ? "fuera" : "", m.venue].filter(Boolean).join(" · ");
+  return [when(m.date), m.home === true ? "en casa" : m.home === false ? "fuera" : "", m.venue].filter(Boolean).join(" · ");
 }
 
 function Shirt({ num }: { num: number | null }) {
@@ -98,7 +99,7 @@ function Board({ f }: { f: FanBoard }) {
             {f.system}
           </span>
           {f.seven.map((p, i) => (
-            <span key={i} className={"af-p" + (p.guest ? " is-guest" : "")} style={{ left: p.x + "%", top: p.y + "%" }} aria-hidden="true">
+            <span key={i} className={"af-p" + (p.guest ? " is-guest" : "")} style={{ left: Math.max(9, Math.min(91, p.x)) + "%", top: Math.max(10, Math.min(86, p.y)) + "%" }} aria-hidden="true">
               {p.captain && <i className="af-p__c">C</i>}
               <Shirt num={p.num} />
               <b className="af-p__n">{(p.num != null ? p.num + " " : "") + p.shirt}</b>

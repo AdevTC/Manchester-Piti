@@ -1,6 +1,6 @@
 /* r14 «La pizarra» · la vista de la afición (/aficion/<token>): the public, read-only seven. Root .af (a Vidrio page,
    .vx.vd-pg.af): every rule under it, so it wins over the kit in production order. Phone first, 360–2560. */
-.af .af-main{position:relative;z-index:1;box-sizing:border-box;width:100%;max-width:1080px;margin:0 auto;padding:18px 16px 64px;display:grid;gap:22px;grid-template-columns:minmax(0,1fr);font-family:var(--vd-sans);color:var(--vd-ink)}
+.af .af-main{position:relative;z-index:1;box-sizing:border-box;width:100%;max-width:1080px;margin:0 auto;padding:88px 16px 64px;display:grid;gap:22px;grid-template-columns:minmax(0,1fr);font-family:var(--vd-sans);color:var(--vd-ink)}
 .af .af-main *{box-sizing:border-box}
 .af .af-main :where(h1,h2,p,ol,ul){margin:0;padding:0}
 .af .af-main :where(ol,ul){list-style:none}
@@ -25,7 +25,7 @@
 .af .af-pitch__box.is-top{top:-3px}
 .af .af-pitch__box.is-bot{bottom:-3px}
 .af .af-pitch__sys{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:clamp(56px,18vw,150px);font-weight:820;letter-spacing:-.04em;color:rgba(255,255,255,.08);pointer-events:none;white-space:nowrap}
-.af .af-p{position:absolute;display:grid;justify-items:center;gap:2px;width:96px;transform:translate(-50%,-62%);pointer-events:none}
+.af .af-p{position:absolute;display:grid;justify-items:center;gap:2px;width:96px;transform:translate(-50%,-50%);pointer-events:none}
 .af .af-shirt{position:relative;display:block;width:clamp(38px,11vw,64px);aspect-ratio:1/1.327;overflow:hidden;filter:drop-shadow(0 6px 8px rgba(0,0,0,.4))}
 .af .af-shirt>img{position:absolute;max-width:none;width:130.75%;height:auto;left:-15.25%;top:-11.14%}
 .af .af-shirt>svg{display:block;width:100%;height:100%}
@@ -44,11 +44,12 @@
 .af .af-foot>p{font-size:14px;line-height:1.5;color:var(--vd-ink2)}
 .af .af-acts{display:flex;flex-wrap:wrap;gap:10px}
 .af .af-btn{--vd-r:999px;display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border:0;border-radius:999px;font:inherit;font-size:15px;font-weight:720;color:var(--vd-g-ink,var(--vd-ink));text-decoration:none;cursor:pointer}
-.af .af-btn--pri{background:var(--vd-pri,rgba(108,171,221,.35))}
+.af .af-btn--pri{background:#6cabdd;color:#0c1733}
 .af .af-state{display:grid;gap:12px;padding:40px 0;max-width:560px}
 /* tablet and up: the hero beside the pitch */
+@media (min-width:700px){.af .af-main{padding-top:104px}}
 @media (min-width:820px){
-  .af .af-main{grid-template-columns:minmax(0,1fr) minmax(0,460px);column-gap:40px;align-items:start;padding:36px 32px 80px}
+  .af .af-main{grid-template-columns:minmax(0,1fr) minmax(0,460px);column-gap:40px;align-items:start;padding:112px 40px 80px}
   .af .af-hero{grid-column:1;align-self:center}
   .af .af-card{grid-column:2;grid-row:1 / span 3}
   .af .af-sec{grid-column:1}
