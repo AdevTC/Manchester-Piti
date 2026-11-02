@@ -127,6 +127,23 @@ try {
   const { token: token3 } = await ok("setBoardFanLink", admin, { boardId: b1, on: true });
   await until(() => get(`fanBoards/${token3}`), (d) => d?.boardId === b1, "a new link after the revoke");
 
+  // ── a reaction given in the same moment the seven is published (before the stamp, at version 0) is kept and moved
+  // to the new version; history written by a run that lands after the board's delete is never left behind
+  const b2 = await board("dos", admin, ids.slice(0, 7));
+  await until(() => history(b2), (x) => x.length === 1, "b2 first snapshot");
+  const batch = db.batch();
+  batch.update(db.doc(`lineups/${b2}`), { isOfficial: true });
+  batch.set(db.doc(`lineups/${b2}/reactions/u9`), { value: "ok", rev: 0, at: FieldValue.serverTimestamp() });
+  await batch.commit();
+  await until(() => get(`lineups/${b2}`), (d) => d?.sevenRev === 1, "b2 stamped");
+  await until(() => get(`lineups/${b2}/reactions/u9`), (d) => d?.rev === 1, "the reaction of the publishing moment is kept at version 1");
+  await db.doc(`lineups/${b2}`).update({ formation: "3-2-1" });
+  await db.doc(`lineups/${b2}`).delete();
+  await wait(5000);
+  assert.equal((await db.collection(`lineups/${b2}/history`).get()).size, 0, "history left under a deleted board");
+  assert.equal((await db.collection(`lineups/${b2}/reactions`).get()).size, 0);
+  checks++;
+
   // ── delete: voz, reactions, history and the fan view go with the board
   await db.doc(`lineups/${b1}/voz/v0`).set({ step: "plan", mime: "audio/webm", ms: 1000, data: "AQID", by: admin.uid, at: Timestamp.now() });
   await db.doc(`lineups/${b1}/reactions/u3`).set({ value: "ok", rev: 3, at: Timestamp.now() });
@@ -155,6 +172,25 @@ try {
   boards.push(sent.officialId);
   await until(() => get(`lineups/${sent.officialId}`), (d) => d?.sevenRev === 1 && d.fanToken === undefined && d.sevenKey !== "zz", "the copy has its own version and no fan link");
 
+  // ── PZ-D04: the first official seven of the match closes «Adivina el siete» for good (a flag, not the scope doc)
+  await until(() => get(`matchPrivate/${matchA}`), (d) => d?.sieteOutAt != null, "matchPrivate.sieteOutAt set on publish");
+  await db.doc(`lineupOfficials/${seasonId}__${matchA}`).delete();
+  await wait(1500);
+  assert.ok((await get(`matchPrivate/${matchA}`)).sieteOutAt, "unpublishing must not clear the flag");
+  checks++;
+
+  // ── PZ-D21F: the fan view's jornada skips unpublished and individually archived matches (as the web)
+  await db.doc(`matches/${suffix}-draft`).set({ seasonId, status: "scheduled", published: false, date: Date.now() - 86_400_000, rival: "Borrador" });
+  await db.doc(`matches/${suffix}-gone`).set({ seasonId, status: "finished", individuallyArchived: true, date: Date.now() - 2 * 86_400_000, rival: "Archivado" });
+  const { token: tokA } = await ok("setBoardFanLink", admin, { boardId: sent.officialId, on: true });
+  await until(() => get(`fanBoards/${tokA}`), (d) => d?.title === "J1 · r14 Demo", "fan title counts only visible matches");
+  await db.doc(`fanBoards/${tokA}`).delete();
+
+  // ── the match's quedada goes when the match is deleted
+  await db.doc(`quedadas/${matchA}`).set({ at: Timestamp.now(), where: "Puerta", by: admin.uid, setAt: Timestamp.now() });
+  await ok("deleteMatch", admin, { id: matchA });
+  await until(() => get(`quedadas/${matchA}`), (d) => d === undefined, "quedada cleaned with its match");
+
   console.log(`pizarra-r14.integration: ${checks} checks OK`);
 } finally {
   for (const id of boards) await db.recursiveDelete(db.doc(`lineups/${id}`)).catch(() => {});
@@ -163,6 +199,9 @@ try {
   await db.doc(`lineupOfficials/${seasonId}__${matchA}`).delete().catch(() => {});
   await db.doc(`lineupOfficials/${seasonId}__temporada`).delete().catch(() => {});
   await db.doc(`fanBoards/${"y".repeat(24)}`).delete().catch(() => {});
+  for (const extra of ["draft", "gone"]) await db.doc(`matches/${suffix}-${extra}`).delete().catch(() => {});
+  await db.doc(`quedadas/${matchA}`).delete().catch(() => {});
+  await db.doc(`matchTombstones/${matchA}`).delete().catch(() => {});
   await Promise.all(ids.map((id) => db.doc(`players/${id}`).delete()));
   await db.doc(`seasons/${seasonId}`).delete();
   for (const uid of people) await Promise.all([db.doc(`users/${uid}`).delete(), db.doc(`teamMembers/${uid}`).delete()]);

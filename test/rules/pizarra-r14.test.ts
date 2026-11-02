@@ -265,6 +265,9 @@ describe("r14 · la vista de la afición (PZ-D21F), a prueba de carreras", () =>
     // the board itself stays members-only
     await assertFails(getDoc(doc(db(), "lineups", "x")));
   });
+  it("(revisión) the fan doc never lists, even by token prefix", async () => {
+    await assertFails(getDocs(collection(db("member"), "fanBoards")));
+  });
   it("a revoked link (a stale doc left behind) reads nothing", async () => {
     await seed("lineups/x", { ...board });
     await seed(`fanBoards/${token}`, { v: 1, boardId: "x", seven: [], system: "2-3-1", title: "J3" });
