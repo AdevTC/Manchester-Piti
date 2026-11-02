@@ -318,6 +318,10 @@
 .pz .pcs-poster{position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:18px;color:#fff;background:radial-gradient(90% 50% at 50% 46%,rgba(108,171,221,.28),transparent 70%),linear-gradient(172deg,#1d3d70 0%,#0c1d3f 52%,#081227 100%);box-shadow:0 30px 60px -28px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.08);transition:width .35s var(--vd-ease),height .35s var(--vd-ease)}
 .pz .pcs-poster.is-h{width:288px;height:512px;padding:16px 16px 12px}
 .pz .pcs-poster.is-p{width:312px;height:390px;padding:12px 14px 10px}
+/* (the 320 px column of a 1100–1279 desktop: the preview fits its column, never wider than the sheet) */
+.pz .pcs-prev{min-width:0}
+.pz .pcs-prev>.pcs-poster.is-h{width:min(288px,100%);height:auto;aspect-ratio:9/16}
+.pz .pcs-prev>.pcs-poster.is-p{width:min(312px,100%);height:auto;aspect-ratio:4/5}
 .pz .pcs-poster__hd{display:flex;align-items:center;gap:8px;flex:none}
 .pz .pcs-poster__hd>img{width:30px;height:30px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
 .pz .pcs-poster__hd>span{display:grid;gap:1px;min-width:0;line-height:1.3}
