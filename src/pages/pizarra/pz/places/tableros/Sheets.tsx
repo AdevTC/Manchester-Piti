@@ -157,13 +157,17 @@ export function QuitarSheet({ args }: SheetProps) {
   const { P } = tb;
   const b = P.sel.board(idOf(args, P.state.boardId));
   if (!b || !b.isOfficial) return <p className="pz-meta">Ese tablero ya no es el oficial.</p>;
+  // (the store reads the reactions of the board's match's official: another official's are not known here)
+  const known = b.id === P.sel.official()?.id;
   const R = P.sel.reactions();
   const M = matchById(P, b.matchId);
-  const n = R.ok + R.dudas;
+  const n = known ? R.ok + R.dudas : 0;
   const conseq = [
     { icon: "eye", t: "El equipo deja de verlo como el oficial", s: "Sigue siendo un tablero, igual que estaba." },
     { icon: "cal", t: M ? "La página de la " + jLabel(M) + " dirá «Aún no hay siete oficial»" : "La temporada se queda sin oficial", s: "Lo mismo en la mesa, la convocatoria y Hoy." },
-    { icon: "thumb", t: n ? "Se borran sus " + n + " opiniones" : "No tenía opiniones", s: n ? R.ok + " de acuerdo y " + R.dudas + " con dudas." : "Nadie había opinado aún." },
+    known
+      ? { icon: "thumb", t: n ? "Se borran sus " + n + " opiniones" : "No tenía opiniones", s: n ? R.ok + " de acuerdo y " + R.dudas + " con dudas." : "Nadie había opinado aún." }
+      : { icon: "thumb", t: "Se borran sus opiniones", s: "Las que tuviera: si vuelve a ser oficial, se pregunta de nuevo." },
     { icon: "bell", t: "No se avisa a nadie", s: "Cuando publiques otro, sí sale «Ya está el siete»." },
   ];
   return (

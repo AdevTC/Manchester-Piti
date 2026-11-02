@@ -134,6 +134,24 @@ describe("the inspector", () => {
   });
 });
 
+describe("another match's official", () => {
+  it("says of which match it is official and can be taken off (not only the J3's)", async () => {
+    const j4 = { ...world.matches[0], id: "j4", j: 4, rival: "Sporting", cal: { ...world.matches[0].cal, id: "j4" } };
+    const w = { ...world, matches: [...world.matches, j4], boards: [...world.boards, fakeBoard({ id: "c4", name: "Copia del oficial", isOfficial: true, matchId: "j4", ids: ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"] })] };
+    const { P, r } = renderWithPz(
+      <>
+        <Tableros region="stage" layout="desktop" />
+        <Tableros region="side" layout="desktop" />
+      </>,
+      { world: w, boardId: "b1", place: "tableros" },
+    );
+    act(() => pb.set({ sel: "c4" }));
+    expect(r.container.textContent).toContain("Oficial · J4");
+    fireEvent.click(screen.getByRole("button", { name: "Quitar «Copia del oficial» como oficial" }));
+    expect(P.state.sheet).toMatchObject({ name: "pb-quitar", args: { id: "c4" } });
+  });
+});
+
 describe("«Borrar las copias de la mesa»", () => {
   it("lists each copy with its owner and match before anything goes", async () => {
     renderWithPz(<MesaSheet />, { world, boardId: "m1", place: "tableros" });

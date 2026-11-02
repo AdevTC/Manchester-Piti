@@ -54,7 +54,9 @@ export function Gallery({ tb, layout, split = false }: { tb: Tb; layout: Layout;
     const isCur = b.id === cur?.id;
     const ro = !P.sel.canEdit(b);
     const marks: { t: string; cls: string; icon?: string }[] = [];
-    if (b.isOfficial && b.id === off?.id) marks.push({ t: "Oficial", cls: "is-of", icon: "star" });
+    const quitting = U.pend?.kind === "quitar" && U.pend.ids.includes(b.id);
+    // (another match's official — or the season's — is official too: it says of which)
+    if (b.isOfficial && !quitting) marks.push({ t: b.id === off?.id || !M ? "Oficial" : "Oficial · " + jLabel(M), cls: "is-of", icon: "star" });
     if (isCur) marks.push({ t: "Abierto", cls: "is-open", icon: "eye" });
     if (tb.ops.isMesa(b.id)) marks.push({ t: "De la mesa", cls: "", icon: "whistle" });
     (b.lineup.tags ?? [])
