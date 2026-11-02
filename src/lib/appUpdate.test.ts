@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { appUpdate, CHECK_GAP_MS, holdsUpdate, NAV_CHECK_GAP_MS, QUIET_MS, startAppUpdates, type UpdateRouter } from "./appUpdate";
+import { holdUpdatesWhile } from "./updateHold";
 
 // ---- fakes: a service worker container, the router, the clock and the tab's visibility
 class FakeSw extends EventTarget {
@@ -136,6 +137,24 @@ describe("startAppUpdates", () => {
     expect(second.reload).toHaveBeenCalledTimes(1);
   });
 
+  it("the pizarra: busy holds the switch, idle it switches when the tab goes to the background", () => {
+    router.state.location.pathname = "/pizarra/siete";
+    let busy = true;
+    const off = holdUpdatesWhile(() => busy);
+    const { sw, reload } = start();
+    touch();
+    sw.takeOver();
+    setVisibility("hidden");
+    expect(reload).not.toHaveBeenCalled();
+    expect(appUpdate.get()).toBe(true);
+    busy = false;
+    setVisibility("visible");
+    setVisibility("hidden");
+    expect(reload).toHaveBeenCalledTimes(1);
+    off();
+    router.state.location.pathname = "/";
+  });
+
   it("la mesa never switches by itself, but the tab hidden after leaving it does", () => {
     router.state.location.pathname = "/partidos/m1/mesa";
     const { sw, reload } = start();
@@ -199,11 +218,20 @@ describe("startAppUpdates", () => {
 });
 
 describe("holdsUpdate", () => {
-  it("holds on la mesa, the admin and the pizarra", () => {
+  it("holds on la mesa and the admin; the pizarra only while it says it is busy", () => {
     expect(holdsUpdate(document, "/partidos/abc/mesa")).toBe(true);
     expect(holdsUpdate(document, "/admin/partidos/en-juego/abc")).toBe(true);
-    expect(holdsUpdate(document, "/pizarra")).toBe(true);
-    expect(holdsUpdate(document, "/pizarra/jugadas/lib-corner")).toBe(true);
+    // idle (or not mounted): like any page
+    expect(holdsUpdate(document, "/pizarra")).toBe(false);
+    expect(holdsUpdate(document, "/pizarra/jugadas/lib-corner")).toBe(false);
+    let busy = true;
+    const off = holdUpdatesWhile(() => busy);
+    expect(holdsUpdate(document, "/pizarra/siete")).toBe(true);
+    // (only on its own pages)
+    expect(holdsUpdate(document, "/partidos/abc")).toBe(false);
+    busy = false;
+    expect(holdsUpdate(document, "/pizarra/siete")).toBe(false);
+    off();
     expect(holdsUpdate(document, "/pizarras")).toBe(false);
     expect(holdsUpdate(document, "/partidos/abc")).toBe(false);
     expect(holdsUpdate(document, "/")).toBe(false);

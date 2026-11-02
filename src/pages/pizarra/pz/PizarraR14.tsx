@@ -17,6 +17,7 @@ import { useLineups } from "../useLineups";
 import { useReactions } from "../useReactions";
 import { usePizarraPrefs } from "../data/prefs";
 import { copyBoardVoices } from "../data/boards";
+import { holdUpdatesWhile } from "../../../lib/updateHold";
 import { boardSeason, useBoardData } from "../v2/useBoardData";
 import { useSeasonLineupDocs } from "../seasonLineups";
 import { useAbsences, useAvailability } from "../../vestuario/live";
@@ -194,6 +195,9 @@ export function PizarraR14() {
       reactions: official ? { ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, ...(reactions.who ? { who: reactions.who } : {}) } : undefined,
     });
   }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, visibleDocs, memberAnswers, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, prefs.prefs, stills, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
+
+  // a new version waits while the pizarra is busy (unsaved edit, sheet, drawing, charla, undo window), not longer
+  useEffect(() => holdUpdatesWhile(() => store.sel.busy()), [store]);
 
   // what changed under the board (another tab, a new official, a failed save) is said
   useEffect(() => {
