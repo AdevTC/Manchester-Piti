@@ -11,9 +11,11 @@
 import { SYSTEMS_CATALOGUE, SYSTEM_IDS, type FormationName } from "../../lib/formations";
 import { LINE_NAMES, LINES, lineOf, type Line, type PosCode } from "../../lib/positions";
 import type { Play, Stroke } from "../../lib/schemas";
-import type { CondRule, ShapeOff, StyleId } from "../../lib/tacticaSchemas";
+import type { ShapeOff, StyleId } from "../../lib/tacticaSchemas";
 import type { Tactics } from "./tactics";
-import type { RivalSeven } from "./v2/rival";
+import type { RivalPlan } from "./data/rival";
+import type { BoardPlan } from "./data/plan";
+import type { CondRuleR14 } from "./data/condPlan";
 
 export type { FormationName };
 export const FORMATION_NAMES: FormationName[] = [...SYSTEM_IDS];
@@ -80,7 +82,7 @@ export interface Lineup {
   takers?: Takers;
   /** El rival: su siete (un sistema reflejado en su campo) con dorsal y nota por jugador; null = quitado
    *  (se guarda así para borrarlo), ausente = nunca tuvo (see v2/rival.ts). */
-  rival?: RivalSeven | null;
+  rival?: RivalPlan | null;
   /** Telestrator strokes over the pitch (≤ 60; see drawings.ts). */
   drawings: Stroke[];
   /** The board's own jugadas (≤ 12; see plays.ts). The built-in ones are not stored. */
@@ -90,11 +92,15 @@ export interface Lineup {
   /** «Sin balón»: the second shape of the seven (its system and each slot's nudge; see v2/phases.ts). */
   shapeOff?: ShapeOff | null;
   /** El plan condicional: «si vamos ganando por 2 desde el 30′ → …» (≤ 3; see v2/condPlan.ts). */
-  condPlan?: CondRule[];
+  condPlan?: CondRuleR14[];
   /** The predefined style last applied («Presión alta»…; see v2/tacStyles.ts). Absent = none. */
   style?: StyleId | null;
   /** Etiquetas del tablero («Liga», «Copa», «Entreno»: ≤ 3, ≤ 20 letras; see v2/tags.ts). Absent = never set. */
   tags?: string[];
+  /** r14 · el plan (claves + lo que enciende cada una, notas, pelotas paradas; see data/plan.ts). Absent = never set. */
+  plan?: BoardPlan | null;
+  /** r14 · the season plays this board uses (seasonPlays/{id} ids, ≤ 24; see data/seasonPlays.ts). Absent = never set. */
+  seasonPlays?: string[];
   /** View only, never stored: where each slot stands in the plan's phase on screen (v2/phases.ts). */
   phaseAt?: { u: number; v: number }[];
 }

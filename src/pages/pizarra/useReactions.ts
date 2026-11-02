@@ -4,7 +4,7 @@ import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useTeam } from "../../context/TeamContext";
 import { useFirestoreCollection } from "../../lib/useFirestoreCollection";
-import { mapReaction } from "../../lib/firestoreMappers";
+import { currentReactions, mapReactionR14 } from "./data/sevenRev";
 import { canReact, doubters, tallyReactions, type ReactionTally, type ReactionValue } from "./reactions";
 
 // `?preview` has no Firebase token (rules would reject): reactions live in localStorage there,
@@ -41,7 +41,9 @@ export interface UseReactions extends ReactionTally {
 }
 
 /** Live counts of the reactions to an official board, and the member's own. */
-export function useReactions(board: { id: string; isOfficial: boolean } | null): UseReactions {
+// r14 (PZ-D01): pass the board's `sevenRev` and only the reactions to its current seven count, and a new one
+// answers that version (without it: the old behaviour, every reaction counts and none carries `rev`).
+export function useReactions(board: { id: string; isOfficial: boolean; sevenRev?: number } | null): UseReactions {
   const { user, profile } = useAuth();
   const { member } = useTeam();
   const uid = user?.uid ?? null;
@@ -50,15 +52,16 @@ export function useReactions(board: { id: string; isOfficial: boolean } | null):
 
   const q = useMemo(() => collection(db, "lineups", lineupId || "-", "reactions"), [lineupId]);
   const key = useMemo(() => ["lineupReactions", lineupId], [lineupId]);
-  const { data, isPending } = useFirestoreCollection(key, q, mapReaction, enabled && !PREVIEW);
+  const { data, isPending } = useFirestoreCollection(key, q, mapReactionR14, enabled && !PREVIEW);
+  const sevenRev = typeof board?.sevenRev === "number" ? board.sevenRev : null;
 
   const [local, setLocal] = useState<LocalStore>(() => (PREVIEW ? localRead() : {}));
 
   const docs = useMemo(() => {
     if (!enabled) return [];
     if (PREVIEW) return Object.entries(local[lineupId] ?? {}).map(([id, value]) => ({ id, value }));
-    return data ?? [];
-  }, [enabled, local, lineupId, data]);
+    return sevenRev === null ? (data ?? []) : currentReactions(data ?? [], sevenRev);
+  }, [enabled, local, lineupId, data, sevenRev]);
   const tally = useMemo(() => tallyReactions(docs, uid), [docs, uid]);
 
   // Admins see who has doubts (the reactions are stored by uid; the nicknames come from the profiles,
@@ -84,7 +87,7 @@ export function useReactions(board: { id: string; isOfficial: boolean } | null):
       return;
     }
     const ref = doc(db, "lineups", lineupId, "reactions", uid);
-    if (value) await setDoc(ref, { value, at: serverTimestamp() });
+    if (value) await setDoc(ref, { value, at: serverTimestamp(), ...(sevenRev !== null ? { rev: sevenRev } : {}) });
     else await deleteDoc(ref);
   };
 

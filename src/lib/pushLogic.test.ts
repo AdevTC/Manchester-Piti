@@ -126,12 +126,12 @@ describe("«Ya está el siete» (the official seven on the pizarra)", () => {
     expect(lineupNotice("b2", undefined, { isOfficial: true, matchId: null }, null)).toMatchObject({
       body: "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.",
       tag: "lineup-b2-temporada",
-      url: "/pizarra?tablero=b2#charla",
+      url: "/pizarra/charla?tablero=b2",
     });
     expect(lineupNotice("b2", undefined, { isOfficial: true, matchId: "gone" }, undefined)?.body).toBe("El capitán ya ha publicado el siete del partido. Míralo en el partido.");
   });
   it("the season's official opens the board in its own season; a match's, the match's Campo", () => {
-    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: null, seasonId: "t2" }, null)?.url).toBe("/pizarra?tablero=b1&season=t2#charla");
+    expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: null, seasonId: "t2" }, null)?.url).toBe("/pizarra/charla?tablero=b1&season=t2");
     expect(lineupNotice("b1", undefined, { isOfficial: true, matchId: "j8", seasonId: "t2" }, j8)?.url).toBe("/partidos/j8/siete");
   });
   it("its alcance changes: a new notice (with its own tag); edits of an official that stays put: none", () => {
