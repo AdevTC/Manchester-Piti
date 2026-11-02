@@ -54,12 +54,11 @@ describe("r14 · revisión: topes por elemento", () => {
     await assertFails(up({ parado: { ...plan.parado, penalties: { rechace: ["x".repeat(129)] } } }));
     await assertFails(up({ parado: { ...plan.parado, penalties: { rechace: [], otro: 1 } } }));
   });
-  it("slots: a player id longer than 128 is refused (the server's sevenKey always fits its cap)", async () => {
+  it("a board whose server key is at its cap (a hashed long seven) still takes its owner's edits", async () => {
     const slots = (id: unknown) => [id, "b", "c", "d", "e", "f", "g"].map((playerId) => ({ playerId }));
-    await assertSucceeds(setDoc(doc(db("member"), "lineups", "x"), { ...board, slots: slots("x".repeat(128)) }));
-    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...board, slots: slots("x".repeat(129)) }));
-    await assertFails(setDoc(doc(db("member"), "lineups", "y"), { ...board, slots: slots(5) }));
-    await assertSucceeds(setDoc(doc(db("member"), "lineups", "z"), { ...board, slots: slots(null) }));
+    await seed("lineups/x", { ...board, slots: slots("x".repeat(400)), sevenKey: "h:0123456789abcdef:2806", sevenRev: 1 });
+    await assertSucceeds(updateDoc(doc(db("member"), "lineups", "x"), { name: "Sigue editable" }));
+    await assertFails(updateDoc(doc(db("member"), "lineups", "x"), { sevenKey: "x" }));
   });
   it("attendance: ids and names checked one by one", async () => {
     await seed("trainings/t1", { proposedBy: "admin", slots: [{ id: "s1" }], confirmed: { slotId: "s1" } });

@@ -494,37 +494,48 @@ service cloud.firestore {
     // r14 · el plan (PZ-D22P/D23P): the keys (≤ 3 texts), each one's light on the pitch (`viz`, ≤ 3 maps), the
     // notes for the charla and the set pieces (`parado`: corners / freekicks / penalties maps). Their content
     // is validated on read (src/pages/pizarra/data/plan.ts); here, the shape and the caps.
-    // A key: a text of 1–60. Its light: { icon, zona }, two short ids.
-    function claveOk(l, i) { return l.size() <= i || (l[i] is string && l[i].size() >= 1 && l[i].size() <= 60); }
-    function vizOk(l, i) {
-      return l.size() <= i || (l[i] is map && l[i].keys().hasOnly(['icon','zona'])
-        && l[i].get('icon', '') is string && l[i].get('icon', '').size() <= 12
-        && l[i].get('zona', '') is string && l[i].get('zona', '').size() <= 12);
+    // (planOk stays cheap: the plan sits inside boardOk, and the rules' evaluation budget is shared — each part
+    // alone passed but the whole plan did not with one function per item)
+    // A key's light: { icon, zona }, two short ids (a missing or non-string one makes the «+» fail: refused).
+    function vizOk(z) {
+      return z.keys().hasOnly(['icon','zona']) && (z.icon + '|' + z.zona).matches('[a-z0-9]{1,12}[|][a-z0-9]{1,12}');
     }
-    // A list of at most `max` player ids (each 1–128 id characters, «guest:g1» too), checked in one regex.
+    // A list of at most `max` player ids (each 1–128 id characters, «guest:g1» too), checked in one regex; splitting
+    // the joined text back must give the same list (no «,» inside an id, every item a string: [3] ≠ ["3"]).
     function idListOk(l, max) {
-      return l is list && l.size() <= max && (l.size() == 0 || l.join(',').matches('[A-Za-z0-9_:-]{1,128}(,[A-Za-z0-9_:-]{1,128})*'));
+      return l is list && l.size() <= max && (l.size() == 0 || (l.join(',').matches('[A-Za-z0-9_:-]{1,128}(,[A-Za-z0-9_:-]{1,128})*')
+        && l.join(',').split(',') == l));
     }
-    // A corner / free kick: the play it runs (null or an id) and who goes into the box (≤ 5 ids).
-    function setPieceOk(p) {
-      return p is map && p.keys().hasOnly(['playId','box'])
-        && (p.get('playId', null) == null || (p.playId is string && p.playId.size() <= 128))
-        && idListOk(p.get('box', []), 5);
+    // A corner / free kick: the play it runs (null or an id ≤ 128) and who goes into the box (≤ 5).
+    function setPieceShapeOk(p) {
+      return p.keys().hasOnly(['playId','box']) && (p.get('playId', null) == null || (p.playId is string && p.playId.size() <= 128))
+        && p.get('box', []).size() <= 5;
+    }
+    // The set pieces: the shapes, then every player id of the three lists in ONE idListOk (≤ 15 together).
+    function paradoOk(pd) {
+      let co = pd.get('corners', {});
+      let fk = pd.get('freekicks', {});
+      let pe = pd.get('penalties', {});
+      return pd.keys().hasOnly(['corners','freekicks','penalties'])
+        && setPieceShapeOk(co) && setPieceShapeOk(fk)
+        && pe.keys().hasOnly(['rechace']) && pe.get('rechace', []).size() <= 5
+        && idListOk(co.get('box', []).concat(fk.get('box', [])).concat(pe.get('rechace', [])), 15);
+    }
+    // The keys (≤ 3, each a text of 1–60: joined by «¬» and split back, the same list), their lights (≤ 3), the
+    // notes (≤ 400) and the set pieces.
+    function planMapOk(p) {
+      let c = p.get('claves', []);
+      let v = p.get('viz', []);
+      return p.keys().hasOnly(['claves','notes','viz','parado'])
+        && c.size() <= 3
+        && (c.size() == 0 || (c.join('¬').matches('[^¬]{1,60}(¬[^¬]{1,60}){0,2}') && c.join('¬').split('¬') == c))
+        && v.size() <= 3
+        && (v.size() < 1 || vizOk(v[0])) && (v.size() < 2 || vizOk(v[1])) && (v.size() < 3 || vizOk(v[2]))
+        && p.get('notes', '') is string && p.get('notes', '').size() <= 400
+        && (p.get('parado', null) == null || paradoOk(p.parado));
     }
     function planOk(d) {
-      return d.get('plan', null) == null || (d.plan is map
-        && d.plan.keys().hasOnly(['claves','notes','viz','parado'])
-        && d.plan.get('claves', []) is list && d.plan.get('claves', []).size() <= 3
-        && claveOk(d.plan.get('claves', []), 0) && claveOk(d.plan.get('claves', []), 1) && claveOk(d.plan.get('claves', []), 2)
-        && d.plan.get('viz', []) is list && d.plan.get('viz', []).size() <= 3
-        && vizOk(d.plan.get('viz', []), 0) && vizOk(d.plan.get('viz', []), 1) && vizOk(d.plan.get('viz', []), 2)
-        && d.plan.get('notes', '') is string && d.plan.get('notes', '').size() <= 400
-        && (d.plan.get('parado', null) == null || (d.plan.parado is map
-          && d.plan.parado.keys().hasOnly(['corners','freekicks','penalties'])
-          && setPieceOk(d.plan.parado.get('corners', {}))
-          && setPieceOk(d.plan.parado.get('freekicks', {}))
-          && d.plan.parado.get('penalties', {}) is map && d.plan.parado.get('penalties', {}).keys().hasOnly(['rechace'])
-          && idListOk(d.plan.parado.get('penalties', {}).get('rechace', []), 5))));
+      return d.get('plan', null) == null || planMapOk(d.plan);
     }
     // r14: the board's other new fields. `seasonPlays` (PZ-D05) names the season plays it uses (ids, ≤ 24);
     // `fromMesa` marks a scorer's copy made from la mesa (PZ-D22T); `fanToken` (the fan view's link,
@@ -548,15 +559,13 @@ service cloud.firestore {
       return !(k in d) || (d[k] is string && d[k].size() <= max);
     }
     // The seven: exactly seven slot maps (their content is validated on read, see lineupDoc.ts).
-    // (r14: each slot's player id is null or ≤ 128 characters, so the server's `sevenKey` — the seven ids joined —
-    // always fits its own cap below and never locks the board's updates)
-    function slotOk(s) {
-      return s is map && (s.get('playerId', null) == null || (s.playerId is string && s.playerId.size() <= 128));
-    }
+    // (r14: the server's `sevenKey` never passes its cap whatever the slots hold — past 900 characters it is a hash,
+    // pizarraR14Logic.ts boardSevenKey — so no key can lock the board's updates. Per-slot id checks were tried here
+    // and pushed boardOk past the rules' evaluation budget.)
     function slotsOk(d) {
       return !('slots' in d) || (d.slots is list && d.slots.size() == 7
-        && slotOk(d.slots[0]) && slotOk(d.slots[1]) && slotOk(d.slots[2]) && slotOk(d.slots[3])
-        && slotOk(d.slots[4]) && slotOk(d.slots[5]) && slotOk(d.slots[6]));
+        && d.slots[0] is map && d.slots[1] is map && d.slots[2] is map && d.slots[3] is map
+        && d.slots[4] is map && d.slots[5] is map && d.slots[6] is map);
     }
     // The other versions of the seven («2ª parte», «Plan B»): at most two maps, each with its own seven
     // slots (their content is validated on read, see lineupDoc.ts parseVariants).
@@ -773,7 +782,8 @@ service cloud.firestore {
     }
     // At most `max` names of 1–40 characters (no «|»), checked in one regex.
     function namesOk(l, max, len) {
-      return l is list && l.size() <= max && (l.size() == 0 || l.join('|').matches('[^|]{1,' + string(len) + '}([|][^|]{1,' + string(len) + '})*'));
+      return l is list && l.size() <= max && (l.size() == 0 || (l.join('|').matches('[^|]{1,' + string(len) + '}([|][^|]{1,' + string(len) + '})*')
+        && l.join('|').split('[|]') == l));
     }
     // Jugadas de la temporada (PZ-D05): a play kept outside any board, so it moves from one board to another
     // without copying it (a board names the ones it uses in `seasonPlays`). `scope` «mine» (the member's own,

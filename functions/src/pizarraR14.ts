@@ -85,7 +85,10 @@ export const onLineupR14 = onDocumentWritten({ document: "lineups/{lineupId}", m
     if (done && stamp.bumped) {
       // Old reactions go — but one given since this write (the second before the stamp, still at the old version)
       // answers this seven: it is kept and moved to the new version.
-      const since = event.data?.after.updateTime?.toMillis() ?? Infinity;
+      // (the write's time, less REACTION_GRACE_MS: the emulator's and the server's clocks for a commit and its
+      // serverTimestamp may differ by a few ms; a reaction to the old seven needed to be given before it)
+      const written = event.data?.after.updateTime?.toMillis() ?? Date.parse(event.time);
+      const since = Number.isFinite(written) ? written - REACTION_GRACE_MS : Infinity;
       const snap = await ref.collection("reactions").get();
       for (const r of snap.docs) {
         if (reactionCurrent(r.data(), { sevenRev: stamp.sevenRev })) continue;
@@ -116,6 +119,9 @@ export const onLineupR14 = onDocumentWritten({ document: "lineups/{lineupId}", m
   if (token && (before?.fanToken !== token || fanFieldsChanged(before, after))) await writeFanBoard(id, token);
   if (typeof before?.fanToken === "string" && before.fanToken && before.fanToken !== token) await db.doc(`fanBoards/${before.fanToken}`).delete();
 });
+
+/** A reaction given this close before the write that bumped the seven's version still counts for the new one. */
+export const REACTION_GRACE_MS = 2000;
 
 const tokenOf = (b: R14Board | undefined): string | null => (typeof b?.fanToken === "string" && b.fanToken ? b.fanToken : null);
 
