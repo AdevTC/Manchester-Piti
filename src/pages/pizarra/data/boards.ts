@@ -5,13 +5,7 @@ import type { LineupDoc } from "../lineupDoc";
 import { deleteBoard } from "../useLineups";
 import { copyVoz } from "./voz";
 
-/** /pizarra/charla?tablero=<id>[&season=<id>] — the same link the «Ya está el siete» push opens for the season's
- *  official (functions/src/pushLogic.ts charlaUrl). The match page shows «Ver la charla» to members with the
- *  board useMatchBoard gives it. */
-export function charlaHref(boardId: string, seasonId?: string | null): string {
-  const season = seasonId && seasonId !== "all" ? "&season=" + encodeURIComponent(seasonId) : "";
-  return "/pizarra/charla?tablero=" + encodeURIComponent(boardId) + season;
-}
+export { charlaHref } from "./charlaHref";
 
 /** «Siete del campo · J7» (v2/mesaLogic fieldCopyName): copies made before r14 have no `fromMesa`. */
 const FIELD_COPY = /^Siete del campo(\s·\s|$)/;

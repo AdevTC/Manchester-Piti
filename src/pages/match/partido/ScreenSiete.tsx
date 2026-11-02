@@ -15,7 +15,7 @@ import { parseMatchLineup } from "../../../lib/matchLineup";
 import { madridTime } from "../../../lib/derived/madrid";
 import { useAbsences, useAvailability, useMatchScorers, usePlayerLinks } from "../../vestuario/live";
 import { useMatchBoard } from "../../pizarra/useMatchBoard";
-import { charlaHref } from "../../pizarra/data/boards";
+import { charlaHref } from "../../pizarra/data/charlaHref";
 import type { Participation } from "../../../../functions/src/matchEngine";
 import type { PageCtx } from "./ctx";
 import { Go, Icon, Tee } from "./bits";
