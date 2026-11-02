@@ -91,3 +91,5 @@
 /* Tailwind's preflight shrinks images (img{max-width:100%}) and blocks svgs: the printed stills keep their size */
 .pz .pz-shirt>img{max-width:none;height:auto}
 .pz .pz-shirt>svg{display:block}
+/* the grande frame's heroes are bigger (the prototype's 1920 board) */
+.pz.pz-s--xl .pz-h1{font-size:62px}

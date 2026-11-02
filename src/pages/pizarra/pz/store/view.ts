@@ -28,23 +28,29 @@ const empty = (): Base => ({ boardId: null, formation: "", free: false, slots: [
 
 /** A rival disc that would land on one of our shirts moves ~13 % away (display only; the data keeps its spot). */
 export function rivalSpotNear(x: number, y: number, slots: { x: number; y: number; pid: string | null }[]): { x: number; y: number } {
-  const hit = (px: number, py: number) => slots.some((s) => Math.abs(s.x - px) < (s.pid ? 11 : 9) && Math.abs(s.y - py) * 1.4 < (s.pid ? 13 : 11));
-  if (!hit(x, y)) return { x, y };
+  // (a shirt with its plate is wide: ±17 % across, ±10 % down; an empty slot's ring is smaller)
+  const hit = (px: number, py: number) => slots.some((s) => Math.abs(s.x - px) < (s.pid ? 17 : 9) && Math.abs(s.y - py) * 1.4 < (s.pid ? 14 : 11));
+  const inX = (v: number) => Math.max(9, Math.min(91, v));
+  const inY = (v: number) => Math.max(6, Math.min(94, v));
+  if (!hit(inX(x), inY(y))) return { x: inX(x), y: inY(y) };
   const near = slots.slice().sort((a, b) => Math.abs(a.x - x) + Math.abs(a.y - y) - (Math.abs(b.x - x) + Math.abs(b.y - y)))[0];
-  const dx = !near || x >= near.x ? 13 : -13;
+  const dx = !near || x >= near.x ? 14 : -14;
   const tries: [number, number][] = [
     [x + dx, y],
     [x - dx, y],
-    [x, y - 13],
-    [x, y + 13],
-    [x + dx, y - 13],
+    [x, y - 12],
+    [x, y + 12],
+    [x + dx, y - 12],
+    [x - dx, y - 12],
+    [x + dx, y + 12],
+    [x - dx, y + 12],
   ];
   for (const [tx0, ty0] of tries) {
-    const tx = Math.max(5, Math.min(95, tx0));
-    const ty = Math.max(4, Math.min(96, ty0));
+    const tx = inX(tx0);
+    const ty = inY(ty0);
     if (!hit(tx, ty)) return { x: tx, y: ty };
   }
-  return { x: Math.max(5, Math.min(95, x + dx)), y };
+  return { x: inX(x + dx), y: inY(y) };
 }
 
 function resolveSiete(spec: StageSpec, c: ViewCtx): Base {
@@ -250,7 +256,8 @@ export function resolveView(spec: StageSpec, c: ViewCtx): PzView {
     layer: spec.layer ?? c.S.layer,
     editable,
     glideMs: out.glideMs ?? spec.glideMs ?? 420,
-    marksExtra: spec.marks ?? null,
+    // (the ahora source already puts the marks on its slots)
+    marksExtra: src === "ahora" ? null : (spec.marks ?? null),
     chrome: spec.chrome !== false,
     tappable: !!(spec.tappable || out.tappable),
     gradaPad: spec.gradaPad ?? out.gradaPad ?? 0,

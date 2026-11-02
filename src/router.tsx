@@ -153,6 +153,8 @@ export const adminSociosSearchSchema = z.object({
 // &partido=), Comparar's two sides (?a= ?b=)… Typed for the links, and permissive: any other short lowercase key
 // with a short text survives (a place's own sheet arguments) without touching the router; anything else is dropped.
 const pzText = z.union([z.string(), z.number()]).transform(String).pipe(z.string().min(1).max(200)).optional().catch(undefined);
+// (a number stays a number: the router writes a string that looks like one as «"6"» in the address)
+const pzNum = z.union([z.number().finite(), z.string().min(1).max(200)]).optional().catch(undefined);
 const pzKnown = z.object({
   tablero: pzText,
   hoja: pzText,
@@ -165,8 +167,8 @@ const pzKnown = z.object({
   va: pzText,
   vb: pzText,
   jugador: pzText,
-  hueco: pzText,
-  paso: pzText,
+  hueco: pzNum,
+  paso: pzNum,
 });
 const PZ_EXTRA_KEY = /^[a-z][a-z0-9-]{0,24}$/;
 /** The typed keys. The extra ones are there at run time (read them as strings: `useSearch({ strict: false })`), but
@@ -174,10 +176,10 @@ const PZ_EXTRA_KEY = /^[a-z][a-z0-9-]{0,24}$/;
 export type PizarraSearch = z.infer<typeof pzKnown>;
 export const pizarraSearchSchema = (raw: Record<string, unknown>): PizarraSearch => {
   const known = pzKnown.parse(raw);
-  const out: Record<string, string> = {};
+  const out: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(raw)) {
     if (k === "season" || k in pzKnown.shape || !PZ_EXTRA_KEY.test(k)) continue;
-    if ((typeof v === "string" && v.length > 0 && v.length <= 200) || (typeof v === "number" && Number.isFinite(v))) out[k] = String(v);
+    if ((typeof v === "string" && v.length > 0 && v.length <= 200) || (typeof v === "number" && Number.isFinite(v))) out[k] = v;
   }
   for (const [k, v] of Object.entries(known)) if (v !== undefined) out[k] = v;
   return out as PizarraSearch;
