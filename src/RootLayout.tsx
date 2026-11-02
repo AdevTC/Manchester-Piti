@@ -55,7 +55,7 @@ export function RootLayout() {
   // is its own (one main: B-SH-04). While the session is being checked, /admin shows no site chrome either.
   const adminApp = adminPath && (checking || !door);
   const Main = adminApp && !checking ? "div" : "main";
-  const immersive = adminApp || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/estadisticas", "/club", "/jugadores", "/buscar", "/perfil", "/avisos"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  const immersive = adminApp || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/estadisticas", "/club", "/jugadores", "/buscar", "/perfil", "/avisos", "/aficion"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (

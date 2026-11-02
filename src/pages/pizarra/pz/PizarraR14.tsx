@@ -15,6 +15,7 @@ import { usePageKitStills } from "../../../components/jersey3d/usePageKitStills"
 import { setConvocatoria } from "../../../lib/clubApi";
 import { useLineups } from "../useLineups";
 import { useReactions } from "../useReactions";
+import { usePizarraPrefs } from "../data/prefs";
 import { useBoardData } from "../v2/useBoardData";
 import { useBoardSession } from "../v2/useBoardSession";
 import { useConvocatoria } from "../v2/useConvocatoria";
@@ -56,7 +57,9 @@ export function PizarraR14() {
   const conv = useConvocatoria(m?.id ?? null);
   const squad = useMemo(() => withConvocatoria(data.squad, conv.conv), [data.squad, conv.conv]);
   const official = session.official ? (lineups.official.find((d) => d.id === session.id) ?? null) : officialFor(session.officials, m?.id ?? null);
-  const reactions = useReactions(official ? { id: official.id, isOfficial: official.isOfficial } : null);
+  const reactions = useReactions(official ? { id: official.id, isOfficial: official.isOfficial, sevenRev: official.sevenRev } : null);
+  // the settings that follow you (users/{uid}/private/pizarra; localStorage is the cache)
+  const prefs = usePizarraPrefs(user?.uid ?? null);
   const stills = usePageKitStills({ on: true, theme: theme === "light" ? "light" : "dark", kits: ["home", "away"], players: squad.list.map((c) => ({ name: c.name, num: String(c.num) })) });
 
   const [store] = useState<PzStore>(() => createPzStore({ route: parsePizarra(location.pathname, location.search as Record<string, unknown>) }));
@@ -102,6 +105,8 @@ export function PizarraR14() {
       retry: () => window.location.reload(),
       stills: (kit, num) => stills(kit, num),
       season: () => seasonId || undefined,
+      prefs: () => prefs.prefs,
+      setPrefs: (p) => prefs.set(p),
     });
   });
 

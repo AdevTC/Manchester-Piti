@@ -70,8 +70,8 @@ export function boardOf(d: LineupDoc, lineup: Lineup = d): PzBoard {
 }
 /** Only the Lineup's fields (a LineupDoc carries its meta too). */
 function stripMeta(L: Lineup): Lineup {
-  const { formation, freeMode, slots, bench, roles, tactics, playerPositions, pinned, subs, takers, rival, drawings, plays, variants, shapeOff, condPlan, style, tags } = L;
-  return { formation, freeMode, slots, bench, roles, tactics, playerPositions, pinned, subs, takers, rival, drawings, plays, variants, shapeOff, condPlan, style, tags };
+  const { formation, freeMode, slots, bench, roles, tactics, playerPositions, pinned, subs, takers, rival, drawings, plays, variants, shapeOff, condPlan, style, tags, plan, seasonPlays } = L;
+  return { formation, freeMode, slots, bench, roles, tactics, playerPositions, pinned, subs, takers, rival, drawings, plays, variants, shapeOff, condPlan, style, tags, plan, seasonPlays };
 }
 
 export interface WorldInputs {

@@ -521,6 +521,14 @@ const pizarraCompararRoute = createRoute({ getParentRoute: () => pizarraRoute, p
 const pizarraPachangaRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "pachanga" });
 const pizarraCharlaRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "charla" });
 const pizarraLostRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "$" });
+// La vista de la afición (r14 PZ-D21F): a board's cartel and seven by a link, read-only, PUBLIC (no login, no
+// member gate: RootLayout leaves it out of the private pages). Client-rendered: the token's document is read by
+// the browser (fanBoards/{token}, data/fan.ts); the server render never sees it (vercel.json sends it to the shell).
+const aficionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/aficion/$token",
+  component: lazyRouteComponent(() => import("./pages/pizarra/pz/aficion/FanPage"), "FanPage"),
+});
 // Any address no route above takes: the 404 page. Its id ("/$") is how RootLayout knows to give it no
 // legacy chrome.
 const notFoundRoute = createRoute({
@@ -589,6 +597,7 @@ const routeTree = rootRoute.addChildren([
     avisosRoute.addChildren([avisosIndexRoute, avisosAMedidaRoute]),
   ]),
   buscarRoute,
+  aficionRoute,
   pizarraRoute.addChildren([
     pizarraIndexRoute,
     pizarraSieteRoute,

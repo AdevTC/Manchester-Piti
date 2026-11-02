@@ -149,11 +149,11 @@ function Body({ layout, place }: { layout: Layout; place: PlaceId }) {
           className="pz-s__grab"
           onClick={() => {
             if (Date.now() < grabT.current) return;
-            setH(({ peek: "half", half: "full", full: "peek" } as const)[h]);
+            setH(({ peek: "half", half: "full", full: "peek" } as const)[P.state.sheetH]);
           }}
           onPointerDown={grabDown}
           onKeyDown={(e) => {
-            const i = ORDER.indexOf(h);
+            const i = ORDER.indexOf(P.state.sheetH);
             if (e.key === "ArrowUp" && i < 2) {
               e.preventDefault();
               setH(ORDER[i + 1]);

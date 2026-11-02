@@ -12,6 +12,7 @@ import { rivalSpots } from "../../v2/rival";
 import { toggleRole } from "../../v2/ops";
 import type { PzAct, PzApi, PzPrefs, PzSel, PzSlice, ShirtStill, ToastOptions, Candidate, StartSource, PublishCheck } from "./api";
 import { fmt } from "./fmt";
+import { readLocalPrefs } from "../../data/prefs";
 import { parsePizarra, pizarraHref } from "./routes";
 import { onRegistry, placeReg, sheetReg } from "./registry";
 import { VERS, verDef, verOf, slotsOf, withVer, slotsForSystem, setPid, snapSeven, restoreSeven, type SevenSnap } from "./seven";
@@ -71,8 +72,6 @@ const TIERS = [
   { from: 40, t: "Justa" },
   { from: 0, t: "Floja" },
 ];
-const PREFS_KEY = "mp_pizarra_r14_prefs";
-const PREFS_DEF: PzPrefs = { sonido: false, camara: "sitio", capa: "nada", nombre: true, galones: true, mov: "sistema" };
 
 /** What the bridge hands in on every data change. */
 export interface PzInputs {
@@ -107,6 +106,9 @@ export interface PzHost {
   stills(kit: "home" | "away", num?: string): { src: string; printed: boolean } | undefined;
   /** The season id the pizarra's own addresses keep (?season=). */
   season(): string | undefined;
+  /** The settings that follow you (usePizarraPrefs); null = not read yet (the device's copy is used). */
+  prefs(): PzPrefs | null;
+  setPrefs(patch: Partial<PzPrefs>): void;
 }
 
 const noop = () => undefined;
@@ -123,6 +125,8 @@ export const NULL_HOST: PzHost = {
   retry: noop,
   stills: () => undefined,
   season: () => undefined,
+  prefs: () => null,
+  setPrefs: noop,
 };
 
 export const EMPTY_WORLD: PzWorld = { now: 0, season: { id: "", name: "" }, squad: [], guests: [], matches: [], next: null, boards: [], official: null, rsvp: {}, together: () => 0, games: 0 };
@@ -587,12 +591,16 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     if (S.hist.undo.length > 60) S.hist.undo.shift();
     S.hist.redo = [];
   }
+  /** A board's new lineup, immutably (the world, its board list and the board are new objects: memoised renders see it). */
+  function setLineup(id: string, L: Lineup) {
+    S.W = { ...S.W, boards: S.W.boards.map((x) => (x.id === id ? { ...x, lineup: L } : x)) };
+  }
   /** Write a seven snapshot back to a board (the one on screen through the session; another one directly). */
   function writeSeven(boardId: string, snap: SevenSnap, v: VersionId) {
     const b = board(boardId);
     if (!b) return;
     const next = restoreSeven(b.lineup, snap);
-    b.lineup = next;
+    setLineup(b.id, next);
     if (boardId === S.boardId) {
       host.commit(next);
       S.version = v;
@@ -617,7 +625,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     const before = snapSeven(b.lineup);
     const next = fn(b.lineup);
     if (next === false) return false;
-    b.lineup = next;
+    setLineup(b.id, next);
     const after = snapSeven(next);
     const id = b.id;
     const v = S.version;
@@ -765,12 +773,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
 
   // ── the stage: what the pitch shows ────────────────────────────────────────────────────────────────────
   function prefs(): PzPrefs {
-    try {
-      const r = typeof localStorage !== "undefined" ? localStorage.getItem(PREFS_KEY) : null;
-      return { ...PREFS_DEF, ...(r ? (JSON.parse(r) as Partial<PzPrefs>) : {}) };
-    } catch {
-      return { ...PREFS_DEF };
-    }
+    return host.prefs() ?? readLocalPrefs();
   }
   function stageDefaults(place: PzRoute["place"]): StageSpec {
     const b = board();
@@ -786,6 +789,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     if (place === "charla") Object.assign(d, { camera: "grada", editable: false, chrome: false });
     const pf = prefs();
     if ((pf.camara === "pizarra" || pf.camara === "grada") && place !== "charla") d.camera = pf.camara;
+    if (pf.mov === "menos") d.glideMs = 0;
     return d;
   }
   function rivalOf(b: PzBoard | null) {
@@ -1261,6 +1265,10 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       S.toast = null;
       bump();
     },
+    setPrefs(patch) {
+      host.setPrefs(patch);
+      bump();
+    },
     retry() {
       host.retry();
       S.estado = "cargando";
@@ -1518,7 +1526,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
   onRegistry(bump);
   // the first layer: the device's default
   const pf = prefs();
-  if (LAYERS.some((l) => l.id === pf.capa)) S.layer = pf.capa;
+  const capa = LAYERS.find((l) => l.id === pf.capa);
+  if (capa) S.layer = capa.id;
   S.stage = stageDefaults(S.route.place);
   return api;
 }

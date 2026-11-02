@@ -29,6 +29,7 @@ import type {
 } from "./types";
 import type { PosCode } from "../../../../lib/positions";
 import type { FormationName } from "../../formations";
+import type { PizarraPrefs } from "../../data/prefs";
 
 export interface ShirtStill {
   /** The printed still (his name and dorsal printed by the 3D scene) or the kit's blank still; undefined while it
@@ -128,14 +129,8 @@ export interface PzSel {
   [defined: string]: unknown;
 }
 
-export interface PzPrefs {
-  sonido: boolean;
-  camara: "sitio" | "pizarra" | "grada";
-  capa: LayerId;
-  nombre: boolean;
-  galones: boolean;
-  mov: "sistema" | "menos";
-}
+/** The pizarra's settings that follow you (data/prefs.ts: users/{uid}/private/pizarra, cached in localStorage). */
+export type PzPrefs = PizarraPrefs;
 
 export interface PzAct {
   // the seven (undoable, toast with «Deshacer», announce)
@@ -188,6 +183,8 @@ export interface PzAct {
   forward(): void;
   dismissToast(): void;
   retry(): void;
+  /** Change the pizarra's settings (they follow you to any device). */
+  setPrefs(patch: Partial<PzPrefs>): void;
   /** Actions a place added with `P.action(name, fn)`. */
   [added: string]: unknown;
 }
