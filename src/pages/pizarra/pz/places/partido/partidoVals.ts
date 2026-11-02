@@ -38,7 +38,7 @@ export function stepsOf(X: PtModel) {
   const M = X.M;
   const stepT: Record<string, string> = {
     antes: M ? "Pitido " + fmt.hm(M.at) : "",
-    juego: X.ph === "juego" ? "Ahora · " + X.now + "′" : "1ª y 2ª parte",
+    juego: X.ph === "juego" ? "Ahora · " + X.shown + "′" : "1ª y 2ª parte",
     descanso: X.HALF + "′",
     despues: X.ph === "despues" && X.L ? "Final · " + X.L.gf + "–" + X.L.ga : "Las notas",
   };
@@ -209,7 +209,7 @@ export function nextOf(P: PzApi, X: PtModel) {
   const n = X.next;
   const N = (id: string | null | undefined) => (id ? P.sel.name(id) : "—");
   if (!n || !n.in || !X.L) return null;
-  const left = n.min - X.now;
+  const left = n.min - X.shown;
   const prev = X.tandas.filter((t) => t.min < n.min).map((t) => t.min).pop() ?? 0;
   const urgentish = !!(n.urgent || n.cond || left <= 0);
   const frac = urgentish ? 1 : Math.max(0, Math.min(1, (X.now - prev) / Math.max(1, n.min - prev)));
@@ -237,7 +237,7 @@ export function nextOf(P: PzApi, X: PtModel) {
     outSub: (outCode ? outCode + " · " : "") + playedOf(X, n.out) + "′ hoy" + (marks.length ? " · " + marks.map((m) => m.t.toLowerCase()).join(", ") : ""),
     ok: outOk && inOk,
     chk: outOk && inOk ? N(n.out) + " está en el campo y " + N(n.in) + " en el banquillo" : !outOk ? N(n.out) + " ya no está en el campo" : N(n.in) + " no está en el banquillo",
-    ask: "¿Apuntar en el acta, " + X.now + "′: entra " + N(n.in) + " por " + N(n.out) + "?",
+    ask: "¿Apuntar en el acta, " + X.shown + "′: entra " + N(n.in) + " por " + N(n.out) + "?",
     askS: "La mesa y la web lo ven al momento. Tendrás 5 segundos para deshacerlo.",
     btn: n.urgent ? "Hacer este cambio" : left <= 0 ? "¡Hacer el cambio ya!" : "Hacer el cambio",
   };
@@ -317,7 +317,7 @@ export function propOf(P: PzApi, X: PtModel) {
   const lo = vals.length ? Math.min(...vals) : 0;
   const hi = vals.length ? Math.max(...vals) : 0;
   return {
-    t: pr.subs.length ? (pr.kind === "recalc" ? "Desde el " + X.now + "′: todos entre " : "Todos entre ") + lo + "′ y " + hi + "′" : "Sin cambios: nadie en el banquillo para entrar",
+    t: pr.subs.length ? (pr.kind === "recalc" ? "Desde el " + X.shown + "′: todos entre " : "Todos entre ") + lo + "′ y " + hi + "′" : "Sin cambios: nadie en el banquillo para entrar",
     s: pr.kind === "recalc" ? "Cuenta lo jugado hoy y deja fuera a quien no puede seguir." : "Entre los que van; el portero juega entero. Cada uno entra en el sitio del que sale.",
     rows: pr.subs.filter((s) => pr.kind === "repartir" || s.min > X.now).map((s) => ({ id: s.id, min: s.min + "′", t: "Entra " + N(s.in) + " por " + N(s.out), s: s.min === X.HALF ? "en el descanso" : s.min < X.HALF ? "1ª parte" : "2ª parte", out: s.out, in: s.in })),
     delta: Object.keys(pr.acc)
@@ -427,8 +427,8 @@ export function condOf(P: PzApi, X: PtModel, canChange: boolean) {
   const r = X.cond.rule;
   const sentence = condSentence(r, (id) => P.sel.name(id));
   if (X.cond.on) return { sentence, st: "Aplicado: es el próximo cambio", cls: "is-ok", icon: "check", canApply: false };
-  if (X.cond.applies) return { sentence, st: "Toca el plan: vamos " + X.L.gf + "–" + X.L.ga + " en el " + X.now + "′", cls: "is-warn", icon: "warn", canApply: canChange && !!r.sub };
-  return { sentence, st: X.now < r.from ? "Aún no: es el " + X.now + "′" : "No toca: vamos " + X.L.gf + "–" + X.L.ga, cls: "is-mute", icon: "dots", canApply: false };
+  if (X.cond.applies) return { sentence, st: "Toca el plan: vamos " + X.L.gf + "–" + X.L.ga + " en el " + X.shown + "′", cls: "is-warn", icon: "warn", canApply: canChange && !!r.sub };
+  return { sentence, st: X.now < r.from ? "Aún no: es el " + X.shown + "′" : "No toca: vamos " + X.L.gf + "–" + X.L.ga, cls: "is-mute", icon: "dots", canApply: false };
 }
 
 export function galNowOf(P: PzApi, X: PtModel) {

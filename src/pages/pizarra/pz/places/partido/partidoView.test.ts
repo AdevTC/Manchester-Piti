@@ -79,6 +79,25 @@ describe("Partido · the live model (la mesa's lineup + the acta's events are th
 });
 
 describe("Partido · phases, la mesa and the stage", () => {
+  it("the match on screen: the one being played wins over the open board's old match (PAR-10)", () => {
+    const W = world("juego");
+    const j1 = { ...W.matches[0], id: "j1", j: 1, phase: "jugado" as const, played: true, at: W.now - 20 * 86400000, cal: { ...W.matches[0].cal, id: "j1", clock: undefined } };
+    const open = fakeBoard({ id: "b9", matchId: "j1", lineup: fakeLineup("3-2-1", SEVEN) });
+    const { P } = makeTestStore({ world: { ...W, matches: [j1, ...W.matches], boards: [...W.boards, open] }, boardId: "b9", place: "partido" });
+    const X = ptModel(P, feed({ minute: 23 }), UI0);
+    expect(X.M?.id).toBe("j3");
+    expect(X.b?.id).toBe("b1");
+  });
+
+  it("the day is never planned on another match's board (the official or the one on screen must be this match's)", () => {
+    const W = world("antes");
+    const other = { ...W, boards: [fakeBoard({ isOfficial: true, matchId: "j9", lineup: fakeLineup("3-2-1", SEVEN) })], official: { boardId: "b1", matchId: "j9" } };
+    const { P } = makeTestStore({ world: other, place: "partido" });
+    const X = ptModel(P, feed(), UI0);
+    expect(X.b).toBeNull();
+    expect(stageFor(P, X).source).toBe("siete");
+  });
+
   it("la mesa: sin siete · al día · otro siete", () => {
     const { P } = makeTestStore({ world: world("antes"), place: "partido" });
     expect(mesaState(ptModel(P, feed({ lineup: null }), UI0))).toBe("sin");
