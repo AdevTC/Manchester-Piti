@@ -1,6 +1,6 @@
 // r14 · Jugadas and Dibujar in the DOM: the library, the replay transport, Editar's drags (mouse and touch) with their
 // keyboard alternatives, the timeline reorder, the step ops, the strokes on the Siete.
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithPz, fakeBoard, fakeWorld, ME_CAPTAIN, ME_PLAYER, fakeLineup } from "../../store/testkit";
 import type { Play } from "../../../plays";
@@ -87,6 +87,20 @@ describe("Jugadas · the library", () => {
   it("a player reading someone else's board only reads (no Nueva)", async () => {
     renderWithPz(<Jugadas region="side" layout="desktop" />, { place: "jugadas", world: world(), me: ME_PLAYER });
     expect(screen.queryByRole("button", { name: "Nueva jugada" })).toBeNull();
+  });
+});
+
+describe("Jugadas · the play's video link", () => {
+  it("opens an https link at its minute, and never turns a stored non-https link into an href", async () => {
+    const withVideo = (url: string): Play => ({ ...OWN, video: { url, at: 754 } });
+    const { flush } = renderWithPz(<Jugadas region="lead" layout="desktop" />, { place: "jugadas", sub: "jown", world: world([withVideo("https://youtu.be/abc123")]) });
+    await flush();
+    expect(screen.getByRole("link", { name: /Ver en vídeo desde 12:34/ }).getAttribute("href")).toBe("https://youtu.be/abc123?t=754s");
+    cleanup();
+    const bad = renderWithPz(<Jugadas region="lead" layout="desktop" />, { place: "jugadas", sub: "jown", world: world([withVideo("javascript:alert(1)")]) });
+    await bad.flush();
+    expect(screen.queryByRole("link", { name: /Ver en vídeo/ })).toBeNull();
+    expect(document.querySelector('a[href^="javascript"]')).toBeNull();
   });
 });
 

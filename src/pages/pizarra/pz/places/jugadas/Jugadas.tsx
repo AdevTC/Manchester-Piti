@@ -71,6 +71,7 @@ import {
   team,
   toggle,
 } from "./engine";
+import { videoHref } from "../../../v2/playVideo";
 import { Moment } from "./Moment";
 import { KeepForSeason, SeasonPlays } from "./SeasonPlays";
 import "../../../../../styles/pz/jugadas.css";
@@ -845,6 +846,8 @@ function Video({ pj }: { pj: PjPlay }) {
   const edPl = canEditPlay(P, pj);
   const vid = pj.play.video ?? null;
   const vf = u.vid;
+  // (checked again here, not only when it was saved: a stored link that isn't https never becomes an href)
+  const href = vid ? videoHref(vid) : "";
   const host = vid ? (/^https:\/\/([^/]+)/.exec(vid.url)?.[1] ?? "enlace").replace(/^www\./, "") : "";
   const at = vid ? atText(vid.at) : "";
   const save = () => {
@@ -866,10 +869,14 @@ function Video({ pj }: { pj: PjPlay }) {
       </div>
       {vid && !vf && (
         <div className="pj-acts">
-          <a className="vd-glass vd-press pz-btn" href={vid.url} target="_blank" rel="noopener noreferrer" aria-label={`Ver en vídeo${at ? ` desde ${at}` : ""}, en ${host}. Se abre en otra pestaña`}>
-            <PzIcon name="play" />
-            {`Ver en vídeo${at ? ` (${at})` : ""}`}
-          </a>
+          {href ? (
+            <a className="vd-glass vd-press pz-btn" href={href} target="_blank" rel="noopener noreferrer" aria-label={`Ver en vídeo${at ? ` desde ${at}` : ""}, en ${host}. Se abre en otra pestaña`}>
+              <PzIcon name="play" />
+              {`Ver en vídeo${at ? ` (${at})` : ""}`}
+            </a>
+          ) : (
+            <p>Ese enlace no vale: tiene que empezar por https://</p>
+          )}
           {edPl && (
             <>
               <button type="button" className="nx-lnk" onClick={() => setUi(P, { vid: { url: vid.url, at, err: "" } })}>
