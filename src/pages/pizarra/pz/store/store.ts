@@ -1560,6 +1560,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       if (r.q.capa && LAYERS.some((l) => l.id === r.q.capa)) S.layer = r.q.capa as LayerId;
       if (r.q.modo === "dibujar" && !S.drawing) S.drawing = true;
       if (r.q.alto === "peek" || r.q.alto === "half" || r.q.alto === "full") S.sheetH = r.q.alto;
+      if (r.q.camara === "pizarra" || r.q.camara === "grada" || r.q.camara === "foco") S.stage = { ...S.stage, camera: r.q.camara };
       applySheetFromRoute(r.q);
       if (changed) {
         emit("route", { place: r.place, sub: r.sub, from: prev.place });

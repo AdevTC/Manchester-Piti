@@ -180,26 +180,61 @@ const hits = (a: Box, b: Box) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.
  * its plate is as wide as its name; a disc is its dorsal plus the code under it. Each disc takes the nearest free spot
  * around its own (12 directions, growing rings), inside the lines, never on another disc.
  */
-export function dodgeRivals<T extends { id: string; kind: string; x: number; y: number; code?: string }>(
+export function dodgeRivals<T extends { id: string; kind: string; x: number; y: number; code?: string; label?: string; tag?: string; ring?: string }>(
   tokens: readonly T[],
-  ours: readonly { x: number; y: number; label: string }[],
+  ours: readonly { x: number; y: number; label: string; tagged?: boolean }[],
   pw: number,
   ph: number,
   s: number,
 ): T[] {
-  if (!tokens.some((t) => t.kind === "rival") || pw <= 0 || ph <= 0) return tokens.slice();
+  // (the rival's discs and the ghost of who comes on — «Entra 25′» — both give way to the seven)
+  const movable = (t: T) => t.kind === "rival" || t.kind === "ghost";
+  if (!tokens.some(movable) || pw <= 0 || ph <= 0) return tokens.slice();
   const font = Math.max(12, Math.min(15, s * 0.215));
   const blocked: Box[] = ours.map((o) => {
     const cx = (o.x / 100) * pw;
     const cy = (o.y / 100) * ph;
     const half = Math.max(s * 0.55, (o.label.length * font * 0.62 + 16) / 2);
-    return { l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 };
+    return { l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 + (o.tagged ? font + 10 : 0) };
   });
   const r = Math.max(14, s * 0.31) + 3;
   const out: T[] = [];
   for (const t of tokens) {
-    if (t.kind !== "rival") {
+    if (!movable(t)) {
       out.push(t);
+      continue;
+    }
+    if (t.kind === "ghost") {
+      // a ghost shirt: its plate and tag, like ours; it keeps its row and moves along it (then off it)
+      const label = t.label ?? "";
+      const half = Math.max(s * 0.55, (label.length * font * 0.62 + 16) / 2);
+      const tag = t.tag || t.ring ? font + 10 : 0;
+      const gBox = (cx: number, cy: number): Box => ({ l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 + tag });
+      const okG = (cx: number, cy: number) => {
+        const b = gBox(cx, cy);
+        return b.l >= 0 && b.r <= pw && b.t >= 0 && b.b <= ph && !blocked.some((o) => hits(o, b));
+      };
+      const gx = (t.x / 100) * pw;
+      const gy = (t.y / 100) * ph;
+      let spot: [number, number] | null = okG(gx, gy) ? [gx, gy] : null;
+      for (let k = 1; !spot && k <= 16; k++) {
+        for (const [dx, dy] of [
+          [k * 8, 0],
+          [-k * 8, 0],
+          [0, k * 8],
+          [0, -k * 8],
+          [k * 8, k * 8],
+          [-k * 8, k * 8],
+        ]) {
+          if (okG(gx + dx, gy + dy)) {
+            spot = [gx + dx, gy + dy];
+            break;
+          }
+        }
+      }
+      const [sx, sy] = spot ?? [Math.max(half, Math.min(pw - half, gx)), gy];
+      blocked.push(gBox(sx, sy));
+      out.push({ ...t, x: round2((sx / pw) * 100), y: round2((sy / ph) * 100) });
       continue;
     }
     const x0 = (t.x / 100) * pw;

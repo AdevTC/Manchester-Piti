@@ -110,9 +110,11 @@ div.pz-c{position:absolute;inset:0;overflow:hidden;font-family:var(--vd-sans);co
 /* Grada: the plate (and the tag) above the shirt, so the shirt's feet are the ground point (rings and shadows meet them) */
 .pz-c.is-grada,.pz-c.is-foco{--anchor:100%}
 .pz-c.is-grada .pz-c__row,.pz-c.is-foco .pz-c__row{order:-3}
-/* (the plate line hangs under the shirt's feet, out of the billboard's box: the feet stay the ground point) */
-.pz-c.is-grada .pz-c__pline,.pz-c.is-foco .pz-c__pline{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:2px}
-.pz-c.is-grada .pz-c__tag,.pz-c.is-foco .pz-c__tag{position:absolute;left:50%;top:calc(100% + clamp(12px,calc(var(--s)*.215),15px)*1.25 + 10px);transform:translateX(-50%);margin:0}
+/* Grada / Foco: the plate line is its own billboard on a ground point just in front of the feet (PiCampo), stacked
+   plate then tag; it never takes a tap (the shirt is the button) */
+.pz-c .pz-c__plman{display:grid;justify-items:center;gap:2px;pointer-events:none}
+.pz-c .pz-c__plat .pz-c__ring,.pz-c .pz-c__plat .pz-c__shadow{display:none}
+.pz-c.pz-c--noplate .pz-c__plat{display:none}
 .pz-c.is-grada .pz-c__shadow,.pz-c.is-foco .pz-c__shadow{transform:translate(-50%,-50%) scale(1.15,1.6)}
 .pz-c.is-grada .pz-c__ring,.pz-c.is-foco .pz-c__ring{transform:translate(-50%,-50%)}
 /* the bib over a shirt (petos / sin petos): pattern + word (the word is in the half label and the aria) */
@@ -210,3 +212,8 @@ div.pz-c{position:absolute;inset:0;overflow:hidden;font-family:var(--vd-sans);co
 .pz-c .pz-c__mk.k-roja>i{background:#e5484d}
 .pz-c .pz-c__mk.k-tocado>i{width:11px;height:11px;border-radius:2px;background:#fff;-webkit-mask:linear-gradient(#000 0 0) center/3px 100% no-repeat,linear-gradient(#000 0 0) center/100% 3px no-repeat;mask:linear-gradient(#000 0 0) center/3px 100% no-repeat,linear-gradient(#000 0 0) center/100% 3px no-repeat;box-shadow:none;background-color:#ff8f87}
 .pz-c .pz-c__mk.k-gol>i{width:11px;height:11px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff 0 40%,#d8dee8 41%);box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+/* (a token's plate in Grada / Foco stays above its shirt: below the feet it would sink into the grass) */
+.pz-c:is(.is-grada,.is-foco) .pz-c__man:not(.pz-c__plman) .pz-c__pline{order:-2;margin-bottom:2px}
+.pz-c:is(.is-grada,.is-foco) .pz-c__man:not(.pz-c__plman) .pz-c__tag{order:-1;margin:0 0 2px}
+/* (the plate lines float a little over the grass so a nearer row's shirt never hides a name or a tag) */
+.pz-c .pz-c__at.pz-c__plat{transform:translate3d(calc(var(--x)*1%),calc(var(--y)*1%),calc(var(--s)*.9))}

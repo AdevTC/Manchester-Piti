@@ -8,7 +8,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject, type PointerEvent as ReactPointerEvent } from "react";
 import { usePz } from "../store/context";
 import type { Camera, Layout, StageSpec, Token, ViewSlot } from "../store/types";
-import { CAMPO_LAYERS, captionRoom, dodgeRivals, fitGeometry, plateCrowd, planeTransform, round2, shapeLines, slotAhead } from "./geometry";
+import { CAMPO_LAYERS, RX as RX_OF, captionRoom, dodgeRivals, fitGeometry, plateCrowd, planeTransform, round2, shapeLines, slotAhead } from "./geometry";
 import { overlayPaths } from "./overlayPaths";
 import { CampoShirt, PzIcon } from "./Shirt";
 import "../../../../styles/pz/campo.css";
@@ -209,6 +209,19 @@ export function PiCampo(props: PiCampoProps) {
         G.s,
         cam,
       );
+  const flat = cam === "pizarra";
+  const plateH = Math.max(12, Math.min(15, G.s * 0.215)) * 1.25 + 6;
+  const plateLine = (m: { label: string; marks: { k: string; min: string }[]; tight: boolean }) => (
+    <span className="pz-c__pline">
+      <span className="pz-c__plate">{m.label}</span>
+      {m.marks.map((mk, k) => (
+        <span key={`mk${k}`} className={`pz-c__mk k-${mk.k}${m.tight ? " is-tight" : ""}`} aria-hidden="true">
+          <i />
+          {!m.tight && mk.min}
+        </span>
+      ))}
+    </span>
+  );
   const slotModel = (s: ViewSlot) => {
     const pl = s.p;
     let layV = "";
@@ -300,8 +313,8 @@ export function PiCampo(props: PiCampoProps) {
   // the rival discs off our shirts and plates, in pixels (display only)
   const plateOf = (shirt: string) => (shortPlates ? shirt.split(/[ .]/)[0] : shirt);
   const ours = [
-    ...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, label: s.p ? plateOf(s.p.shirt) : s.code })),
-    ...view.tokens.filter((o) => o.kind !== "rival" && (o.pid || o.kind === "us")).map((o) => ({ x: o.x, y: o.y, label: o.label ?? "" })),
+    ...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, label: s.p ? plateOf(s.p.shirt) : s.code, tagged: !!s.ring })),
+    ...view.tokens.filter((o) => o.kind !== "rival" && o.kind !== "ghost" && (o.pid || o.kind === "us")).map((o) => ({ x: o.x, y: o.y, label: o.label ?? "", tagged: !!(o.tag || o.ring) })),
   ];
   const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw, G.ph, G.s);
   const others = [...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, id: `s${s.i}` })), ...tokens.filter((o) => o.pid || o.kind === "us").map((o) => ({ x: o.x, y: o.y, id: o.id }))];
@@ -624,16 +637,8 @@ export function PiCampo(props: PiCampoProps) {
                         <span className="pz-c__dn" aria-hidden="true">
                           {m.num}
                         </span>
-                        <span className="pz-c__pline">
-                          <span className="pz-c__plate">{m.label}</span>
-                          {m.marks.map((mk, k) => (
-                            <span key={`mk${k}`} className={`pz-c__mk k-${mk.k}${m.tight ? " is-tight" : ""}`} aria-hidden="true">
-                              <i />
-                              {!m.tight && mk.min}
-                            </span>
-                          ))}
-                        </span>
-                        {m.tag && <span className={`pz-c__tag k-${s.ring}`}>{m.tag}</span>}
+                        {flat && plateLine(m)}
+                        {flat && m.tag && <span className={`pz-c__tag k-${s.ring}`}>{m.tag}</span>}
                       </button>
                     </span>
                   </>
@@ -641,6 +646,25 @@ export function PiCampo(props: PiCampoProps) {
               </div>
             );
           })}
+
+          {/* Grada / Foco: each plate line stands on its own ground point just in front of its player's feet (a
+              billboard below the feet would sink into the grass), so on screen it hangs right under his shirt */}
+          {!flat &&
+            !mini &&
+            view.slots.map((s) => {
+              if (!s.p) return null;
+              const m = slotModel(s);
+              const hBlock = plateH + (m.tag ? plateH : 0) + 8;
+              const dy = (hBlock / Math.max(1, G.ph * Math.cos(((RX_OF[cam] ?? 0) * Math.PI) / 180))) * 100;
+              return (
+                <div key={`pl${s.i}`} className={`pz-c__at pz-c__plat ${m.cls}`} style={at(s.x, s.y + dy, s.i)} aria-hidden="true">
+                  <span className="pz-c__man pz-c__plman">
+                    {plateLine(m)}
+                    {m.tag && <span className={`pz-c__tag k-${s.ring}`}>{m.tag}</span>}
+                  </span>
+                </div>
+              );
+            })}
 
           {lkWords.map((l, k) => (
             <div key={`w${k}`} className="pz-c__at" style={at((l.a.x + l.b.x) / 2, (l.a.y + l.b.y) / 2)} aria-hidden="true">
