@@ -221,7 +221,7 @@ export function primaryOf(P: PzApi): PrimaryAction | null {
     if (X.decide && X.b && ms !== "aldia") return { label: "Mandar a la mesa", short: "Mandar", icon: "send", run: () => P.act.openSheet("pt-mesa") };
     return X.b && X.b.isOfficial ? { label: "Ver la charla", short: "Charla", icon: "mic", run: () => P.nav("/pizarra/charla") } : null;
   }
-  if (X.ph === "juego" && X.decide && X.next?.in) return { label: "Hacer el cambio", short: "Hacer el cambio", icon: "swap", run: () => askNext(P), disabled: X.ui.busy };
+  if (X.ph === "juego" && X.decide && X.next?.in) return { label: "Hacer el cambio", short: "Hacer cambio", icon: "swap", run: () => askNext(P), disabled: X.ui.busy };
   if (X.ph === "descanso" && X.decide && descPairs(X).length) return { label: "Aplicar la 2ª parte", short: "Aplicar la 2ª", icon: "swap", run: () => setUi(P, { confirm: "desc" }), disabled: X.ui.busy };
   if (X.ph === "despues" && X.M) {
     const id = X.M.id;
