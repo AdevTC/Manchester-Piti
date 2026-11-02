@@ -92,6 +92,24 @@ describe("La charla", () => {
     vi.useRealTimers();
   });
 
+  it("› on the last step keeps the focus in the charla (it is disabled there): Esc still leaves", () => {
+    vi.useFakeTimers();
+    const { host } = renderWithPz(<Charla region="full" layout="desktop" />, { place: "charla", world: fakeWorld({ boards: [fakeBoard({ ids: FULL })] }) });
+    fireEvent.click(screen.getAllByRole("button", { name: /Empezar la charla/ })[0]);
+    void act(() => vi.advanceTimersByTime(100));
+    const next = within(screen.getByRole("toolbar", { name: "Controles de la charla" })).getByRole("button", { name: "Paso siguiente" });
+    for (let k = 0; k < 40 && !next.hasAttribute("disabled"); k++) {
+      next.focus();
+      fireEvent.click(next);
+    }
+    expect(next.hasAttribute("disabled")).toBe(true);
+    const root = screen.getByRole("region", { name: /^La charla · paso/ });
+    expect(document.activeElement).toBe(root);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(String(host.navigate.mock.calls.at(-1)?.[0])).toMatch(/^\/pizarra\/siete/);
+    vi.useRealTimers();
+  });
+
   it("taps on the sides of the pitch pass the steps; × leaves", () => {
     vi.useFakeTimers();
     const { host } = renderWithPz(<Charla region="full" layout="phone" />, { place: "charla", world: fakeWorld({ boards: [fakeBoard({ ids: FULL })] }) });

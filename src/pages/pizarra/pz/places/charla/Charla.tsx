@@ -238,6 +238,13 @@ function CharlaFull({ layout }: { layout: Layout }) {
     // (on mount only)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // a step that disables the focused control (› on the last step) would drop the focus to the page, out of reach of
+  // the charla's keys (Esc, the arrows): it stays in the charla
+  useEffect(() => {
+    if (mode !== "play") return;
+    const a = document.activeElement as HTMLButtonElement | null;
+    if (!a || a === document.body || a.disabled) rootEl.current?.focus({ preventScroll: true });
+  }, [i, mode]);
   // the preview of a jugada replays on its own
   useEffect(() => {
     if (mode !== "inicio" || preview !== "jugada" || reduced) return;
