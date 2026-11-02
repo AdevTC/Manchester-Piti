@@ -12,7 +12,7 @@ import { useLineups, type UseLineups } from "../../../useLineups";
 import { seedLineup } from "../../../lineupOps";
 import { normalize, withBench } from "../../../v2/ops";
 import { cleanName, copyName, nameError, uniqueName } from "../../../v2/boards";
-import { copyBoardVoices, deleteMesaCopies, isMesaCopy, mesaCopiesToClean } from "../../../data/boards";
+import { copyBoardVoices, deleteMesaCopies, mesaCopiesToClean } from "../../../data/boards";
 import { restoreFrom, type HistorySnap } from "../../../data/history";
 import type { LineupDoc } from "../../../lineupDoc";
 import type { FormationName, Lineup } from "../../../formations";
@@ -73,12 +73,34 @@ export interface NewSeed {
   matchId?: string | null;
 }
 
+/** How la mesa names its copies: «Siete del campo · J7» (the scorer's, maybe «… 2» when the name was taken) or
+ *  «Siete del partido» (setMatchLineup's). */
+const MESA_NAME = /^Siete del (?:campo|partido)(?: · J(\d+))?(?: \d+)?$/;
+
+/** A copy that really looks like la mesa's: marked `fromMesa` by the server or the scorer AND named as la mesa names
+ *  it (a jornada in the name must be its match's). A member can set `fromMesa` on a board of his own: the name keeps
+ *  the captain's clean-up from taking it. */
+export function looksLikeMesa(d: Pick<LineupDoc, "fromMesa" | "name" | "matchId">, jornada: (matchId: string) => number | null): boolean {
+  if (d.fromMesa !== true || !d.matchId) return false;
+  const m = MESA_NAME.exec(d.name.trim());
+  if (!m) return false;
+  return !m[1] || Number(m[1]) === jornada(d.matchId);
+}
+
+export interface MesaCopy {
+  id: string;
+  name: string;
+  owner: string;
+  match: string;
+}
+
 export interface TablerosOps {
   /** The season's stored boards (their meta: fromMesa…), by id. */
   doc(id: string): LineupDoc | undefined;
   isMesa(id: string): boolean;
-  /** La mesa's copies a captain can clean (not official, of matches already played). */
-  mesaCopies(): string[];
+  /** La mesa's copies a captain can clean: they look like la mesa's (looksLikeMesa), not official, of a match
+   *  already played (or ended at la mesa). */
+  mesaCopies(): MesaCopy[];
   create(seed: NewSeed): Promise<string | null>;
   duplicate(id: string): Promise<string | null>;
   /** "" when it went (or nothing changed), else why not. */
@@ -91,6 +113,7 @@ export interface TablerosOps {
 
 export function makeOps(P: PzApi, lineups: Pick<UseLineups, "all" | "create" | "rename" | "remove" | "markOfficial">, uid: string): TablerosOps {
   const docOf = (id: string) => lineups.all.find((d) => d.id === id);
+  const jornada = (mid: string) => P.state.W.matches.find((m) => m.id === mid)?.j ?? null;
   const squadIds = () => P.state.W.squad.map((p) => p.id);
   const mineNames = (owner: string) => lineups.all.filter((d) => d.ownerUid === owner).map((d) => d.name);
   const fail = (what: string, e: unknown) => {
@@ -114,9 +137,18 @@ export function makeOps(P: PzApi, lineups: Pick<UseLineups, "all" | "create" | "
     doc: docOf,
     isMesa: (id) => {
       const d = docOf(id);
-      return !!d && isMesaCopy(d);
+      return !!d && looksLikeMesa(d, jornada);
     },
-    mesaCopies: () => mesaCopiesToClean(lineups.all, (mid) => !!P.state.W.matches.find((m) => m.id === mid)?.played).map((d) => d.id),
+    mesaCopies: () =>
+      mesaCopiesToClean(lineups.all, (mid) => {
+        const M = P.state.W.matches.find((m) => m.id === mid);
+        return !!M && (M.played || M.phase === "jugado");
+      })
+        .filter((d) => looksLikeMesa(d, jornada))
+        .map((d) => {
+          const M = P.state.W.matches.find((m) => m.id === d.matchId);
+          return { id: d.id, name: d.name, owner: d.ownerNickname, match: M ? (M.j ? "J" + M.j + " · " : "") + M.rival : "" };
+        }),
     async create(seed) {
       const m = P.sel.me();
       if (!m.member || m.socia) {
@@ -258,8 +290,9 @@ export function makeOps(P: PzApi, lineups: Pick<UseLineups, "all" | "create" | "
       P.act.saveBoard({ formation: L.formation, freeMode: L.freeMode, slots: L.slots, roles: L.roles, takers: L.takers, tactics: L.tactics }, "Recuperado: «" + (snap.label || "la foto") + "»", { boardId: id, long: true });
     },
     cleanMesa() {
-      const ids = ops.mesaCopies();
+      const ids = ops.mesaCopies().map((c) => c.id);
       if (!ids.length || !P.sel.me().cap) return;
+      P.act.closeSheet();
       const label = ids.length === 1 ? "1 copia de la mesa borrada" : ids.length + " copias de la mesa borradas";
       const go = () =>
         void deleteMesaCopies(ids).then((failed) => {

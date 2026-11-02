@@ -23,4 +23,5 @@ registerPlace("tableros", {
 registerSheet("pb-nuevo", { title: "Tablero nuevo", kicker: "Un punto de partida", Component: lazy(() => sheets().then((m) => ({ default: m.NuevoSheet }))) });
 registerSheet("pb-tablero", { title: "Tablero", kicker: "Detalles", Component: lazy(() => sheets().then((m) => ({ default: m.TableroSheet }))) });
 registerSheet("pb-vincular", { title: "Vincular a un partido", kicker: "El partido del tablero", Component: lazy(() => sheets().then((m) => ({ default: m.VincularSheet }))) });
+registerSheet("pb-mesa", { title: "Borrar las copias de la mesa", kicker: "Partidos jugados", Component: lazy(() => sheets().then((m) => ({ default: m.MesaSheet }))) });
 registerSheet("pb-quitar", { title: "¿Quitar el oficial?", kicker: "El oficial", Component: lazy(() => sheets().then((m) => ({ default: m.QuitarSheet }))) });

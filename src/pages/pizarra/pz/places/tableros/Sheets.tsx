@@ -116,6 +116,42 @@ export function VincularSheet({ args }: SheetProps) {
   );
 }
 
+/** «Borrar las copias de la mesa»: each copy with its owner and match before anything goes (12 s to undo after). */
+export function MesaSheet() {
+  const tb = useTb();
+  const { P } = tb;
+  const list = P.sel.me().cap ? tb.ops.mesaCopies() : [];
+  if (!list.length) return <p className="pz-meta">No quedan copias de la mesa de partidos jugados.</p>;
+  return (
+    <div className="pz-sh pb">
+      <p className="pz-line">Las copias que hizo la mesa el día del partido. Ya jugados: no las usa nadie.</p>
+      <ul className="pz-rows pb-link" aria-label="Copias que se borran">
+        {list.map((c) => (
+          <li key={c.id} className="pz-row">
+            <span className="vx-tile" aria-hidden="true">
+              <PzIcon name="whistle" />
+            </span>
+            <span className="pz-row__t">
+              <b>{c.name}</b>
+              <span>{"De @" + c.owner + (c.match ? " · " + c.match : "")}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="pz-acts">
+        <button type="button" className="vd-glass vd-press pz-btn pb-danger" onClick={() => tb.ops.cleanMesa()}>
+          <PzIcon name="trash" />
+          {list.length === 1 ? "Borrar la copia" : "Borrar las " + list.length + " copias"}
+        </button>
+        <button type="button" className="nx-lnk" onClick={() => P.act.closeSheet()}>
+          Cancelar
+        </button>
+      </div>
+      <p className="pz-meta">Tendrás 12 segundos para deshacerlo.</p>
+    </div>
+  );
+}
+
 export function QuitarSheet({ args }: SheetProps) {
   const tb = useTb();
   const { P } = tb;
