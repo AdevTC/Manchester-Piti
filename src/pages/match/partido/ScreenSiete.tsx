@@ -15,6 +15,7 @@ import { parseMatchLineup } from "../../../lib/matchLineup";
 import { madridTime } from "../../../lib/derived/madrid";
 import { useAbsences, useAvailability, useMatchScorers, usePlayerLinks } from "../../vestuario/live";
 import { useMatchBoard } from "../../pizarra/useMatchBoard";
+import { charlaHref } from "../../pizarra/data/boards";
 import type { Participation } from "../../../../functions/src/matchEngine";
 import type { PageCtx } from "./ctx";
 import { Go, Icon, Tee } from "./bits";
@@ -410,6 +411,11 @@ function ScreenSieteDia({ c }: { c: PageCtx }) {
                 {v.pizarra && pizarraHref && (
                   <Go className="vd-link" href={pizarraHref}>
                     La pizarra de este partido
+                  </Go>
+                )}
+                {v.pizarra && boardId && (
+                  <Go className="vd-link" href={charlaHref(boardId, match.seasonId)}>
+                    Ver la charla
                   </Go>
                 )}
               </div>
