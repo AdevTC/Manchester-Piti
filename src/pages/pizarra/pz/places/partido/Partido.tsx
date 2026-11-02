@@ -4,14 +4,15 @@
 // «Deshacer», «¿Quién no puede seguir?», the «Si pasa…» plan, today's minutes, the galones now), Descanso (the 2ª
 // parte ready) and Después (the frozen notas, planned against played). The prototype's PiPartido, regions lead ·
 // side · peek · panel. Lead/peek/panel also run the feed bridge, the stage and the keys (H, M).
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePz } from "../../store/context";
 import type { PzApi } from "../../store/api";
 import type { RegionProps } from "../../store/types";
 import { PzIcon } from "../../campo/Shirt";
-import { fmt } from "../../store/fmt";
+import { fmt, madrid } from "../../store/fmt";
 import "../../../../../styles/pz/partido.css";
 import { PtFeedBridge } from "./feed";
+import { useWakeLock } from "../../../v2/useMatchDay";
 import { setUi } from "./state";
 import { applyProp, askNext, doDesc, doNext, model, primaryOf, propose } from "./actions";
 import { stageFor, type PtModel } from "./partidoView";
@@ -84,6 +85,8 @@ function useLeader(P: PzApi, X: PtModel) {
 function Leader({ X }: { X: PtModel }) {
   const P = usePz();
   useLeader(P, X);
+  // (A-PAR-23: the screen stays on only for who writes the cambios, while the match is live)
+  useWakeLock(X.ph === "juego" && X.decide);
   return null;
 }
 
@@ -156,6 +159,85 @@ function Confirm({ id, ask, sub, busy, onYes, onNo }: { id: string; ask: string;
         </button>
       </div>
     </div>
+  );
+}
+
+/** The quedada (PZ-D03): a captain sets the time and the place (quedadas/{matchId}); «Cambiar» opens it again. */
+function QuedadaEdit({ X }: { X: PtModel }) {
+  const P = usePz();
+  const M = X.M!;
+  const q = X.feed.quedada;
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const hm0 = q ? fmt.hm(q.at) : fmt.hm(M.at - 30 * 60000);
+  const [hm, setHm] = useState(hm0);
+  const [where, setWhere] = useState(q?.where ?? "");
+  if (!open)
+    return (
+      <button
+        type="button"
+        className="nx-lnk"
+        onClick={() => {
+          setHm(hm0);
+          setWhere(q?.where ?? "");
+          setErr("");
+          setOpen(true);
+        }}
+      >
+        {q ? "Cambiar" : "Poner la quedada"}
+      </button>
+    );
+  // (the time is the match day's, in Madrid: the kick-off's wall clock moved to hh:mm)
+  const atOf = (s: string): number => {
+    const [h, mi] = s.split(":").map(Number);
+    const k = madrid(M.at);
+    return M.at + ((h - k.h) * 60 + (mi - k.mi)) * 60000;
+  };
+  const save = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const { saveQuedada } = await import("../../../data/quedada");
+      await saveQuedada(M.id, { at: atOf(hm), where, uid: P.sel.me().uid }, M.at);
+      setOpen(false);
+      P.toast("Quedada: " + hm + " · " + where.trim(), { icon: "check" });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "No se ha podido guardar la quedada");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form
+      className="pt-qform"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+    >
+      <label>
+        <span>Hora</span>
+        <input type="time" value={hm} onChange={(e) => setHm(e.target.value)} required />
+      </label>
+      <label>
+        <span>Dónde</span>
+        <input type="text" value={where} maxLength={80} placeholder="Puerta del campo" onChange={(e) => setWhere(e.target.value)} required />
+      </label>
+      {err && (
+        <p className="pt-qform__err" role="alert">
+          {err}
+        </p>
+      )}
+      <div className="pz-acts">
+        <button type="submit" className="vd-glass vd-press pz-btn pz-btn--pri" disabled={busy}>
+          {busy ? "Guardando…" : "Guardar"}
+        </button>
+        <button type="button" className="nx-lnk" onClick={() => setOpen(false)}>
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -238,11 +320,13 @@ function Lead({ X }: { X: PtModel }) {
             ))}
           </ul>
         </section>
-        {A.quedada.length > 0 && (
+        {(A.quedada.length > 0 || P.sel.me().cap) && (
           <section className="pz-sec" aria-labelledby="pt-qd-h">
             <div className="pz-sec__h">
               <h2 id="pt-qd-h">La quedada</h2>
+              {P.sel.me().cap && <QuedadaEdit X={X} />}
             </div>
+            {!A.quedada.length && <p className="pz-meta">Sin hora ni sitio todavía: ponlos y salen aquí, en la charla y en Hoy.</p>}
             <ul className="pt-qd">
               {A.quedada.map((q) => (
                 <li key={q.t}>
@@ -1034,7 +1118,22 @@ export function Partido({ region, layout }: RegionProps) {
     <div className={cls} data-pz-place="partido">
       {leads && <PtFeedBridge />}
       {leads && <Leader X={X} />}
-      {showLead && wrap("lead", <Lead X={X} />)}
+      {showLead &&
+        wrap(
+          "lead",
+          <>
+            {/* B-PZ-19: «Volver a la mesa» only for who came from it */}
+            {P.state.route.q.desde === "mesa" && X.M && (
+              <p className="pt-back">
+                <a className="nx-lnk" href={"/partidos/" + encodeURIComponent(X.M.id) + "/mesa"}>
+                  <Ic n="chevL" />
+                  Volver a la mesa
+                </a>
+              </p>
+            )}
+            <Lead X={X} />
+          </>,
+        )}
       {showSide && wrap("side", <Side X={X} />)}
     </div>
   );

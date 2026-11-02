@@ -2,7 +2,6 @@
 // model). Pure: the component attaches the handlers.
 import type { PzApi } from "../../store/api";
 import { fmt } from "../../store/fmt";
-import type { Mark } from "../../store/types";
 import { condSentence, descPairs, mesaState, plannedOf, playedOf, slotOf, total, type Interval, type PtModel } from "./partidoView";
 
 export interface Seg {
@@ -22,7 +21,6 @@ export const venueShort = (v: string): string => {
     .join(" ");
 };
 
-const CANWORD: Record<Mark["k"], string> = { amarilla: "Amarilla", tocado: "Tocado", gol: "Gol", roja: "Roja" };
 const PART: Record<string, string> = { first: "1ª parte", second: "2ª parte", halftime: "Descanso", ended: "Final" };
 
 export function kickerOf(P: PzApi, X: PtModel): string {
