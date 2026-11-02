@@ -77,7 +77,9 @@ export function usePachangaSource(now: number): { training: Training | null; com
 /** Saves who came (a captain or the training's proposer). Throws (Spanish) past the caps. */
 export async function saveAttendance(trainingId: string, a: { slotId: string; present: readonly string[]; guests?: readonly string[]; uid: string }): Promise<void> {
   const present = [...new Set(a.present)];
-  const guests = [...new Set((a.guests ?? []).map((g) => g.trim().slice(0, ATTENDANCE_LIMITS.guest)).filter(Boolean))];
+  // (a «|» can't go in a name: the rules check the list joined by it)
+  const guests = [...new Set((a.guests ?? []).map((g) => g.replace(/\|/g, " ").replace(/\s+/g, " ").trim().slice(0, ATTENDANCE_LIMITS.guest)).filter(Boolean))];
+  if (present.some((id) => !/^[A-Za-z0-9_:-]{1,128}$/.test(id))) throw new Error("Hay un jugador que no se puede guardar.");
   if (present.length > ATTENDANCE_LIMITS.present) throw new Error(`Como mucho ${ATTENDANCE_LIMITS.present} jugadores.`);
   if (guests.length > ATTENDANCE_LIMITS.guests) throw new Error(`Como mucho ${ATTENDANCE_LIMITS.guests} de fuera.`);
   await setDoc(doc(db, "trainingAttendance", trainingId), { slotId: a.slotId, present, guests, by: a.uid, at: serverTimestamp() });

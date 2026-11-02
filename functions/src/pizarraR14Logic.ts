@@ -26,8 +26,26 @@ export interface R14Board extends BoardLike {
 
 // ───────────────────────── PZ-D01 · the official seven's version ─────────────────────────
 
-/** The seven as a fingerprint: who plays, order aside (the same key as «Cambio en el siete», seven.ts). */
-export const boardSevenKey = (b: Pick<R14Board, "slots"> | undefined): string => sieteKey(sevenOf(b?.slots));
+/** The longest `sevenKey` stored as is (firestore.rules caps it at 1000; the rules cap each player id at 128, so
+ *  seven of them always fit, but an id written past the rules — by an admin script — must never lock the board). */
+export const SEVEN_KEY_MAX = 900;
+/** A short, stable fingerprint of a long key (FNV-1a over two lanes): «h:<hex>». */
+function hashKey(s: string): string {
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193) >>> 0;
+    b = Math.imul(b ^ c, 0x5bd1e995) >>> 0;
+  }
+  return "h:" + a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0") + ":" + s.length;
+}
+/** The seven as a fingerprint: who plays, order aside (the same key as «Cambio en el siete», seven.ts); a key past
+ *  SEVEN_KEY_MAX is hashed so it always fits its rule. */
+export const boardSevenKey = (b: Pick<R14Board, "slots"> | undefined): string => {
+  const k = sieteKey(sevenOf(b?.slots));
+  return k.length > SEVEN_KEY_MAX ? hashKey(k) : k;
+};
 
 const rev = (v: unknown): number => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0);
 

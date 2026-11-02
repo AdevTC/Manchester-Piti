@@ -256,6 +256,19 @@ describe("tableros: charla, copias de la mesa, jugadas de la temporada, afición
   });
 });
 
+describe("revisión: lo que se escribe siempre pasa las reglas", () => {
+  it("a guest's walkout voice key", () => {
+    expect(isVozKey(sieteVoz("guest:g1"))).toBe(true);
+    expect(isVozKey("siete:guest:")).toBe(false);
+  });
+  it("planToData trims keys to 1–60 and drops empty ones; ids outside the rules' shape are dropped on read", () => {
+    const out = planToData({ claves: ["  " + "x".repeat(70), "", "ok"], viz: [], notes: "", parado: null })!;
+    expect(out.claves).toEqual(["x".repeat(60), "ok"]);
+    const p = parsePlan({ parado: { corners: { playId: null, box: ["a b", "a,b", "guest:g1", "ok"] } } })!;
+    expect(p.parado!.corners.box).toEqual(["guest:g1", "ok"]);
+  });
+});
+
 describe("lineupDoc lleva los campos r14 sin romper los de hoy", () => {
   it("reads and writes plan, seasonPlays, rival extras, condPlan ver, server fields and fromMesa", () => {
     const d = dataToLineupDoc("b", {
