@@ -5,22 +5,11 @@
 //    (entering a place already honours them: store.stageDefaults and the boot layer).
 import { useEffect, useRef } from "react";
 import { usePz } from "../../store/context";
-import type { PzApi } from "../../store/api";
-import type { Camera, LayerId, PlaceId } from "../../store/types";
+import type { Camera, LayerId } from "../../store/types";
 import { LAYERS } from "../../store/store";
-import { applyPrefsCss, prefsNow, removePrefsCss, sonar } from "./prefsLive";
+import { applyPrefsCss, placeCamera, prefsNow, removePrefsCss, sonar } from "./prefsLive";
 
 const WITH_PITCH: readonly string[] = ["siete", "plan", "jugadas", "partido", "pachanga"];
-
-/** The camera a place opens with when Ajustes says «Según el sitio» (store.stageDefaults' own rule). */
-export function placeCamera(P: Pick<PzApi, "sel" | "state">, place: PlaceId | "perdido"): Camera {
-  if (place === "partido" || place === "charla") return "grada";
-  if (place === "siete") {
-    const b = P.sel.board();
-    if (b?.isOfficial && !P.sel.canEdit(b) && !P.sel.me().cap) return "grada";
-  }
-  return "pizarra";
-}
 
 export function PrefsBoot() {
   const P = usePz();

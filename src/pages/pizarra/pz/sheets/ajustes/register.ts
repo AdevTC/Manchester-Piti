@@ -4,5 +4,6 @@ import { registerSheet } from "../../store/registry";
 
 registerSheet("ajustes", {
   title: "Ajustes de la pizarra",
+  kicker: "Solo para ti",
   Component: lazy(() => import("./Ajustes").then((m) => ({ default: m.AjustesSheet }))),
 });

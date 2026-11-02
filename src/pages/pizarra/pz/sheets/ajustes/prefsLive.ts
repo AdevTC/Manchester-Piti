@@ -5,6 +5,7 @@
 //  · sonar(kind): the pizarra's sounds, synthesised (no files), only after a gesture and only with «Sonidos» on.
 //  · lessMotion(P): «Menos movimiento» or the system's reduced motion (places cut their animations with it).
 import type { PzApi, PzPrefs } from "../../store/api";
+import type { Camera, PlaceId } from "../../store/types";
 import { parsePrefs, PREFS_DEFAULT } from "../../../data/prefs";
 
 let pending: PzPrefs | null = null;
@@ -142,4 +143,14 @@ export function sonar(P: Pick<PzApi, "sel"> | null, kind: SoundKind, force = fal
   } catch {
     return false;
   }
+}
+
+/** The camera a place opens with when Ajustes says «Según el sitio» (store.stageDefaults' own rule). */
+export function placeCamera(P: Pick<PzApi, "sel" | "state">, place: PlaceId | "perdido"): Camera {
+  if (place === "partido" || place === "charla") return "grada";
+  if (place === "siete") {
+    const b = P.sel.board();
+    if (b?.isOfficial && !P.sel.canEdit(b) && !P.sel.me().cap) return "grada";
+  }
+  return "pizarra";
 }
