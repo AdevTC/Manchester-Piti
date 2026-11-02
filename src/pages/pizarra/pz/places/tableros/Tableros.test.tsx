@@ -146,6 +146,41 @@ describe("Comparar", () => {
   });
 });
 
+describe("bugs of the old Tableros", () => {
+  it("B-PZ-01: undoing a change in the seven leaves the tags as they are", async () => {
+    const { P, host, flush } = renderWithPz(<Tableros region="side" layout="desktop" />, { world, boardId: "b1", place: "tableros" });
+    fireEvent.click(screen.getByRole("button", { name: "Poner la etiqueta «Copa»" }));
+    await flush();
+    act(() => P.act.place("kevin", 6));
+    act(() => P.act.undo());
+    const last = host.commit.mock.calls[host.commit.mock.calls.length - 1][0] as { tags?: string[]; slots: { playerId: string | null }[] };
+    expect(last.tags).toEqual(["Copa"]);
+    expect(last.slots[6].playerId).toBeNull();
+  });
+  it("B-PZ-02: «Hacer oficial» reads the titular (what is published), not the version on screen", async () => {
+    const full = fakeBoard().lineup.slots.map((s, i) => ({ ...s, playerId: ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"][i] }));
+    const half = fakeBoard({ id: "h", name: "A medias", matchId: null, ids: ["evans", "fer", "erik", "jordi", "adrian", null, null] });
+    half.lineup = { ...half.lineup, variants: [{ id: "vb", name: "Plan B", formation: "3-2-1", freeMode: false, slots: full, tactics: half.lineup.tactics }] };
+    renderWithPz(<Tableros region="side" layout="desktop" />, { world: { ...world, boards: [half, ...world.boards] }, boardId: "h", place: "tableros" });
+    expect((screen.getByRole("button", { name: "Publicar «A medias» como el oficial" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Para hacerlo oficial, completa el titular (5/7).")).toBeTruthy();
+  });
+  it("B-PZ-06: a failed read never says you have no boards", async () => {
+    const { flush, attach } = renderWithPz(
+      <>
+        <Tableros region="lead" layout="desktop" />
+        <Tableros region="stage" layout="desktop" />
+      </>,
+      { world: { ...world, boards: [] }, place: "tableros" },
+    );
+    act(() => attach({ estado: "error" }));
+    await flush();
+    expect(screen.queryByText(/Aún no tienes tableros|Tu primer tablero/)).toBeNull();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("No se han podido leer los tableros");
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeTruthy();
+  });
+});
+
 describe("the phone", () => {
   it("the peek: the count, the primary action, the strip; a tap previews a board on the pitch", async () => {
     const { P, flush } = renderWithPz(<Tableros region="peek" layout="phone" />, { world, boardId: "b1", place: "tableros", layout: "phone" });

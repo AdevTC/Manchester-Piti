@@ -34,7 +34,8 @@ function Acts({ acts, cls }: { acts: Act[]; cls: string }) {
   );
 }
 
-export function Gallery({ tb, layout }: { tb: Tb; layout: Layout }) {
+/** `split`: the tools stay on top and only the list scrolls (the desktop/tablet stage); else in flow (phone panel). */
+export function Gallery({ tb, layout, split = false }: { tb: Tb; layout: Layout; split?: boolean }) {
   const { P, U, boards, off, cur, selId, mine } = tb;
   const phone = layout === "phone";
   const S = P.state;
@@ -239,18 +240,30 @@ export function Gallery({ tb, layout }: { tb: Tb; layout: Layout }) {
 
   if (!boards.length) {
     return (
-      <div className="pb-gal">
-        <div className="pb-empty">
-          <h2>{m.socia || !m.member ? "Aún no hay tableros" : "Tu primer tablero"}</h2>
-          <p>{tb.canCreate ? "Empieza vacío o desde un siete hecho. Se guarda solo con tu primer cambio." : "Cuando un capitán publique el siete, lo verás aquí."}</p>
-          {tb.canCreate && <Origins tb={tb} />}
+      <div className={split ? "pb-gal pb-gal--split" : "pb-gal"}>
+        <div className={split ? "pb-gal__scroll" : "pb-gal__list"}>
+          {S.estado === "error" ? (
+            <div className="pb-empty" role="alert">
+              <h2>No se han podido leer los tableros</h2>
+              <p>Tus tableros siguen guardados: prueba otra vez en un momento.</p>
+              <button type="button" className="vd-glass vd-press pz-btn" onClick={() => P.act.retry()}>
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <div className="pb-empty">
+              <h2>{m.socia || !m.member ? "Aún no hay tableros" : "Tu primer tablero"}</h2>
+              <p>{tb.canCreate ? "Empieza vacío o desde un siete hecho. Se guarda solo con tu primer cambio." : "Cuando un capitán publique el siete, lo verás aquí."}</p>
+              {tb.canCreate && <Origins tb={tb} />}
+            </div>
+          )}
+          {pendCard("mine") ?? pendCard("team") ?? pendCard("off")}
         </div>
-        {pendCard("mine") ?? pendCard("team") ?? pendCard("off")}
       </div>
     );
   }
-  return (
-    <div className="pb-gal">
+  const bar = (
+    <>
       <div className="pb-tools" role="search">
         <div className="vd-glass pb-seg" role="group" aria-label="Qué tableros ver">
           {filters.map(([k, t, n]) => (
@@ -290,6 +303,10 @@ export function Gallery({ tb, layout }: { tb: Tb; layout: Layout }) {
           {visible + " de " + boards.length + (boards.length === 1 ? " tablero" : " tableros")}
         </p>
       )}
+    </>
+  );
+  const list = (
+    <>
       {groups}
       {noMatch && (
         <div className="pb-empty" role="status">
@@ -300,6 +317,19 @@ export function Gallery({ tb, layout }: { tb: Tb; layout: Layout }) {
           </button>
         </div>
       )}
+    </>
+  );
+  if (split)
+    return (
+      <div className="pb-gal pb-gal--split">
+        <div className="pb-gal__bar">{bar}</div>
+        <div className="pb-gal__scroll">{list}</div>
+      </div>
+    );
+  return (
+    <div className="pb-gal">
+      {bar}
+      {list}
     </div>
   );
 }

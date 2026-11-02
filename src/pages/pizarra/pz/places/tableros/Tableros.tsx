@@ -56,8 +56,8 @@ export function Tableros({ region, layout }: RegionProps) {
   // ── the regions
   if (region === "stage") {
     return (
-      <div className={`pb pb-stagewrap${layout === "tablet" ? " is-tab" : ""}`}>
-        {cmp && M ? <CmpStage tb={tb} M={M} layout={layout} /> : <Gallery tb={tb} layout={layout} />}
+      <div className={cmp && M ? `pb pb-stagewrap${layout === "tablet" ? " is-tab" : ""}` : "pb pb-stage"}>
+        {cmp && M ? <CmpStage tb={tb} M={M} layout={layout} /> : <Gallery tb={tb} layout={layout} split />}
       </div>
     );
   }

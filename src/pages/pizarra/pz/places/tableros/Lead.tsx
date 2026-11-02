@@ -74,7 +74,11 @@ export function Hero({ tb, layout }: { tb: Tb; layout: Layout }) {
   const offM = off ? matchById(P, off.matchId) : null;
   let headT: string;
   let headS: string;
-  if (!boards.length) {
+  if (P.state.estado === "error") {
+    // B-PZ-06: a failed read never says «you have none» (nor offers a first board that would hide the real ones)
+    headT = "No se han podido leer los tableros";
+    headS = P.state.error || "Prueba otra vez en un momento: tus tableros siguen guardados.";
+  } else if (!boards.length) {
     headT = m.socia || !m.member ? "Aún no hay tableros" : "Aún no tienes tableros";
     headS = tb.canCreate ? "El primero se guarda solo con tu primer cambio." : "Cuando un capitán publique el siete, lo verás aquí.";
   } else {

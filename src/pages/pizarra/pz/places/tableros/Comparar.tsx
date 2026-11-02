@@ -37,13 +37,13 @@ export function CmpStage({ tb, M, layout }: { tb: Tb; M: CmpModel; layout: Layou
         <figure className="pb-vs__side" aria-label={"A: " + M.A.t + ", " + M.A.formation}>
           <Cap k="A" it={M.A} sys={M.A.formation} diff={false} />
           <div className="pb-vs__pitch">
-            <PiCampo layout="desktop" show={tab ? { ...specA(P, M), plates: "short" } : specA(P, M)} bare inert />
+            <PiCampo layout="desktop" show={specA(P, M)} bare inert />
           </div>
         </figure>
         <figure className="pb-vs__side" aria-label={"B: " + M.B.t + ", " + M.B.formation}>
           <Cap k="B" it={M.B} sys={M.B.formation} diff={M.c.sistema} />
           <div className="pb-vs__pitch">
-            <PiCampo layout="desktop" show={tab ? { ...specB(P, M), plates: "short" } : specB(P, M)} bare inert />
+            <PiCampo layout="desktop" show={specB(P, M)} bare inert />
           </div>
         </figure>
       </div>

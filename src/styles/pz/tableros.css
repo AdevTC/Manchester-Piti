@@ -257,9 +257,27 @@
 .pz .pb .nx-lnk{min-height:44px;display:inline-flex;align-items:center}
 .pz .pb-flowsec{padding:14px 0;border-top:1px solid var(--vd-rule)}
 /* ── by hand ── */
-/* the sticky bar sits at the very top of the gallery: nothing scrolls above it */
-.pz .pb-stagewrap .pb-tools{top:0;margin-top:0}
-.pz .pb-stagewrap>.pb-gal{padding-top:4px}
+/* the stage's gallery: the tools stay on top, only the list scrolls (nothing slides above or under the bar) */
+.pz .pb-stage{position:absolute;inset:0}
+.pz .pb-gal--split{position:absolute;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.pz .pb-gal__bar{padding:0 18px 2px;min-width:0}
+.pz .pb-gal__bar>.pb-tools{position:relative;top:auto;margin:0 -8px 2px}
+.pz .pb-gal__scroll{min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 18px 70px;scrollbar-width:thin;scrollbar-color:var(--vd-rule2) transparent}
+.pz .pb-gal__scroll>.pb-grp:first-child{padding-top:10px}
+/* the stage's width goes from ~240 (desktop 1100) to ~1000 (2560): the gallery reads its own width */
+.pz .pb-gal--split{container:pbgal/inline-size}
+@container pbgal (max-width:600px){
+  .pz .pb-gal .pb-feat{grid-template-columns:1fr}
+  .pz .pb-gal .pb-feat__b{padding:4px 16px 16px}
+  .pz .pb-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%}
+  .pz .pb-seg>button{padding:0 6px;justify-content:center;font-size:13px}
+  .pz .pb-search{flex:1 1 100%}
+}
+@container pbgal (max-width:380px){
+  .pz .pb-seg{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pz .pb-sel,.pz .pb-cmpbtn{flex:1 1 0}
+  .pz .pb-grid{grid-template-columns:minmax(0,1fr)}
+}
 .pz .pb-flow{display:grid;min-width:0}
 .pz .pb-flow>.pz-sec:first-child,.pz .pb-flow>.pz-hero+.pz-sec{border-top:0}
 .pz .pb-kicksel{display:inline-flex;align-items:center}
@@ -278,6 +296,9 @@
 .pz .pb-card__acts .pz-btn{flex:1 1 auto}
 .pz .pb-feat__acts .pz-btn{flex:0 1 auto}
 .pz .pb-feat__b>h3{overflow-wrap:anywhere}
+/* very wide stages (≥1920): the featured card keeps its pitch and its words together */
+.pz .pb-feat{grid-template-columns:minmax(200px,min(44%,400px)) minmax(0,1fr)}
+.pz .pb-feat__b{max-width:560px}
 .pz .pb-feat__b>p:not(.pb-k){overflow-wrap:anywhere}
 /* the inspector */
 .pz .pb-sec1{margin-top:12px}
@@ -300,11 +321,11 @@
 .pz .pb-pick select{text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
 .pz .pb-pick>span:last-child{min-width:0}
 .pz .pb-cinta td{word-break:break-word}
-/* tablet: the stage is the left column (narrow and tall): the two pitches side by side, short plates */
-.pz.pz-l-tablet .pb-vs{padding:8px 0 18px}
-.pz.pz-l-tablet .pb-vs__two{gap:6px}
-.pz.pz-l-tablet .pb-vs__cap{grid-template-columns:auto minmax(0,1fr);gap:6px}
-.pz.pz-l-tablet .pb-vs__sys{grid-column:1/-1;font-size:24px}
+/* tablet: the stage is the left column (narrow): A over B, each a full-width pitch, the column scrolls */
+.pz.pz-l-tablet .pb-stagewrap>.pb-vs{position:relative;inset:auto;display:grid;grid-template-rows:none;gap:10px;padding:8px 0 24px}
+.pz.pz-l-tablet .pb-vs__two{grid-template-columns:minmax(0,1fr);gap:18px}
+.pz.pz-l-tablet .pb-vs__side{grid-template-rows:auto 540px}
+.pz.pz-l-tablet .pb-vs__sys{font-size:28px}
 .pz.pz-l-tablet .pb-stagewrap{padding:4px 12px 40px}
 .pz.pz-l-tablet .pb-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 .pz.pz-l-tablet .pb-feat{grid-template-columns:1fr}
