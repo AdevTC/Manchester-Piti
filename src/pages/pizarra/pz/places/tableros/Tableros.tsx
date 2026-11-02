@@ -13,7 +13,8 @@ import { dots } from "./tablerosView";
 import { Gallery } from "./Gallery";
 import { Hero, OriginsSec, Played } from "./Lead";
 import { Inspector } from "./Inspector";
-import { CmpLead, CmpSide, CmpStage, CmpView, cmpModel, phoneSpec } from "./Comparar";
+import { CmpLead, CmpSide, CmpStage, CmpView } from "./Comparar";
+import { cmpModel, phoneSpec } from "./cmpModel";
 import { readSeen, writeSeen } from "./seen";
 
 export function Tableros({ region, layout }: RegionProps) {

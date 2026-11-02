@@ -6,7 +6,7 @@
 .pz .pb :where(h1,h2,h3,p,ul,ol,figure,table){margin:0;padding:0}
 .pz .pb :where(ul,ol){list-style:none}
 .pz .pb button,.pz .pb select,.pz .pb input{font:inherit}
-.pz .pb-stagewrap{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:4px 18px 70px;scrollbar-width:thin;scrollbar-color:var(--vd-rule2) transparent}
+.pz .pb-stagewrap{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:0 18px 70px;scrollbar-width:thin;scrollbar-color:var(--vd-rule2) transparent}
 /* ———— PiTableros · Tableros y Comparar (prefix pb-) ———— */
 .pz .pb-hero{padding:2px 0 16px}
 .pz .pb-hero .pz-h1{font-size:54px}
@@ -123,8 +123,8 @@
 .pz .pb-err{font-size:13px;font-weight:650;color:#ffb4ac;min-height:0}
 :root[data-theme="light"] .pz .pb-err{color:#a32630}
 .pz .pb-vers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.pz .pb-ver{--vd-r:18px;display:grid;gap:0;min-width:0;padding:0 0 8px;border:0;border-radius:18px;overflow:hidden;color:var(--vd-g-ink);cursor:pointer;text-align:center}
-.pz .pb-ver:disabled{cursor:default}
+.pz .pb-ver{position:relative;--vd-r:18px;display:grid;gap:0;min-width:0;padding:0 0 8px;border:0;border-radius:18px;overflow:hidden;color:var(--vd-g-ink);cursor:pointer;text-align:center}
+.pz .pb-ver.is-none{cursor:default}
 .pz .pb-ver__p{position:relative;height:96px;pointer-events:none}
 .pz .pb-ver b{font-size:13.5px;font-weight:740}
 .pz .pb-ver small{font-size:11.5px;color:var(--vd-g-ink2)}
@@ -193,7 +193,6 @@
 .pz .pb-vs{position:absolute;inset:0;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:6px;padding:8px 10px 64px}
 .pz .pb-vs--flow{position:relative;inset:auto;height:500px;padding:8px 0 10px}
 .pz.pz-l-tablet .pb-vs__sys{font-size:24px}
-.pz.pz-l-tablet .pb-vs__two{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr))}
 .pz.pz-l-tablet .pb-vs__cap b{white-space:normal}
 .pz .pb-vs__two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-height:0}
 .pz .pb-vs__side{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;min-width:0}
@@ -258,6 +257,9 @@
 .pz .pb .nx-lnk{min-height:44px;display:inline-flex;align-items:center}
 .pz .pb-flowsec{padding:14px 0;border-top:1px solid var(--vd-rule)}
 /* ── by hand ── */
+/* the sticky bar sits at the very top of the gallery: nothing scrolls above it */
+.pz .pb-stagewrap .pb-tools{top:0;margin-top:0}
+.pz .pb-stagewrap>.pb-gal{padding-top:4px}
 .pz .pb-flow{display:grid;min-width:0}
 .pz .pb-flow>.pz-sec:first-child,.pz .pb-flow>.pz-hero+.pz-sec{border-top:0}
 .pz .pb-kicksel{display:inline-flex;align-items:center}
@@ -298,9 +300,11 @@
 .pz .pb-pick select{text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
 .pz .pb-pick>span:last-child{min-width:0}
 .pz .pb-cinta td{word-break:break-word}
-/* tablet: the stage is the left column (narrow): the two pitches stack */
-.pz.pz-l-tablet .pb-vs__two{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr))}
-.pz.pz-l-tablet .pb-vs__sys{font-size:24px}
+/* tablet: the stage is the left column (narrow and tall): the two pitches side by side, short plates */
+.pz.pz-l-tablet .pb-vs{padding:8px 0 18px}
+.pz.pz-l-tablet .pb-vs__two{gap:6px}
+.pz.pz-l-tablet .pb-vs__cap{grid-template-columns:auto minmax(0,1fr);gap:6px}
+.pz.pz-l-tablet .pb-vs__sys{grid-column:1/-1;font-size:24px}
 .pz.pz-l-tablet .pb-stagewrap{padding:4px 12px 40px}
 .pz.pz-l-tablet .pb-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 .pz.pz-l-tablet .pb-feat{grid-template-columns:1fr}

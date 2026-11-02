@@ -1,8 +1,7 @@
 // r14 «La pizarra» · Comparar (/pizarra/tableros/comparar?a=&b=): two sevens side by side (desktop/tablet stage),
 // what changes puesto by puesto, the cara a cara with «mejor» in words; A and B can be a board's version, another
 // board, the official, the seven that played a match, or a snapshot of the board's history.
-import type { Layout, StageSpec, Token } from "../../store/types";
-import type { PzApi } from "../../store/api";
+import type { Layout } from "../../store/types";
 import { PiCampo } from "../../campo/PiCampo";
 import { PzIcon } from "../../campo/Shirt";
 import { defaultTactics } from "../../../tactics";
@@ -10,59 +9,8 @@ import { fmt } from "../../store/fmt";
 import { pb, usePb } from "./pb";
 import { openIn, type Tb } from "./useTb";
 import { whenStore } from "./ops";
-import { cintaRow, cmpHead, cmpLine, compareItems, defaultPair, itemList, itemOf, statsOf, type CmpItem, type Comparison } from "./tablerosView";
-
-export interface CmpModel {
-  A: CmpItem;
-  B: CmpItem;
-  c: Comparison;
-  head: string;
-  line: string;
-}
-
-/** The pair on screen: what was picked (if it still exists), else the default. */
-export function cmpModel(tb: Tb): CmpModel | null {
-  const { P, U, ctx } = tb;
-  const d = defaultPair(P, ctx);
-  const a = itemOf(P, U.cmpA, ctx) ? U.cmpA : d[0];
-  const b = itemOf(P, U.cmpB, ctx) ? U.cmpB : d[1];
-  const A = itemOf(P, a, ctx);
-  const B = itemOf(P, b, ctx);
-  if (!A || !B) return null;
-  const nm = (id: string) => P.sel.name(id);
-  const c = compareItems(A, B, nm);
-  return { A, B, c, head: cmpHead(c, B, nm), line: cmpLine(c, A, B, nm) };
-}
-
-const tokensOf = (P: PzApi, it: CmpItem, ring: (pid: string) => Token["ring"] | undefined): Token[] =>
-  it.slots.filter((s) => s.playerId).map((s) => ({ id: "p-" + s.playerId, kind: "us", pid: s.playerId as string, x: s.x, y: s.y, label: P.sel.name(s.playerId), ring: ring(s.playerId as string) }));
-const holes = (it: CmpItem) => it.slots.filter((s) => !s.playerId).map((s) => ({ x: s.x, y: s.y }));
-
-export function specA(P: PzApi, M: CmpModel): StageSpec {
-  return { source: "tokens", camera: "pizarra", chrome: false, editable: false, tokens: tokensOf(P, M.A, (pid) => (M.c.outs.includes(pid) ? "sale" : undefined)), ghost: holes(M.A) };
-}
-export function specB(P: PzApi, M: CmpModel): StageSpec {
-  return {
-    source: "tokens",
-    camera: "pizarra",
-    chrome: false,
-    editable: false,
-    tokens: tokensOf(P, M.B, (pid) => (M.c.ins.includes(pid) ? "entra" : M.c.moved.includes(pid) ? "mueve" : undefined)),
-    ghost: holes(M.B),
-    overlay: { paths: M.c.moved.map((pid) => ({ kind: "carrera" as const, color: "celeste" as const, pts: [[M.c.aP[pid].x, M.c.aP[pid].y] as [number, number], [M.c.bP[pid].x, M.c.bP[pid].y] as [number, number]] })) },
-  };
-}
-/** The phone's one pitch: A, B, or both («Juntos»: B with who leaves A as ghosts and the moves as arrows). */
-export function phoneSpec(P: PzApi, M: CmpModel | null, view: "a" | "juntos" | "b"): StageSpec {
-  if (!M) return { source: "tokens", tokens: [], caption: "Nada que comparar", camera: "pizarra", chrome: false };
-  if (view === "a") return { ...specA(P, M), caption: "A · " + M.A.short + " · " + M.A.formation };
-  const s = specB(P, M);
-  if (view === "juntos") {
-    const extra: Token[] = M.c.outs.filter((pid) => !M.c.paired.includes(pid)).map((pid) => ({ id: "g-" + pid, kind: "ghost", pid, x: M.c.aP[pid].x, y: M.c.aP[pid].y, label: P.sel.name(pid), ring: "sale" }));
-    return { ...s, tokens: [...(s.tokens ?? []), ...extra], caption: "Juntos · los cambios, en la lista" };
-  }
-  return { ...s, caption: "B · " + M.B.short + " · " + M.B.formation };
-}
+import { cintaRow, itemList, statsOf, type CmpItem } from "./tablerosView";
+import { specA, specB, type CmpModel } from "./cmpModel";
 
 function Cap({ k, it, sys, diff }: { k: "A" | "B"; it: CmpItem; sys: string; diff: boolean }) {
   return (
@@ -82,19 +30,20 @@ function Cap({ k, it, sys, diff }: { k: "A" | "B"; it: CmpItem; sys: string; dif
 /** The two pitches (desktop and tablet stage). */
 export function CmpStage({ tb, M, layout }: { tb: Tb; M: CmpModel; layout: Layout }) {
   const { P } = tb;
+  const tab = layout === "tablet";
   return (
-    <div className={`pb-vs${layout === "tablet" ? " pb-vs--tab" : ""}`}>
+    <div className={`pb-vs${tab ? " pb-vs--tab" : ""}`}>
       <div className="pb-vs__two">
         <figure className="pb-vs__side" aria-label={"A: " + M.A.t + ", " + M.A.formation}>
           <Cap k="A" it={M.A} sys={M.A.formation} diff={false} />
           <div className="pb-vs__pitch">
-            <PiCampo layout="desktop" show={specA(P, M)} bare inert />
+            <PiCampo layout="desktop" show={tab ? { ...specA(P, M), plates: "short" } : specA(P, M)} bare inert />
           </div>
         </figure>
         <figure className="pb-vs__side" aria-label={"B: " + M.B.t + ", " + M.B.formation}>
           <Cap k="B" it={M.B} sys={M.B.formation} diff={M.c.sistema} />
           <div className="pb-vs__pitch">
-            <PiCampo layout="desktop" show={specB(P, M)} bare inert />
+            <PiCampo layout="desktop" show={tab ? { ...specB(P, M), plates: "short" } : specB(P, M)} bare inert />
           </div>
         </figure>
       </div>

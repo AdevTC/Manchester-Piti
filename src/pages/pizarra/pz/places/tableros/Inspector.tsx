@@ -222,11 +222,13 @@ export function Inspector({ tb, b, layout }: { tb: Tb; b: PzBoard; layout: Layou
         </div>
         <div className="pb-vers">
           {vers.map((x) => (
-            <button key={x.id} type="button" className={`vd-glass vd-press pb-ver${x.ex ? "" : " is-none"}`} onClick={x.pick} disabled={!x.ex} aria-label={x.aria}>
+            <div key={x.id} className={`vd-glass vd-press pb-ver${x.ex ? "" : " is-none"}`}>
+              {/* (the hit is a sibling of the mini: the mini pitch has buttons of its own) */}
+              <button type="button" className="pb-card__hit" onClick={x.pick} disabled={!x.ex} aria-label={x.aria} />
               <span className="pb-ver__p">{x.ex && <PiCampo layout={layout} mini show={{ source: "siete", boardId: b.id, version: x.id }} camera="pizarra" />}</span>
               <b>{x.t}</b>
               <small>{x.s}</small>
-            </button>
+            </div>
           ))}
         </div>
       </section>
