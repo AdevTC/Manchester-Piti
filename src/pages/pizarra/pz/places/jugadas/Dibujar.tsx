@@ -385,8 +385,8 @@ export function Dibujar({ layout }: RegionProps) {
   if (g) {
     if (phone) {
       dockL = { left: 6, right: 6, bottom: 8 };
-      dockR = { left: 6, right: 6, bottom: 64 };
-      listSt = { left: 8, right: 8, top: 60, width: "auto", maxHeight: "calc(100% - 190px)" };
+      dockR = { left: 6, right: 6, top: 6 };
+      listSt = { left: 8, right: 8, top: 66, width: "auto", maxHeight: "calc(100% - 140px)" };
     } else {
       const room = g.x - 12;
       const lx = room >= 82 ? Math.max(8, g.x - 86) : 8;
