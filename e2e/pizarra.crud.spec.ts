@@ -42,8 +42,10 @@ test("la pizarra: cada sitio con su dirección, y las direcciones viejas llevan 
     expect(new URL(page.url()).searchParams.get("season")).toBe(SEASON);
     expect(new URL(page.url()).hash).toBe("");
   }
-  // an address the pizarra doesn't have: its own «not here», inside the frame
+  // an address the pizarra doesn't have: its own «not here», with the way back to the Siete
   await page.goto(`/pizarra/nada-por-aqui?season=${SEASON}`);
-  await expect(places(page)).toBeVisible();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Esta parte de la pizarra no existe" })).toBeVisible();
+  await page.getByRole("button", { name: "Volver al siete" }).click();
+  await expect(page).toHaveURL(/\/pizarra\/siete\?/);
+  await expect(here(page)).toHaveAccessibleName(/^Siete:/);
 });

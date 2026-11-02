@@ -178,7 +178,9 @@ test("vista de la afición: se enciende en Compartir, se abre sin cuenta (solo l
     const anon = await fan.newPage();
     await anon.goto(`/aficion/${token}`);
     await expect(anon.getByRole("heading", { level: 1, name: "Los siete" })).toBeVisible({ timeout: 20_000 });
-    await expect(anon.getByText("E2E · Para la afición")).toBeVisible();
+    // (its title is the match's, never the board's name: «J2 · Atlético Demo»)
+    await expect(anon.getByText(/^J\d+ · Atlético Demo$/)).toBeVisible();
+    await expect(anon.locator("body")).not.toContainText("E2E · Para la afición");
     const pitch = anon.getByRole("img", { name: /^El siete en el campo, 2-3-1: / });
     await expect(pitch).toBeVisible();
     await expect(pitch).toHaveAccessibleName(/1 Álex, POR/);
