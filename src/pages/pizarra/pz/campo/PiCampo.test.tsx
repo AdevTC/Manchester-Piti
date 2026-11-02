@@ -1,6 +1,7 @@
 // PiCampo (r14): the pitch draws the view the store resolves and sends every gesture to the store. A light fake store
 // (no Firestore, no stills): the slots, the taps, the drag start, the keyboard, the chrome, the minis, the rival.
 import { fireEvent, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PzApi, ShirtStill } from "../store/api";
 import type { PzPlayer, PzView, StageSpec, Token, ViewSlot } from "../store/types";
@@ -201,6 +202,39 @@ describe("PiCampo", () => {
     expect(screen.getByRole("img", { name: /Miniatura del campo · 2-3-1/ })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Cámara" })).toBeNull();
     expect(document.querySelector(".pz-c__stage")?.hasAttribute("inert")).toBe(true);
+  });
+
+  it("a mini in a browser is drawn once, at its measured size (never first at the default size)", () => {
+    // (a browser: a ResizeObserver and a box with a size)
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, top: 0, left: 0, right: 180, bottom: 240, width: 180, height: 240, toJSON: () => ({}) });
+    try {
+      makeStore(makeView());
+      render(<PiCampo layout="desktop" mini show={{ source: "siete", boardId: "b1" }} />);
+      const root = document.querySelector<HTMLElement>(".pz-c");
+      expect(screen.getByRole("img", { name: /Miniatura del campo · 2-3-1/ })).toBeInTheDocument();
+      // (measured in the layout effect: the plane is sized for 180 × 240, not the 560 × 760 default)
+      expect(Number.parseFloat(root?.style.getPropertyValue("--pw") ?? "")).toBeLessThan(180);
+      expect(document.querySelectorAll(".pz-c__hit").length).toBeGreaterThan(0);
+    } finally {
+      rect.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("before its box is looked at (the first render, before the layout effect) a mini draws only its box", () => {
+    makeStore(makeView());
+    const html = renderToString(<PiCampo layout="desktop" mini show={{ source: "siete", boardId: "b1" }} />);
+    expect(html).toContain("pz-c--mini");
+    expect(html).not.toContain("pz-c__stage");
+    // (the shell's pitch is drawn at once)
+    expect(renderToString(<PiCampo layout="desktop" />)).toContain("pz-c__stage");
   });
 
   it("the rival: coral discs with dorsal and code, named in the legend (never colour alone)", () => {
