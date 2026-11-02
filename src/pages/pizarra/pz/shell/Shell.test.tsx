@@ -60,7 +60,8 @@ describe("the shell", () => {
     await h.flush();
     void act(() => h.P.act.openSheet("candidatos", { hueco: 6 }));
     await h.flush();
-    const dlg = screen.getByRole("dialog", { name: "Candidatos" });
+    // the Siete titles it with the slot («¿Quién al DC?»)
+    const dlg = screen.getByRole("dialog", { name: /^(Candidatos|¿Quién al \w+\?)$/ });
     expect(dlg.closest(".pz-s__side")).toBeTruthy();
     void act(() => fireEvent.keyDown(dlg, { key: "Escape" }));
     expect(h.P.state.sheet).toBeNull();
