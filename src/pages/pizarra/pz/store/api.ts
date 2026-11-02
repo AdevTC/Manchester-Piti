@@ -118,6 +118,9 @@ export interface PzSel {
   primary(place?: PlaceId): PrimaryAction | null;
   view(spec?: StageSpec): PzView;
   stage(): StageSpec;
+  /** Something would be lost by reloading now (an unsaved edit, an open sheet, a drawing, a drag, the charla, a 12 s
+   *  undo window): the app's update waits (lib/updateHold). */
+  busy(): boolean;
   /** The newest history entry (what the bar's Deshacer would undo). */
   histTop(): { id: number; scope: string; label: string } | null;
   canUndo(): boolean;
@@ -229,6 +232,8 @@ export interface PzApi {
   /** A namespaced, undoable piece of state (its init — a value or a function of the world — runs once per page). */
   slice<T>(name: string, init?: T | ((W: PzWorld, P: PzApi) => T)): PzSlice<T>;
   /** Anything undoable outside the seven and the slices. */
+  /** Hold the app's update reload for `ms` (a place's own undo window; long toasts with undo already do). */
+  holdFor(ms: number): void;
   /** Returns the entry's id (for P.act.undoEntry). */
   pushUndo(label: string, undo: () => void, redo: () => void, o?: { toast?: boolean; long?: boolean; scope?: string }): number;
   define(name: string, fn: (P: PzApi, ...args: unknown[]) => unknown): void;

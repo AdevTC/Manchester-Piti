@@ -152,7 +152,7 @@ describe("Siete · sheets", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Publicar$/ }));
     await flush();
     await flush();
-    expect(host.publish).toHaveBeenCalledWith({ convocatoria: false });
+    expect(host.publish).toHaveBeenCalledWith(expect.objectContaining({ convocatoria: false }));
     expect(screen.getByRole("status").textContent).toMatch(/Publicado · el oficial de la J3/);
   });
 

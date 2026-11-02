@@ -427,7 +427,8 @@ export interface HistEntry {
   scope: string;
   label: string;
   undo: () => void;
-  redo: () => void;
+  /** false = refused (it stays to redo; it says why). */
+  redo: () => void | boolean;
 }
 
 /** The store's state (read-only outside actions). */

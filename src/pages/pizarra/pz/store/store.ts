@@ -106,7 +106,9 @@ export interface PzHost {
   duplicate(id: string | null): Promise<string | void>;
   /** Delete after a few seconds; the returned function undoes it. */
   remove(id: string): () => void;
-  publish(o: { convocatoria: boolean }): Promise<void>;
+  /** Publish THIS board (it must be the one on screen: the session writes it) as the official of its match.
+   *  Rejects when it isn't. */
+  publish(o: { convocatoria: boolean; boardId: string; matchId: string | null }): Promise<void>;
   unpublish(id: string): Promise<void>;
   react(v: "ok" | "dudas" | null): void;
   retry(): void;
@@ -154,6 +156,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
   let host: PzHost = { ...NULL_HOST };
   let inputs: PzInputs = { W: EMPTY_WORLD, me: NOBODY, boardId: "", estado: "cargando", saveStatus: "saved", saved: null, ...init };
   let version = 0;
+  /** Until when an undo window holds the app's update reload (ms). */
+  let holdUntil = 0;
   let notifyQ = false;
   let toastT: ReturnType<typeof setTimeout> | undefined;
   let sayFlip = false;
@@ -235,6 +239,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     if (toastT) clearTimeout(toastT);
     const undo = o.undo === true ? () => act.undo() : typeof o.undo === "function" ? o.undo : null;
     S.toast = { id: version + 1, text, undo, long: !!o.long, action: o.action ?? null, icon: o.icon ?? "check" };
+    // a long undo window (a delete, an unpublish: 12 s) holds the app's update reload until it closes
+    if (o.long && undo) holdUntil = Math.max(holdUntil, Date.now() + 12500);
     toastT = setTimeout(() => {
       S.toast = null;
       bump();
@@ -599,7 +605,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
 
   // ── history (one stack; each entry knows how to undo and redo itself) ──────────────────────────────────
   let histSeq = 0;
-  function pushHist(label: string, undo: () => void, redo: () => void, scope = "siete"): number {
+  function pushHist(label: string, undo: () => void, redo: () => void | boolean, scope = "siete"): number {
     const id = ++histSeq;
     S.hist.undo.push({ id, scope, label, undo, redo });
     if (S.hist.undo.length > 60) S.hist.undo.shift();
@@ -1152,20 +1158,34 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
         toast(chk.block || "Abre uno de tus tableros para publicarlo.", { icon: "warn" });
         return;
       }
+      const id = S.boardId;
+      const matchId = b.matchId ?? chk.M?.id ?? null;
+      // the official it replaces (same match): «Deshacer» takes this one down but does not put that one back up
+      const prev = S.W.official && S.W.official.boardId !== id ? board(S.W.official.boardId) : null;
       try {
-        await host.publish({ convocatoria: o.convocatoria !== false && !chk.started });
+        await host.publish({ convocatoria: o.convocatoria !== false && !chk.started, boardId: id, matchId });
       } catch (e) {
         toast("No se ha podido publicar: " + (e instanceof Error ? e.message : "inténtalo otra vez"), { icon: "warn" });
         return;
       }
-      const id = S.boardId;
+      const name = b.name;
       pushHist(
         "Publicado como oficial",
         () => void host.unpublish(id),
-        () => void host.publish({ convocatoria: false }),
+        // redo publishes THAT board again, only while it is the one on screen (never whichever board is open now)
+        () => {
+          if (S.boardId !== id) {
+            toast(`Para volver a publicar «${name}», ábrelo primero`, { icon: "warn" });
+            return false;
+          }
+          host.publish({ convocatoria: false, boardId: id, matchId }).catch((e: unknown) => toast("No se ha podido publicar: " + (e instanceof Error ? e.message : "inténtalo otra vez"), { icon: "warn" }));
+          return true;
+        },
+        "boards",
       );
       emit("publish", { boardId: id, started: chk.started });
-      toast(chk.started ? "Publicado sin avisar: el partido ya ha empezado" : "Publicado: el equipo recibe «Ya está el siete»", { undo: true, long: true });
+      const was = prev ? ` · «${prev.name}» deja de ser el oficial (Deshacer no lo vuelve a publicar)` : "";
+      toast((chk.started ? "Publicado sin avisar: el partido ya ha empezado" : "Publicado: el equipo recibe «Ya está el siete»") + was, { undo: true, long: true });
     },
     react(v) {
       const b = board();
@@ -1239,7 +1259,11 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
         say("Nada que rehacer");
         return;
       }
-      e.redo();
+      // (an entry may refuse: it stays to redo, and says why)
+      if (e.redo() === false) {
+        S.hist.redo.push(e);
+        return;
+      }
       S.hist.undo.push(e);
       toast("Rehecho: " + e.label, { icon: "redo" });
     },
@@ -1402,6 +1426,15 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
         },
       ),
     stage: () => S.stage,
+    busy: () =>
+      S.saveStatus === "saving" ||
+      S.saveStatus === "error" ||
+      S.saveStatus === "offline" ||
+      !!S.sheet ||
+      S.drawing ||
+      !!S.drag ||
+      S.route.place === "charla" ||
+      Date.now() < holdUntil,
     histTop: () => {
       const e = S.hist.undo[S.hist.undo.length - 1];
       return e ? { id: e.id, scope: e.scope, label: e.label } : null;
@@ -1501,6 +1534,9 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     },
     emit,
     slice: <T,>(nm: string, init?: T | ((W: PzWorld, P: PzApi) => T)) => slice<T>(nm, init),
+    holdFor(ms) {
+      holdUntil = Math.max(holdUntil, Date.now() + ms);
+    },
     pushUndo(label, undo, redo, o) {
       const hid = pushHist(label, undo, redo, o?.scope ?? "place");
       if (o?.toast === false) bump();

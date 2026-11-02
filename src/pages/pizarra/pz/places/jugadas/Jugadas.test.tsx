@@ -7,11 +7,19 @@ import type { Play } from "../../../plays";
 import type { Lineup } from "../../../formations";
 
 vi.mock("../../campo/PiCampo", () => ({ PiCampo: () => <div data-testid="campo" /> }));
-vi.mock("../../../data/seasonPlays", () => ({
-  useSeasonPlays: () => ({ plays: [], team: [], mine: () => [], loading: false, error: false }),
-  createSeasonPlay: vi.fn(),
-  deleteSeasonPlay: vi.fn(),
-}));
+const SEASON = vi.hoisted(() => ({ plays: [] as unknown[], update: { calls: [] as unknown[][] } }));
+vi.mock("../../../data/seasonPlays", async (orig) => {
+  const real = await orig<typeof import("../../../data/seasonPlays")>();
+  return {
+    ...real,
+    useSeasonPlays: () => ({ plays: SEASON.plays, team: [], mine: () => [], loading: false, error: false }),
+    createSeasonPlay: vi.fn(async () => "sp-new"),
+    deleteSeasonPlay: vi.fn(async () => undefined),
+    updateSeasonPlay: vi.fn(async (...args: unknown[]) => {
+      SEASON.update.calls.push(args);
+    }),
+  };
+});
 
 import { Jugadas } from "./Jugadas";
 import { Dibujar } from "./Dibujar";
@@ -357,5 +365,94 @@ describe("Dibujar · on the Siete", () => {
     expect(screen.queryByRole("toolbar", { name: "Herramientas de dibujo" })).toBeNull();
     expect(screen.getByText("Solo lectura")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Duplicar para dibujar" })).toBeTruthy();
+  });
+});
+
+// ── round 2: the step's length, «Paso clave», strokes inside a step, season plays by reference, the board's size ──
+describe("Jugadas › Editar · round 2", () => {
+  const editor = (o: { plays?: Play[]; lineup?: Partial<Lineup>; sub?: string } = {}) =>
+    renderWithPz(
+      <>
+        <Jugadas region="lead" layout="desktop" />
+        <Jugadas region="side" layout="desktop" />
+        <Stage>
+          <Dibujar region="dock" layout="desktop" />
+        </Stage>
+      </>,
+      { place: "jugadas", sub: o.sub ?? "jown", q: { modo: "editar", paso: "2" }, world: fakeWorld({ boards: [fakeBoard({ lineup: { ...lineupWith(o.plays ?? [OWN]), ...o.lineup } })] }), me: ME_CAPTAIN },
+    );
+  beforeEach(() => {
+    SEASON.plays = [];
+    SEASON.update.calls = [];
+  });
+  it("the step lasts what you say (ms) and one step is «Paso clave»", async () => {
+    const { host, flush } = editor();
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Medio segundo más" }));
+    await flush();
+    expect(savedPlays(host.commit)[0].frames[1].dur).toBe(2800);
+    fireEvent.click(screen.getByRole("button", { name: /Paso clave/ }));
+    await flush();
+    const f = savedPlays(host.commit)[0].frames;
+    expect(f[1].key).toBe(true);
+    expect(f.filter((x) => x.key).length).toBe(1);
+    expect(screen.getByText(/Paso 2 de 3 · 2,8 s · paso clave/)).toBeTruthy();
+  });
+  it("draws inside the step (Flecha → a 2-point carrera in frames[].d) and erases it", async () => {
+    const { host, flush } = editor();
+    await flush();
+    fireEvent.click(within(screen.getByRole("toolbar", { name: "Herramientas de dibujo" })).getByRole("button", { name: /^Flecha:/ }));
+    const pad = document.querySelector(".pd-pad") as HTMLElement;
+    fireEvent.pointerDown(pad, { pointerType: "mouse", pointerId: 1, button: 0, clientX: 300, clientY: 400 });
+    fireEvent.pointerMove(window, { pointerType: "mouse", pointerId: 1, clientX: 340, clientY: 300 });
+    fireEvent.pointerUp(window, { pointerType: "mouse", pointerId: 1, clientX: 340, clientY: 300 });
+    await flush();
+    const d = savedPlays(host.commit)[0].frames[1].d ?? [];
+    expect(d.length).toBe(1);
+    expect(d[0]).toMatchObject({ kind: "carrera", points: [{ x: 50, y: 66.7 }, { x: 60, y: 50 }] });
+    // the other steps keep theirs (none)
+    expect(savedPlays(host.commit)[0].frames[0].d).toBeUndefined();
+    fireEvent.click(within(screen.getByRole("toolbar", { name: "Herramientas de dibujo" })).getByRole("button", { name: /^Borrar:/ }));
+    fireEvent.pointerDown(pad, { pointerType: "mouse", pointerId: 1, button: 0, clientX: 320, clientY: 350 });
+    fireEvent.pointerUp(window, { pointerType: "mouse", pointerId: 1, clientX: 320, clientY: 350 });
+    await flush();
+    expect(savedPlays(host.commit)[0].frames[1].d).toBeUndefined();
+  });
+  it("a season play the board uses: listed with yours, edited for every board (updateSeasonPlay, undoable), «Quitar de este tablero» drops the reference", async () => {
+    SEASON.plays = [{ id: "sp1", seasonId: "t1", ownerUid: "u-jordi", ownerNickname: "jordi", scope: "team", play: { ...OWN, id: "sp1", name: "Presión tras pérdida" }, createdAt: 0, updatedAt: 0 }];
+    const { P, host, flush } = editor({ plays: [], lineup: { seasonPlays: ["sp1"] }, sub: "sp1" });
+    await flush();
+    expect(screen.getByText(/se cambia en todos los tableros que la usan/)).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("button", { name: /^El balón en el paso 2/ }), { key: "ArrowRight" });
+    await flush();
+    expect(SEASON.update.calls.length).toBe(1);
+    expect((SEASON.update.calls[0][1] as Play).frames[1].ball).toEqual({ x: 20, y: 30 });
+    expect(P.sel.undoLabel()).toMatch(/en todos los tableros que la usan/);
+    P.act.undo();
+    await flush();
+    expect((SEASON.update.calls[1][1] as Play).frames[1].ball).toEqual({ x: 18, y: 30 });
+    const n0 = host.commit.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: /Quitar de este tablero/ }));
+    await flush();
+    expect(host.commit.mock.calls.length).toBe(n0 + 1);
+    expect(lastL(host.commit).seasonPlays).toEqual([]);
+  });
+  it("«Usar» puts a season play on this board by reference (no copy of its steps)", async () => {
+    SEASON.plays = [{ id: "sp2", seasonId: "t1", ownerUid: "u-jordi", ownerNickname: "jordi", scope: "mine", play: { ...OWN, id: "sp2", name: "Que no gire su 7" }, createdAt: 0, updatedAt: 0 }];
+    const { host, flush } = renderWithPz(<><Jugadas region="lead" layout="desktop" /><Jugadas region="side" layout="desktop" /></>, { place: "jugadas", world: world([]) });
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Usar «Que no gire su 7» en este tablero" }));
+    await flush();
+    expect(lastL(host.commit).seasonPlays).toEqual(["sp2"]);
+    expect(lastL(host.commit).plays ?? []).toEqual([]);
+  });
+  it("a board near 1 MiB: a calm notice, and nothing grows (no new step)", async () => {
+    const { host, flush } = editor({ lineup: { big: "x".repeat(950_000) } as unknown as Partial<Lineup> });
+    await flush();
+    expect(screen.getAllByText(/El tablero está lleno/).length).toBeGreaterThan(0);
+    const n0 = host.commit.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: /Paso al final/ }));
+    await flush();
+    expect(host.commit.mock.calls.length).toBe(n0);
   });
 });

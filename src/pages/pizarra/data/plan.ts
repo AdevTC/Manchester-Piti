@@ -72,7 +72,9 @@ export const planSchema = z.object({
   parado: z.unknown().optional(),
 });
 
-const cleanText = (v: unknown, max: number): string => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+/** A text as stored: «¬» dropped (firestore.rules joins the keys with it: one inside would refuse every later save of
+ *  the board — a stored one heals on the next save, as parsePlan runs it too), spaces folded, cut to `max`. */
+const cleanText = (v: unknown, max: number): string => (typeof v === "string" ? v.replace(/¬/g, "").replace(/\s+/g, " ").trim().slice(0, max) : "");
 
 /** The stored `plan` (undefined = never set, null = taken off), repaired. */
 export function parsePlan(raw: unknown, docId = "-"): BoardPlan | null | undefined {

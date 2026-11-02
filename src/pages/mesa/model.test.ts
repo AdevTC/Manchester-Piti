@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
-import { boardExtrasOf, buzzOf, eventText, mesaSuggestion, NO_EXTRAS, penaltyNow, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
+import { boardExtrasOf, buzzOf, eventText, mesaSuggestion, NO_EXTRAS, penaltyNow, withLocal, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
 
 const ev = (id: string, type: MatchEvent["type"], at: number, more: Partial<MatchEvent> = {}): MatchEvent => ({ id, type, elapsedSeconds: at, period: 1, ...more });
 
@@ -217,6 +217,19 @@ describe("r14 · la pizarra llega a la mesa: «Si pasa…» y el lanzador de pen
     expect(s?.text).toContain("entra HUGO por SERGIO");
     // (Hugo isn't on the bench any more: the rule still says so, without the cambio)
     expect(mesaSuggestion(rules, { minute: 36, us: 0, them: 1, field, bench: [], nameOf })?.sub).toBeNull();
+  });
+  it("si se cumplen dos, la que tiene un cambio posible no se esconde tras la primera", () => {
+    const first = { ...rule, id: "c0", sub: { out: "sergio", in: "nadie" } };
+    const rules = boardExtrasOf({ condPlan: [first, rule] }).condPlan;
+    expect(mesaSuggestion(rules, { minute: 36, us: 0, them: 1, field: ["alex", "sergio"], bench: ["hugo"], nameOf })?.sub).toEqual({ inId: "hugo", outId: "sergio" });
+  });
+  it("sin red, el marcador cuenta los goles en cola (withLocal) y un tiro en cola cierra el penalti", () => {
+    const rules = boardExtrasOf({ condPlan: [rule] }).condPlan;
+    const all = withLocal([], [{ requestId: "q1", id: "q1", type: "opponent_goal", tappedElapsed: 2000, period: 1 }], "u");
+    expect(mesaSuggestion(rules, { minute: 36, ...mesaScore(all), field: ["sergio"], bench: ["hugo"], nameOf })).not.toBeNull();
+    const pen = { id: "p", type: "penalty_received", minute: 20, elapsedSeconds: 1190, period: 1 };
+    const shot = withLocal([pen] as Parameters<typeof withLocal>[0], [{ requestId: "q2", id: "q2", type: "goal_penalty", playerId: "mario", tappedElapsed: 1220, period: 1 }], "u");
+    expect(penaltyNow(shot, ["mario"], ["mario"])).toBeNull();
   });
   it("tras un «Penalti a favor», lo tira el primero de la lista que está en el campo; el tiro (o cualquier jugada) lo cierra", () => {
     const pen = { id: "p", type: "penalty_received", minute: 20, elapsedSeconds: 1190, period: 1 };

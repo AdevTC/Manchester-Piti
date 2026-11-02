@@ -103,6 +103,70 @@ describe("who can come", () => {
   });
 });
 
+describe("busy: what holds the app's update reload", () => {
+  it("idle → not busy; a pending save, a sheet, a drawing, the charla or a 12 s undo window → busy", () => {
+    const h = makeTestStore();
+    expect(h.P.sel.busy()).toBe(false);
+    h.attach({ saveStatus: "saving" });
+    expect(h.P.sel.busy()).toBe(true);
+    h.attach({ saveStatus: "offline" });
+    expect(h.P.sel.busy()).toBe(true);
+    h.attach({ saveStatus: "saved" });
+    h.P.act.openSheet("sistema");
+    expect(h.P.sel.busy()).toBe(true);
+    h.P.act.closeSheet();
+    h.P.act.setDrawing(true);
+    expect(h.P.sel.busy()).toBe(true);
+    h.P.act.setDrawing(false);
+    h.P.setRoute({ place: "charla", sub: "", q: {} });
+    expect(h.P.sel.busy()).toBe(true);
+    h.P.setRoute({ place: "siete", sub: "", q: {} });
+    expect(h.P.sel.busy()).toBe(false);
+    h.P.act.deleteBoard("b1");
+    expect(h.P.sel.busy()).toBe(true);
+  });
+  it("the undo window closes after 12 s", () => {
+    vi.useFakeTimers();
+    try {
+      const h = makeTestStore();
+      h.P.holdFor(12500);
+      expect(h.P.sel.busy()).toBe(true);
+      vi.advanceTimersByTime(13000);
+      expect(h.P.sel.busy()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("publish: undo and redo stay on THAT board", () => {
+  const full = ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"];
+  const world = () => fakeWorld({ boards: [fakeBoard({ id: "A", name: "Tablero A", ids: full }), fakeBoard({ id: "B", name: "Tablero B", ids: full })], official: { boardId: "Z", matchId: "j3" } });
+  it("publishes the board on screen by id; after opening another, redo refuses (it never publishes the other)", async () => {
+    const h = makeTestStore({ world: world(), boardId: "A" });
+    await h.P.act.publish();
+    expect(h.host.publish).toHaveBeenLastCalledWith({ convocatoria: true, boardId: "A", matchId: "j3" });
+    h.attach({ boardId: "B" });
+    h.P.act.undo();
+    expect(h.host.unpublish).toHaveBeenCalledWith("A");
+    h.P.act.redo();
+    expect(h.host.publish).toHaveBeenCalledTimes(1);
+    expect(h.P.state.toast?.text).toBe("Para volver a publicar «Tablero A», ábrelo primero");
+    // still there to redo once A is open again
+    expect(h.P.sel.canRedo()).toBe(true);
+    h.attach({ boardId: "A" });
+    h.P.act.redo();
+    expect(h.host.publish).toHaveBeenLastCalledWith({ convocatoria: false, boardId: "A", matchId: "j3" });
+  });
+  it("says that the official it replaced is not put back by Deshacer", async () => {
+    const w = world();
+    w.boards.push(fakeBoard({ id: "Z", name: "El de antes", isOfficial: true }));
+    const h = makeTestStore({ world: w, boardId: "A" });
+    await h.P.act.publish();
+    expect(h.P.state.toast?.text).toMatch(/«El de antes» deja de ser el oficial \(Deshacer no lo vuelve a publicar\)/);
+  });
+});
+
 describe("history entries, copies, members, sheet texts", () => {
   it("every entry has an id and a scope; undoEntry undoes that one wherever it is", () => {
     const { P, host } = makeTestStore();

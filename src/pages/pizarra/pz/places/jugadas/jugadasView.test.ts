@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PzSlot } from "../../store/types";
 import type { Play } from "../../../plays";
-import { addStepEnd, bendTo, castOf, delStepAt, dupStepAt, fromSteps, keyStep, moveStepTo, nudgeIn, ownPlay, parseAt, atText, playSig, stepPaths, teamPlays, videoError, zoomOf, addRivalAll, removeRivalAll, type PjStep } from "./jugadasView";
+import { boardBytes, setDurAt, setKeyAt, setStrokesAt, sizeState, SIZE_FULL, SIZE_WARN, addStepEnd, bendTo, castOf, delStepAt, dupStepAt, fromSteps, keyStep, moveStepTo, nudgeIn, ownPlay, parseAt, atText, playSig, stepPaths, teamPlays, videoError, zoomOf, addRivalAll, removeRivalAll, type PjStep } from "./jugadasView";
 
 const SLOTS: PzSlot[] = [
   { code: "POR", x: 50, y: 92, playerId: "evans" },
@@ -174,5 +174,58 @@ describe("jugadasView · the video link", () => {
     expect(videoError("http://x.com/a", "")).toMatch(/https/);
     expect(videoError("https://youtu.be/abcdef", "1x")).toMatch(/12:34/);
     expect(videoError("https://youtu.be/abcdef", "0:45")).toBe("");
+  });
+});
+
+describe("jugadasView · the step's length, «Paso clave», strokes (frames[].dur / key / d)", () => {
+  const play: Play = {
+    id: "j2",
+    name: "Con todo",
+    kind: "propia",
+    frames: [
+      { players: { evans: { x: 50, y: 92 } }, ball: { x: 50, y: 88 }, rivals: [], arrows: [], dur: 1500 },
+      { players: { evans: { x: 50, y: 80 } }, ball: { x: 50, y: 70 }, rivals: [], arrows: [], key: true, d: [{ id: "k1", kind: "zona", color: "gold", points: [{ x: 10, y: 10 }, { x: 30, y: 30 }] }] },
+    ],
+  };
+  it("reads and writes them back", () => {
+    const pj = ownPlay(play, SLOTS);
+    expect(pj.steps[0].dur).toBe(1.5);
+    expect(pj.steps[1].dur).toBe(2.6);
+    expect(pj.steps[1].key).toBe(true);
+    expect(pj.steps[1].d?.length).toBe(1);
+    const back = fromSteps(pj, pj.steps);
+    expect(back.frames[0].dur).toBe(1500);
+    expect(back.frames[1].dur).toBe(2600);
+    expect(back.frames[0].key).toBeUndefined();
+    expect(back.frames[1].key).toBe(true);
+    expect(back.frames[1].d).toEqual(play.frames[1].d);
+  });
+  it("a marked step is the key one; one at a time; unmarked = most movement", () => {
+    const pj = ownPlay(play, SLOTS);
+    expect(keyStep(pj.steps)).toBe(1);
+    const k0 = setKeyAt(pj.steps, 0, true);
+    expect(k0.map((s) => !!s.key)).toEqual([true, false]);
+    expect(keyStep(setKeyAt(pj.steps, 1, false))).toBe(1);
+  });
+  it("length in half seconds 0,5–5; strokes ≤ 8; a new step copies neither the key nor the strokes", () => {
+    const pj = ownPlay(play, SLOTS);
+    expect(setDurAt(pj.steps, 0, 9)[0].dur).toBe(5);
+    expect(setDurAt(pj.steps, 0, 0.1)[0].dur).toBe(0.5);
+    const many = Array.from({ length: 10 }, (_, k) => ({ id: "k" + k, kind: "pase" as const, color: "white" as const, points: [{ x: 1, y: 1 }, { x: 9, y: 9 }] }));
+    expect(setStrokesAt(pj.steps, 0, many)[0].d?.length).toBe(8);
+    expect(setStrokesAt(pj.steps, 1, [])[1].d).toBeUndefined();
+    const added = addStepEnd(pj.steps)!;
+    expect(added[2].key).toBeUndefined();
+    expect(added[2].d).toBeUndefined();
+  });
+});
+
+describe("jugadasView · the board's size (1 MiB per document)", () => {
+  it("counts UTF-8 bytes and says ok · warn · full", () => {
+    expect(boardBytes({ a: "ñ" })).toBe(10);
+    expect(sizeState(SIZE_WARN - 1)).toBe("ok");
+    expect(sizeState(SIZE_WARN)).toBe("warn");
+    expect(sizeState(SIZE_FULL)).toBe("full");
+    expect(SIZE_FULL).toBeLessThan(1_048_576);
   });
 });

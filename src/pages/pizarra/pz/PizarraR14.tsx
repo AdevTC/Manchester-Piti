@@ -17,6 +17,7 @@ import { useLineups } from "../useLineups";
 import { useReactions } from "../useReactions";
 import { usePizarraPrefs } from "../data/prefs";
 import { copyBoardVoices } from "../data/boards";
+import { holdUpdatesWhile } from "../../../lib/updateHold";
 import { boardSeason, useBoardData } from "../v2/useBoardData";
 import { useSeasonLineupDocs } from "../seasonLineups";
 import { useAbsences, useAvailability } from "../../vestuario/live";
@@ -141,8 +142,10 @@ export function PizarraR14() {
         return nid;
       },
       remove: (id) => session.remove(id),
-      publish: async ({ convocatoria }) => {
-        const id = await session.publish(m?.id ?? null);
+      publish: async ({ convocatoria, boardId, matchId }) => {
+        // the session publishes the board on screen: never another one (a redo after opening a different board)
+        if (session.id !== boardId) throw new Error("ese tablero ya no es el que tienes abierto");
+        const id = await session.publish(matchId ?? m?.id ?? null);
         if (convocatoria && isAdmin && m && typeof id === "string") {
           const v = store.sel.ver(store.sel.board(), "titular");
           const starters = (v?.slots ?? []).map((s) => s.playerId).filter((x): x is string => !!x);
@@ -193,6 +196,9 @@ export function PizarraR14() {
       reactions: official ? { ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, ...(reactions.who ? { who: reactions.who } : {}) } : undefined,
     });
   }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, visibleDocs, memberAnswers, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, prefs.prefs, stills, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
+
+  // a new version waits while the pizarra is busy (unsaved edit, sheet, drawing, charla, undo window), not longer
+  useEffect(() => holdUpdatesWhile(() => store.sel.busy()), [store]);
 
   // what changed under the board (another tab, a new official, a failed save) is said
   useEffect(() => {

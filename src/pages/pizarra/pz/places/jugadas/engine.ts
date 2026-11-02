@@ -6,7 +6,10 @@
 import type { PzApi } from "../../store/api";
 import type { PzBoard, PzSlot } from "../../store/types";
 import type { RoleKey } from "../../../formations";
-import type { Play } from "../../../plays";
+import { playToData, type Play } from "../../../plays";
+import { boardSeasonPlays, updateSeasonPlay, type SeasonPlay } from "../../../data/seasonPlays";
+import { withSeasonPlay } from "../../../data/seasonPlayRefs";
+import { strokePath } from "./drawView";
 import {
   MAX_OWN,
   RATES,
@@ -26,6 +29,9 @@ import {
   type PjPlay,
   type PjStep,
   type XY,
+  boardBytes,
+  sizeState,
+  type SizeState,
 } from "./jugadasView";
 
 export interface PjUi {
@@ -131,24 +137,70 @@ export function team(P: PzApi): PjPlay[] {
   return plays;
 }
 const ownCache = new WeakMap<Play, { key: string; pj: PjPlay }>();
-/** The board's own plays, read by slot. */
+
+// ── the season's plays (seasonPlays/{id}; a board names the ones it uses in lineups.seasonPlays) ──────────────
+/** What useSeasonPlays read (SeasonSync puts it here) and the edits not echoed back yet. */
+const seasonReg = new WeakMap<object, { all: SeasonPlay[]; pending: Map<string, Play> }>();
+function seasonOf(P: PzApi) {
+  let r = seasonReg.get(P.state);
+  if (!r) {
+    r = { all: [], pending: new Map() };
+    seasonReg.set(P.state, r);
+  }
+  return r;
+}
+export function setSeasonPlays(P: PzApi, all: SeasonPlay[]) {
+  const r = seasonOf(P);
+  r.all = all;
+  // an edit is echoed once the read carries it
+  for (const [id, pl] of r.pending) {
+    const sp = all.find((x) => x.id === id);
+    if (sp && JSON.stringify(playToData(sp.play)) === JSON.stringify(playToData({ ...pl, id }))) r.pending.delete(id);
+  }
+  ui(P).set({}, { undoable: false });
+}
+export const seasonAll = (P: PzApi): SeasonPlay[] => seasonOf(P).all;
+/** The season plays this board uses (in its order) and the refs whose play is gone. */
+export function boardSeason(P: PzApi): { plays: SeasonPlay[]; missing: string[] } {
+  return boardSeasonPlays(boardOf(P)?.lineup.seasonPlays, seasonOf(P).all);
+}
+
+/** The board's own plays, read by slot, then the season plays it uses. */
 export function own(P: PzApi): PjPlay[] {
   const b = boardOf(P);
   const slots = slotsNow(P);
   if (!b || slots.length !== 7) return [];
   const key = slots.map((s) => `${s.x},${s.y}${s.playerId ?? ""}`).join(";");
-  return (b.lineup.plays ?? []).map((pl) => {
+  const read = (pl: Play) => {
     const c = ownCache.get(pl);
     if (c && c.key === key) return c.pj;
     const pj = ownPlay(pl, slots);
     ownCache.set(pl, { key, pj });
     return pj;
-  });
+  };
+  const pend = seasonOf(P).pending;
+  const season = boardSeason(P).plays.map((sp) => ({ ...read(pend.get(sp.id) ?? sp.play), id: sp.id, season: { id: sp.id, scope: sp.scope, ownerUid: sp.ownerUid, ownerNick: sp.ownerNickname } }));
+  return [...(b.lineup.plays ?? []).map(read), ...season];
 }
 export const find = (P: PzApi, id: string | null | undefined): PjPlay | null => (id ? (own(P).find((p) => p.id === id) ?? team(P).find((p) => p.id === id) ?? null) : null);
 export const curId = (P: PzApi): string => (P.state.route.place === "jugadas" ? P.state.route.sub || "" : "");
 export const cur = (P: PzApi): PjPlay | null => find(P, curId(P));
-export const canEditPlay = (P: PzApi, pj: PjPlay | null) => !!pj && pj.own && canMake(P);
+/** A board play: the board is yours to edit. A season play: you made it, or you are a captain (any board). */
+export const canEditPlay = (P: PzApi, pj: PjPlay | null): boolean => {
+  if (!pj || !pj.own) return false;
+  const m = P.sel.me();
+  if (pj.season) return !m.socia && !m.fuera && (pj.season.ownerUid === m.uid || m.cap);
+  return canMake(P);
+};
+/** The board's size against Firestore's 1 MiB. */
+export const sizeOf = (P: PzApi): SizeState => sizeState(boardBytes(boardOf(P)?.lineup ?? null));
+/** Nothing more can grow on this board (toast says why). */
+export function fullBoard(P: PzApi, pj?: PjPlay | null): boolean {
+  if (pj?.season) return false;
+  if (sizeOf(P) !== "full") return false;
+  P.toast("El tablero está casi lleno: quita jugadas, pasos o trazos que no uses para añadir más", { icon: "warn" });
+  return true;
+}
 /** The steps on screen (the drag's draft while one is on). */
 export function stepsOf(P: PzApi, pj: PjPlay): PjStep[] {
   const d = U(P).draft;
@@ -199,16 +251,18 @@ export function sync(P: PzApi, x: { pos?: { p: XY[]; r: XY[]; b: XY | null }; du
     const steps = pv.steps;
     const k = keyStep(steps);
     const z = zoomFor(P, steps);
-    P.act.setStage({ ...frameSpec(steps, k, { o: { ghost: true, trails: true, ball: true }, rivals: true, ball: true, rivalName: riv.name, rivalCode: code, short: !!z }), zoom: z });
+    P.act.setStage({ ...frameSpec(steps, k, { o: { ghost: true, trails: true, ball: true }, rivals: true, ball: true, rivalName: riv.name, rivalCode: code, short: !!z, draw: drawStep }), zoom: z });
     return;
   }
   const steps = stepsOf(P, pj);
   const i = clamp(x.i ?? u.step, 0, steps.length - 1);
   const edit = u.mode === "editar";
   const z = zoomFor(P, steps);
-  const spec = frameSpec(steps, i, { pos: x.pos, dur: x.dur ?? 0.6, o: { ghost: edit || pr.ghost, trails: edit || pr.trails, ball: pr.ball }, rivals: pr.rivals || edit, ball: pr.ball || edit, rivalName: riv.name, rivalCode: code, short: !!z });
+  const spec = frameSpec(steps, i, { pos: x.pos, dur: x.dur ?? 0.6, o: { ghost: edit || pr.ghost, trails: edit || pr.trails, ball: pr.ball }, rivals: pr.rivals || edit, ball: pr.ball || edit, rivalName: riv.name, rivalCode: code, short: !!z, draw: drawStep });
   P.act.setStage({ ...spec, zoom: z });
 }
+
+const drawStep = (s: Parameters<typeof strokePath>[0]) => strokePath(s, null);
 
 // ── the replay ──────────────────────────────────────────────────────────────────────────────────────────
 const timers = new WeakMap<object, ReturnType<typeof setTimeout>>();
@@ -347,10 +401,49 @@ export function saveSteps(P: PzApi, pj: PjPlay, steps: PjStep[], label: string, 
     if (o.moment) next.moment = o.moment;
     else delete next.moment;
   }
+  if (pj.season) return saveSeason(P, pj.season.id, pj.play, next, label);
   const plays = (b.lineup.plays ?? []).map((p) => (p.id === pj.id ? next : p));
   const ok = P.act.saveBoard({ plays }, label, { toast: o.toast, long: o.long });
   if (ok) sync(P);
   return ok;
+}
+/** A season play's new version (updateSeasonPlay): it changes on every board that uses it; undoable. */
+function saveSeason(P: PzApi, id: string, before: Play, next: Play, label: string): boolean {
+  const reg = seasonOf(P);
+  const write = (pl: Play, what: string) => {
+    reg.pending.set(id, pl);
+    ui(P).set({}, { undoable: false });
+    sync(P);
+    updateSeasonPlay(id, pl).catch(() => {
+      reg.pending.delete(id);
+      ui(P).set({}, { undoable: false });
+      sync(P);
+      P.toast(`No se ha podido guardar ${what}: prueba otra vez`, { icon: "warn" });
+    });
+  };
+  const prev = reg.pending.get(id) ?? before;
+  write(next, "la jugada");
+  P.pushUndo(
+    `${label} · en todos los tableros que la usan`,
+    () => write(prev, "el cambio"),
+    () => write(next, "el cambio"),
+    { toast: false },
+  );
+  return true;
+}
+/** «Usar en este tablero» / «Quitar de este tablero»: the board names (or stops naming) a season play. */
+export function seasonOnBoard(P: PzApi, id: string, on: boolean, name: string): boolean {
+  const b = boardOf(P);
+  if (!b) return false;
+  const refs = b.lineup.seasonPlays ?? [];
+  let next: string[];
+  try {
+    next = withSeasonPlay(refs, id, on);
+  } catch (e) {
+    P.toast(e instanceof Error ? e.message : "Este tablero ya usa todas las que caben", { icon: "warn" });
+    return false;
+  }
+  return P.act.saveBoard({ seasonPlays: next }, on ? `«${name}» ya está en este tablero` : `«${name}» ya no está en este tablero`, { long: !on });
 }
 /** The same steps with the ids a move needs: a slot of the seven not in the play joins it (its player's id). */
 export function idsForMove(P: PzApi, pj: PjPlay, pieces: string[]): (string | null)[] | "hueco" {
@@ -386,6 +479,7 @@ function addOwn(P: PzApi, play: Play, label: string, then: string): boolean {
     return false;
   }
   const list = b.lineup.plays ?? [];
+  if (fullBoard(P)) return false;
   if (list.length >= MAX_OWN) {
     P.toast(`Ya tienes ${MAX_OWN} jugadas en este tablero: borra una para guardar otra`, { icon: "warn" });
     return false;
@@ -463,17 +557,24 @@ export function delPlay(P: PzApi) {
   const pj = cur(P);
   if (!b || !pj || !pj.own) return;
   setUi(P, { confirmDel: false });
+  if (pj.season) {
+    // (a season play is not deleted from here: it leaves this board, it stays in the season and on other boards)
+    P.act.go("/pizarra/jugadas");
+    seasonOnBoard(P, pj.season.id, false, pj.name);
+    return;
+  }
   const plays = (b.lineup.plays ?? []).filter((p) => p.id !== pj.id);
   P.act.go("/pizarra/jugadas");
   P.act.saveBoard({ plays }, `«${pj.name}» borrada`, { long: true });
 }
-export function editSteps(P: PzApi, label: string, fn: (steps: PjStep[]) => PjStep[] | null, o: { toast?: boolean; long?: boolean; goTo?: (n: number) => number } = {}): boolean {
+export function editSteps(P: PzApi, label: string, fn: (steps: PjStep[]) => PjStep[] | null, o: { toast?: boolean; long?: boolean; goTo?: (n: number) => number; grow?: boolean } = {}): boolean {
   const pj = cur(P);
   if (!pj) return false;
   if (!canEditPlay(P, pj)) {
     askCopy(P);
     return false;
   }
+  if (o.grow && fullBoard(P, pj)) return false;
   const next = fn(pj.steps);
   if (!next) {
     P.toast(`Una jugada tiene entre 2 y 8 pasos`);

@@ -15,6 +15,8 @@
 // filled, a dialog is open or a write is in flight, nor on la mesa, the admin or the pizarra (live scoring
 // and unsaved boards). Meanwhile UpdateNotice offers «Hay una versión nueva · Actualizar».
 
+import { heldByPage } from "./updateHold";
+
 /** What the controller needs from the router (the app's TanStack router fits). */
 export type UpdateRouter = {
   subscribe(event: "onBeforeNavigate", fn: (e: { pathChanged: boolean }) => void): () => void;
@@ -45,14 +47,18 @@ export const NAV_CHECK_GAP_MS = 5 * 60_000;
 const PRELOAD_RELOAD_KEY = "piti-update-reload";
 const PRELOAD_RELOAD_MS = 30_000;
 
-// Pages where nothing reloads by itself: the live scoring (la mesa, the admin's «en juego» and its forms)
-// and the pizarra (a board being drawn).
-const HELD_PATHS = [/^\/partidos\/[^/]+\/mesa\/?$/, /^\/admin(\/|$)/, /^\/pizarra(\/|$)/];
+// Pages where nothing reloads by itself: the live scoring (la mesa, the admin's «en juego» and its forms).
+const HELD_PATHS = [/^\/partidos\/[^/]+\/mesa\/?$/, /^\/admin(\/|$)/];
+// The pizarra holds only while it is busy (an unsaved edit, an open sheet, a drawing, the charla, a 12 s undo
+// window: it says so through lib/updateHold); idle, it switches like any page — an old tab must not keep writing
+// boards with old code.
+const PIZARRA = /^\/pizarra(\/|$)/;
 const TYPED = new Set(["", "text", "email", "number", "tel", "url", "search", "password", "date", "time", "datetime-local", "month", "week"]);
 
 /** True when switching now could lose what someone is doing on this page. */
 export function holdsUpdate(doc: Document, pathname: string): boolean {
   if (HELD_PATHS.some((re) => re.test(pathname))) return true;
+  if (PIZARRA.test(pathname) && heldByPage()) return true;
   const active = doc.activeElement;
   if (active && active !== doc.body && (active.matches("input, textarea, select") || (active as HTMLElement).isContentEditable)) return true;
   const shown = (el: Element) => !el.closest('[hidden], [aria-hidden="true"], [inert]');

@@ -10,7 +10,7 @@ import { OURS, shownMinute, THEIRS } from "../../../../../lib/partidos";
 import type { LineupVariant, Sub } from "../../../formations";
 import { liveRules, ruleHolds, type CondRuleR14 } from "../../../data/condPlan";
 import { versionChanges } from "../../../data/mesa";
-import { planRuleText } from "../plan/planView";
+import { planRuleText } from "../plan/ruleText";
 import type { PzApi } from "../../store/api";
 import type { PzBoard, PzMatch, PzSlot, PzStatus, PzVer, StageSpec, Mark } from "../../store/types";
 
@@ -132,6 +132,8 @@ export interface PtModel {
   tandas: Tanda[];
   L: PtLive | null;
   now: number;
+  /** The minute people read (football's, 1-based, as la mesa and the match page show it): every label uses it. */
+  shown: number;
   startPids: (string | null)[];
   decide: boolean;
   ro: boolean;
@@ -182,19 +184,37 @@ export function liveLine(M: PzMatch, now: number): { min: number | null; gf: num
   return { min, gf, ga };
 }
 
-/** The match on screen: ?partido=, else the board's, else the next (the store's match()). */
+const RECENT_MS = 3 * 86400000;
+/** The match on screen (PAR-10): ?partido=; else the one being played now (whatever board is open: the day of the
+ *  match is about it); else the board's match when it is still to play or was played in the last three days; else
+ *  one played in the last three days; else the next (the store's match()). */
 export function ptMatch(P: PzApi): PzMatch | null {
   const q = P.state.route.q.partido;
-  return (q ? P.sel.match(q) : null) ?? P.sel.match();
+  const asked = q ? P.sel.match(q) : null;
+  if (asked) return asked;
+  const now = P.state.W.now;
+  const all = P.state.W.matches;
+  const live = all.find((m) => {
+    const ph = phaseOf(m, now);
+    return ph === "juego" || ph === "descanso";
+  });
+  if (live) return live;
+  const bm = P.sel.match(P.sel.board()?.matchId ?? null);
+  const fresh = (m: PzMatch) => !m.played || now - m.at < RECENT_MS;
+  if (bm && P.sel.board()?.matchId === bm.id && fresh(bm)) return bm;
+  const recent = all.filter((m) => m.played && now - m.at < RECENT_MS && m.at <= now).sort((a, b) => b.at - a.at)[0];
+  if (recent) return recent;
+  return (P.state.W.next ? P.sel.match(P.state.W.next) : null) ?? P.sel.match();
 }
 
-/** The board the day is planned on: the match's official, else the board on screen when it is this match's. */
+/** The board the day is planned on: the match's official (from all the boards), else the board on screen when it is
+ *  this match's — never another match's board. */
 export function planBoard(P: PzApi, M: PzMatch | null): PzBoard | null {
-  const o = P.sel.official();
-  if (o && M && o.matchId === M.id) return o;
+  if (!M) return null;
+  const o = P.state.W.boards.find((x) => x.isOfficial && x.matchId === M.id) ?? null;
+  if (o) return o;
   const b = P.sel.board();
-  if (b && M && b.matchId === M.id) return b;
-  return o ?? b ?? null;
+  return b && b.matchId === M.id ? b : null;
 }
 
 /** Each one's time on the pitch from `start` and the cambios (a red: in null) up to `T`. */
@@ -321,7 +341,8 @@ export function ptModel(P: PzApi, feed0: PtFeed, ui: PtUi): PtModel {
       if (t) next = { min: t.min, out: t.out, in: t.in, id: t.id };
     }
   }
-  return { M, ph, b, v, st, feed, ui, D, HALF, planSubs, tandas, L, now, startPids, decide, ro, yes, present, field, bench, reds, planIv, actIv, cond, next };
+  const shown = ph === "juego" && feed.shown != null ? feed.shown : now;
+  return { M, ph, b, v, st, feed, ui, D, HALF, planSubs, tandas, L, now, shown, startPids, decide, ro, yes, present, field, bench, reds, planIv, actIv, cond, next };
 }
 
 export const playedOf = (X: PtModel, p: string): number => (X.actIv ? total(X.actIv[p]) : 0);
