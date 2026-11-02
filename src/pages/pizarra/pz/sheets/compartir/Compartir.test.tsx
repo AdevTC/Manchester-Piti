@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 
 vi.mock("../../campo/PiCampo", () => ({ PiCampo: () => <div data-testid="campo" /> }));
+vi.mock("firebase/firestore", async (orig) => ({ ...(await orig<typeof import("firebase/firestore")>()), getDoc: vi.fn(async () => ({ data: () => ({}) })) }));
 vi.mock("./posterDraw", () => ({ posterBlob: vi.fn(async () => new Blob(["x"], { type: "image/png" })) }));
 const fanCall = vi.fn(async (_d: unknown) => ({ data: { ok: true, token: "abcdefghijklmnopqrstuvwx" } }));
 vi.mock("../../../../../lib/clubApi", () => ({ setBoardFanLink: (d: unknown) => fanCall(d) }));

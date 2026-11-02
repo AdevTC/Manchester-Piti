@@ -5,6 +5,8 @@
 // read-only page — PZ-D21F, callable setBoardFanLink). Tú's pieces: Seg (palco kit), saveBlob/copyText (fxRuntime),
 // shareOut/sharePlan/shareToast (perfil/share), qrPath (acceso).
 import { useEffect, useRef, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../../../../firebase";
 import "../../../../../styles/pz/charla.css";
 import { Seg } from "../../../../stats/palco/kit";
 import { copyText, errorMessage, saveBlob } from "../../../../perfil/fxRuntime";
@@ -513,6 +515,24 @@ function Enlace({ P }: { P: PzApi }) {
   const charla = origin() + charlaHref(b.id, season);
   const qr = qrPath(link);
   const [fan, setFan] = useState<{ token: string | null; busy: boolean; err: string }>(() => ({ token: fanTokenOf(b.lineup), busy: false, err: "" }));
+  // (the board's fan token is the server's: read it once from the stored board)
+  const [asked, setAsked] = useState(false);
+  useEffect(() => {
+    if (draft || asked) return;
+    let off = false;
+    void getDoc(doc(db, "lineups", b.id)).then(
+      (snap) => {
+        if (off) return;
+        setAsked(true);
+        const t = fanTokenOf(snap.data());
+        if (t) setFan((f) => (f.token ? f : { ...f, token: t }));
+      },
+      () => setAsked(true),
+    );
+    return () => {
+      off = true;
+    };
+  }, [b.id, draft, asked]);
   const canFan = !draft && (P.sel.canEdit(b) || me.cap || b.ownerUid === me.uid);
   const fanUrl = fan.token ? origin() + fanPath(fan.token) : "";
   const callFan = async (on: boolean, rotate = false) => {
