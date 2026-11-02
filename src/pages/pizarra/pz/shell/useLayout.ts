@@ -18,3 +18,16 @@ function subscribe(cb: () => void): () => void {
 export function useLayout(): Layout {
   return useSyncExternalStore(subscribe, layoutNow, () => "desktop");
 }
+
+const XL = "(min-width: 1800px)";
+const xlNow = () => typeof window !== "undefined" && !!window.matchMedia?.(XL).matches;
+function subscribeXl(cb: () => void): () => void {
+  if (typeof window === "undefined" || !window.matchMedia) return () => undefined;
+  const q = window.matchMedia(XL);
+  q.addEventListener?.("change", cb);
+  return () => q.removeEventListener?.("change", cb);
+}
+/** The grande frame (≥ 1800: 450 · stage · 480, bigger heroes, full labels in the board bar). */
+export function useXl(): boolean {
+  return useSyncExternalStore(subscribeXl, xlNow, () => false);
+}

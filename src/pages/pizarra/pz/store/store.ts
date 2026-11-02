@@ -12,6 +12,7 @@ import { rivalSpots } from "../../v2/rival";
 import { toggleRole } from "../../v2/ops";
 import type { PzAct, PzApi, PzPrefs, PzSel, PzSlice, ShirtStill, ToastOptions, Candidate, StartSource, PublishCheck } from "./api";
 import { fmt } from "./fmt";
+import { madridDate } from "../../../../../functions/src/madrid";
 import { readLocalPrefs } from "../../data/prefs";
 import { parsePizarra, pizarraHref } from "./routes";
 import { onRegistry, placeReg, sheetReg } from "./registry";
@@ -48,6 +49,12 @@ export const PLACES: { id: PlaceId; t: string; icon: string; key: string; dock?:
   { id: "pachanga", t: "Pachanga", icon: "bib", key: "6" },
   { id: "charla", t: "La charla", icon: "mic", key: "", takeover: true, hidden: true },
 ];
+const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+/** «2026-11-12» → «12 nov». */
+const isoShort = (s: string) => {
+  const p = s.split("-");
+  return p.length === 3 ? `${Number(p[2])} ${MONTHS[Number(p[1]) - 1] ?? ""}` : s;
+};
 export const placeOf = (id: string) => PLACES.find((p) => p.id === id) ?? null;
 export const LAYERS: { id: LayerId; t: string; key: string }[] = [
   { id: "nada", t: "Nada", key: "0" },
@@ -129,7 +136,7 @@ export const NULL_HOST: PzHost = {
   setPrefs: noop,
 };
 
-export const EMPTY_WORLD: PzWorld = { now: 0, season: { id: "", name: "" }, squad: [], guests: [], matches: [], next: null, boards: [], official: null, rsvp: {}, together: () => 0, games: 0 };
+export const EMPTY_WORLD: PzWorld = { now: 0, season: { id: "", name: "" }, squad: [], guests: [], matches: [], next: null, boards: [], official: null, rsvp: {}, absences: [], together: () => 0, games: 0 };
 export const NOBODY: PzMe = { uid: "", name: "", nick: "", label: "", pid: null, cap: false, general: false, socia: false, jugador: false, fuera: true, member: false };
 
 export type PzStore = PzApi & {
@@ -286,6 +293,11 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     const p = player(pid);
     if (p?.guest) return { v: "guest", t: "Invitado", icon: "user", tone: "guest", why: "Invitado" + (p.by ? " de " + name(p.by) : "") + (p.note ? " · " + p.note : ""), can: true };
     if (p?.baja) return { v: "baja", t: p.baja, icon: "warn", tone: "bad", why: p.baja, can: false };
+    // an absence over the match's day («no puedo del 12 al 19») wins over any answer
+    const M = match();
+    const day = M ? madridDate(M.at) : "";
+    const ab = day ? S.W.absences.find((x) => x.pid === pid && x.from <= day && x.to >= day) : undefined;
+    if (ab) return { v: "ausente", t: "Ausente", icon: "cal", tone: "bad", why: "Ausente · hasta el " + isoShort(ab.to) + (ab.note ? " · " + ab.note.toLowerCase() : ""), until: ab.to, can: false };
     const a = S.W.rsvp[pid];
     const k = a ? a.v : "none";
     const r = RSVP[k];
