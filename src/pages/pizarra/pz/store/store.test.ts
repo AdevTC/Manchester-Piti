@@ -2,7 +2,7 @@
 // r14 «La pizarra»: the store's logic (the prototype's PI-store.js behaviour over the app's Lineup).
 import { describe, expect, it, vi } from "vitest";
 import { fakeBoard, fakeWorld, makeTestStore, ME_CAPTAIN, ME_PLAYER } from "./testkit";
-import { pizarraSeason } from "./world";
+import { guestOf, pizarraSeason } from "./world";
 import { rivalSpotNear } from "./view";
 import type { Lineup } from "../../formations";
 
@@ -75,6 +75,30 @@ describe("the seven", () => {
     expect(host.commit).not.toHaveBeenCalled();
     expect(P.state.toast?.text).toMatch(/solo lectura/i);
     expect(P.state.toast?.action?.t).toBe("Duplicar");
+  });
+});
+
+describe("who can come", () => {
+  it("an absence over the match's day wins over the answer, with its why", () => {
+    const { P } = makeTestStore({ world: fakeWorld({ absences: [{ pid: "kevin", from: "2026-11-07", to: "2026-11-12", note: "Boda en Sevilla" }] }) });
+    const r = P.sel.rsvp("kevin");
+    expect(r).toMatchObject({ v: "ausente", can: false });
+    expect(r.why).toBe("Ausente · hasta el 12 nov · boda en sevilla");
+    // an absence on other days says nothing
+    const h2 = makeTestStore({ world: fakeWorld({ absences: [{ pid: "kevin", from: "2026-11-10", to: "2026-11-12", note: "" }] }) });
+    expect(h2.P.sel.rsvp("kevin").v).toBe("yes");
+  });
+  it("the match's guests are players of the pool (Invitado) and candidates", () => {
+    const { P } = makeTestStore({ world: fakeWorld({ guests: [guestOf({ id: "g-rafa", name: "Rafa" })] }) });
+    expect(P.sel.player("g-rafa")).toMatchObject({ shirt: "RAFA", guest: true });
+    expect(P.sel.rsvp("g-rafa")).toMatchObject({ v: "guest", can: true });
+    expect(P.sel.candidates(6).some((c) => c.pid === "g-rafa")).toBe(true);
+  });
+  it("candidates say where he has played (minutes per puesto)", () => {
+    const w = fakeWorld();
+    w.squad = w.squad.map((p) => (p.id === "kevin" ? { ...p, playedAt: { DC: 44 } } : p));
+    const { P } = makeTestStore({ world: w });
+    expect(P.sel.candidates(6).find((c) => c.pid === "kevin")?.why).toMatch(/^Ha jugado de DC 44′/);
   });
 });
 
