@@ -16,6 +16,7 @@ import { PiCampo } from "../campo/PiCampo";
 import { BoardBar, Dock, FullState, Ghost, Missing, PhoneHeader, ReadError, Skeleton, Toast } from "./parts";
 import { SheetFrame } from "./SheetFrame";
 import { useXl } from "./useLayout";
+import { PrefsBoot } from "../sheets/ajustes/PrefsBoot";
 import type { Layout, PlaceId, Region, SheetHeight } from "../store/types";
 import "../../../../styles/vidrio/tokens.css";
 import "../../../../styles/vidrio/glass.css";
@@ -271,6 +272,7 @@ export function Shell() {
       {typeof document !== "undefined" &&
         createPortal(
           <div className={`pz pz-float pz-l-${layout}${charla ? " pz-s--charla" : ""}`} style={vars}>
+            <PrefsBoot />
             <Toast />
             <Ghost />
           </div>,
