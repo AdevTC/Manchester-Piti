@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
-import { boardExtrasOf, buzzOf, eventText, NO_EXTRAS, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
+import { boardExtrasOf, buzzOf, eventText, mesaSuggestion, NO_EXTRAS, penaltyNow, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
 
 const ev = (id: string, type: MatchEvent["type"], at: number, more: Partial<MatchEvent> = {}): MatchEvent => ({ id, type, elapsedSeconds: at, period: 1, ...more });
 
@@ -192,11 +192,38 @@ describe("lo que la mesa toma del tablero oficial además del siete (B-PAR-01)",
       viceId: "dani",
       takers: { penalties: ["pablo", "mario"], freekicks: ["dani"], corners: [] },
       second: { seven: ["hugo", "mario"], keeper: "hugo", codes: { hugo: "POR", mario: "DC" } },
+      planb: { seven: ["x"], keeper: null, codes: { x: "DC" } },
+      condPlan: [],
     });
   });
   it("un tablero viejo lee su galón suelto como lista, y sin nada se queda como hoy", () => {
     expect(boardExtrasOf({ roles: { penaltiesId: "pablo", cornersId: "dani" } }).takers).toEqual({ penalties: ["pablo"], freekicks: [], corners: ["dani"] });
     expect(boardExtrasOf({ formation: "2-3-1", slots: [] })).toEqual(NO_EXTRAS);
     expect(boardExtrasOf(null)).toEqual(NO_EXTRAS);
+  });
+});
+
+describe("r14 · la pizarra llega a la mesa: «Si pasa…» y el lanzador de penaltis (PZ-D07, PZ-D10)", () => {
+  const rule = { id: "c1", when: "perdiendo", by: 1, from: 35, key: "mentality", value: "Ofensiva", sub: { out: "sergio", in: "hugo" }, ver: "planb" };
+  const nameOf = (id: string) => ({ sergio: "Sergio", hugo: "Hugo" })[id] ?? id;
+  it("el tablero trae sus reglas; la mesa sugiere la que se cumple, con su cambio si se puede hacer", () => {
+    const rules = boardExtrasOf({ condPlan: [rule] }).condPlan;
+    expect(rules).toHaveLength(1);
+    const field = ["alex", "sergio"];
+    expect(mesaSuggestion(rules, { minute: 30, us: 0, them: 1, field, bench: ["hugo"], nameOf })).toBeNull();
+    expect(mesaSuggestion(rules, { minute: 36, us: 1, them: 1, field, bench: ["hugo"], nameOf })).toBeNull();
+    const s = mesaSuggestion(rules, { minute: 36, us: 0, them: 1, field, bench: ["hugo"], nameOf });
+    expect(s).toEqual({ text: expect.stringContaining("Si vamos perdiendo por 1 desde el 35′"), sub: { inId: "hugo", outId: "sergio" }, ver: "planb" });
+    expect(s?.text).toContain("entra HUGO por SERGIO");
+    // (Hugo isn't on the bench any more: the rule still says so, without the cambio)
+    expect(mesaSuggestion(rules, { minute: 36, us: 0, them: 1, field, bench: [], nameOf })?.sub).toBeNull();
+  });
+  it("tras un «Penalti a favor», lo tira el primero de la lista que está en el campo; el tiro (o cualquier jugada) lo cierra", () => {
+    const pen = { id: "p", type: "penalty_received", minute: 20, elapsedSeconds: 1190, period: 1 };
+    expect(penaltyNow([pen], ["pablo", "mario"], ["mario", "alex"])).toBe("mario");
+    expect(penaltyNow([pen], ["pablo"], ["mario"])).toBeNull();
+    expect(penaltyNow([pen, { id: "g", type: "goal_penalty", minute: 21, elapsedSeconds: 1210, period: 1 }], ["mario"], ["mario"])).toBeNull();
+    expect(penaltyNow([{ id: "y", type: "yellow_card", minute: 18, elapsedSeconds: 1050, period: 1 }, pen], ["mario"], ["mario"])).toBe("mario");
+    expect(penaltyNow([pen, { id: "y2", type: "yellow_card", minute: 22, elapsedSeconds: 1300, period: 1 }], ["mario"], ["mario"])).toBeNull();
   });
 });

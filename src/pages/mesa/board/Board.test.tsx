@@ -232,6 +232,30 @@ describe("descanso", () => {
     mount(half());
     expect(screen.queryByRole("button", { name: "El siete de la pizarra · 2ª parte" })).toBeNull();
   });
+  it("r14 · el Plan B de la pizarra se ofrece solo cuando su «Si pasa…» se cumple", () => {
+    const planB = { seven: ["alex", "mario", "sergio", "dani", "marcos", "david", "hugo"], keeper: "alex", codes: {} };
+    const { unmount } = mount(half({ planB, suggest: null }));
+    expect(screen.queryByRole("button", { name: /^Plan B/ })).toBeNull();
+    unmount();
+    mount(half({ planB, suggest: { text: "Si vamos perdiendo por 1 desde el 20′ → Plan B", sub: null, ver: "planb" } }));
+    fireEvent.click(screen.getByRole("button", { name: "Plan B · Si vamos perdiendo por 1 desde el 20′" }));
+    expect(screen.getByText("HUGO entra por PABLO")).toBeInTheDocument();
+  });
+});
+
+describe("r14 · la pizarra en juego (PZ-D07, PZ-D10)", () => {
+  it("la sugerencia de «Si pasa…» con su cambio, que se apunta al tocarla", async () => {
+    const v = playing({ suggest: { text: "Si vamos perdiendo por 1 desde el 10′ → entra HUGO por PABLO", sub: { inId: "hugo", outId: "pablo", inName: "Hugo", outName: "Pablo" }, ver: null } });
+    mount(v);
+    expect(screen.getByText("Si vamos perdiendo por 1 desde el 10′ → entra HUGO por PABLO")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Si pasa…: entra HUGO por PABLO/ }));
+    await flush();
+    expect(v.actions.add).toHaveBeenCalled();
+  });
+  it("con un penalti a favor dice quién lo tira", () => {
+    mount(playing({ penaltyTaker: { id: "mario", name: "Mario" } }));
+    expect(screen.getByText("Penalti a favor: lo tira MARIO")).toBeInTheDocument();
+  });
 });
 
 describe("final y después", () => {
