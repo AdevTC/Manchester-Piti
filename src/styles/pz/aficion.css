@@ -17,7 +17,7 @@
 .af .af-stats span{font-size:12.5px;font-weight:660;color:var(--vd-ink2)}
 .af .af-card{--vd-r:28px;display:grid;gap:12px;padding:12px;border-radius:28px;min-width:0}
 /* the pitch: flat, ours at the bottom; shirts at the snapshot's spots */
-.af .af-pitch{position:relative;width:100%;aspect-ratio:68/88;border-radius:18px;overflow:hidden;background:repeating-linear-gradient(180deg,#238545 0 10%,#1f7a3e 10% 20%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.78)}
+.af .af-pitch{position:relative;width:100%;aspect-ratio:2/3;border-radius:18px;overflow:hidden;background:repeating-linear-gradient(180deg,#238545 0 10%,#1f7a3e 10% 20%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.78)}
 .af .af-pitch__lines>i{position:absolute;display:block;border:3px solid rgba(255,255,255,.7)}
 .af .af-pitch__half{left:0;right:0;top:50%;height:0;border-width:3px 0 0!important}
 .af .af-pitch__circle{left:50%;top:50%;width:26%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%)}
