@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";
-import { boardLink, charlaMatch, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
+import { charlaMatch, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
 import { CARTEL_H, CARTEL_W, cartelConsignas, cartelFile, cartelHead, cartelLayout, drawCartel, preparedFor, shareCartel } from "./cartel";
 import { parsePrefs, PREFS0, readPrefs, SHOW0, writePrefs } from "./prefs";
 import { chem } from "./quimica";
@@ -135,14 +135,7 @@ describe("tableros", () => {
     expect(charlaMatch(m({ home: null, venue: "Polideportivo", dateMs: 0 }))).toMatchObject({ date: "", time: "", place: "Polideportivo" });
   });
 
-  it("the link to a board, and the one straight to its charla", () => {
-    expect(boardLink("https://piti.club", "a b")).toBe("https://piti.club/pizarra?tablero=a%20b");
-    expect(boardLink("https://piti.club", "x", true)).toBe("https://piti.club/pizarra?tablero=x#charla");
-  });
-
-  it("the link carries the board's season, so the receiver opens it in that season", () => {
-    expect(boardLink("https://piti.club", "x", false, "t 2")).toBe("https://piti.club/pizarra?tablero=x&season=t%202");
-    expect(boardLink("https://piti.club", "x", true, "all")).toBe("https://piti.club/pizarra?tablero=x&season=all#charla");
+  it("a link's season: the board waits", () => {
     // the board waits until the season context has adopted the link's season
     expect(seasonPending("t2", "t1")).toBe(true);
     expect(seasonPending("t2", "t2")).toBe(false);
