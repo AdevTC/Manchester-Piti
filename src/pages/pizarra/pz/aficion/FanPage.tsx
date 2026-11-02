@@ -99,7 +99,7 @@ function Board({ f }: { f: FanBoard }) {
             {f.system}
           </span>
           {f.seven.map((p, i) => (
-            <span key={i} className={"af-p" + (p.guest ? " is-guest" : "")} style={{ left: Math.max(9, Math.min(91, p.x)) + "%", top: Math.max(10, Math.min(86, p.y)) + "%" }} aria-hidden="true">
+            <span key={i} className={"af-p" + (p.guest ? " is-guest" : "")} style={{ left: Math.max(9, Math.min(91, p.x)) + "%", top: 9 + Math.max(0, Math.min(100, p.y)) * 0.8 + "%" }} aria-hidden="true">
               {p.captain && <i className="af-p__c">C</i>}
               <Shirt num={p.num} />
               <b className="af-p__n">{(p.num != null ? p.num + " " : "") + p.shirt}</b>

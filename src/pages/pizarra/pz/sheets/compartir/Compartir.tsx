@@ -554,7 +554,7 @@ function Enlace({ P }: { P: PzApi }) {
       <div className="pcs-qr">
         <div className="pcs-qr__img" role="img" aria-label={"Código QR del enlace al tablero «" + b.name + "»"}>
           {!draft && (
-            <svg viewBox={"0 0 " + qr.n + " " + qr.n} shape-rendering="crispEdges" aria-hidden="true">
+            <svg viewBox={"0 0 " + qr.n + " " + qr.n} shapeRendering="crispEdges" aria-hidden="true">
               <path d={qr.d} />
             </svg>
           )}

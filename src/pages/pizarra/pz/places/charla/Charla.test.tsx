@@ -70,7 +70,7 @@ describe("La charla", () => {
     const ask = screen.getByRole("alertdialog");
     expect(ask.textContent).toMatch(/Falta un DC/);
     fireEvent.click(within(ask).getByRole("button", { name: "Presentar igualmente" }));
-    act(() => vi.advanceTimersByTime(100));
+    void act(() => vi.advanceTimersByTime(100));
     const prog = () => screen.getByRole("progressbar", { name: "Momento de la charla" });
     expect(prog().getAttribute("aria-valuenow")).toBe("1");
     const root = screen.getByRole("region", { name: /La charla · paso 1/ });
@@ -80,11 +80,11 @@ describe("La charla", () => {
     fireEvent.keyDown(root, { key: "ArrowLeft" });
     expect(prog().getAttribute("aria-valuenow")).toBe("1");
     // the clock moves it on by itself
-    act(() => vi.advanceTimersByTime(5000));
+    void act(() => vi.advanceTimersByTime(5000));
     expect(Number(prog().getAttribute("aria-valuenow"))).toBeGreaterThan(1);
     fireEvent.keyDown(root, { key: "End" });
     expect(screen.getByRole("heading", { level: 1, name: "¡Vamos, Piti!" })).toBeTruthy();
-    act(() => vi.advanceTimersByTime(6000));
+    void act(() => vi.advanceTimersByTime(6000));
     expect(screen.getByRole("button", { name: /Otra vez desde el principio/ })).toBeTruthy();
     fireEvent.keyDown(root, { key: "Escape" });
     expect(host.navigate).toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe("La charla", () => {
     vi.useFakeTimers();
     const { host } = renderWithPz(<Charla region="full" layout="phone" />, { place: "charla", world: fakeWorld({ boards: [fakeBoard({ ids: FULL })] }) });
     fireEvent.click(screen.getAllByRole("button", { name: /Empezar la charla/ })[0]);
-    act(() => vi.advanceTimersByTime(100));
+    void act(() => vi.advanceTimersByTime(100));
     fireEvent.click(screen.getByRole("button", { name: "Pausar la charla" }));
     const prog = () => screen.getByRole("progressbar", { name: "Momento de la charla" });
     const taps = document.querySelectorAll<HTMLButtonElement>(".pc-tap--next");
@@ -115,7 +115,7 @@ describe("La charla", () => {
     vi.useFakeTimers();
     renderWithPz(<Charla region="full" layout="desktop" />, { place: "charla", world: fakeWorld({ boards: [fakeBoard({ ids: FULL })] }) });
     fireEvent.click(screen.getAllByRole("button", { name: /Empezar la charla/ })[0]);
-    act(() => vi.advanceTimersByTime(20000));
+    void act(() => vi.advanceTimersByTime(20000));
     const prog = () => screen.getByRole("progressbar", { name: "Momento de la charla" });
     expect(prog().getAttribute("aria-valuenow")).toBe("1");
     fireEvent.click(screen.getByRole("button", { name: "Avanzar la charla un paso" }));
@@ -128,7 +128,7 @@ describe("La charla", () => {
     clips.push({ slot: "v0", key: "sistema", mime: "audio/webm", ms: 6000, data: "AAAA", by: "u-jordi", at: 1 });
     renderWithPz(<Charla region="full" layout="desktop" />, { place: "charla", me: ME_PLAYER, world: fakeWorld({ boards: [fakeBoard({ ids: FULL, isOfficial: true, ownerUid: "u-jordi" })] }) });
     fireEvent.click(screen.getAllByRole("button", { name: /Empezar la charla/ })[0]);
-    act(() => vi.advanceTimersByTime(100));
+    void act(() => vi.advanceTimersByTime(100));
     fireEvent.click(screen.getByRole("button", { name: /La voz de este paso: 0:06/ }));
     const pop = screen.getByRole("dialog");
     expect(within(pop).queryByRole("button", { name: /Grabar/ })).toBeNull();
