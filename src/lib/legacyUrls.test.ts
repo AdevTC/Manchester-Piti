@@ -177,8 +177,41 @@ describe("Tú: /profile and its tabs", () => {
   });
 });
 
+describe("la pizarra (r14): one page with #panels → a place each", () => {
+  moves("/pizarra", "/pizarra/siete");
+  moves("/pizarra/", "/pizarra/siete");
+  moves("/pizarra?tablero=b1&season=t1", "/pizarra/siete?tablero=b1&season=t1");
+  moves("/pizarra?tablero=b1&season=t1#charla", "/pizarra/charla?tablero=b1&season=t1");
+  moves("/pizarra#CHARLA", "/pizarra/charla");
+  moves("/pizarra#quimica", "/pizarra/siete?capa=quimica");
+  moves("/pizarra#jugadas", "/pizarra/jugadas");
+  moves("/pizarra#tableros", "/pizarra/tableros");
+  moves("/pizarra#pachanga", "/pizarra/pachanga");
+  moves("/pizarra#plan", "/pizarra/plan");
+  moves("/pizarra#partido", "/pizarra/partido");
+  moves("/pizarra?tablero=b1#comparar", "/pizarra/tableros/comparar?tablero=b1");
+  moves("/pizarra#compartir", "/pizarra/siete?hoja=compartir");
+  moves("/pizarra#ajustes", "/pizarra/siete?hoja=ajustes");
+  moves("/pizarra#mas", "/pizarra/siete?hoja=mas");
+  moves("/pizarra#dibujar", "/pizarra/siete?modo=dibujar");
+  moves("/pizarra/dibujar", "/pizarra/siete?modo=dibujar");
+  moves("/pizarra/dibujar?tablero=b1&season=t1", "/pizarra/siete?tablero=b1&season=t1&modo=dibujar");
+  // (la mesa's «Elegir el siete»: the match's place)
+  moves("/pizarra?desde=mesa&partido=m1", "/pizarra/partido?desde=mesa&partido=m1");
+  moves("/pizarra?desde=mesa&partido=m1&tablero=b1&season=t1#charla", "/pizarra/partido?desde=mesa&partido=m1&tablero=b1&season=t1");
+  // (r13's «comparar con»: B is that board, A the board on screen)
+  moves("/pizarra?tablero=b1&con=b2", "/pizarra/tableros/comparar?tablero=b1&a=b%3Ab1%3Atitular&b=b%3Ab2%3Atitular");
+  moves("/pizarra/tableros/comparar?con=b2", "/pizarra/tableros/comparar?b=b%3Ab2%3Atitular");
+  it("an unknown hash on /pizarra goes to the siete as it is", () => {
+    expect(legacyHref("/pizarra#contenido")).toBe("/pizarra/siete#contenido");
+  });
+  it("the new addresses stay", () => {
+    for (const href of ["/pizarra/siete", "/pizarra/siete?tablero=b1&hoja=ficha&jugador=p1", "/pizarra/plan", "/pizarra/plan/rival", "/pizarra/jugadas/lib-corner", "/pizarra/partido?desde=mesa&partido=m1", "/pizarra/tableros", "/pizarra/tableros/comparar?a=b%3Ab1%3Atitular", "/pizarra/pachanga", "/pizarra/charla", "/pizarra/nada"]) expect(legacyHref(href), href).toBeNull();
+  });
+});
+
 describe("no new address is itself old", () => {
-  const OLD = ["/#temporada", "/matches/j1?tab=campo", "/stats?view=explore&section=evolution", "/stats?view=compare&a=x", "/club#cl-kits", "/vestuario#vx-caja", "/profile#cromos", "/partidos?view=numeros"];
+  const OLD = ["/#temporada", "/matches/j1?tab=campo", "/stats?view=explore&section=evolution", "/stats?view=compare&a=x", "/club#cl-kits", "/vestuario#vx-caja", "/profile#cromos", "/partidos?view=numeros", "/pizarra#charla", "/pizarra?desde=mesa&partido=m1", "/pizarra/dibujar", "/pizarra?con=b2"];
   it.each(OLD)("%s lands in one step", (from) => {
     const to = legacyHref(from);
     expect(to).not.toBeNull();

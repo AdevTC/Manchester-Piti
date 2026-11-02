@@ -148,11 +148,40 @@ export const adminSociosSearchSchema = z.object({
   /** «Invitar con esta ficha»: the invitation starts for this player (PLANTILLA r12). */
   para: z.string().max(128).optional().catch(undefined),
 });
-// /pizarra?tablero=<id> opens that board (v2/deeplink.ts reads it on the first render). Declared so the
-// match page, the admin and the perfil link to a board through the typed route.
-export const pizarraSearchSchema = z.object({
-  tablero: optionalString,
+// La pizarra (r14): /pizarra/<place>[/<sub>] and its parameters (pz/store/routes PZ_KEYS): the board (?tablero=), a
+// sheet (?hoja= + its arguments), the siete's layer (?capa=), Dibujar (?modo=dibujar), la mesa's link (?desde=mesa
+// &partido=), Comparar's two sides (?a= ?b=)… Typed for the links, and permissive: any other short lowercase key
+// with a short text survives (a place's own sheet arguments) without touching the router; anything else is dropped.
+const pzText = z.union([z.string(), z.number()]).transform(String).pipe(z.string().min(1).max(200)).optional().catch(undefined);
+const pzKnown = z.object({
+  tablero: pzText,
+  hoja: pzText,
+  capa: z.enum(["nada", "media", "nota", "quimica", "forma", "minutos"]).optional().catch(undefined),
+  modo: z.enum(["dibujar"]).optional().catch(undefined),
+  partido: pzText,
+  desde: pzText,
+  a: pzText,
+  b: pzText,
+  va: pzText,
+  vb: pzText,
+  jugador: pzText,
+  hueco: pzText,
+  paso: pzText,
 });
+const PZ_EXTRA_KEY = /^[a-z][a-z0-9-]{0,24}$/;
+/** The typed keys. The extra ones are there at run time (read them as strings: `useSearch({ strict: false })`), but
+ *  kept out of the type: an index signature here would reach every `navigate({ to: "." })` of the app. */
+export type PizarraSearch = z.infer<typeof pzKnown>;
+export const pizarraSearchSchema = (raw: Record<string, unknown>): PizarraSearch => {
+  const known = pzKnown.parse(raw);
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (k === "season" || k in pzKnown.shape || !PZ_EXTRA_KEY.test(k)) continue;
+    if ((typeof v === "string" && v.length > 0 && v.length <= 200) || (typeof v === "number" && Number.isFinite(v))) out[k] = String(v);
+  }
+  for (const [k, v] of Object.entries(known)) if (v !== undefined) out[k] = v;
+  return out as PizarraSearch;
+};
 
 // Every old address (/matches/*, /stats?view=…, /profile and its tabs, /partidos?view=…, the /, /club and
 // /vestuario hashes) is answered here, before any route loads: a permanent move to its new address with its
@@ -468,6 +497,9 @@ const invitationRoute = createRoute({
   path: "/invitacion/$code",
   component: () => <Navigate to="/vestuario" replace />,
 });
+// ── La pizarra (r14): one page across its places (the shell and the pitch stay mounted; the page reads which place
+// from the address: pz/store/routes). /pizarra itself, its old #panels, ?desde=mesa and /pizarra/dibujar redirect
+// first (lib/legacyUrls); an address under /pizarra it doesn't have is its own 404, inside its frame.
 const pizarraRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pizarra",
@@ -477,6 +509,18 @@ const pizarraRoute = createRoute({
     "PizarraRoute",
   ),
 });
+const pizarraIndexRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "/" });
+const pizarraSieteRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "siete" });
+const pizarraPlanRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "plan" });
+const pizarraPlanParteRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "plan/$parte" });
+const pizarraJugadasRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "jugadas" });
+const pizarraJugadaRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "jugadas/$jugada" });
+const pizarraPartidoRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "partido" });
+const pizarraTablerosRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "tableros" });
+const pizarraCompararRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "tableros/comparar" });
+const pizarraPachangaRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "pachanga" });
+const pizarraCharlaRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "charla" });
+const pizarraLostRoute = createRoute({ getParentRoute: () => pizarraRoute, path: "$" });
 // Any address no route above takes: the 404 page. Its id ("/$") is how RootLayout knows to give it no
 // legacy chrome.
 const notFoundRoute = createRoute({
@@ -545,7 +589,20 @@ const routeTree = rootRoute.addChildren([
     avisosRoute.addChildren([avisosIndexRoute, avisosAMedidaRoute]),
   ]),
   buscarRoute,
-  pizarraRoute,
+  pizarraRoute.addChildren([
+    pizarraIndexRoute,
+    pizarraSieteRoute,
+    pizarraPlanRoute,
+    pizarraPlanParteRoute,
+    pizarraJugadasRoute,
+    pizarraJugadaRoute,
+    pizarraPartidoRoute,
+    pizarraTablerosRoute,
+    pizarraCompararRoute,
+    pizarraPachangaRoute,
+    pizarraCharlaRoute,
+    pizarraLostRoute,
+  ]),
   adminRoute.addChildren([
     adminHoyRoute,
     adminPartidosRoute.addChildren([

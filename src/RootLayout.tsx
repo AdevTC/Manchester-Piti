@@ -40,7 +40,7 @@ export function RootLayout() {
   // La mesa is the live match itself: the floating score would sit on its scoreboard.
   const mesaPath = /^\/partidos\/[^/]+\/mesa\/?$/.test(pathname);
   // (the pizarra has its own live plate and the mesa's pitch: the score would cover its header)
-  const pizarraPath = /^\/pizarra\/?$/.test(pathname);
+  const pizarraPath = under(pathname, "/pizarra");
   const takingOver = useTakingOver();
   const invitation = pathname.startsWith("/invitacion/");
   // The door stays up through the walkout after being let in.

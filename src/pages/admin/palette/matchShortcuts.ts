@@ -27,7 +27,7 @@ export function pizarraCommand(m: ShortcutMatch, board: string, go: (t: AdminTar
     description: "El siete oficial · sales de la sala de control",
     hint: "ir",
     keywords: "pizarra tablero oficial siete charla",
-    href: "/pizarra",
+    href: "/pizarra/siete",
     run: () => go({ section: "pizarra", tablero: board, seasonId: m.seasonId }),
   };
 }

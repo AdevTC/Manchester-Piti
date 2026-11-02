@@ -109,8 +109,14 @@ describe("the page an address belongs to", () => {
     expect(pageKeyOf("/avisos/a-medida")).toBe("tu");
   });
 
-  it("leaves the apps of their own out (the pizarra, la mesa); the Sala de control's screens are pages among themselves", () => {
-    expect(pageKeyOf("/pizarra")).toBeNull();
+  it("la pizarra is one page across its places (r14): its own transitions inside, the web's in and out", () => {
+    expect(pageKeyOf("/pizarra")).toBe("pizarra");
+    expect(pageKeyOf("/pizarra/siete")).toBe("pizarra");
+    expect(pageKeyOf("/pizarra/tableros/comparar")).toBe("pizarra");
+    expect(pageKeyOf("/pizarras")).toBe("otra");
+  });
+
+  it("leaves the apps of their own out (la mesa); the Sala de control's screens are pages among themselves", () => {
     expect(pageKeyOf("/partidos/abc/mesa")).toBeNull();
     expect(pageKeyOf("/admin/partidos")).toBe("sala:/admin/partidos");
     expect(pageKeyOf("/admin/")).toBe("sala:/admin");

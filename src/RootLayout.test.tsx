@@ -68,6 +68,10 @@ describe("RootLayout · the 404 route", () => {
     expect(leaf("/adminx")).toBe("/$");
     // (an unknown section of the Sala de control is its own 404, inside its frame)
     expect(leaf("/admin/nada")).toBe("/admin/$");
+    // (la pizarra r14: each place is a screen of its page; an address it doesn't have is its own 404)
+    for (const path of ["/pizarra/siete", "/pizarra/plan", "/pizarra/plan/rival", "/pizarra/jugadas", "/pizarra/jugadas/lib-corner", "/pizarra/partido", "/pizarra/tableros", "/pizarra/tableros/comparar", "/pizarra/pachanga", "/pizarra/charla"])
+      expect(leaf(path), path).not.toMatch(/\$$/);
+    expect(leaf("/pizarra/nada")).toBe("/pizarra/$");
   });
 
   it("while it is up, robots are told not to index it; leaving it takes the tag away", async () => {

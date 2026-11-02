@@ -203,6 +203,8 @@ describe("holdsUpdate", () => {
     expect(holdsUpdate(document, "/partidos/abc/mesa")).toBe(true);
     expect(holdsUpdate(document, "/admin/partidos/en-juego/abc")).toBe(true);
     expect(holdsUpdate(document, "/pizarra")).toBe(true);
+    expect(holdsUpdate(document, "/pizarra/jugadas/lib-corner")).toBe(true);
+    expect(holdsUpdate(document, "/pizarras")).toBe(false);
     expect(holdsUpdate(document, "/partidos/abc")).toBe(false);
     expect(holdsUpdate(document, "/")).toBe(false);
   });

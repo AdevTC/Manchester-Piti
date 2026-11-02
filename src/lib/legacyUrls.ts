@@ -79,6 +79,46 @@ export const PERFIL_MOVES: Readonly<Record<string, string>> = {
   "/perfil/capitania": "/perfil/ajustes/capitania",
 };
 
+// La pizarra before r14 (one page, its panels opened by a #hash: v2/Board panelOf): each panel is a place now
+// (/pizarra/<place>), a layer or a sheet of the siete (?capa=, ?hoja=), or Dibujar (?modo=dibujar).
+const PIZARRA_HASH: Record<string, { to: string; q?: Search }> = {
+  charla: { to: "/pizarra/charla" },
+  quimica: { to: "/pizarra/siete", q: { capa: "quimica" } },
+  jugadas: { to: "/pizarra/jugadas" },
+  tableros: { to: "/pizarra/tableros" },
+  pachanga: { to: "/pizarra/pachanga" },
+  plan: { to: "/pizarra/plan" },
+  partido: { to: "/pizarra/partido" },
+  comparar: { to: "/pizarra/tableros/comparar" },
+  compartir: { to: "/pizarra/siete", q: { hoja: "compartir" } },
+  ajustes: { to: "/pizarra/siete", q: { hoja: "ajustes" } },
+  mas: { to: "/pizarra/siete", q: { hoja: "mas" } },
+  dibujar: { to: "/pizarra/siete", q: { modo: "dibujar" } },
+};
+
+/** The pizarra's old addresses → r14's (null = a current one). `?con=<board>` (r13's «comparar con») names
+ *  Comparar's B side; the board on screen (?tablero=) is its A side. */
+function pizarraTarget(pathname: string, search: Search, hash: string): { pathname: string; search: Search; hash: string } | null {
+  const comparar = (s: Search): Search => {
+    const { con, ...rest } = s;
+    const id = con === undefined || con === null || con === "" ? null : String(con);
+    if (!id) return rest;
+    const a = rest.tablero !== undefined && rest.tablero !== "" && rest.a === undefined ? { a: `b:${String(rest.tablero)}:titular` } : {};
+    return { ...rest, ...a, ...(rest.b === undefined ? { b: `b:${id}:titular` } : {}) };
+  };
+  if (pathname === "/pizarra") {
+    // la mesa's «Elegir el siete» (?desde=mesa&partido=<id>) is the match's place now
+    if (search.desde === "mesa") return { pathname: "/pizarra/partido", search, hash: "" };
+    const h = PIZARRA_HASH[hash.toLowerCase()];
+    if (h) return { pathname: h.to, search: h.to === "/pizarra/tableros/comparar" ? comparar({ ...search, ...h.q }) : { ...search, ...h.q }, hash: "" };
+    if ("con" in search) return { pathname: "/pizarra/tableros/comparar", search: comparar(search), hash: "" };
+    return { pathname: "/pizarra/siete", search, hash };
+  }
+  if (pathname === "/pizarra/dibujar") return { pathname: "/pizarra/siete", search: { ...search, modo: "dibujar" }, hash };
+  if (pathname === "/pizarra/tableros/comparar" && "con" in search) return { pathname, search: comparar(search), hash };
+  return null;
+}
+
 /** The screen an old /club or /vestuario #hash meant (search «Ponte la del Piti» → /club/equipo…), if any. */
 export const clubHashPath = (hash: string): string | undefined => CLUB_HASH[hash.replace(/^#/, "")];
 export const vestuarioHashPath = (hash: string): string | undefined => VESTUARIO_HASH[hash.replace(/^#/, "")];
@@ -167,6 +207,7 @@ export function legacyTarget(rawPathname: string, search: Search, rawHash = ""):
     const to = adminLegacyTarget(pathname, search);
     return to ? keep(to.pathname, to.search) : null;
   }
+  if (seg[0] === "pizarra") return pizarraTarget(pathname, search, hash);
   if (seg[0] === "partidos" && isMatchId(seg[1]) && seg.length === 2 && "tab" in search) return keep(matchPath(seg[1], search.tab), without("tab"));
   // Partidos' old vistas
   if (pathname === "/partidos" && (search.view === "tabla" || search.view === "numeros")) {

@@ -103,6 +103,7 @@ describe("sectionOf", () => {
     expect(sectionOf("/stats").active).toBeUndefined();
     expect(sectionOf("/club").active).toBe("club");
     expect(sectionOf("/pizarra").active).toBe("vestuario");
+    expect(sectionOf("/pizarra/tableros/comparar").active).toBe("vestuario");
     expect(sectionOf("/nada").active).toBeUndefined();
   });
 });

@@ -47,7 +47,7 @@ export function targetHref(t: AdminTarget): string {
     case "web":
       return t.matchId ? `/partidos/${t.matchId}` : t.playerId ? `/jugadores/${t.playerId}` : "/";
     case "pizarra":
-      return "/pizarra";
+      return "/pizarra/siete";
     case "temporadas":
     case "clasificacion":
     case "turnos":
@@ -66,7 +66,7 @@ export function useAdminGo(): (target: AdminTarget) => void {
   return useCallback(
     (t: AdminTarget) => {
       if (t.section === "pizarra") {
-        void navigate({ to: "/pizarra", search: { tablero: t.tablero, season: t.seasonId } });
+        void navigate({ to: "/pizarra/siete", search: { tablero: t.tablero, season: t.seasonId } });
         return;
       }
       const href = targetHref(t);

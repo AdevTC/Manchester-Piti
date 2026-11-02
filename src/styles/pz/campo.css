@@ -1,0 +1,199 @@
+/* r14 «La pizarra» · PiCampo, the pitch (prefix pz-c), ported from the prototype's PiCampo.dc.html <style>.
+   Every rule is scoped under the pitch's own root (.pz-c): one class more than the kit's, so a page sheet that lands
+   before the kit in production still wins (the CSS-order lesson), and the pitch looks the same wherever it is mounted
+   (the shell's stage, a place's mini, a sheet portaled to <body>). Día under :root[data-theme="light"].
+   Motion: transforms/opacity only, all of it off under prefers-reduced-motion. */
+
+div.pz-c{position:absolute;inset:0;overflow:hidden;font-family:var(--vd-sans);color:#fff;outline:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;line-height:1.3}
+.pz-c *{box-sizing:border-box}
+.pz-c :where(p,ul){margin:0;padding:0}
+.pz-c :where(ul){list-style:none}
+.pz-c :where(button){font:inherit;color:inherit;margin:0}
+/* (Tailwind's preflight: svg{display:block} and img{max-width:100%}) */
+.pz-c svg.nx-ic{display:inline-block}
+.pz-c .pz-c__stage{position:absolute;inset:0;perspective:var(--persp,1200px);perspective-origin:50% 32%;overflow:visible}
+.pz-c .pz-c__pool{position:absolute;left:50%;top:50%;width:calc(var(--pw)*1.9);height:calc(var(--ph)*1.25);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(108,171,221,.26),rgba(108,171,221,.08) 55%,transparent);pointer-events:none}
+:root[data-theme="light"] .pz-c .pz-c__pool{background:radial-gradient(closest-side,rgba(255,255,255,.75),rgba(255,255,255,.25) 55%,transparent)}
+.pz-c .pz-c__plane{position:absolute;left:50%;top:50%;width:var(--pw);height:var(--ph);margin-left:calc(var(--pw)/-2);margin-top:calc(var(--ph)/-2);transform-style:preserve-3d;transform:translate3d(var(--tx,0px),var(--ty,0px),0) rotateX(var(--rx,0deg)) scale(var(--sc,1));transform-origin:50% 50%;transition:transform .72s cubic-bezier(.2,.85,.25,1.04)}
+/* the grass: mown bands, a pool of light from above, a vignette (Noche: deep emerald · Día: fresh green) */
+.pz-c .pz-c__grass{position:absolute;inset:0;border-radius:calc(var(--pw)*.035);overflow:hidden;
+  background:radial-gradient(70% 46% at 50% 38%,rgba(190,255,215,.16),transparent 70%),repeating-linear-gradient(180deg,#0f5a3e 0 5%,#0c4e36 5% 10%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 0 calc(var(--pw)*.16) rgba(2,14,10,.62),0 40px 90px -30px rgba(0,0,0,.75),0 0 0 calc(var(--pw)*.018) rgba(6,32,22,.55)}
+:root[data-theme="light"] .pz-c .pz-c__grass{background:radial-gradient(70% 46% at 50% 36%,rgba(255,255,230,.22),transparent 70%),repeating-linear-gradient(180deg,#3f9a52 0 5%,#37904a 5% 10%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25),inset 0 0 calc(var(--pw)*.13) rgba(10,60,30,.35),0 34px 70px -30px rgba(30,70,60,.5),0 0 0 calc(var(--pw)*.018) rgba(40,110,60,.35)}
+.pz-c .pz-c__grass::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 2px,transparent 2px 6px);mix-blend-mode:overlay}
+.pz-c .pz-c__chalk,.pz-c .pz-c__svg{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
+.pz-c .pz-c__chalk .l{fill:none;stroke:rgba(255,255,255,.72);stroke-width:2;vector-effect:non-scaling-stroke}
+.pz-c .pz-c__chalk .s{fill:rgba(255,255,255,.8)}
+.pz-c .pz-c__chalk .g{fill:rgba(255,255,255,.1);stroke:rgba(255,255,255,.72);stroke-width:2;vector-effect:non-scaling-stroke}
+.pz-c .pz-c__sys{position:absolute;left:0;right:0;top:62%;margin:0;text-align:center;font-family:var(--vd-sans);font-weight:820;font-size:calc(var(--pw)*.27);line-height:1;letter-spacing:-.05em;color:#fff;opacity:.09;font-variation-settings:'wdth' 100;pointer-events:none;white-space:nowrap}
+:root[data-theme="light"] .pz-c .pz-c__sys{opacity:.14}
+.pz-c.pz-c--mini .pz-c__sys{display:none}
+.pz-c .pz-c__haze{position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg,rgba(150,190,230,.34),rgba(150,190,230,.08) 32%,transparent 52%);opacity:0;transition:opacity .7s}
+.pz-c.is-grada .pz-c__haze{opacity:1}
+:root[data-theme="light"] .pz-c .pz-c__haze{background:linear-gradient(180deg,rgba(230,242,255,.62),rgba(230,242,255,.12) 34%,transparent 54%)}
+.pz-c .pz-c__sweep{position:absolute;inset:0;overflow:hidden;border-radius:calc(var(--pw)*.035);pointer-events:none}
+.pz-c .pz-c__sweep::before{content:"";position:absolute;left:-60%;top:-20%;width:50%;height:140%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.2),transparent);transform:skewX(-14deg);opacity:0}
+.pz-c.is-sweep .pz-c__sweep::before{animation:pz-sweep 1.25s cubic-bezier(.3,.6,.3,1) 1}
+@keyframes pz-sweep{0%{left:-60%;opacity:0}15%{opacity:1}100%{left:120%;opacity:0}}
+/* the sistema's shape: chalk lines between the lines' players, drawn in (the key changes on every sistema) */
+.pz-c .pz-c__shape line{stroke:rgba(255,255,255,.34);stroke-width:1.6;stroke-dasharray:3 4;vector-effect:non-scaling-stroke;fill:none}
+.pz-c .pz-c__shape.a line{animation:pz-draw-a .9s ease-out both}
+.pz-c .pz-c__shape.b line{animation:pz-draw-b .9s ease-out both}
+@keyframes pz-draw-a{from{stroke-dashoffset:60;opacity:0}to{stroke-dashoffset:0;opacity:1}}
+@keyframes pz-draw-b{from{stroke-dashoffset:60;opacity:0}to{stroke-dashoffset:0;opacity:1}}
+/* química */
+.pz-c .pz-c__lk{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;animation:pz-lk .6s ease-out both}
+.pz-c .pz-c__lk.t3{stroke:#ffd77a;stroke-width:4.5}
+.pz-c .pz-c__lk.t2{stroke:#9fd0f2;stroke-width:3}
+.pz-c .pz-c__lk.t1{stroke:rgba(255,255,255,.75);stroke-width:2;stroke-dasharray:4 5}
+.pz-c .pz-c__lk.dim{opacity:.22}
+@keyframes pz-lk{from{stroke-dashoffset:40;opacity:0}to{opacity:1}}
+.pz-c .pz-c__lkw{position:absolute;left:0;top:0;transform:translate(-50%,-50%) scale(var(--zs,1));padding:2px 8px;border-radius:999px;font-size:12px;font-weight:720;white-space:nowrap;background:rgba(6,14,32,.82);color:#fff;pointer-events:none;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+/* drawings and play paths */
+.pz-c .pz-c__p{fill:none;stroke-width:3;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
+.pz-c .pz-c__p.k-pase{stroke:#fff;stroke-dasharray:7 6}
+.pz-c .pz-c__p.k-carrera,.pz-c .pz-c__p.k-flecha{stroke:#ffd77a}
+.pz-c .pz-c__p.k-conduccion{stroke:#9fd0f2;stroke-dasharray:2 4}
+.pz-c .pz-c__p.k-lapiz{stroke:#fff;stroke-width:2.5}
+.pz-c .pz-c__p.k-zona{fill:rgba(255,215,122,.13);stroke:rgba(255,215,122,.8);stroke-dasharray:5 5}
+.pz-c .pz-c__p.c-celeste{stroke:#9fd0f2}.pz-c .pz-c__p.c-blanco{stroke:#fff}.pz-c .pz-c__p.c-amarillo{stroke:#ffd77a}.pz-c .pz-c__p.c-coral{stroke:#f08a7e}
+.pz-c .pz-c__ah{fill:#ffd77a}.pz-c .pz-c__ah.w,.pz-c .pz-c__ah.c-blanco{fill:#fff}.pz-c .pz-c__ah.c-celeste{fill:#9fd0f2}.pz-c .pz-c__ah.c-amarillo{fill:#ffd77a}.pz-c .pz-c__ah.c-coral{fill:#f08a7e}
+.pz-c .pz-c__lbl{position:absolute;left:0;top:0;transform:translate(-50%,-50%) scale(var(--zs,1));padding:3px 9px;border-radius:8px;background:rgba(6,14,32,.72);color:#ffe7a8;font-size:12.5px;font-weight:700;white-space:nowrap;pointer-events:none}
+.pz-c .pz-c__lbl.is-end{transform:translate(-100%,-50%) scale(var(--zs,1));transform-origin:100% 50%}
+/* every person/thing on the grass sits in a full-plane wrapper translated by its own %: transforms only; the glide is
+   staggered by slot (30 ms) with a spring */
+.pz-c .pz-c__at{position:absolute;inset:0;pointer-events:none;transform-style:preserve-3d;transform:translate3d(calc(var(--x)*1%),calc(var(--y)*1%),0);transition:transform var(--glide,420ms) cubic-bezier(.3,1.25,.4,1) calc(var(--i,0)*30ms)}
+.pz-c.is-linear .pz-c__at{transition-timing-function:linear;transition-delay:0ms}
+.pz-c .pz-c__shadow{position:absolute;left:0;top:0;width:calc(var(--s)*1.05);height:calc(var(--s)*.34);transform:translate(-50%,-50%) translateY(calc(var(--s)*.28)) scale(var(--zs,1));border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),rgba(0,0,0,.18) 60%,transparent);transition:transform .3s,opacity .3s}
+.pz-c .pz-c__ring{position:absolute;left:0;top:0;width:calc(var(--s)*1.5);height:calc(var(--s)*.62);transform:translate(-50%,-50%) translateY(calc(var(--s)*.28)) scale(var(--zs,1));border-radius:50%;box-shadow:0 0 0 2.5px var(--vd-celeste),0 0 22px 2px rgba(108,171,221,.65);opacity:0;transition:opacity .2s}
+.pz-c .pz-c__at.is-sel .pz-c__ring,.pz-c .pz-c__at.is-over .pz-c__ring{opacity:1}
+.pz-c .pz-c__at.is-over .pz-c__ring{box-shadow:0 0 0 3px #fff,0 0 26px 4px rgba(255,255,255,.6)}
+.pz-c .pz-c__at.r-entra .pz-c__ring{opacity:1;box-shadow:0 0 0 2.5px #9fe3b6}
+.pz-c .pz-c__at.r-sale .pz-c__ring{opacity:1;box-shadow:0 0 0 2.5px #ffc659}
+.pz-c .pz-c__at.r-mueve .pz-c__ring{opacity:1;box-shadow:0 0 0 2px rgba(255,255,255,.8)}
+/* the billboard: stands up in Grada (counter-rotated around its feet) */
+.pz-c .pz-c__man{position:absolute;left:0;top:0;pointer-events:auto;transform-origin:50% var(--anchor,62%);transform:translate(-50%,calc(var(--anchor,62%)*-1)) rotateX(calc(var(--rx,0deg)*-1)) scale(var(--zs,1));transition:transform .72s cubic-bezier(.2,.85,.25,1.04)}
+.pz-c .pz-c__hit{position:relative;display:grid;justify-items:center;gap:3px;padding:0;border:0;background:none;color:#fff;cursor:pointer;touch-action:none;border-radius:14px;transition:transform .32s cubic-bezier(.3,1.4,.5,1)}
+.pz-c span.pz-c__hit{cursor:default;touch-action:auto}
+.pz-c .pz-c__hit:focus-visible{outline:2.5px solid #fff;outline-offset:4px}
+.pz-c .pz-c__at.is-sel .pz-c__hit{transform:translateY(calc(var(--s)*-.14)) scale(1.07)}
+.pz-c .pz-c__at.is-sel .pz-c__shadow{transform:translate(-50%,-50%) translateY(calc(var(--s)*.34)) scale(.8);opacity:.7}
+.pz-c .pz-c__at.is-new .pz-c__hit{animation:pz-settle .5s cubic-bezier(.3,1.5,.5,1) both}
+.pz-c .pz-c__at.is-new .pz-c__shadow{animation:pz-shgrow .5s ease-out both}
+@keyframes pz-settle{0%{transform:translateY(calc(var(--s)*-.5)) scale(1.1);opacity:.4}70%{transform:translateY(2px) scale(.98);opacity:1}100%{transform:none}}
+@keyframes pz-shgrow{from{transform:translate(-50%,-50%) translateY(calc(var(--s)*.28)) scale(.4);opacity:.2}}
+.pz-c .pz-c__at.is-drag .pz-c__hit{opacity:.28}
+.pz-c .pz-c__at.is-out .pz-c__shirt{filter:grayscale(.7) brightness(.8)}
+/* the printed still, cropped to the shirt (540×600; shirt x 63–476, y 46–594) */
+.pz-c .pz-c__shirt{--w:var(--s);position:relative;display:block;width:var(--w);height:calc(var(--w)*1.327);overflow:hidden;filter:drop-shadow(0 6px 8px rgba(0,0,0,.35))}
+.pz-c .pz-c__shirt>img{max-width:none;max-height:none;position:absolute;width:calc(var(--w)*1.3075);height:auto;left:calc(var(--w)*-.1525);top:calc(var(--w)*-.1114);pointer-events:none;-webkit-user-drag:none}
+/* the drawn stand-in while the still renders */
+.pz-c .pz-c__drawn{position:absolute;inset:0;display:block;width:100%;height:100%}
+.pz-c .pz-c__drawn .b{fill:#9fd0f2;stroke:rgba(12,23,51,.35);stroke-width:4}
+.pz-c .pz-c__drawn.is-away .b{fill:#14213f;stroke:rgba(255,255,255,.4)}
+.pz-c .pz-c__drawn .n{fill:#0c1733;font:800 86px/1 var(--vd-sans)}
+.pz-c .pz-c__drawn.is-away .n{fill:#fff}
+.pz-c .pz-c__plate{display:inline-flex;align-items:center;gap:4px;max-width:calc(var(--s)*2.4);padding:2px 7px;border-radius:7px;background:rgba(5,12,30,.72);color:#fff;font-size:clamp(12px,calc(var(--s)*.215),15px);font-weight:720;letter-spacing:.02em;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.pz-c .pz-c__at.is-me .pz-c__plate{background:var(--vd-celeste);color:var(--vd-marino)}
+.pz-c.pz-c--sm .pz-c__plate{font-size:12px;padding:1px 6px;max-width:calc(var(--s)*2.7)}
+/* the badge row above the shirt (in flow: a 3D-transformed billboard clips what overflows its box): the layer value,
+   the marks, the galones */
+.pz-c .pz-c__row{display:flex;justify-content:center;align-items:center;gap:3px;height:var(--g);margin-bottom:calc(var(--g)*-.4);position:relative;z-index:2;white-space:nowrap;--g:clamp(18px,calc(var(--s)*.34),24px)}
+.pz-c .pz-c__row.is-none{visibility:hidden}
+.pz-c.pz-c--mini .pz-c__row{display:none}
+.pz-c .pz-c__lay{display:grid;place-items:center;height:var(--g);min-width:0;padding:0 6px;border-radius:7px;background:#0c1733;color:#fff;font-size:clamp(12px,calc(var(--g)*.62),15px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1.5px rgba(255,255,255,.55),0 6px 12px -4px rgba(0,0,0,.5)}
+.pz-c .pz-c__lay.t-top{background:#ffc659;color:#2a1c00}.pz-c .pz-c__lay.t-good{background:#9fd0f2;color:#0c1733}.pz-c .pz-c__lay.t-ok{background:#eaf3fc;color:#0c1733}.pz-c .pz-c__lay.t-low{background:#33415f;color:#fff}.pz-c .pz-c__lay.t-bad{background:#4a2730;color:#ffd9d6}.pz-c .pz-c__lay.t-mute{background:rgba(12,23,51,.8);color:#c3d5ec}
+.pz-c .pz-c__tag{margin-top:2px;padding:1px 7px;border-radius:6px;font-size:11.5px;font-weight:760;white-space:nowrap;background:#ffc659;color:#2a1c00}
+.pz-c .pz-c__tag.k-entra{background:#9fe3b6;color:#06301a}.pz-c .pz-c__tag.k-mueve{background:#fff;color:#0c1733}
+.pz-c .pz-c__g{width:var(--g);height:var(--g);border-radius:50%;display:grid;place-items:center;font-size:calc(var(--g)*.55);font-weight:820;background:#fff;color:#0c1733;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.pz-c .pz-c__g.k-C{background:#ffc659;color:#2a1c00}
+.pz-c .pz-c__mk{display:inline-flex;align-items:center;gap:3px;height:var(--g);padding:0 6px;border-radius:6px;font-size:11.5px;font-weight:760;background:#fff;color:#0c1733;white-space:nowrap}
+.pz-c .pz-c__mk.k-amarilla{background:#f2d04b;color:#2a1c00}.pz-c .pz-c__mk.k-tocado{background:#fff;color:#a32630}.pz-c .pz-c__mk.k-gol{background:#ffc659;color:#2a1c00}.pz-c .pz-c__mk.k-roja{background:#e5484d;color:#fff}
+/* Grada: the plate (and the tag) above the shirt, so the shirt's feet are the ground point (rings and shadows meet them) */
+.pz-c.is-grada,.pz-c.is-foco{--anchor:100%}
+.pz-c.is-grada .pz-c__row,.pz-c.is-foco .pz-c__row{order:-3}
+.pz-c.is-grada .pz-c__plate,.pz-c.is-foco .pz-c__plate{order:-2;margin-bottom:2px}
+.pz-c.is-grada .pz-c__tag,.pz-c.is-foco .pz-c__tag{order:-1;margin:0 0 2px}
+.pz-c.is-grada .pz-c__shadow,.pz-c.is-foco .pz-c__shadow{transform:translate(-50%,-50%) scale(1.15,1.6)}
+.pz-c.is-grada .pz-c__ring,.pz-c.is-foco .pz-c__ring{transform:translate(-50%,-50%)}
+/* the bib over a shirt (petos / sin petos): pattern + word (the word is in the half label and the aria) */
+.pz-c .pz-c__bib{position:relative}
+.pz-c .pz-c__bib.p-rayas::after,.pz-c .pz-c__bib.p-malla::after{content:"";position:absolute;left:21%;right:21%;top:23%;bottom:7%;border-radius:22% 22% 10% 10%/12% 12% 6% 6%;z-index:2;pointer-events:none;box-shadow:0 0 0 1px rgba(10,20,40,.35)}
+.pz-c .pz-c__bib.p-rayas::after{background:repeating-linear-gradient(135deg,rgba(255,138,46,.92) 0 3px,rgba(255,170,90,.35) 3px 6px)}
+.pz-c .pz-c__bib.p-malla::after{background:radial-gradient(circle,rgba(30,40,10,.55) 0 1px,transparent 1.4px) 0 0/4px 4px,rgba(232,236,64,.9)}
+/* labels on the grass (neutral; gold is only for our goals and the MVP) */
+.pz-c .pz-c__lab{position:absolute;left:0;top:0;transform:translate(0,-50%) scale(var(--zs,1));transform-origin:0 50%;display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:8px;font-size:12.5px;font-weight:740;white-space:nowrap;background:rgba(6,14,32,.7);color:#fff;pointer-events:none}
+.pz-c .pz-c__lab.a-center{transform:translate(-50%,-50%) scale(var(--zs,1));transform-origin:50% 50%}
+.pz-c .pz-c__lab.a-right{transform:translate(-100%,-50%) scale(var(--zs,1));transform-origin:100% 50%}
+.pz-c .pz-c__lab>i{display:inline-block;width:14px;height:14px;border-radius:4px;background:#fff}
+.pz-c .pz-c__lab>i.p-rayas{background:repeating-linear-gradient(135deg,rgba(255,138,46,.95) 0 3px,rgba(255,170,90,.4) 3px 6px)}
+.pz-c .pz-c__lab>i.p-malla{background:radial-gradient(circle,rgba(30,40,10,.55) 0 1px,transparent 1.4px) 0 0/4px 4px,rgba(232,236,64,.9)}
+.pz-c .pz-c__lab>i.p-liso{background:transparent;box-shadow:inset 0 0 0 1.5px #fff}
+.pz-c button.pz-c__hit.is-tok{cursor:pointer}
+.pz-c button.pz-c__hit.is-tok[aria-pressed="true"] .pz-c__plate{background:var(--vd-celeste);color:var(--vd-marino)}
+/* an overlay line's handle (TAB-F09): 44 px, drag or ↑/↓ */
+.pz-c .pz-c__handle{position:absolute;left:0;top:0;transform:translate(-50%,-50%) scale(var(--zs,1));width:44px;height:44px;border-radius:50%;border:0;padding:0;display:grid;place-items:center;pointer-events:auto;cursor:ns-resize;touch-action:none;background:rgba(6,14,32,.72);color:#fff;box-shadow:0 0 0 2px #fff,0 6px 14px rgba(0,0,0,.45)}
+.pz-c .pz-c__handle>.nx-ic{width:20px;height:20px}
+.pz-c .pz-c__handle:focus-visible{outline:2.5px solid var(--vd-celeste);outline-offset:3px}
+/* dorsal discs (minis below 150 px of pitch) */
+.pz-c .pz-c__dn{display:none;width:calc(var(--s)*1.05);height:calc(var(--s)*1.05);border-radius:50%;place-items:center;font-size:calc(var(--s)*.52);font-weight:820;color:var(--vd-marino);background:#9fd0f2;box-shadow:0 0 0 1.5px #fff,0 3px 6px rgba(0,0,0,.4);font-variant-numeric:tabular-nums;line-height:1}
+.pz-c.pz-c--disc .pz-c__shirt{display:none}
+.pz-c.pz-c--disc .pz-c__dn{display:grid}
+.pz-c.pz-c--disc .pz-c__shadow{display:none}
+.pz-c.pz-c--main .pz-c__stage{view-transition-name:pz-pitch}
+/* an empty slot: a dashed chalk ring with its code */
+.pz-c .pz-c__slot{position:absolute;left:0;top:0;transform:translate(-50%,-50%) translateZ(1px) scale(var(--zs,1));width:calc(var(--s)*1.18);height:calc(var(--s)*1.18);border-radius:50%;display:grid;place-items:center;align-content:center;gap:0;padding:0;border:2px dashed rgba(255,255,255,.7);background:rgba(255,255,255,.06);color:#fff;font-size:13px;font-weight:780;letter-spacing:.03em;pointer-events:auto;cursor:pointer;transition:background .2s,transform .3s,border-color .2s}
+.pz-c .pz-c__slot>b{font-size:20px;line-height:.9;font-weight:500;opacity:0;transition:opacity .2s;height:0;overflow:visible}
+.pz-c .pz-c__slot:hover>b,.pz-c .pz-c__slot:focus-visible>b,.pz-c .pz-c__slot.is-pick>b{opacity:1;height:auto}
+.pz-c .pz-c__slot:hover,.pz-c .pz-c__slot:focus-visible{background:rgba(255,255,255,.16);border-color:#fff;outline:none}
+.pz-c .pz-c__slot:focus-visible{box-shadow:0 0 0 3px var(--vd-celeste)}
+.pz-c .pz-c__slot.is-pick,.pz-c .pz-c__slot.is-over{background:rgba(108,171,221,.35);border-style:solid;border-color:#fff;box-shadow:0 0 24px rgba(108,171,221,.7)}
+.pz-c .pz-c__slot.is-drop{border-color:#fff}
+.pz-c.is-ro .pz-c__slot{cursor:default;border-color:rgba(255,255,255,.45)}
+/* the rival: coral discs with their dorsal and code (never colour alone: the code + the legend name them) */
+.pz-c .pz-c__riv{position:absolute;left:0;top:0;pointer-events:auto;transform-origin:50% 100%;transform:translate(-50%,-70%) rotateX(calc(var(--rx,0deg)*-1)) scale(var(--zs,1));display:grid;justify-items:center;gap:2px;border:0;padding:0;background:none;cursor:default}
+.pz-c .pz-c__riv>b{width:calc(var(--s)*.62);height:calc(var(--s)*.62);min-width:28px;min-height:28px;border-radius:50%;display:grid;place-items:center;background:#f08a7e;color:#3b0d07;font-size:14px;font-weight:820;box-shadow:0 0 0 2px rgba(255,255,255,.75),0 6px 10px -3px rgba(0,0,0,.45)}
+.pz-c .pz-c__riv>small{font-size:11.5px;font-weight:760;padding:0 5px;border-radius:5px;background:rgba(59,13,7,.72);color:#ffd9d3}
+.pz-c .pz-c__riv.k-ghost>b{background:transparent;border:2px dashed rgba(255,255,255,.65);box-shadow:none;color:#fff}
+.pz-c .pz-c__riv:focus-visible{outline:2.5px solid #fff;outline-offset:3px;border-radius:12px}
+.pz-c .pz-c__ghostman{opacity:.45}
+.pz-c .pz-c__gdot{position:absolute;left:0;top:0;width:18px;height:18px;transform:translate(-50%,-50%) scale(var(--zs,1));border-radius:50%;border:2px dashed rgba(255,255,255,.5)}
+.pz-c .pz-c__ball{position:absolute;left:0;top:0;width:15px;height:15px;transform:translate(-50%,-50%) scale(var(--zs,1));border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#d8e2ee 60%,#9aa9bd);box-shadow:0 4px 8px rgba(0,0,0,.45);pointer-events:none}
+/* the chrome over the stage: layers (top), Dibujar + camera (bottom-right), legend (bottom-left), caption */
+.pz-c .pz-c__top{position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:20;max-width:100%}
+.pz-c .pz-c__layers{--vd-r:999px;display:flex;gap:2px;padding:4px;overflow-x:auto;scrollbar-width:none;max-width:100%}
+.pz-c .pz-c__layers>button{flex:none;min-height:38px;padding:0 13px;border:0;border-radius:999px;background:none;color:var(--vd-g-ink2);font-weight:640;font-size:13.5px;white-space:nowrap;cursor:pointer}
+.pz-c .pz-c__layers>button[aria-pressed="true"]{background:var(--vd-pri2);color:var(--vd-g-ink);font-weight:740;box-shadow:var(--vd-bead-shadow)}
+.pz-c .pz-c__br{position:absolute;right:0;bottom:0;z-index:20;display:flex;gap:8px;align-items:center}
+.pz-c .pz-c__cam{--vd-r:999px;display:flex;padding:4px;gap:2px}
+.pz-c .pz-c__cam>button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 13px;border:0;border-radius:999px;background:none;color:var(--vd-g-ink2);font-weight:650;font-size:13.5px;cursor:pointer}
+.pz-c.pz-c--sm .pz-c__cam>button{padding:0 10px;font-size:12.5px}
+.pz-c .pz-c__cam>button[aria-pressed="true"]{background:var(--vd-pri2);color:var(--vd-g-ink);box-shadow:var(--vd-bead-shadow)}
+.pz-c .pz-c__cam .nx-ic{width:18px;height:18px}
+.pz-c .pz-c__draw{width:48px;height:48px;color:var(--vd-g-ink)}
+.pz-c .pz-c__draw[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--vd-celeste)}
+.pz-c .pz-c__layers>button:focus-visible,.pz-c .pz-c__cam>button:focus-visible,.pz-c .pz-c__draw:focus-visible{outline:2px solid var(--vd-celeste);outline-offset:2px}
+.pz-c .pz-c__bl{position:absolute;left:0;bottom:0;z-index:20;display:grid;gap:6px;max-width:46%}
+.pz-c .pz-c__legend{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;padding:8px 12px;border-radius:14px;background:rgba(6,14,32,.62);color:#fff;font-size:12.5px;font-weight:620}
+:root[data-theme="light"] .pz-c .pz-c__legend{background:rgba(255,255,255,.82);color:var(--vd-marino)}
+.pz-c .pz-c__legend>span{display:inline-flex;align-items:center;gap:6px}
+.pz-c .pz-c__legend i{display:inline-block;width:22px;height:0;border-top:4px solid #ffd77a;border-radius:2px}
+.pz-c .pz-c__legend i.t2{border-top:3px solid #9fd0f2}.pz-c .pz-c__legend i.t1{border-top:2px dashed currentColor}
+.pz-c .pz-c__legend i.riv{width:13px;height:13px;border:0;border-radius:50%;background:#f08a7e;box-shadow:0 0 0 1.5px #fff}
+.pz-c .pz-c__cap{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);z-index:19;max-width:92%;padding:7px 14px;border-radius:999px;background:rgba(6,14,32,.72);color:#fff;font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.pz-c.pz-c--sm .pz-c__cap{bottom:54px;white-space:normal;text-align:center;font-size:12.5px;border-radius:14px}
+/* mini (thumbnails: Tableros, Jugadas library, share image): light, no interactions, crisp people at a glance */
+.pz-c.pz-c--mini{min-height:0}
+.pz-c.pz-c--mini .pz-c__hit,.pz-c.pz-c--mini .pz-c__slot,.pz-c.pz-c--mini .pz-c__riv{pointer-events:none}
+.pz-c.pz-c--mini .pz-c__plate,.pz-c.pz-c--mini .pz-c__tag,.pz-c.pz-c--mini .pz-c__riv>small,.pz-c.pz-c--mini .pz-c__lab,.pz-c.pz-c--mini .pz-c__code,.pz-c.pz-c--mini .pz-c__slot>b{display:none}
+.pz-c.pz-c--tiny .pz-c__riv>small{display:none}
+.pz-c.pz-c--mini .pz-c__slot{border-width:1.5px;border-color:rgba(255,255,255,.75)}
+.pz-c.pz-c--mini .pz-c__grass{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),inset 0 0 calc(var(--pw)*.12) rgba(2,14,10,.45)}
+.pz-c.pz-c--mini .pz-c__chalk .l{stroke:rgba(255,255,255,.62);stroke-width:1.2}
+.pz-c.pz-c--mini .pz-c__riv>b{min-width:0;min-height:0;font-size:11.5px;box-shadow:0 0 0 1px #fff,0 1px 2px rgba(0,0,0,.5)}
+/* (the prototype's minis read faint: a crisp edge under each shirt and a lighter haze) */
+.pz-c.pz-c--mini .pz-c__shirt{filter:drop-shadow(0 1px 1px rgba(0,0,0,.6)) drop-shadow(0 0 .5px rgba(0,0,0,.5))}
+.pz-c.pz-c--mini.is-grada .pz-c__haze{opacity:.4}
+.pz-c.pz-c--mini .pz-c__shadow{opacity:.8}
+.pz-c .pz-c__sr,.pz-c .pz-c__sr *{opacity:0}
+@media (prefers-reduced-motion:reduce){.pz-c *,.pz-c *::before,.pz-c *::after{transition:none!important;animation:none!important}}

@@ -284,7 +284,7 @@ export interface MesaNav {
   acta(): void;
   /** Any other address of the app (the MVP, the sala's acta). */
   go(href: string): void;
-  /** The pizarra «desde la mesa» for this match (`/pizarra?desde=mesa&partido=…`), on its official board
+  /** The pizarra «desde la mesa» for this match (`/pizarra/partido?desde=mesa&partido=…`), on its official board
    *  (`&tablero=…`) when la mesa knows it. */
   pizarra(boardId?: string | null): void;
 }

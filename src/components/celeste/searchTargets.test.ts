@@ -25,7 +25,7 @@ describe("where a search result leads", () => {
     [{ to: "vestuario", hash: "vx-ausencias" }, "/vestuario/ausencias"],
     [{ to: "vestuario", hash: "vx-rsvp" }, "/vestuario#vx-rsvp"],
     [{ to: "profile" }, "/perfil"],
-    [{ to: "pizarra" }, "/pizarra"],
+    [{ to: "pizarra" }, "/pizarra/siete"],
   ] as const)("%o → %s", (target, href) => {
     expect(targetHref(target)).toBe(href);
     expect(legacyHref(href)).toBeNull();
