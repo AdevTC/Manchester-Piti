@@ -33,6 +33,14 @@ export function CampoShirt({ still, className = "" }: { still: ShirtStill; class
   return (
     <span className={`pz-c__shirt${className ? ` ${className}` : ""}`}>
       {still.src ? <img src={still.src} alt="" draggable={false} decoding="async" /> : <DrawnShirt num={still.num} away={still.kit === "away"} />}
+      {/* the kit's blank still (his own printed one is still rendering): the dorsal set over it, as the app does */}
+      {still.src && !still.printed && still.num && (
+        <svg className={`pz-c__num${still.kit === "away" ? " is-away" : ""}`} viewBox="0 0 200 265" aria-hidden="true">
+          <text x="100" y="168" textAnchor="middle">
+            {still.num}
+          </text>
+        </svg>
+      )}
     </span>
   );
 }

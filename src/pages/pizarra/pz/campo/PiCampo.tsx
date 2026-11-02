@@ -184,7 +184,7 @@ export function PiCampo(props: PiCampoProps) {
   };
 
   // ── the seven
-  const shortPlates = view.plates === "short" || (cam !== "pizarra" && G.pw < 300 && !mini);
+  const shortPlates = view.plates === "short" || (G.pw < (cam === "pizarra" ? 270 : 300) && !mini);
   const slotModel = (s: ViewSlot) => {
     const pl = s.p;
     let layV = "";
