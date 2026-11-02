@@ -164,7 +164,7 @@ export function PizarraR14() {
       saved: session.savedAt,
       reactions: official ? { ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, ...(reactions.who ? { who: reactions.who } : {}) } : undefined,
     });
-  }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, lineups.all, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
+  }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, lineups.all, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, prefs.prefs, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
 
   // what changed under the board (another tab, a new official, a failed save) is said
   useEffect(() => {
