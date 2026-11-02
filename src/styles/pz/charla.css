@@ -233,6 +233,9 @@
 .pz .pc.is-flow .pc-in__stage{height:350px;margin:0 -10px 6px}
 .pz .pc.is-flow .pc-strip__l{margin:0 -14px;padding:2px 14px 6px}
 .pz .pc.is-flow .pc-tile{flex:0 0 150px;min-width:150px}
+/* (the seven's seven shirts fit the narrowest tile — 136 px — whole) */
+.pz .pc .pc-tile__mid:has(.pz-shirt:nth-child(6)){gap:1px}
+.pz .pc .pc-tile__mid:has(.pz-shirt:nth-child(6)) .pz-shirt{--s:16px;flex:none}
 .pz .pc.is-flow .pc-gobar{position:absolute;left:10px;right:10px;bottom:10px;z-index:6;display:flex;gap:8px;align-items:center;padding:8px;--vd-r:999px}
 .pz .pc.is-flow .pc-gobar>.pz-btn--pri{flex:1;min-height:52px;font-size:16px;font-weight:740}
 .pz .pc.is-flow .pc-gobar .pc-seg>button{min-width:46px;padding:0 6px}
