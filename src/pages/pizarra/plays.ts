@@ -2,7 +2,7 @@
 // arrows; the replay pose at any point of the timeline; limits; (de)serialization; and the
 // conversion to the 3D engine. No React. Board frame: x 0→100 left→right, y 0 = rival goal line →
 // 100 = ours (the engine counts y from our goal line). Unit-tested in plays.test.ts.
-import type { ArrowSpec, PlayFrame as EngineFrame, RivalSpec } from "../../components/pitch3d/types";
+import type { ArrowSpec, PlayFrame as EngineFrame, RivalSpec } from "./playFrame";
 import { reportDroppedDoc } from "../../lib/docTelemetry";
 import {
   PIZARRA_LIMITS,

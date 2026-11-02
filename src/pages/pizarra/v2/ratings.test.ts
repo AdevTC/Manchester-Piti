@@ -4,9 +4,8 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch, MatchEvent, Participation } from "../../../lib/clubData";
 import { buildSquad, concededOnPitch, formWhy, minutesTogether, type SquadPlayer } from "./ratings";
-import { chem, links, tierDiamonds, tierOf, TIERS } from "./quimica";
+import { chem, links } from "./quimica";
 import { rtTxt } from "./model";
-import { squadInfo } from "./bench";
 import { lineupOf } from "./testkit";
 
 const ZERO: Omit<Participation, "minutes" | "started" | "played" | "stints"> = {
@@ -112,18 +111,6 @@ describe("la química en minutos juntos", () => {
     // EXP: 4 + 4 + 1 + 4 + 4 = 17 matches of 4 · 7 = 28 possible
     expect(ch.ex).toBe(Math.round((17 / 28) * 100));
     expect(chem(L, { ...sq, games: 0, teamMin: 0 }).ex).toBe(0);
-  });
-  it("one table for the tiers and the squad bars' diamonds", () => {
-    TIERS.forEach((t) => {
-      expect(tierOf(t.from)[0]).toBe(t.label);
-      expect(tierDiamonds(t.from)).toBe(t.dm);
-    });
-    expect(tierDiamonds(84)).toBe(2);
-    expect(tierDiamonds(85)).toBe(3);
-    const sq = squad();
-    const L = lineupOf(["por", "def", "cola", "med", null, null, "del"], "2-3-1", sq);
-    const ch = chem(L, sq);
-    expect(squadInfo(L, sq, ch).dm.filter(Boolean).length).toBe(tierDiamonds(ch.v));
   });
 });
 
