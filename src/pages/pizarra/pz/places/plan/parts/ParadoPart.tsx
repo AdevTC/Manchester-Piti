@@ -62,6 +62,8 @@ export function ParadoPart({ layout: _layout }: { layout: Layout }) {
   const PS = partsStatus(P);
   const gap = paradoGap(P, b);
   const n = (id: string) => P.sel.name(id);
+  /** «X.» without a second dot after a name that ends in one («ADRIÁN T.C.»). */
+  const dot = (t: string) => (t.endsWith(".") ? t + " " : t + ". ");
   const save = (label: string, fn: Parameters<typeof withParado>[1]) => P.act.saveBoard(withParado(P.sel.board()?.lineup ?? L, fn), label);
   const playRun = () => {
     if (u.playing) {
@@ -93,7 +95,7 @@ export function ParadoPart({ layout: _layout }: { layout: Layout }) {
     <>
       <div className="pp__ph">
         <p className="pz-kick">Pelotas paradas</p>
-        <h2>{PS.st.parado ? K.t + (tk ? ": " + n(tk) : "") : "Faltan " + (gap.length === 1 ? "una cosa" : gap.length + " cosas")}</h2>
+        <h2>{PS.st.parado ? K.t + (tk ? ": " + n(tk) : "") : (gap.length === 1 ? "Falta una cosa" : "Faltan " + gap.length + " cosas")}</h2>
         <p className="pz-line">{PS.st.parado ? "Quién la tira, quién va al área y la jugada, para las tres." : "Falta " + fmt.list(gap) + "."}</p>
       </div>
       <div className="vd-glass pp__seg" role="group" aria-label="Qué pelota parada">
@@ -132,7 +134,7 @@ export function ParadoPart({ layout: _layout }: { layout: Layout }) {
           <span>
             <b>{tk ? n(tk) : "Nadie"}</b>
             <small>
-              {tk ? (takers[0] && takers[0] !== tk ? n(takers[0]) + " es el primero, pero no está en el siete. " : "") + (rest.length ? "Si no está, " + fmt.list(rest.map(n)) + ". " : "") + "El mismo galón que en el Siete." : "Elige quién tira " + all + "."}
+              {tk ? (takers[0] && takers[0] !== tk ? n(takers[0]) + " es el primero, pero no está en el siete. " : "") + (rest.length ? dot("Si no está, " + fmt.list(rest.map(n))) : "") + "El mismo galón que en el Siete." : "Elige quién tira " + all + "."}
             </small>
           </span>
         </div>
@@ -181,7 +183,7 @@ export function ParadoPart({ layout: _layout }: { layout: Layout }) {
             );
           })}
         </div>
-        <p className="pp__note">{boxL.length ? (kind === "penalties" ? "Al rechace: " : "Van: ") + fmt.list(boxL.map(n)) + (stay.length ? ". Se quedan: " + fmt.list(stay.map(n)) + "." : ".") : "Nadie todavía: toca sus camisetas."}</p>
+        <p className="pp__note">{boxL.length ? (dot((kind === "penalties" ? "Al rechace: " : "Van: ") + fmt.list(boxL.map(n))) + (stay.length ? dot("Se quedan: " + fmt.list(stay.map(n))) : "")).trim() : "Nadie todavía: toca sus camisetas."}</p>
       </section>
       {kind !== "penalties" && (
         <section className="pz-sec" aria-labelledby="pp-jg">

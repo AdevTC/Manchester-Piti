@@ -193,6 +193,9 @@ function freeX(toks: PTok[], y: number, need: number): number | null {
 }
 const LINE_Y: Record<string, number> = { Alta: 60, Media: 70, Baja: 80 };
 const low = (s: string | undefined, d: string) => String(s || d).toLowerCase();
+/** The defensive line's grip at the right touchline (the pitch puts a handle at its path's middle: a short path
+ *  there keeps it off the shirts in the middle). */
+const lineGrip = (dy: number, handle: OverlayHandle | null): OverlayPath[] => (handle ? [{ kind: "lapiz", pts: [[92, dy], [94, dy]], color: "blanco", handle }] : []);
 function painted(L: Lineup, toks: PTok[], handle: OverlayHandle | null): OverlayPath[] {
   const tac = L.tactics;
   const out: OverlayPath[] = [];
@@ -204,7 +207,7 @@ function painted(L: Lineup, toks: PTok[], handle: OverlayHandle | null): Overlay
   };
   out.push({ kind: "lapiz", pts: [[6, py], [94, py]], color: "celeste" });
   lab(py + 4, "Presión " + low(tac.press, "media"));
-  out.push({ kind: "lapiz", pts: [[6, dy], [94, dy]], color: "blanco", ...(handle ? { handle } : {}) });
+  out.push({ kind: "lapiz", pts: [[6, dy], [94, dy]], color: "blanco" }, ...lineGrip(dy, handle));
   lab(dy - 3, "Línea " + low(tac.defLine, "media"));
   if (tac.attackFocus === "Centro") out.push({ kind: "flecha", pts: [[50, 52], [50, 26]] });
   else if (tac.attackFocus === "Bandas") out.push({ kind: "flecha", pts: [[16, 58], [12, 26]] }, { kind: "flecha", pts: [[84, 58], [88, 26]] });
@@ -329,7 +332,7 @@ export function planStage(P: PlanReader, c: StageCtx): StageSpec {
       const o = offShape(L, base);
       const dy = LINE_Y[L.tactics.defLine] ?? 70;
       toks = o.toks;
-      paths = [...arrowsBetween(base, toks, "flecha"), { kind: "lapiz", pts: [[6, dy], [94, dy]], color: "blanco", ...(c.lineHandle ? { handle: c.lineHandle } : {}) }];
+      paths = [...arrowsBetween(base, toks, "flecha"), { kind: "lapiz", pts: [[6, dy], [94, dy]], color: "blanco" }, ...lineGrip(dy, c.lineHandle)];
       cap = "Sin balón · " + o.formation + (o.own ? "" : " · propuesta") + " · línea " + low(L.tactics.defLine, "media");
     } else {
       const f = FASES[U.fase] ?? FASES[0];
@@ -362,13 +365,14 @@ export function planStage(P: PlanReader, c: StageCtx): StageSpec {
     } else {
       const tk = v ? P.sel.taker(b, v, k) : null;
       const bx = (k === "penalties" ? pd.penalties.rechace : pd[k].box).filter((x) => x !== tk);
-      const SP: [number, number][] = k === "corners" ? [[42, 15], [58, 13], [50, 21], [66, 19]] : k === "freekicks" ? [[38, 13], [54, 11], [64, 16], [46, 19]] : [[30, 27], [70, 27]];
+      // spread so no two shirts (and their plates) touch: ≥ 22 across on a row, ≥ 12 between rows
+      const SP: [number, number][] = k === "corners" ? [[30, 14], [54, 10], [42, 27], [68, 23]] : k === "freekicks" ? [[28, 12], [52, 10], [74, 13], [40, 25]] : [[26, 28], [74, 28]];
       const toks = moved(baseTokens(P, b), (t) => {
         const j = t.pid ? bx.indexOf(t.pid) : -1;
-        if (t.pid && t.pid === tk) return k === "penalties" ? [50, 17] : k === "corners" ? [91, 9] : [50, 31];
+        if (t.pid && t.pid === tk) return k === "penalties" ? [50, 17] : k === "corners" ? [87, 12] : [50, 31];
         if (j >= 0 && SP[j]) return SP[j];
         if (t.line === "POR") return [50, 89];
-        if (k === "penalties") return [t.x, 40 + (t.y - 22) * 0.25];
+        if (k === "penalties") return [t.x, t.line === "DEF" ? 60 : t.line === "MED" ? 46 : 34];
         return t.line === "DEF" ? [t.x, t.y - 6] : [t.x, Math.max(30, t.y - 10)];
       });
       const T = k === "corners" ? "Córners" : k === "freekicks" ? "Faltas" : "Penaltis";

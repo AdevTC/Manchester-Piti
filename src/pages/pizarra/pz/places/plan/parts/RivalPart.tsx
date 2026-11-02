@@ -38,7 +38,8 @@ export function RivalPart({ layout }: { layout: Layout }) {
     const nx = FORMATION_NAMES[(i + dir + FORMATION_NAMES.length) % FORMATION_NAMES.length];
     save(keepR14(R, setRivalSystem(R, nx)), "Su sistema: " + nx);
   };
-  const where = M ? [M.venue, fmt.hm(M.at)].filter(Boolean).join(" · ") : "";
+  // the ground's name (the full address lives in Partido)
+  const where = M ? [M.venue.split(/ · |,/)[0].trim(), fmt.hm(M.at)].filter(Boolean).join(" · ") : "";
   return (
     <>
       <div className="pp__ph">
