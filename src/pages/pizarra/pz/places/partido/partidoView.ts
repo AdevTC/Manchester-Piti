@@ -259,7 +259,9 @@ export function ptModel(P: PzApi, feed0: PtFeed, ui: PtUi): PtModel {
   const cal = M?.cal;
   const called = cal?.conv ? [...cal.conv.starters, ...cal.conv.bench] : [];
   const yes = S.W.squad.filter((p) => P.sel.rsvp(p.id).v === "yes").map((p) => p.id).concat(S.W.guests.map((g) => g.id));
-  const present = feed.present && feed.present.length ? feed.present : called.length ? called : yes;
+  // (the convocatoria names a guest «guest:g1»; the store knows him as his own id when it has him)
+  const known = (id: string) => (P.sel.player(id) ? id : id.startsWith("guest:") && P.sel.player(id.slice(6)) ? id.slice(6) : null);
+  const present = (feed.present && feed.present.length ? feed.present : called.length ? called : yes).map(known).filter((x): x is string => !!x);
   const field = L ? L.field : (startPids.filter(Boolean) as string[]);
   const reds = L ? L.outs.filter((o) => !o.in).map((o) => o.out) : [];
   const bench = present.filter((p) => !field.includes(p) && !ui.cant[p] && !reds.includes(p));
@@ -345,7 +347,7 @@ export function stageFor(P: PzApi, X: PtModel): StageSpec {
       return { ...base, source: "ahora", slots: sl, marks: {}, next: t ? { min: t.min, out: t.out, in: t.in } : null, caption: t ? "En el " + t.min + "′ · entra " + N0(t.in) + " por " + N0(t.out) : "" };
     }
     const n = X.st.n;
-    const cap = !n ? "Aún sin siete para la J" + (X.M.j ?? "") : (X.b.isOfficial ? "El siete oficial" : "Tu siete") + " · " + X.v.formation + (X.st.full ? " · así sale al pitido" : 7 - n === 1 ? " · falta 1" : " · faltan " + (7 - n));
+    const cap = !n ? "Aún sin siete para la J" + (X.M.j ?? "") : (X.b.isOfficial ? "El siete oficial" : "Tu siete") + " · " + X.v.formation + (X.st.full ? (phone ? "" : " · así sale al pitido") : 7 - n === 1 ? " · falta 1" : " · faltan " + (7 - n));
     return { ...base, source: "siete", boardId: X.b.id, version: "titular", caption: cap };
   }
   const L = X.L;
