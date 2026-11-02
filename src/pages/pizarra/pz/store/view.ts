@@ -28,8 +28,8 @@ const empty = (): Base => ({ boardId: null, formation: "", free: false, slots: [
 
 /** A rival disc that would land on one of our shirts moves ~13 % away (display only; the data keeps its spot). */
 export function rivalSpotNear(x: number, y: number, slots: { x: number; y: number; pid: string | null }[]): { x: number; y: number } {
-  // (a shirt with its plate is wide: ±14 % across, ±10 % down; an empty slot's ring is smaller)
-  const hit = (px: number, py: number) => slots.some((s) => Math.abs(s.x - px) < (s.pid ? 14 : 9) && Math.abs(s.y - py) * 1.4 < (s.pid ? 14 : 11));
+  // (a shirt with its plate is wide: ±17 % across, ±10 % down; an empty slot's ring is smaller)
+  const hit = (px: number, py: number) => slots.some((s) => Math.abs(s.x - px) < (s.pid ? 17 : 9) && Math.abs(s.y - py) * 1.4 < (s.pid ? 14 : 11));
   const inX = (v: number) => Math.max(9, Math.min(91, v));
   const inY = (v: number) => Math.max(6, Math.min(94, v));
   if (!hit(inX(x), inY(y))) return { x: inX(x), y: inY(y) };
