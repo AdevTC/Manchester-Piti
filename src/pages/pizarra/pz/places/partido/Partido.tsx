@@ -608,7 +608,7 @@ function Side({ X }: { X: PtModel }) {
               </button>
               {X.b && P.sel.canEdit(X.b) && (
                 <button type="button" className="nx-lnk" onClick={() => propose(P)} aria-keyshortcuts="M">
-                  Recalcular desde el {X.now}′
+                  Recalcular desde el {X.shown}′
                 </button>
               )}
             </div>
@@ -840,7 +840,7 @@ function Side({ X }: { X: PtModel }) {
                 <>
                   <span className="pt-tl__now" style={{ left: plan.nowL + "%" }} aria-hidden="true" />
                   <span className="pt-tl__nowT" style={{ left: plan.nowL + "%" }} aria-hidden="true">
-                    {X.now}′
+                    {X.shown}′
                   </span>
                 </>
               )}
@@ -1028,7 +1028,7 @@ function Peek({ X }: { X: PtModel }) {
   const asking = ph === "juego" && X.ui.confirm === "next" && !!nx;
   if (asking && nx) {
     t = "¿Lo apuntamos en el acta?";
-    s = nx.t + " " + nx.s + " · " + X.now + "′";
+    s = nx.t + " " + nx.s + " · " + X.shown + "′";
   }
   const asking2 = ph === "descanso" && X.ui.confirm === "desc";
   const showBtn = !!pri && !asking && !asking2 && !(ph === "juego" && !canChange);

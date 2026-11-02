@@ -47,6 +47,24 @@ describe("Partido · «Hacer el cambio» writes the acta (la mesa's addMany), wi
     expect(mesaEvent).toHaveBeenCalledWith({ action: "delete", matchId: "j3", eventId: `live-${rid}-0` });
   });
 
+  it("«Deshacer» lives only in the toast's window: a Ctrl+Z much later deletes nothing in the acta", async () => {
+    const { P } = store("juego");
+    P.slice("pt-feed").set(feed({ minute: 26, events: [] }), { undoable: false, toast: false });
+    const t0 = Date.now();
+    const now = vi.spyOn(Date, "now").mockReturnValue(t0);
+    expect(await doNext(P)).toBe(true);
+    now.mockReturnValue(t0 + 60_000);
+    P.act.undo();
+    await flush();
+    expect(mesaEvent).not.toHaveBeenCalled();
+    expect(P.state.toast?.text).toBe("Ese cambio ya está en el acta: se corrige desde la mesa");
+    // (and its redo doesn't write it a second time)
+    P.act.redo();
+    await flush();
+    expect(addSubs).toHaveBeenCalledTimes(1);
+    now.mockRestore();
+  });
+
   it("a player can't write it; a change whose man already left is refused with its reason", async () => {
     const p = store("juego", { me: ME_PLAYER });
     p.P.slice("pt-feed").set(feed({ minute: 26 }), { undoable: false, toast: false });
