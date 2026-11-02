@@ -78,6 +78,25 @@ describe("the seven", () => {
   });
 });
 
+describe("other fields of the board", () => {
+  it("saveBoard writes through the session and its undo restores only those fields", () => {
+    const { P, host } = makeTestStore();
+    P.act.saveBoard({ tags: ["Liga"] }, "Etiqueta «Liga»");
+    expect(lastCommit(host).tags).toEqual(["Liga"]);
+    P.act.place("alcides", 6);
+    P.act.undo();
+    P.act.undo();
+    const L = lastCommit(host);
+    expect(L.tags).toBeUndefined();
+    expect(ids(L)[6]).toBeNull();
+  });
+  it("a read-only board is not written", () => {
+    const { P, host } = makeTestStore({ me: ME_PLAYER, world: fakeWorld({ boards: [fakeBoard({ isOfficial: true })] }) });
+    expect(P.act.saveBoard({ tags: ["x"] }, "x")).toBe(false);
+    expect(host.commit).not.toHaveBeenCalled();
+  });
+});
+
 describe("taps", () => {
   it("tap-tap: a shirt in the hand, then a slot swaps; the same shirt again opens the ficha", () => {
     const { P, host } = makeTestStore();

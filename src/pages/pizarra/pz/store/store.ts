@@ -1000,6 +1000,32 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     clear() {
       commit("Campo vacío", (L) => editSlots(L, (slots) => slots.map((s) => ({ ...s, playerId: null }))), { long: true });
     },
+    saveBoard(patch, label, o = {}) {
+      const b = board(o.boardId ?? undefined);
+      if (!b) return false;
+      if (!canEdit(b)) {
+        toast(b.isOfficial ? "El oficial es de solo lectura: duplícalo para editarlo" : "Solo lectura: duplícalo para editarlo", { action: me().fuera || me().socia ? null : { t: "Duplicar", run: () => act.duplicate(b.id) } });
+        return false;
+      }
+      const keys = Object.keys(patch) as (keyof Lineup)[];
+      const before = structuredClone(Object.fromEntries(keys.map((k) => [k, b.lineup[k]]))) as Partial<Lineup>;
+      const after = structuredClone(patch);
+      const id = b.id;
+      const write = (part: Partial<Lineup>) => {
+        const cur = board(id === "nuevo" ? S.boardId : id);
+        if (!cur) return;
+        const next = { ...cur.lineup, ...structuredClone(part) };
+        setLineup(cur.id, next);
+        if (cur.id === S.boardId) host.commit(next);
+        else host.save(cur.id, next);
+      };
+      write(after);
+      if (o.undoable !== false) pushHist(label, () => write(before), () => write(after));
+      emit("board:saved", { boardId: id, keys });
+      if (o.toast !== false) toast(label, { undo: o.undoable !== false, long: !!o.long });
+      else bump();
+      return true;
+    },
     tapSlot(i) {
       if (Date.now() < DR.suppress) return;
       const b = board();

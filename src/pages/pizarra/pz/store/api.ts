@@ -28,7 +28,7 @@ import type {
   VersionId,
 } from "./types";
 import type { PosCode } from "../../../../lib/positions";
-import type { FormationName } from "../../formations";
+import type { FormationName, Lineup } from "../../formations";
 import type { PizarraPrefs } from "../../data/prefs";
 
 export interface ShirtStill {
@@ -149,6 +149,9 @@ export interface PzAct {
   suggest(): void;
   startFrom(id: StartSource["id"]): void;
   clear(): void;
+  /** Any other field of a board (rival, plan, plays, drawings, condPlan, subs, tags, seasonPlays…): written through
+   *  the session (updateDoc), undoable (restores only those fields), toasted. The board on screen unless boardId. */
+  saveBoard(patch: Partial<Lineup>, label: string, o?: { boardId?: string; toast?: boolean; long?: boolean; undoable?: boolean }): boolean;
   // taps
   tapSlot(i: number): void;
   tapBench(pid: string): void;
