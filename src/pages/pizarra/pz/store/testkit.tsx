@@ -52,7 +52,7 @@ export function fakeBoard(o: Partial<PzBoard> & { ids?: (string | null)[] } = {}
 export function fakeWorld(o: Partial<PzWorld> = {}): PzWorld {
   const now = Date.UTC(2026, 10, 5, 19, 0);
   const j3: PzMatch = { id: "j3", j: 3, rival: "Red Demons", home: true, at: Date.UTC(2026, 10, 8, 17, 0), played: false, gf: null, ga: null, venue: "", phase: "antes", cal: { id: "j3", j: 3, rival: "Red Demons", dateMs: Date.UTC(2026, 10, 8, 17, 0), played: false, gf: null, ga: null, home: true, venue: "" } };
-  return { now, season: { id: "t1", name: "Temporada 1" }, squad: P0.map(([id, s, n, m, g]) => fakePlayer(id, s, n, m, g)), guests: [], matches: [j3], next: "j3", boards: [fakeBoard()], official: null, rsvp: { kevin: { v: "yes" }, josito: { v: "no" } }, together: () => 30, games: 2, ...o };
+  return { now, season: { id: "t1", name: "Temporada 1" }, squad: P0.map(([id, s, n, m, g]) => fakePlayer(id, s, n, m, g)), guests: [], matches: [j3], next: "j3", boards: [fakeBoard()], official: null, rsvp: { kevin: { v: "yes" }, josito: { v: "no" } }, absences: [], together: () => 30, games: 2, ...o };
 }
 
 export const ME_CAPTAIN: PzMe = { uid: "u-jordi", name: "Jordi", nick: "jordi", label: "Jordi, capitán", pid: "jordi", cap: true, general: false, socia: false, jugador: false, fuera: false, member: true };
