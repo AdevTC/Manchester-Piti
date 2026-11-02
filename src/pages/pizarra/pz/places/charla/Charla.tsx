@@ -17,6 +17,7 @@ import type { PzApi } from "../../store/api";
 import type { Layout, RegionProps, StageSpec } from "../../store/types";
 import { BLOCKS, buildCharla, CHARLA0, mmss, SPEEDS, type BlockId, type CharlaChoices, type CharlaModel, type Step } from "./charlaView";
 import { useCharlaVoz } from "./useCharlaVoz";
+import { changePrefs, lessMotion, sonar } from "../../sheets/ajustes/prefsLive";
 import { Camiseta, CharlaCard } from "./CharlaCard";
 
 const WAVE = [7, 12, 18, 10, 22, 15, 26, 13, 19, 9, 16, 24, 11, 20, 14, 8, 17, 12];
@@ -47,7 +48,6 @@ export function Charla({ region, layout }: RegionProps) {
   return <CharlaFull layout={layout} />;
 }
 
-const reducedNow = (): boolean => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 function CharlaFull({ layout }: { layout: Layout }) {
   const P = usePz();
@@ -59,7 +59,7 @@ function CharlaFull({ layout }: { layout: Layout }) {
   const cs = sl.get();
   const prefs = P.sel.prefs();
   const muted = !!prefs.vozMute;
-  const [reduced] = useState(() => reducedNow() || prefs.mov === "menos");
+  const [reduced] = useState(() => lessMotion(P));
   const say = (t: string) => P.say(t);
   const vz = useCharlaVoz({ boardId: b0 && !b0.draft ? b0.id : null, on: true, uid: me.uid, say });
   const quedada = useQuedada(b0?.matchId ?? null, !!b0?.matchId).quedada;
@@ -152,6 +152,7 @@ function CharlaFull({ layout }: { layout: Layout }) {
     setStepIn(false);
     window.setTimeout(() => setStepIn(true), 40);
     const s = S[k];
+    if (s.block === "vamos") sonar(P, "grada");
     say("Paso " + (k + 1) + " de " + S.length + ". " + s.t + (s.line ? ". " + s.line : ""));
   };
   const pause = () => {
@@ -964,7 +965,10 @@ function CharlaFull({ layout }: { layout: Layout }) {
                 </>
               )}
             </div>
-            <button type="button" className="vx-tog" aria-pressed={muted} onClick={() => P.act.setPrefs({ vozMute: !muted })}>
+            <button type="button" className="vx-tog" aria-pressed={muted} onClick={() => {
+                changePrefs(P, { vozMute: !muted });
+                P.say(muted ? "Las voces vuelven a sonar" : "Voces silenciadas");
+              }}>
               <span className="vx-tog__t" aria-hidden="true" />
               Silenciar las voces
             </button>
