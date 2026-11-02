@@ -40,7 +40,7 @@ describe("«Cambio en el siete»", () => {
       title: "Cambio en el siete",
       body: "Entra E por B. Mira el oficial en la pizarra.",
       tag: "seven-b1",
-      url: "/pizarra?tablero=b1&season=t%201",
+      url: "/pizarra/siete?tablero=b1&season=t%201",
     });
     expect(sevenChangeNotice("b1", ["a", "b"], ["b", "a"], { isOfficial: true }, null, nameOf)).toBeNull();
   });
