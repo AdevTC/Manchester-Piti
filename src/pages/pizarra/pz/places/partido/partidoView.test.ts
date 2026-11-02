@@ -4,7 +4,8 @@ import type { MatchEvent } from "../../../../../lib/clubData";
 import { fakeBoard, fakeLineup, fakeWorld, makeTestStore, ME_CAPTAIN, ME_PLAYER } from "../../store/testkit";
 import type { PzMatch } from "../../store/types";
 import { descPairs, EMPTY_FEED, intervals, mesaState, plannedOf, playedOf, ptModel, stageFor, total, UI0, type PtFeed } from "./partidoView";
-import { badgeOf, primaryOf, subOf } from "./actions";
+import { badgeOf, peekOf, primaryOf, subOf } from "./actions";
+import { matchAt } from "./testMatch";
 
 const SEVEN = ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"];
 const CODES = ["POR", "DFC", "LI", "LD", "MC", "MC", "DC"] as const;
@@ -13,7 +14,7 @@ const ev = (id: string, type: string, minute: number, o: Partial<MatchEvent> = {
 
 function world(phase: PzMatch["phase"], o: { subs?: { id: string; min: number; out: string; in: string }[]; condPlan?: unknown[]; variants?: unknown[] } = {}) {
   const W = fakeWorld();
-  const m = { ...W.matches[0], phase, played: phase === "jugado" };
+  const m = matchAt(W, phase);
   const L = { ...fakeLineup("3-2-1", SEVEN), subs: o.subs ?? [{ id: "s1", min: 15, out: "fer", in: "kevin" }, { id: "s2", min: 25, out: "eguzquiza", in: "josito" }] };
   if (o.condPlan) Object.assign(L, { condPlan: o.condPlan });
   if (o.variants) Object.assign(L, { variants: o.variants });
@@ -148,13 +149,48 @@ describe("Partido · what the place tells the shell", () => {
     expect(primaryOf(p.P)?.label).toBe("Ver la charla");
   });
 
-  it("live: «Hacer el cambio» for a captain or the match's scorer, the badge «23′ · 1–0»", () => {
+  it("live: «Hacer el cambio» for a captain or the match's scorer", () => {
     const h = makeTestStore({ world: world("juego"), place: "partido", me: ME_PLAYER });
     h.P.slice("pt-feed").set(feed({ minute: 23, events: [ev("g", "goal", 6, { playerId: "alcides" })] }), { undoable: false, toast: false });
     expect(primaryOf(h.P)).toBeNull();
-    expect(badgeOf(h.P)).toEqual({ t: "23′ · 1–0", word: "En juego", live: true });
-    expect(subOf(h.P)).toBe("En juego 23′");
     h.P.slice("pt-feed").set(feed({ minute: 23, scorer: true }), { undoable: false, toast: false });
     expect(primaryOf(h.P)?.label).toBe("Hacer el cambio");
+  });
+});
+
+describe("Partido · the badge and the sublabel say «En juego» only when la mesa's clock says so", () => {
+  const at = (m: PzMatch) => {
+    const W = fakeWorld();
+    return makeTestStore({ world: { ...W, matches: [m] }, place: "siete" }).P;
+  };
+  const W = fakeWorld();
+  it("before: no badge, the day and the time (also with a stale «juego» phase but no clock: the bug of round 3)", () => {
+    const P = at(matchAt(W, "antes"));
+    expect(badgeOf(P)).toBeNull();
+    expect(subOf(P)).toBe("dom 18:00");
+    expect(peekOf(P)).toBe(150);
+    const noClock = { ...matchAt(W, "antes"), phase: "juego" as const };
+    expect(badgeOf(at(noClock))).toBeNull();
+    expect(subOf(at(noClock))).toBe("dom 18:00");
+  });
+  it("today, before the whistle: «Hoy 18:00»", () => {
+    expect(subOf(at(matchAt(W, "antes", { at: W.now + 50 * 60000 })))).toBe("Hoy " + new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" }).format(new Date(W.now + 50 * 60000)));
+  });
+  it("live: the minute and the score, compact, from the calendar row (no feed needed)", () => {
+    const P = at(matchAt(W, "juego", { events: [{ id: "g", type: "goal", minute: 6, playerId: "alcides" }, { id: "o", type: "opponent_goal", minute: 14 }, { id: "d", type: "goal", minute: 14, playerId: "erik", dupOf: "g" }] }));
+    expect(badgeOf(P)).toEqual({ t: "24′ 1–1", word: "En juego", live: true });
+    expect(subOf(P)).toBe("En juego 24′");
+    expect(peekOf(P)).toBe(176);
+  });
+  it("half-time: «Descanso» and the score", () => {
+    const P = at(matchAt(W, "descanso", { events: [{ id: "g", type: "goal", minute: 6, playerId: "alcides" }] }));
+    expect(badgeOf(P)).toEqual({ t: "1–0", word: "Descanso", live: false });
+    expect(subOf(P)).toBe("Descanso");
+  });
+  it("after: «Jugado · 3–2», no badge; a clock left running for hours isn't live", () => {
+    expect(subOf(at({ ...matchAt(W, "jugado"), gf: 3, ga: 2 }))).toBe("Jugado · 3–2");
+    expect(badgeOf(at(matchAt(W, "jugado")))).toBeNull();
+    const stale = matchAt(W, "juego", { startedAgoMin: 6 * 60 });
+    expect(badgeOf(at(stale))).toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fakeBoard, fakeLineup, fakeWorld, ME_CAPTAIN, ME_PLAYER, renderWithPz } from "../../store/testkit";
 import type { PzMatch } from "../../store/types";
 import { EMPTY_FEED, type PtFeed } from "./partidoView";
+import { matchAt } from "./testMatch";
 
 // (the feed reads Firebase: the tests hand the slice in themselves)
 vi.mock("./feed", () => ({ PtFeedBridge: () => null }));
@@ -15,7 +16,7 @@ const feed = (o: Partial<PtFeed> = {}): PtFeed => ({ ...EMPTY_FEED, matchId: "j3
 function world(phase: PzMatch["phase"]) {
   const W = fakeWorld();
   const L = { ...fakeLineup("3-2-1", SEVEN), subs: [{ id: "s1", min: 25, out: "eguzquiza", in: "kevin" }] };
-  return { ...W, matches: [{ ...W.matches[0], phase, at: W.now + 50 * 60000 }], boards: [fakeBoard({ isOfficial: true, lineup: L })], official: { boardId: "b1", matchId: "j3" } };
+  return { ...W, matches: [matchAt(W, phase, phase === "antes" ? { at: W.now + 50 * 60000 } : {})], boards: [fakeBoard({ isOfficial: true, lineup: L })], official: { boardId: "b1", matchId: "j3" } };
 }
 
 describe("Partido · the regions", () => {

@@ -13,8 +13,9 @@ import {
   type PlayFrame,
   type PlayKind,
   type PlayRival,
+  type Stroke,
 } from "../../lib/schemas";
-import { clampPoint, newId } from "./drawings";
+import { clampPoint, newId, strokeToData } from "./drawings";
 
 export type { Play, PlayArrow, PlayFrame, PlayKind, PlayRival };
 
@@ -42,6 +43,10 @@ const cloneFrame = (f: PlayFrame): PlayFrame => {
   if (f.title !== undefined) out.title = f.title;
   if (f.note !== undefined) out.note = f.note;
   if (f.curves && Object.keys(f.curves).length) out.curves = Object.fromEntries(Object.entries(f.curves).map(([id, c]) => [id, { x: c.x, y: c.y }]));
+  // (r14: the step's duration, «Paso clave» and its drawings)
+  if (f.dur !== undefined) out.dur = f.dur;
+  if (f.key !== undefined) out.key = f.key;
+  if (f.d && f.d.length) out.d = f.d.map((s) => strokeToData(s) as Stroke);
   return out;
 };
 const withFrames = (play: Play, frames: PlayFrame[]): Play => ({ ...play, frames });

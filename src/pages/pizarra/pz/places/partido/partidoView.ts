@@ -6,7 +6,7 @@
 import type { MatchEvent } from "../../../../../lib/clubData";
 import { isPendingDup } from "../../../../../../functions/src/matchEngine";
 import { lineupWalk, type LineupSlot } from "../../../../../lib/matchLineup";
-import { OURS, THEIRS } from "../../../../../lib/partidos";
+import { OURS, shownMinute, THEIRS } from "../../../../../lib/partidos";
 import type { LineupVariant, Sub } from "../../../formations";
 import { liveRules, ruleHolds, type CondRuleR14 } from "../../../data/condPlan";
 import { versionChanges } from "../../../data/mesa";
@@ -149,12 +149,37 @@ export interface PtModel {
 const GOAL_K = new Set(["goal", "goal_penalty", "goal_freekick"]);
 const RED_K = new Set(["red_card", "double_yellow"]);
 
-export function phaseOf(M: PzMatch | null): Phase {
+/** A clock la mesa left running can't make a match «live» for ever: past this long after its start (two halves, the
+ *  break and plenty of added time), it is not live any more. */
+export const STALE_MS = 4 * 3600000;
+
+/** The phase as la mesa's clock says it (the only truth for «En juego» / «Descanso»): a clock that never started
+ *  is «antes», a finished one or a published acta «después», and a clock started too long ago (left running) is
+ *  not live. `now` (ms) enables that last check. */
+export function phaseOf(M: PzMatch | null, now?: number): Phase {
   if (!M) return "none";
-  if (M.phase === "jugado" || M.played) return "despues";
-  if (M.phase === "juego") return "juego";
-  if (M.phase === "descanso") return "descanso";
-  return "antes";
+  if (M.phase === "jugado" || M.played || M.cal.status === "finished") return "despues";
+  if (M.phase !== "juego" && M.phase !== "descanso") return "antes";
+  const c = M.cal.clock;
+  const started = c?.firstStartedAt;
+  if (!c || started == null) return "antes";
+  if (now != null && now - started > STALE_MS) return "despues";
+  return M.phase === "juego" ? "juego" : "descanso";
+}
+
+/** The match's minute and score straight from the calendar row (the shell's badge reads it on every place, without
+ *  the place's feed). */
+export function liveLine(M: PzMatch, now: number): { min: number | null; gf: number; ga: number } {
+  const c = M.cal;
+  const min = shownMinute({ date: c.dateMs, duration: c.duration, clock: c.clock }, now);
+  let gf = 0;
+  let ga = 0;
+  (c.events ?? []).forEach((e) => {
+    if (isPendingDup(e)) return;
+    if (OURS.has(e.type)) gf++;
+    else if (THEIRS.has(e.type)) ga++;
+  });
+  return { min, gf, ga };
 }
 
 /** The match on screen: ?partido=, else the board's, else the next (the store's match()). */
@@ -243,7 +268,7 @@ export function ptModel(P: PzApi, feed0: PtFeed, ui: PtUi): PtModel {
   const S = P.state;
   const M = ptMatch(P);
   const me = P.sel.me();
-  const ph = phaseOf(M);
+  const ph = phaseOf(M, S.W.now);
   const feed = feed0.matchId && M && feed0.matchId === M.id ? feed0 : { ...EMPTY_FEED, matchId: M?.id ?? null };
   const D = feed.duration > 1 ? feed.duration : DUR0;
   const HALF = Math.round(D / 2);

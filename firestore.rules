@@ -461,179 +461,167 @@ service cloud.firestore {
         || (resource.data.audience == 'personal' && signedIn() && resource.data.uid == request.auth.uid && teamMember());
       allow write: if false;
     }
-    // Drawings and jugadas of a board: lists of bounded size (their content is validated on read).
-    function boardExtrasOk(d) {
-      return d.get('drawings', []) is list && d.get('drawings', []).size() <= 60
-        && d.get('plays', []) is list && d.get('plays', []).size() <= 12;
-    }
-    // The planned cambios (≤ 20 maps; each one is validated on read, see lineupDoc.ts).
-    function subsOk(d) {
-      return !('subs' in d) || (d.subs is list && d.subs.size() <= 20);
-    }
-    // The dead-ball takers in order: three lists of at most three ids each.
-    function takersOk(d) {
-      return !('takers' in d) || (d.takers is map
-        && d.takers.keys().hasOnly(['penalties','freekicks','corners'])
-        && d.takers.get('penalties', []) is list && d.takers.get('penalties', []).size() <= 3
-        && d.takers.get('freekicks', []) is list && d.takers.get('freekicks', []).size() <= 3
-        && d.takers.get('corners', []) is list && d.takers.get('corners', []).size() <= 3);
-    }
-    // The rival seven (null once taken off): their system and at most seven players, each a small map
-    // (a dorsal and a note; their content is validated on read, see v2/rival.ts parseRival).
-    // r14 (PZ-D21P): «En el campo» (`visible`, false = their seven off the pitch) and their danger man
-    // (`danger`, the index of one of their seven, null = none) are saved with the rival.
-    function rivalOk(d) {
-      return !('rival' in d) || d.rival == null || (d.rival is map
-        && d.rival.keys().hasOnly(['formation','players','visible','danger'])
-        && d.rival.get('formation', null) is string && d.rival.formation.size() <= 10
-        && d.rival.get('players', []) is list && d.rival.get('players', []).size() <= 7
-        && d.rival.get('visible', true) is bool
-        && (d.rival.get('danger', null) == null
-          || (d.rival.danger is int && d.rival.danger >= 0 && d.rival.danger <= 6)));
-    }
-    // r14 · el plan (PZ-D22P/D23P): the keys (≤ 3 texts), each one's light on the pitch (`viz`, ≤ 3 maps), the
-    // notes for the charla and the set pieces (`parado`: corners / freekicks / penalties maps). Their content
-    // is validated on read (src/pages/pizarra/data/plan.ts); here, the shape and the caps.
-    // (planOk stays cheap: the plan sits inside boardOk, and the rules' evaluation budget is shared — each part
-    // alone passed but the whole plan did not with one function per item)
-    // A key's light: { icon, zona }, two short ids (a missing or non-string one makes the «+» fail: refused).
-    function vizOk(z) {
-      return z.keys().hasOnly(['icon','zona']) && (z.icon + '|' + z.zona).matches('[a-z0-9]{1,12}[|][a-z0-9]{1,12}');
-    }
-    // A list of at most `max` player ids (each 1–128 id characters, «guest:g1» too), checked in one regex; splitting
-    // the joined text back must give the same list (no «,» inside an id, every item a string: [3] ≠ ["3"]).
+    // ---- La pizarra: a board (lineups/{id}). The rules have a budget of 1000 expressions per request, and a board
+    // is big: the checks below are few and inline (see boardFieldsOk), and an edit validates
+    // only the keys it changes (boardUpdateOk: diff().affectedKeys()). Measured on the emulator with the seeded
+    // boards and a board at every cap (test/rules/pizarra-budget.test.ts; impl/SERVIDOR.txt has the numbers).
+    // Content beyond these caps (each drawing, jugada, step…) is validated on read (lineupDoc.ts, Zod).
+    // r14 · el plan (PZ-D22P/D23P): the keys (≤ 3 texts of 1–60, joined by «¬» and split back: the same list), each
+    // one's light on the pitch (`viz`, ≤ 3 maps { icon, zona }: two strings — the «+» refuses anything else — of
+    // ≤ 24 together), the notes for the charla (≤ 400) and the set pieces (`parado`: corners / freekicks
+    // { playId: null or ≤ 128, box }, penalties { rechace }; every player id of the three lists in ONE idListOk,
+    // ≤ 5 per list). Its content is validated on read (data/plan.ts). Lean for the budget (see boardFieldsOk).
+    // A list of at most `max` player ids (id characters, «guest:g1» too; ≤ 129 per id on average, each ≤ 128 on read),
+    // checked in one regex; splitting the joined
+    // text back must give the same list (no «,» inside an id, every item a string: [3] ≠ ["3"]).
     function idListOk(l, max) {
-      return l is list && l.size() <= max && (l.size() == 0 || (l.join(',').matches('[A-Za-z0-9_:-]{1,128}(,[A-Za-z0-9_:-]{1,128})*')
+      return l.size() <= max && (l.size() == 0 || (l.join(',').size() <= max * 129 && l.join(',').matches('[A-Za-z0-9_:-]+(,[A-Za-z0-9_:-]+)*')
         && l.join(',').split(',') == l));
     }
-    // A corner / free kick: the play it runs (null or an id ≤ 128) and who goes into the box (≤ 5).
-    function setPieceShapeOk(p) {
-      return p.keys().hasOnly(['playId','box']) && (p.get('playId', null) == null || (p.playId is string && p.playId.size() <= 128))
-        && p.get('box', []).size() <= 5;
+    // On create (a duplicate brings the whole board), only the plan's shape and caps: its items are checked when the
+    // plan changes (planMapOk on update) and on read — the whole board would not fit the budget otherwise.
+    function planShapeOk(p) {
+      return p.keys().hasOnly(['claves','notes','viz','parado']) && p.get('claves', []).size() <= 3
+        && p.get('viz', []).size() <= 3 && p.get('notes', '').size() <= 400
+        && (p.get('parado', null) == null || p.parado.keys().hasOnly(['corners','freekicks','penalties']));
     }
-    // The set pieces: the shapes, then every player id of the three lists in ONE idListOk (≤ 15 together).
-    function paradoOk(pd) {
-      let co = pd.get('corners', {});
-      let fk = pd.get('freekicks', {});
-      let pe = pd.get('penalties', {});
-      return pd.keys().hasOnly(['corners','freekicks','penalties'])
-        && setPieceShapeOk(co) && setPieceShapeOk(fk)
-        && pe.keys().hasOnly(['rechace']) && pe.get('rechace', []).size() <= 5
-        && idListOk(co.get('box', []).concat(fk.get('box', [])).concat(pe.get('rechace', [])), 15);
-    }
-    // The keys (≤ 3, each a text of 1–60: joined by «¬» and split back, the same list), their lights (≤ 3), the
-    // notes (≤ 400) and the set pieces.
     function planMapOk(p) {
-      let c = p.get('claves', []);
-      let v = p.get('viz', []);
       return p.keys().hasOnly(['claves','notes','viz','parado'])
-        && c.size() <= 3
-        && (c.size() == 0 || (c.join('¬').matches('[^¬]{1,60}(¬[^¬]{1,60}){0,2}') && c.join('¬').split('¬') == c))
-        && v.size() <= 3
-        && (v.size() < 1 || vizOk(v[0])) && (v.size() < 2 || vizOk(v[1])) && (v.size() < 3 || vizOk(v[2]))
+        && p.get('claves', []).size() <= 3
+        && (p.get('claves', []).size() == 0
+          || (p.claves.join('¬').matches('[^¬]{1,60}(¬[^¬]{1,60}){0,2}') && p.claves.join('¬').split('¬') == p.claves))
+        && p.get('viz', []).size() <= 3
+        && (p.get('viz', []).size() < 1 || (p.viz[0].keys().hasOnly(['icon','zona']) && (p.viz[0].icon + p.viz[0].zona).size() <= 24))
+        && (p.get('viz', []).size() < 2 || (p.viz[1].keys().hasOnly(['icon','zona']) && (p.viz[1].icon + p.viz[1].zona).size() <= 24))
+        && (p.get('viz', []).size() < 3 || (p.viz[2].keys().hasOnly(['icon','zona']) && (p.viz[2].icon + p.viz[2].zona).size() <= 24))
         && p.get('notes', '') is string && p.get('notes', '').size() <= 400
-        && (p.get('parado', null) == null || paradoOk(p.parado));
-    }
-    function planOk(d) {
-      return d.get('plan', null) == null || planMapOk(d.plan);
+        && (p.get('parado', null) == null || (p.parado.keys().hasOnly(['corners','freekicks','penalties'])
+          && p.parado.get('corners', {}).keys().hasOnly(['playId','box'])
+          && p.parado.get('freekicks', {}).keys().hasOnly(['playId','box'])
+          && p.parado.get('penalties', {}).keys().hasOnly(['rechace'])
+          && (p.parado.get('corners', {}).get('playId', null) == null || p.parado.corners.playId.size() <= 128)
+          && (p.parado.get('freekicks', {}).get('playId', null) == null || p.parado.freekicks.playId.size() <= 128)
+          && p.parado.get('corners', {}).get('box', []).size() <= 5 && p.parado.get('freekicks', {}).get('box', []).size() <= 5
+          && p.parado.get('penalties', {}).get('rechace', []).size() <= 5
+          && idListOk(p.parado.get('corners', {}).get('box', []).concat(p.parado.get('freekicks', {}).get('box', []))
+            .concat(p.parado.get('penalties', {}).get('rechace', [])), 15)));
     }
     // r14: the board's other new fields. `seasonPlays` (PZ-D05) names the season plays it uses (ids, ≤ 24);
     // `fromMesa` marks a scorer's copy made from la mesa (PZ-D22T); `fanToken` (the fan view's link,
     // PZ-D21F), `sevenKey` and `sevenRev` (the official seven's fingerprint and version, PZ-D01) are the
-    // server's (functions/src/pizarraR14.ts): a client never sets nor changes them (boardServerKeysSame).
-    function boardR14Ok(d) {
-      return planOk(d)
-        && d.get('fromMesa', false) is bool
-        && d.get('seasonPlays', []) is list && d.get('seasonPlays', []).size() <= 24
-        && (d.get('fanToken', null) == null || (d.fanToken is string && d.fanToken.size() <= 64))
-        && (d.get('sevenKey', null) == null || (d.sevenKey is string && d.sevenKey.size() <= 1000))
-        && d.get('sevenRev', 0) is int;
-    }
-    function boardServerKeysSame() {
-      return request.resource.data.get('fanToken', null) == resource.data.get('fanToken', null)
-        && request.resource.data.get('sevenKey', null) == resource.data.get('sevenKey', null)
-        && request.resource.data.get('sevenRev', 0) == resource.data.get('sevenRev', 0);
-    }
-    // A string field that may be missing (older boards) but, when there, is a bounded string.
-    function optStr(d, k, max) {
-      return !(k in d) || (d[k] is string && d[k].size() <= max);
-    }
-    // The seven: exactly seven slot maps (their content is validated on read, see lineupDoc.ts).
-    // (r14: the server's `sevenKey` never passes its cap whatever the slots hold — past 900 characters it is a hash,
-    // pizarraR14Logic.ts boardSevenKey — so no key can lock the board's updates. Per-slot id checks were tried here
-    // and pushed boardOk past the rules' evaluation budget.)
-    function slotsOk(d) {
-      return !('slots' in d) || (d.slots is list && d.slots.size() == 7
-        && d.slots[0] is map && d.slots[1] is map && d.slots[2] is map && d.slots[3] is map
-        && d.slots[4] is map && d.slots[5] is map && d.slots[6] is map);
-    }
+    // server's (functions/src/pizarraR14.ts): a client never sets them on create nor changes them on update
+    // (boardCreateOk / boardUpdateOk), so their shape is the server's.
+    // The seven: exactly seven slot maps (their content is validated on read, see lineupDoc.ts). (The server's
+    // `sevenKey` is hashed past 900 characters — pizarraR14Logic.ts boardSevenKey — so it always fits.)
     // The other versions of the seven («2ª parte», «Plan B»): at most two maps, each with its own seven
     // slots (their content is validated on read, see lineupDoc.ts parseVariants).
-    function variantOk(v) {
-      return v is map && v.get('slots', []) is list && v.get('slots', []).size() == 7
-        && v.get('name', '') is string && v.get('name', '').size() <= 24
-        && v.get('tactics', {}) is map && v.get('tactics', {}).size() <= 12;
+    // La táctica (Bloque 4): «sin balón» (null, or its system and seven nudges) and the conditional plan
+    // (≤ 3 rule maps of ≤ 8 keys). Their content is validated on read (lineupDoc.ts → tacticaData.ts).
+    // The board's tags («Liga», «Copa», «Entreno»): at most three texts of 1–20 (joined and split back: the same
+    // list, so every item is a string; see v2/tags.ts).
+    // Every key a board may have. (`bench` and `pinned` are no longer written, but older boards still carry them.)
+    function boardKeys() {
+      return ['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
+          'variants','subs','takers','drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId',
+          'createdAt','updatedAt','shapeOff','condPlan','style','rival','tags','voz','plan','fromMesa','seasonPlays',
+          'fanToken','sevenKey','sevenRev'];
     }
-    function variantsOk(d) {
-      return !('variants' in d) || (d.variants is list && d.variants.size() <= 2
-        && (d.variants.size() < 1 || variantOk(d.variants[0]))
-        && (d.variants.size() < 2 || variantOk(d.variants[1])));
-    }
-    // La táctica (Bloque 4): «sin balón» (null, or its system and seven nudges), the conditional plan
-    // (≤ 3 rule maps) and the style last applied (a short id, "" = none). Their content is validated on
-    // read (lineupDoc.ts → tacticaData.ts).
-    function shapeOffOk(d) {
-      return d.get('shapeOff', null) == null || (d.shapeOff is map
-        && d.shapeOff.keys().hasOnly(['formation','offs'])
-        && d.shapeOff.get('formation', '') is string && d.shapeOff.get('formation', '').size() <= 10
-        && d.shapeOff.get('offs', []) is list && d.shapeOff.get('offs', []).size() <= 7);
-    }
-    function condPlanOk(d) {
-      return !('condPlan' in d) || (d.condPlan is list && d.condPlan.size() <= 3
-        && (d.condPlan.size() < 1 || (d.condPlan[0] is map && d.condPlan[0].size() <= 8))
-        && (d.condPlan.size() < 2 || (d.condPlan[1] is map && d.condPlan[1].size() <= 8))
-        && (d.condPlan.size() < 3 || (d.condPlan[2] is map && d.condPlan[2].size() <= 8)));
-    }
-    // The board's tags («Liga», «Copa», «Entreno»): at most three short texts (Bloque 5, see v2/tags.ts).
-    function tagOk(t) {
-      return t is string && t.size() > 0 && t.size() <= 20;
-    }
-    function tagsOk(d) {
-      return !('tags' in d) || (d.tags is list && d.tags.size() <= 3
-        && (d.tags.size() < 1 || tagOk(d.tags[0]))
-        && (d.tags.size() < 2 || tagOk(d.tags[1]))
-        && (d.tags.size() < 3 || tagOk(d.tags[2])));
-    }
-    function tacticaOk(d) {
-      return shapeOffOk(d) && condPlanOk(d) && optStr(d, 'style', 24);
-    }
-    // Every field of a board: only the known keys, each with its type and a size cap.
-    // (`bench` and `pinned` are no longer written, but older boards still carry them.)
-    function boardOk(d) {
-      return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
-          'variants','subs','takers',
-          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival','tags','voz',
-          'plan','fromMesa','seasonPlays','fanToken','sevenKey','sevenRev'])
-        && d.ownerUid is string
-        && d.get('seasonId', null) is string && d.seasonId.size() <= 128
-        && optStr(d, 'name', 60) && optStr(d, 'ownerNickname', 40) && optStr(d, 'formation', 10)
-        && d.get('isOfficial', false) is bool && d.get('freeMode', false) is bool
+    // Each field with its type and cap, in five groups (a gate per group, not per key). An update validates only the
+    // groups whose keys it changes (`ch`); a create validates them all. Every node counts towards the budget (≈ 10 per
+    // «x.get(k, d).size() <= n»), so a check is there only when it refuses something: `.size()` alone caps a string,
+    // a list or a map; `is list` / `is map` only where a value of another type would otherwise fit the size.
+    function boardMetaOk(d) {
+      return d.get('name', '').size() <= 60 && d.get('ownerNickname', '').size() <= 40
+        && d.get('formation', '').size() <= 10 && d.get('style', '').size() <= 24
+        && d.get('isOfficial', false) is bool && d.get('freeMode', false) is bool && d.get('fromMesa', false) is bool
         && (d.get('matchId', null) == null || (d.matchId is string && d.matchId.size() <= 128))
-        && slotsOk(d)
-        && d.get('roles', {}) is map && d.get('roles', {}).size() <= 5
-        && d.get('tactics', {}) is map && d.get('tactics', {}).size() <= 12
-        && d.get('playerPositions', {}) is map && d.get('playerPositions', {}).size() <= 60
-        && d.get('bench', []) is list && d.get('bench', []).size() <= 60
-        && d.get('pinned', []) is list && d.get('pinned', []).size() <= 7
-        && subsOk(d) && takersOk(d) && rivalOk(d)
-
-        && (!('createdAt' in d) || d.createdAt is timestamp)
-        && (!('updatedAt' in d) || d.updatedAt is timestamp)
-        && tacticaOk(d)
-        && tagsOk(d)
-        && variantsOk(d)
-        && boardExtrasOk(d)
-        && boardR14Ok(d);
+        && (d.get('createdAt', null) == null || d.createdAt is timestamp);
+    }
+    // The seven: exactly seven slot maps (their content is validated on read, see lineupDoc.ts); roles, tactics,
+    // «Jugar de», cambios (≤ 20) and the dead-ball takers in order (three lists of ≤ 3).
+    function boardSevenOk(d) {
+      return (d.get('slots', null) == null || (d.slots.size() == 7
+          && d.slots[0] is map && d.slots[1] is map && d.slots[2] is map && d.slots[3] is map
+          && d.slots[4] is map && d.slots[5] is map && d.slots[6] is map))
+        && d.get('roles', {}) is map && d.get('roles', {}).size() <= 5 && d.get('tactics', {}).size() <= 12
+        && d.get('playerPositions', {}).size() <= 60 && d.get('bench', []).size() <= 60 && d.get('pinned', []).size() <= 7
+        && d.get('subs', []) is list && d.get('subs', []).size() <= 20
+        && (d.get('takers', null) == null || (d.takers.keys().hasOnly(['penalties','freekicks','corners'])
+          && d.takers.get('penalties', []).size() <= 3 && d.takers.get('freekicks', []).size() <= 3
+          && d.takers.get('corners', []).size() <= 3));
+    }
+    // Drawings (≤ 60) and jugadas (≤ 12) — each stroke, play and step (with r14's `dur`, `key` and drawings `d`)
+    // is validated on read (drawings.ts, plays.ts) —, the season plays used (≤ 24) and the tags (≤ 3 texts of 1–20:
+    // joined and split back, the same list, so every item is a string; see v2/tags.ts).
+    function boardExtrasOk(d) {
+      return d.get('drawings', []) is list && d.get('drawings', []).size() <= 60
+        && d.get('plays', []) is list && d.get('plays', []).size() <= 12
+        && d.get('seasonPlays', []).size() <= 24
+        && d.get('tags', []).size() <= 3
+        && (d.get('tags', []).size() == 0
+          || (d.tags.join('¬').matches('[^¬]{1,20}(¬[^¬]{1,20}){0,2}') && d.tags.join('¬').split('¬') == d.tags));
+    }
+    // La táctica: «sin balón» (null, or its system and seven nudges), the conditional plan (≤ 3 rule maps of ≤ 8
+    // keys), the other versions («2ª parte», «Plan B»: ≤ 2, each seven slots, a name ≤ 24, ≤ 12 consignas) and the
+    // rival (null, or their system, ≤ 7 players; r14 PZ-D21P: `visible`, and `danger` = the index of their danger
+    // man). Their content is validated on read (lineupDoc.ts → tacticaData.ts, parseVariants, data/rival.ts).
+    function boardTacticaOk(d) {
+      return (d.get('shapeOff', null) == null || (d.shapeOff.keys().hasOnly(['formation','offs'])
+          && d.shapeOff.get('formation', '').size() <= 10 && d.shapeOff.get('offs', []).size() <= 7))
+        && d.get('condPlan', []) is list && d.get('condPlan', []).size() <= 3
+        && (d.get('condPlan', []).size() < 1 || d.condPlan[0] is map)
+        && (d.get('condPlan', []).size() < 2 || d.condPlan[1] is map)
+        && (d.get('condPlan', []).size() < 3 || d.condPlan[2] is map)
+        && d.get('variants', []).size() <= 2
+        && (d.get('variants', []).size() < 1 || (d.variants[0].get('slots', []).size() == 7
+          && d.variants[0].get('name', '').size() <= 24 && d.variants[0].get('tactics', {}).size() <= 12))
+        && (d.get('variants', []).size() < 2 || (d.variants[1].get('slots', []).size() == 7
+          && d.variants[1].get('name', '').size() <= 24 && d.variants[1].get('tactics', {}).size() <= 12))
+        && (d.get('rival', null) == null || (d.rival.keys().hasOnly(['formation','players','visible','danger'])
+          && d.rival.formation.size() <= 10 && d.rival.get('players', []) is list && d.rival.get('players', []).size() <= 7
+          && d.rival.get('visible', true) is bool
+          && (d.rival.get('danger', null) == null || (d.rival.danger is int && d.rival.danger >= 0 && d.rival.danger <= 6))));
+    }
+    function boardFieldsOk(d, ch) {
+      return (!('updatedAt' in ch) || d.get('updatedAt', null) is timestamp)
+        && (!ch.hasAny(['name','ownerNickname','formation','style','isOfficial','freeMode','fromMesa','matchId','createdAt'])
+          || boardMetaOk(d))
+        && (!ch.hasAny(['slots','roles','tactics','playerPositions','bench','pinned','subs','takers']) || boardSevenOk(d))
+        && (!ch.hasAny(['drawings','plays','seasonPlays','tags']) || boardExtrasOk(d))
+        && (!ch.hasAny(['shapeOff','condPlan','variants','rival']) || boardTacticaOk(d))
+        && (!('plan' in ch) || d.get('plan', null) == null || planMapOk(d.plan));
+    }
+    function boardAllFieldsOk(d) {
+      return (d.get('updatedAt', null) == null || d.updatedAt is timestamp)
+        && boardMetaOk(d) && boardSevenOk(d) && boardExtrasOk(d) && boardTacticaOk(d)
+        && (d.get('plan', null) == null || planShapeOk(d.plan));
+    }
+    // A new board: only known keys, its owner and season there, the server's own keys not.
+    function boardCreateOk(d) {
+      return d.keys().hasOnly(boardKeys())
+        && d.get('ownerUid', null) is string && d.ownerUid.size() <= 128
+        && d.get('seasonId', null) is string && d.seasonId.size() <= 128
+        && !d.keys().hasAny(['fanToken','sevenKey','sevenRev'])
+        && boardAllFieldsOk(d);
+    }
+    // An edit (`ch` = the keys it changes): only known keys; the owner and the season never change, nor the server's
+    // keys (r14: fanToken, sevenKey, sevenRev — only pizarraR14.ts writes them); its owner edits it while it is not
+    // official (and doesn't make it official), a captain any; the nickname only to the owner's own current one; the
+    // match stays active.
+    function boardUpdateOk(d, ch) {
+      return ch.hasOnly(boardKeys())
+        && !ch.hasAny(['ownerUid','seasonId','fanToken','sevenKey','sevenRev'])
+        && ((resource.data.ownerUid == request.auth.uid && !resource.data.get('isOfficial', false)
+            && !d.get('isOfficial', false)) || captainRole())
+        && (!ch.hasAny(['ownerNickname'])
+          || (resource.data.ownerUid == request.auth.uid && d.get('ownerNickname', null) == me().nickname))
+        && boardMatchActive(resource.data.get('matchId', null))
+        && (!ch.hasAny(['matchId']) || boardMatchActive(d.get('matchId', null)))
+        && boardFieldsOk(d, ch);
+    }
+    // A captain, once teamMember() has been checked by the rule (admin() would check it again).
+    function captainRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') in ['admin','superadmin'];
     }
     match /lineups/{id} {
       allow read: if teamMember();
@@ -641,22 +629,12 @@ service cloud.firestore {
       allow create: if teamMember() && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.get('name', null) is string && request.resource.data.name.size() > 0
         && request.resource.data.get('ownerNickname', null) == me().nickname
-        && (!request.resource.data.get('isOfficial',false) || admin())
+        && (!request.resource.data.get('isOfficial',false) || captainRole())
         && boardMatchActive(request.resource.data.get('matchId', null))
-        && !request.resource.data.keys().hasAny(['fanToken','sevenKey','sevenRev'])
-        && boardOk(request.resource.data);
-      // The owner and the season never change; the nickname only to the owner's own current one.
+        && boardCreateOk(request.resource.data);
+      // (boardUpdateOk: only what the write changes is validated)
       allow update: if teamMember()
-        && request.resource.data.ownerUid == resource.data.ownerUid
-        && request.resource.data.get('seasonId', null) == resource.data.get('seasonId', null)
-        && (request.resource.data.get('ownerNickname', null) == resource.data.get('ownerNickname', null)
-          || (resource.data.ownerUid == request.auth.uid && request.resource.data.get('ownerNickname', null) == me().nickname))
-        && (admin() || (resource.data.ownerUid == request.auth.uid
-          && !resource.data.get('isOfficial',false) && !request.resource.data.get('isOfficial',false)))
-        && boardMatchActive(resource.data.get('matchId', null))
-        && boardMatchActive(request.resource.data.get('matchId', null))
-        && boardServerKeysSame()
-        && boardOk(request.resource.data);
+        && boardUpdateOk(request.resource.data, request.resource.data.diff(resource.data).affectedKeys());
       // (a captain deletes any board: «Borrar las copias de la mesa», PZ-D22T, is a captain deleting the scorers'
       // `fromMesa` copies; the server then deletes its voz, reactions, history and fan view — pizarraR14.ts)
       allow delete: if teamMember() && boardMatchActive(resource.data.get('matchId', null))

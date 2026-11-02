@@ -4,13 +4,14 @@
 // Loaded eagerly by places/index.ts (keep it light: the components are lazy; actions.ts is pure logic).
 import { lazy } from "react";
 import { registerPlace, registerSheet } from "../../store/registry";
-import { badgeOf, primaryOf, subOf } from "./actions";
+import { badgeOf, peekOf, primaryOf, subOf } from "./actions";
 
 registerPlace("partido", {
   Component: lazy(() => import("./Partido").then((m) => ({ default: m.Partido }))),
   sub: subOf,
   primary: primaryOf,
   badge: badgeOf,
+  peek: peekOf,
   share: "compartir",
 });
 registerSheet("pt-mesa", {

@@ -275,7 +275,8 @@ export function buildCharla(P: PzApi, cs: CharlaChoices, voz: ReadonlyMap<string
     if (id === "rival" && R) {
       const name = M?.rival ?? "El rival";
       const spots = rivalSpots(R);
-      const tokens: Token[] = R.players.map((rp, k) => ({ id: "r" + k, kind: "rival", x: spots[k]?.x ?? 50, y: spots[k]?.y ?? 20, num: rp.num ?? "", code: "", label: "", note: rp.note ?? "" }));
+      const code = name.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ]/g, "").slice(0, 3).toUpperCase();
+      const tokens: Token[] = R.players.map((rp, k) => ({ id: "r" + k, kind: "rival", x: spots[k]?.x ?? 50, y: spots[k]?.y ?? 20, num: rp.num ?? "", code, label: "", note: rp.note ?? "" }));
       const d = dangerOf(R);
       const noted = R.players.map((x, i) => ({ ...x, i })).filter((x) => x.note);
       noted.sort((a, c) => (d && c.i === d.i ? 1 : 0) - (d && a.i === d.i ? 1 : 0));
@@ -289,7 +290,7 @@ export function buildCharla(P: PzApi, cs: CharlaChoices, voz: ReadonlyMap<string
         line: noted.length ? "Lo que hay que saber de ellos:" : "Su siete, en coral.",
         base: BASE.rival,
         rows: noted.slice(0, 4).map((x): Row => ({ kind: "disc", mark: x.num != null ? String(x.num) : "?", t: (x.num != null ? x.num + " · " : "") + (spots[x.i] ? posOfRival(R.formation, x.i) : "rival"), s: x.note ?? "" })),
-        spec: { source: "tokens", tokens, camera: "grada", chrome: false, rivalName: name, rivalCode: "" },
+        spec: { source: "tokens", tokens, camera: "grada", chrome: false, rivalName: name, rivalCode: code },
       });
     }
     if (id === "plan") {
@@ -324,7 +325,7 @@ export function buildCharla(P: PzApi, cs: CharlaChoices, voz: ReadonlyMap<string
           line: (k === 0 ? ps.title + ". " : "") + (ps.note ?? ""),
           base: (ps.dur ?? 1.6) + 1.6,
           chips: (ps.r ?? []).length ? [{ t: "En coral: " + (M?.rival ?? "el rival"), icon: "flag", cls: "is-bad" }] : [],
-          spec: { source: "jugada", play: pz, playId: chosen.id, step: k, camera: "grada", chrome: false, ghost: true, rate: speed, caption: "", rivalCode: "" },
+          spec: { source: "jugada", play: pz, playId: chosen.id, step: k, camera: "grada", chrome: false, ghost: true, rate: speed, caption: "", rivalCode: "" }, // (the chip says «En coral: <rival>»; in `jugada` their codes still slip under our plates)
           play: chosen.id,
         });
       });
