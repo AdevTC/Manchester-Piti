@@ -50,7 +50,7 @@ describe("Compartir", () => {
   it("the video: records with the app's clip export, and goes stale when the speed changes", async () => {
     vi.useFakeTimers();
     globalThis.URL.createObjectURL ??= () => "blob:x";
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({} as unknown as RenderingContext);
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation((() => ({})) as unknown as HTMLCanvasElement["getContext"]);
     Object.defineProperty(HTMLCanvasElement.prototype, "captureStream", { configurable: true, value: () => ({ getTracks: () => [] }) });
     const lineup = { ...fakeBoard({ ids: FULL }).lineup };
     lineup.plays = [{ id: "p1", name: "Salida por Jordi", kind: "propia", frames: [{ players: {}, ball: { x: 50, y: 88 }, rivals: [], arrows: [] }, { players: {}, ball: { x: 50, y: 60 }, rivals: [], arrows: [] }] }];
