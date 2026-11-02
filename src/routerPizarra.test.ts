@@ -4,8 +4,8 @@ import { pizarraSearchSchema } from "./router";
 // La pizarra's parameters (router.tsx): typed where the pizarra names them, permissive for a place's own sheet
 // arguments, garbage dropped.
 describe("pizarraSearchSchema", () => {
-  it("keeps the known keys, as text (a number too)", () => {
-    expect(pizarraSearchSchema({ tablero: "b1", hoja: "ficha", jugador: "erik", hueco: 3, capa: "quimica", modo: "dibujar" })).toEqual({ tablero: "b1", hoja: "ficha", jugador: "erik", hueco: "3", capa: "quimica", modo: "dibujar" });
+  it("keeps the known keys (a number stays a number: the address writes «hueco=3», never «hueco=\"3\"»)", () => {
+    expect(pizarraSearchSchema({ tablero: "b1", hoja: "ficha", jugador: "erik", hueco: 3, capa: "quimica", modo: "dibujar" })).toEqual({ tablero: "b1", hoja: "ficha", jugador: "erik", hueco: 3, capa: "quimica", modo: "dibujar" });
   });
 
   it("drops a known key with a wrong value", () => {

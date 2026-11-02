@@ -250,7 +250,8 @@ export function resolveView(spec: StageSpec, c: ViewCtx): PzView {
     layer: spec.layer ?? c.S.layer,
     editable,
     glideMs: out.glideMs ?? spec.glideMs ?? 420,
-    marksExtra: spec.marks ?? null,
+    // (the ahora source already puts the marks on its slots)
+    marksExtra: src === "ahora" ? null : (spec.marks ?? null),
     chrome: spec.chrome !== false,
     tappable: !!(spec.tappable || out.tappable),
     gradaPad: spec.gradaPad ?? out.gradaPad ?? 0,
