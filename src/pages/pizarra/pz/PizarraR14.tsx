@@ -181,9 +181,10 @@ export function PizarraR14() {
     });
     const pid = profile?.playerId ?? null;
     const inside = !!member && !!profile;
+    // («socia» = a member who only reads: a captain without a ficha of his own — a coach — still makes the boards)
     store.attach({
       W,
-      me: { uid: user?.uid ?? "", name: profile?.nickname ?? "", nick: profile?.nickname ?? "", label: profile?.nickname ?? "", pid, cap: isAdmin, general: profile?.role === "superadmin", socia: inside && !pid, jugador: inside && !!pid && !isAdmin, fuera: !inside, member: inside },
+      me: { uid: user?.uid ?? "", name: profile?.nickname ?? "", nick: profile?.nickname ?? "", label: profile?.nickname ?? "", pid, cap: isAdmin, general: profile?.role === "superadmin", socia: inside && !pid && !isAdmin, jugador: inside && !!pid && !isAdmin, fuera: !inside, member: inside },
       boardId: session.id ?? "nuevo",
       estado: readError ? "error" : !session.ready || data.loading ? "cargando" : !online ? "offline" : "normal",
       error: readError,
