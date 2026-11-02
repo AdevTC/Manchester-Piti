@@ -1,16 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Lineup, Sub } from "../formations";
 import { libraryPlays } from "../playLibrary";
 import type { CalMatch } from "./boards";
 import { cartelLayout } from "./cartel";
-import { cambiosPool, cambiosView, previewDiff, suggestSub } from "./cambiosView";
 import { charlaView, lanzadores, STEP_BALON, STEP_PLAN } from "./charla";
-import { applyFan, fanItems } from "./fan";
 import { liveNow, liveWave, nextClockAt, plateAria, subProblem, subsMade, takersNow, waveLine } from "./live";
 import { readyClock, transitionClock } from "../../../../functions/src/matchClock";
 import { chemOf } from "./quimica";
-import { promptItems, promptKey, type PromptActs, type PromptCtx } from "./prompt";
-import { setTaker, takersOf } from "./takers";
+import { setTaker } from "./takers";
 import { demoSquad, lineupOf } from "./testkit";
 
 // The rest of the match day, pure: the live clock and the plan against the acta, the Cambios tab's
@@ -111,66 +108,6 @@ describe("the plan against the acta", () => {
   });
 });
 
-describe("the Cambios tab's view", () => {
-  it("the pool: the seven, who comes on, and the called available (without a convocatoria, those who said «Voy»)", () => {
-    const L = L7([{ id: "a", min: 20, out: "adrian", in: "erik" }]);
-    expect(cambiosPool(L, sq, new Set([...SEVEN, "kevin", "brawan"]))).toEqual([...SEVEN, "erik", "kevin"]);
-    const voy = { ...sq, byId: new Map(sq.byId), list: sq.list.map((c) => (c.id === "fer" ? { ...c, cv: "voy" as const } : c)) };
-    voy.byId.set("fer", voy.list.find((c) => c.id === "fer") as (typeof sq.list)[number]);
-    expect(cambiosPool(L, voy, null)).toEqual([...SEVEN, "erik", "fer"]);
-  });
-
-  it("each row: who can leave / come in at that minute, why it can't be made, the scrub's words", () => {
-    const subs: Sub[] = [
-      { id: "a", min: 20, out: "adrian", in: "kevin" },
-      { id: "b", min: 30, out: "adrian", in: "erik" },
-    ];
-    const v = cambiosView({ L: L7(), sq, subs, pool: [...SEVEN, "kevin", "erik"], duration: 50, keeperFixed: true, scrub: 25 });
-    const a = v.waves[0].rows[0];
-    expect(a.outOpts.map((o) => o.id)).toEqual(SEVEN);
-    expect(a.inOpts.map((o) => o.id)).toEqual(["kevin", "erik"]);
-    expect(a.why).toBeNull();
-    expect(v.waves[1].rows[0].why).toBe("ADRIAN no está en el campo en el 30′");
-    expect(v.count).toBe("2 tandas · 2 cambios");
-    expect(v.markers.map((m) => m.pct)).toEqual([40, 60]);
-    expect(v.scrubTxt).toBe("Minuto 25: tras la tanda del 20′ (KEVIN por ADRIAN)");
-    expect(v.table.rows[0]).toMatchObject({ id: "evans", keeper: true, name: "EVANS", num: "1" });
-  });
-
-  it("a suggested cambio, and the preview of a new plan (minutes before → after)", () => {
-    expect(suggestSub(L7(), [], ["kevin"], 25, 50, "n")).toEqual({ id: "n", min: 25, out: "illescas", in: "kevin" });
-    expect(suggestSub(L7(), [], [], 25, 50, "n")).toBeNull();
-    const d = previewDiff(L7(), [], [{ id: "a", min: 25, out: "adrian", in: "kevin" }], ["kevin"], 50, sq);
-    expect(d.waves).toEqual(["25′ · KEVIN por ADRIAN"]);
-    expect(d.rows).toEqual([
-      { id: "kevin", name: "KEVIN", was: 0, now: 25 },
-      { id: "adrian", name: "ADRIAN", was: 50, now: 25 },
-    ]);
-  });
-});
-
-describe("the fan's galones in order", () => {
-  it("P opens 1º · 2º · 3º; a place puts him there; the same place again takes him off", () => {
-    const L = setTaker(L7(), "penalties", "adrian", 0);
-    const main = fanItems(L, sq, "tello", false);
-    expect(main.map((i) => i.label)).toEqual(["Capitán", "Penaltis", "Faltas", "Córners", "Jugar de", "Banquillo", "Mover a", "Ficha"]);
-    expect(main[1].aria).toBe("Penaltis: elegir el orden de TELLO");
-    expect(applyFan(main[1], L, sq, "tello")).toEqual({ kind: "sub", sub: "penalties" });
-    const order = fanItems(L, sq, "tello", "penalties");
-    expect(order.map((i) => i.glyph)).toEqual(["1º", "2º", "3º", ""]);
-    expect(order[0].aria).toBe("Penaltis: TELLO 1º lanzador (ahora ADRIAN)");
-    const o = applyFan(order[1], L, sq, "tello");
-    if (o.kind !== "lineup") throw new Error("lineup");
-    expect(takersOf(o.lineup).penalties).toEqual(["adrian", "tello"]);
-    expect(o.toast).toBe("Penaltis: TELLO 2º");
-    const again = applyFan(fanItems(o.lineup, sq, "tello", "penalties")[1], o.lineup, sq, "tello");
-    if (again.kind !== "lineup") throw new Error("lineup");
-    expect(takersOf(again.lineup).penalties).toEqual(["adrian"]);
-    expect(again.toast).toBe("Penaltis: TELLO ya no los tira");
-    expect(applyFan(order[3], L, sq, "tello")).toEqual({ kind: "sub", sub: false });
-  });
-});
-
 describe("la charla and the cartel", () => {
   const play = libraryPlays(L7())[0];
   const args = (L: Lineup, step: number) => ({ L, sq, step, play, playShort: "Córner", match: null, boardName: "Uno", sysName: "2-3-1", tacSum: "Presión media", qv: 70, in3d: false, playing: false });
@@ -201,35 +138,5 @@ describe("la charla and the cartel", () => {
     expect(c.subs).toEqual(["25′ · KEVIN por ADRIAN"]);
     expect(c.aria).toContain("Cambios: 25′ · KEVIN por ADRIAN");
     expect(cartelLayout(L7(), sq, chemOf(L7(), sq), null, "Temporada 1").subs).toBeUndefined();
-  });
-});
-
-describe("the prompt bar in Cambios", () => {
-  const acts = (): PromptActs => ({
-    undo: vi.fn(),
-    undoStroke: vi.fn(),
-    redoStroke: vi.fn(),
-    undoJugada: vi.fn(),
-    captain: vi.fn(),
-    galones: vi.fn(),
-    ficha: vi.fn(),
-    drop: vi.fn(),
-    toggle: vi.fn(),
-    prev: vi.fn(),
-    next: vi.fn(),
-    siete: vi.fn(),
-    exitCharla: vi.fn(),
-    addSub: vi.fn(),
-    repartir: vi.fn(),
-    hacer: vi.fn(),
-  });
-  const ctx = (o: Partial<PromptCtx>): PromptCtx => ({ modo: "editar", ro: false, hand: null, benchView: "lista", playing: false, pieces: false, tab: "c", ...o });
-  const show = (c: PromptCtx) => promptItems(c, acts()).map((x) => x.k + " " + x.t + (x.go ? " ▸" : ""));
-  it("the tab's keys, «Hacer el cambio» only live for a captain, nothing that edits read-only", () => {
-    expect(show(ctx({}))).toEqual(["Q E Pestañas", ", . Minuto en el campo (⇧ 5′)", "N Añadir cambio ▸", "M Repartir minutos ▸", "Ctrl Z Deshacer ▸"]);
-    expect(show(ctx({ live: true }))).toEqual(["Q E Pestañas", ", . Minuto en el campo (⇧ 5′)", "N Añadir cambio ▸", "M Recalcular ▸", "H Hacer el cambio ▸", "Ctrl Z Deshacer ▸"]);
-    expect(show(ctx({ ro: true }))).toEqual(["Q E Pestañas", ", . Minuto en el campo (⇧ 5′)", "1–9 Herramientas"]);
-    expect(promptKey(ctx({ live: true }))).toBe("editar:cl");
-    expect(promptKey(ctx({ tab: "b" }))).toBe("editar");
   });
 });

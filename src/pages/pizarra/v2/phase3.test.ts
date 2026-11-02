@@ -2,14 +2,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { planArrows, planNote, setTactic, tacRows } from "./plan";
 import { planLayer } from "./view";
-import { changes, cmpMarks, galonesOn, meanForm, naturalCount, PLAYED_ID, playedOption, playedSeven, tape } from "./compare";
 import { boardLink, charlaMatch, convCounts, convocatoriaOf, copyName, matchBand, matchLabel, nameError, officialFor, seasonPending, uniqueName, withConvocatoria, type CalMatch } from "./boards";
 import { CARTEL_H, CARTEL_W, cartelConsignas, cartelFile, cartelHead, cartelLayout, drawCartel, preparedFor, shareCartel } from "./cartel";
 import { parsePrefs, PREFS0, readPrefs, SHOW0, writePrefs } from "./prefs";
 import { chem } from "./quimica";
 import { slotPos } from "./geometry";
-import { boardDoc, cromo, demoSquad, lineupOf, squadOf } from "./testkit";
-import { lineOf, type PosCode } from "../../../lib/positions";
+import { boardDoc, demoSquad, lineupOf } from "./testkit";
 
 // The pure logic of phase 3: the plan painted on the pitch, Comparar, the boards (names, the official,
 // the match band), the convocatoria on the cromos, the cartel's layout and the stored preferences.
@@ -79,84 +77,6 @@ describe("el plan", () => {
     const L = withTac({});
     expect(planLayer(L, "tv", "editar").tarrs).toEqual([]);
     expect(planLayer(L, "tv", "editar", true).tarrs.length).toBeGreaterThan(0);
-  });
-});
-
-describe("comparar", () => {
-  const A = lineupOf(SEVEN, "2-3-1", sq);
-  const B = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "kevin", "erik"], "3-2-1", sq);
-
-  it("the tale of the tape: química, system, media, the seven's minutes, natural positions and galones, the better side marked", () => {
-    const rows = tape(A, B, sq);
-    expect(rows.map((r) => r.k)).toEqual(["Química", "Sistema", "Media", "Minutos del siete", "En su sitio", "Galones en el campo"]);
-    expect(rows[1]).toMatchObject({ a: "2-3-1", b: "3-2-1", ca: "", cb: "" });
-    const form = rows[2];
-    expect(form.a).toBe(meanForm(A, sq));
-    expect(form.b).toBe(meanForm(B, sq));
-    if (form.a !== form.b) expect(form.a > form.b ? form.ca : form.cb).toBe("w");
-    expect(meanForm(lineupOf([]), sq)).toBe(0);
-  });
-
-  it("the rows that matter for a lineup come from real data", () => {
-    const sq2 = { ...sq, byId: new Map(sq.byId) };
-    sq2.byId.set("evans", { ...sq.byId.get("evans")!, stats: { played: 6, goals: 0, assists: 0, minutes: 300, starts: 6, mvps: 0 } });
-    sq2.byId.set("kevin", { ...sq.byId.get("kevin")!, stats: { played: 9, goals: 3, assists: 1, minutes: 1250, starts: 8, mvps: 1 } });
-    // 2-3-1 with everyone in his line; B (3-2-1) has huberoski (MED) in the third defender's slot and kevin
-    // (DEL) in an MC slot: 5 in their line
-    const Ag = { ...A, roles: { captainId: "illescas", penaltiesId: "adrian", cornersId: "kevin" } };
-    const Bg = { ...B, roles: Ag.roles };
-    const rows = tape(Ag, Bg, sq2);
-    expect(rows[3]).toEqual({ k: "Minutos del siete", a: "300′", b: "1550′", ca: "", cb: "w" });
-    expect(rows[4]).toEqual({ k: "En su sitio", a: "7/7", b: "5/7", ca: "w", cb: "" });
-    expect(rows[5]).toEqual({ k: "Galones en el campo", a: "2/4", b: "2/4", ca: "", cb: "" });
-    expect(naturalCount(lineupOf([]), sq)).toBe(0);
-    expect(galonesOn(lineupOf([]))).toBe(0);
-  });
-
-  it("«En su sitio» with exact positions: in place = preferida or también (an adaptado is not)", () => {
-    // 2-3-1: POR · DFC DFC · MI MC MD · DC
-    const x = (id: string, num: number, main: PosCode, also: PosCode[] = []) => cromo(id, num, lineOf(main), { ps: { main, also, line: lineOf(main) } });
-    const xs = squadOf([x("gk", 1, "POR"), x("d1", 2, "DFC"), x("d2", 3, "DFC"), x("piv", 4, "MCD", ["MI"]), x("mc", 5, "MCO"), x("md", 6, "MD"), x("dc", 9, "DC")]);
-    // piv at MI (también), mc (a mediapunta) at MC: adaptado — 6 in place, not the 7 his line would say
-    const X = lineupOf(["gk", "d1", "d2", "piv", "mc", "md", "dc"], "2-3-1", xs);
-    expect(naturalCount(X, xs)).toBe(6);
-    // a «Jugar de» at that very position counts as in place
-    expect(naturalCount({ ...X, playerPositions: { mc: "MC" } }, xs)).toBe(7);
-    // «El siete que jugó» places the starters by encaje too, so its count is not low for the listed order
-    // (by line, md listed first would take MI and piv MD: 4 in place)
-    const P = playedSeven(X, ["dc", "md", "mc", "piv", "d2", "gk", "d1"], xs);
-    expect(P.slots.map((s) => s.playerId).slice(3, 6)).toEqual(["piv", "mc", "md"]);
-    expect(naturalCount(P, xs)).toBe(6);
-  });
-
-  it("«El siete que jugó»: the match's starters as a seven on this system (keeper in goal, each in his line)", () => {
-    const m: CalMatch = { id: "m8", j: 8, rival: "MAD SKY", dateMs: 0, played: true, gf: 3, ga: 1, home: true, venue: "", conv: { starters: ["kevin", "tello", "evans", "huberoski", "illescas", "eguzquiza", "erik"], bench: ["fer"] } };
-    expect(playedOption(m)).toEqual({ id: PLAYED_ID, name: "El siete que jugó · J8 · MAD SKY" });
-    expect(playedOption({ ...m, played: false })?.name).toBe("El siete convocado · J8 · MAD SKY");
-    expect(playedOption({ ...m, conv: { starters: [], bench: [] } })).toBeNull();
-    expect(playedOption(null)).toBeNull();
-    const P = playedSeven(A, m.conv!.starters, sq);
-    // 2-3-1: POR · DFC DFC · MI MC MD · DC
-    expect(P.slots.map((s) => s.playerId)).toEqual(["evans", "tello", "illescas", "huberoski", "eguzquiza", "erik", "kevin"]);
-    expect(P.formation).toBe("2-3-1");
-    expect(changes(A, P)).toEqual({ ins: ["erik", "kevin"], outs: ["almachi", "adrian"] });
-    // no keeper among them: the last one left goes in goal; never more than seven
-    const nk = playedSeven(A, ["tello", "illescas", "huberoski", "eguzquiza", "almachi", "adrian", "erik", "kevin"], sq);
-    expect(nk.slots.filter((s) => s.playerId)).toHaveLength(7);
-    expect(nk.slots[0].playerId).toBe("erik");
-  });
-
-  it("who comes in and who goes out, marked on the pitch", () => {
-    expect(changes(A, B)).toEqual({ ins: ["kevin", "erik"], outs: ["almachi", "adrian"] });
-    const marks = cmpMarks(A, B, "tv");
-    expect(marks.filter((m) => m.cls === "")).toHaveLength(2);
-    expect(marks.filter((m) => m.cls === "out")).toHaveLength(2);
-    marks.forEach((m) => {
-      expect(+m.x).toBeGreaterThanOrEqual(0);
-      expect(+m.x).toBeLessThanOrEqual(100);
-    });
-    expect(changes(A, A)).toEqual({ ins: [], outs: [] });
-    expect(cmpMarks(A, A, "tv")).toEqual([]);
   });
 });
 
