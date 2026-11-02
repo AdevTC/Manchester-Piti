@@ -21,6 +21,9 @@
 .pz .pj-back:hover{background:rgba(108,171,221,.1)}
 /* (the tablet's column scrolls with no gutter: the pull-out margin would cut the arrow and the hover) */
 .pz.pz-l-tablet .pj-back{margin:0}
+/* (a narrow stage draws with its docks in rows over the pitch's own bars: the layer switch, the camera and the
+   legend step aside while it draws — «Listo» brings them back) */
+.pz .pz-s__stage:has(>.pd.is-rows) :is(.pz-c__top,.pz-c__br,.pz-c__bl){visibility:hidden}
 .pz .pj-back .nx-ic{width:18px;height:18px}
 .pz .pj-own .pz-sec__h>h2{font-size:26px;font-weight:740;letter-spacing:-.02em}
 /* search + type filter */

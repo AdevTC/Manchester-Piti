@@ -468,7 +468,7 @@ export function Dibujar({ layout }: RegionProps) {
   const roT = m === "jugada" ? "Esta jugada se mira. Para cambiarla, duplica el tablero." : b?.isOfficial ? "Es el oficial: los trazos se ven, pero no se tocan." : "Los trazos se ven, pero no se tocan: el tablero es de otro.";
 
   return (
-    <div className={`pd${phone ? " is-phone" : ""}`} ref={rootRef} data-pd-keys="1" onKeyDown={onKey}>
+    <div className={`pd${phone ? " is-phone" : ""}${narrow ? " is-rows" : ""}`} ref={rootRef} data-pd-keys="1" onKeyDown={onKey}>
       {g && (
         <>
           <div
