@@ -103,6 +103,42 @@ describe("who can come", () => {
   });
 });
 
+describe("busy: what holds the app's update reload", () => {
+  it("idle → not busy; a pending save, a sheet, a drawing, the charla or a 12 s undo window → busy", () => {
+    const h = makeTestStore();
+    expect(h.P.sel.busy()).toBe(false);
+    h.attach({ saveStatus: "saving" });
+    expect(h.P.sel.busy()).toBe(true);
+    h.attach({ saveStatus: "offline" });
+    expect(h.P.sel.busy()).toBe(true);
+    h.attach({ saveStatus: "saved" });
+    h.P.act.openSheet("sistema");
+    expect(h.P.sel.busy()).toBe(true);
+    h.P.act.closeSheet();
+    h.P.act.setDrawing(true);
+    expect(h.P.sel.busy()).toBe(true);
+    h.P.act.setDrawing(false);
+    h.P.setRoute({ place: "charla", sub: "", q: {} });
+    expect(h.P.sel.busy()).toBe(true);
+    h.P.setRoute({ place: "siete", sub: "", q: {} });
+    expect(h.P.sel.busy()).toBe(false);
+    h.P.act.deleteBoard("b1");
+    expect(h.P.sel.busy()).toBe(true);
+  });
+  it("the undo window closes after 12 s", () => {
+    vi.useFakeTimers();
+    try {
+      const h = makeTestStore();
+      h.P.holdFor(12500);
+      expect(h.P.sel.busy()).toBe(true);
+      vi.advanceTimersByTime(13000);
+      expect(h.P.sel.busy()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("publish: undo and redo stay on THAT board", () => {
   const full = ["evans", "fer", "erik", "jordi", "adrian", "eguzquiza", "alcides"];
   const world = () => fakeWorld({ boards: [fakeBoard({ id: "A", name: "Tablero A", ids: full }), fakeBoard({ id: "B", name: "Tablero B", ids: full })], official: { boardId: "Z", matchId: "j3" } });

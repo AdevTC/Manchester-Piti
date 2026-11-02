@@ -156,6 +156,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
   let host: PzHost = { ...NULL_HOST };
   let inputs: PzInputs = { W: EMPTY_WORLD, me: NOBODY, boardId: "", estado: "cargando", saveStatus: "saved", saved: null, ...init };
   let version = 0;
+  /** Until when an undo window holds the app's update reload (ms). */
+  let holdUntil = 0;
   let notifyQ = false;
   let toastT: ReturnType<typeof setTimeout> | undefined;
   let sayFlip = false;
@@ -237,6 +239,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     if (toastT) clearTimeout(toastT);
     const undo = o.undo === true ? () => act.undo() : typeof o.undo === "function" ? o.undo : null;
     S.toast = { id: version + 1, text, undo, long: !!o.long, action: o.action ?? null, icon: o.icon ?? "check" };
+    // a long undo window (a delete, an unpublish: 12 s) holds the app's update reload until it closes
+    if (o.long && undo) holdUntil = Math.max(holdUntil, Date.now() + 12500);
     toastT = setTimeout(() => {
       S.toast = null;
       bump();
@@ -1422,6 +1426,15 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
         },
       ),
     stage: () => S.stage,
+    busy: () =>
+      S.saveStatus === "saving" ||
+      S.saveStatus === "error" ||
+      S.saveStatus === "offline" ||
+      !!S.sheet ||
+      S.drawing ||
+      !!S.drag ||
+      S.route.place === "charla" ||
+      Date.now() < holdUntil,
     histTop: () => {
       const e = S.hist.undo[S.hist.undo.length - 1];
       return e ? { id: e.id, scope: e.scope, label: e.label } : null;
@@ -1521,6 +1534,9 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     },
     emit,
     slice: <T,>(nm: string, init?: T | ((W: PzWorld, P: PzApi) => T)) => slice<T>(nm, init),
+    holdFor(ms) {
+      holdUntil = Math.max(holdUntil, Date.now() + ms);
+    },
     pushUndo(label, undo, redo, o) {
       const hid = pushHist(label, undo, redo, o?.scope ?? "place");
       if (o?.toast === false) bump();
