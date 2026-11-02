@@ -162,6 +162,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
   let toastT: ReturnType<typeof setTimeout> | undefined;
   let sayFlip = false;
   const subs: (() => void)[] = [];
+  let quietV = 0;
+  const quietSubs: (() => void)[] = [];
   const bus: Record<string, ((d: unknown) => void)[]> = {};
   const sliceDefs: Record<string, unknown | ((W: PzWorld, P: PzApi) => unknown)> = {};
   /** The sheet was opened by a push of the address (closing goes back). */
@@ -214,6 +216,18 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       });
     });
   }
+  function bumpQuiet() {
+    quietV++;
+    void Promise.resolve().then(() => {
+      quietSubs.slice().forEach((fn) => {
+        try {
+          fn();
+        } catch (e) {
+          console.error("[pizarra] subscriber", e);
+        }
+      });
+    });
+  }
   function emit(evt: string, data?: unknown) {
     (bus[evt] ?? []).slice().forEach((fn) => {
       try {
@@ -243,7 +257,8 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     if (o.long && undo) holdUntil = Math.max(holdUntil, Date.now() + 12500);
     toastT = setTimeout(() => {
       S.toast = null;
-      bump();
+      // (only the toast shows it: the rest of the pizarra — the pitch, the regions — isn't redrawn for it)
+      bumpQuiet();
     }, o.ms ?? (o.long ? 12000 : undo || o.action ? 5000 : 3200));
     if (o.say !== false) say(text);
     bump();
@@ -1580,6 +1595,16 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       return () => {
         const k = subs.indexOf(fn);
         if (k >= 0) subs.splice(k, 1);
+      };
+    },
+    get tv() {
+      return quietV;
+    },
+    subscribeQuiet(fn) {
+      quietSubs.push(fn);
+      return () => {
+        const k = quietSubs.indexOf(fn);
+        if (k >= 0) quietSubs.splice(k, 1);
       };
     },
     layout: () => S.layout,

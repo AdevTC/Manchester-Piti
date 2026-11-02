@@ -30,3 +30,23 @@ export function usePz(): PzApi {
   );
   return useMemo(() => facade(P, v), [P, v]);
 }
+
+const noSub = () => () => undefined;
+/** usePz() for the toast: it also re-renders when only the toast changed (its own expiry — the store's quiet
+ *  version), which redraws nobody else. */
+export function usePzToast(): PzApi {
+  const P = useContext(PzContext);
+  if (!P) throw new Error("usePzToast() fuera de la pizarra (falta <PzProvider>)");
+  const v = useSyncExternalStore(
+    P.subscribe,
+    () => P.v,
+    () => P.v,
+  );
+  const tv = useSyncExternalStore(
+    P.subscribeQuiet ?? noSub,
+    () => P.tv ?? 0,
+    () => P.tv ?? 0,
+  );
+  // (a new facade for either version: the compiled Toast sees the change)
+  return useMemo(() => facade(P, v * 65536 + tv), [P, v, tv]);
+}

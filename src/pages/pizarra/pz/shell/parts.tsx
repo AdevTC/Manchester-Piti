@@ -1,7 +1,7 @@
 // r14 «La pizarra» · the shell's pieces (SHELL-API): the board bar with the places, the phone header, the pizarra
 // dock, the toast with «Deshacer», the drag ghost, the announcer. Ported from PiPizarra.dc.html.
 import { useEffect, useRef, type ReactNode } from "react";
-import { usePz } from "../store/context";
+import { usePz, usePzToast } from "../store/context";
 import { PLACES } from "../store/store";
 import { fmt } from "../store/fmt";
 import { PzIcon, CampoShirt } from "../campo/Shirt";
@@ -155,7 +155,7 @@ export function Dock() {
 
 /** The toast (web style, never over a control) and the aria-live announcer. */
 export function Toast() {
-  const P = usePz();
+  const P = usePzToast();
   const t = P.state.toast;
   return (
     <>

@@ -4,7 +4,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Suspense } from "react";
 import { act, render, screen } from "@testing-library/react";
-import { makeTestStore } from "./testkit";
+import { makeTestStore, renderWithPz } from "./testkit";
+import { usePz } from "./context";
+import { Toast } from "../shell/parts";
 import { lazyPart, partPreload } from "./lazyPart";
 import { preloadPlace, registerPlace } from "./registry";
 
@@ -69,6 +71,38 @@ describe("setStage", () => {
     const v1 = P.v;
     P.act.setStage({ camera: "grada" });
     expect(P.v).toBe(v1);
+  });
+});
+
+describe("the toast's expiry", () => {
+  it("hides the toast without redrawing the rest of the pizarra (the pitch, the regions)", async () => {
+    vi.useFakeTimers();
+    try {
+      let others = 0;
+      function Probe() {
+        const P = usePz();
+        others++;
+        return <i>{P.state.route.place}</i>;
+      }
+      const { P, flush } = renderWithPz(
+        <>
+          <Probe />
+          <Toast />
+        </>,
+      );
+      act(() => P.toast("ALCIDES al DC"));
+      await flush();
+      expect(screen.getByText("ALCIDES al DC")).toBeTruthy();
+      const before = others;
+      await act(async () => {
+        vi.advanceTimersByTime(3300);
+        await Promise.resolve();
+      });
+      expect(screen.queryByText("ALCIDES al DC")).toBeNull();
+      expect(others).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
