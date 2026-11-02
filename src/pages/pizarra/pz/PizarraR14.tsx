@@ -202,6 +202,8 @@ export function PizarraR14() {
   // its View Transition instead of popping in after it
   useEffect(() => {
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    // (~460 KB of JS in all, ~120 KB compressed: not on a «save data» connection — P.nav still fetches the place it goes to)
+    if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) return;
     const go = () => void preloadParts(["siete", "plan", "jugadas", "partido", "tableros", "pachanga", "charla"]);
     if (w.requestIdleCallback) {
       const id = w.requestIdleCallback(go, { timeout: 4000 });
