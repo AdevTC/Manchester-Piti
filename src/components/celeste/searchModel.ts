@@ -56,7 +56,7 @@ export function targetHref(t: PanelTarget): string | null {
     case "profile":
       return "/perfil";
     case "pizarra":
-      return "/pizarra";
+      return "/pizarra/siete";
     case "href":
       return t.href;
     case "pip":
@@ -243,7 +243,7 @@ const SECTIONS: [string, string, string, string, string, TuIconName, boolean][] 
   ["club", "Club", "La vitrina, la historia y el equipo", "/club", "historia escudo vitrina", "shield", false],
   ["camiseta", "Ponte la del Piti", "Tu nombre y tu dorsal en la camiseta", "/club/equipo/camiseta", "camiseta equipacion dorsal", "shirt", false],
   ["vestuario", "Vestuario", "La zona del equipo", "/vestuario", "entrar equipo puerta", "lock", false],
-  ["pizarra", "Pizarra", "Tácticas, jugadas y el siete", "/pizarra", "tactica jugadas siete alineacion", "poll", true],
+  ["pizarra", "Pizarra", "Tácticas, jugadas y el siete", "/pizarra/siete","tactica jugadas siete alineacion", "poll", true],
   ["caja", "La caja", "Cuotas y gastos", "/vestuario/caja", "dinero cuotas pagos bote", "euro", true],
 ];
 

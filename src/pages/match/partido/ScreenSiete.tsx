@@ -198,7 +198,7 @@ function ScreenSieteDia({ c }: { c: PageCtx }) {
     segRefs.current[nv === "min" ? 1 : 0]?.focus();
   };
   // (only with this match's official board: a played match with only the season's plan has none)
-  const pizarraHref = boardId ? `/pizarra?tablero=${encodeURIComponent(boardId)}` : null;
+  const pizarraHref = boardId ? `/pizarra/siete?tablero=${encodeURIComponent(boardId)}` : null;
   const card = v.card;
 
   const changes = (extra: boolean) => (

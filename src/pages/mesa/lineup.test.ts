@@ -52,8 +52,8 @@ describe("la alineación del partido en la mesa", () => {
   });
 
   it("links to the pizarra «desde la mesa», on the official board when known", () => {
-    expect(pizarraHref("m7")).toBe("/pizarra?desde=mesa&partido=m7");
-    expect(pizarraHref("m7", "b1")).toBe("/pizarra?desde=mesa&partido=m7&tablero=b1");
+    expect(pizarraHref("m7")).toBe("/pizarra/partido?desde=mesa&partido=m7");
+    expect(pizarraHref("m7", "b1")).toBe("/pizarra/partido?desde=mesa&partido=m7&tablero=b1");
   });
 
   it("reads the board's planned subs, dropping malformed ones", () => {

@@ -22,8 +22,9 @@ export function pageDirection(from: string, to: string): SwapDirection {
 
 /**
  * The page an address belongs to: one page component, mounted across all its screens (a change of screen inside
- * it is the page's own business, with its own choreography). Each match is a page of its own. The Sala de control,
- * the pizarra and la mesa are apps of their own: `null`, no change-of-page transition into or out of them.
+ * it is the page's own business, with its own choreography). Each match is a page of its own. The Sala de control
+ * and la mesa are apps of their own: `null`, no change-of-page transition into or out of them. La pizarra (r14) is a
+ * page of the web: in and out with the choreography, its places among themselves with its own.
  */
 export function pageKeyOf(pathname: string): string | null {
   const p = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
@@ -40,7 +41,9 @@ export function pageKeyOf(pathname: string): string | null {
   if (p === "/buscar") return "buscar";
   // (the Sala de control is an app of its own whose screens are pages among themselves: r12, law 4)
   if (p === "/admin" || p.startsWith("/admin/")) return `${SALA}${p}`;
-  if (p === "/pizarra" || p.startsWith("/invitacion/")) return null;
+  // (la pizarra r14 is one page across its places, which travel with their own View Transition: the pitch stays)
+  if (p === "/pizarra" || p.startsWith("/pizarra/")) return "pizarra";
+  if (p.startsWith("/invitacion/")) return null;
   return "otra";
 }
 const SALA = "sala:";

@@ -32,6 +32,8 @@ export { onPollCreated, onPollDeleted } from "./polls.js";
 export { cleanupMatchTombstone, deleteMatch, setMatchArchived } from "./matches.js";
 export { setConvocatoria } from "./convocatoria.js";
 export { setMatchLineup, setMatchPresent } from "./matchLineupCallables.js";
+// r14 · la pizarra (pizarraR14.ts)
+export { onLineupR14, setBoardFanLink } from "./pizarraR14.js";
 export { inviteInfo, createInvite, revokeInvite, joinWithInvite, requestAccess, cancelAccessRequest, resolveAccess, revokeMember, doorShirts } from "./door.js";
 // r12 · la Sala de control y la mesa
 export { setMvpVote, saveMatchReport, recalcMatchNotas, discardMatchDraft, setVideoMarks, addMatchGuest, setMatchDuration } from "./matchExtras.js";

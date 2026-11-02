@@ -227,11 +227,12 @@ export function lineupSpots(field: readonly string[], starters: readonly string[
   return { spots, keeper: now.keeper && field.includes(now.keeper) ? now.keeper : null, fitY: stretch };
 }
 
-/** The mesa's link to the pizarra: «desde la mesa» for this match, on its official board when known. */
+/** The mesa's link to the pizarra («Elegir el siete»): the match's place, «desde la mesa» for this match, on its
+ *  official board when known. */
 export function pizarraHref(matchId: string, boardId?: string | null): string {
   const q = new URLSearchParams({ desde: "mesa", partido: matchId });
   if (boardId) q.set("tablero", boardId);
-  return "/pizarra?" + q.toString();
+  return "/pizarra/partido?" + q.toString();
 }
 
 /** The pizarra's frame (y 14 = the striker … 93 = the keeper) to the pitch card's top % (the canvas: 5 % … 71 %). */

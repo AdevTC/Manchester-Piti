@@ -192,3 +192,8 @@ export interface RevokeMemberResult {
   freed?: string | null;
   wasCaptain?: boolean;
 }
+
+// r14 pizarra (functions/src/pizarraR14.ts; the contract: piti-diseno/src/pizarra/r14/impl/API.txt)
+/** La vista de la afición (PZ-D21F): `on` makes (or keeps) the board's public link and returns its token; `rotate`
+ *  gives it a new one (the old link stops working); off deletes it. The board's owner or a captain. */
+export const setBoardFanLink = lazyCallable<{ boardId: string; on: boolean; rotate?: boolean }, { ok: true; token: string | null }>("setBoardFanLink");

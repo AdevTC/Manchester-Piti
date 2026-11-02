@@ -40,7 +40,7 @@ export function RootLayout() {
   // La mesa is the live match itself: the floating score would sit on its scoreboard.
   const mesaPath = /^\/partidos\/[^/]+\/mesa\/?$/.test(pathname);
   // (the pizarra has its own live plate and the mesa's pitch: the score would cover its header)
-  const pizarraPath = /^\/pizarra\/?$/.test(pathname);
+  const pizarraPath = under(pathname, "/pizarra");
   const takingOver = useTakingOver();
   const invitation = pathname.startsWith("/invitacion/");
   // The door stays up through the walkout after being let in.
@@ -55,7 +55,7 @@ export function RootLayout() {
   // is its own (one main: B-SH-04). While the session is being checked, /admin shows no site chrome either.
   const adminApp = adminPath && (checking || !door);
   const Main = adminApp && !checking ? "div" : "main";
-  const immersive = adminApp || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/estadisticas", "/club", "/jugadores", "/buscar", "/perfil", "/avisos"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
+  const immersive = adminApp || lost || pathname === "/" || pathname === "/camiseta" || ["/hoy", "/partidos", "/plantilla", "/estadisticas", "/club", "/jugadores", "/buscar", "/perfil", "/avisos", "/aficion"].some((p) => under(pathname, p)) || (["/vestuario", "/pizarra"].some((p) => under(pathname, p)) && (checking || (member && !!profile))) || ((privatePage || invitation) && !checking && door);
   return (
     <div className="club-app">
       {import.meta.env.VITE_USE_FIREBASE_EMULATOR === "1" && (

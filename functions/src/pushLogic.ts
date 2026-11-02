@@ -482,6 +482,12 @@ export function notasNotice(id: string, before: MatchLike | undefined, after: Ma
  * changes — never on the edits of an official that stays put. Not for a match already played or
  * cancelled. The tag is per board and match, so a phone keeps one notice for each.
  */
+/** r14 · La charla of a board (PZ-D02): /pizarra/charla?tablero=<id>[&season=<id>]. */
+export function charlaUrl(id: string, seasonId?: unknown): string {
+  const season = typeof seasonId === "string" && seasonId ? `&season=${encodeURIComponent(seasonId)}` : "";
+  return `/pizarra/charla?tablero=${encodeURIComponent(id)}${season}`;
+}
+
 export function lineupNotice(id: string, before: LineupLike | undefined, after: LineupLike | undefined, match: MatchLike | null | undefined, now?: number): Notice | null {
   if (!after?.isOfficial) return null;
   const mid = after.matchId ?? null;
@@ -498,8 +504,9 @@ export function lineupNotice(id: string, before: LineupLike | undefined, after: 
     : mid
       ? "El capitán ya ha publicado el siete del partido. Míralo en el partido."
       : "El capitán ya ha publicado el siete de la temporada. Ábrelo y mira la charla.";
-  const season = typeof after.seasonId === "string" && after.seasonId ? `&season=${encodeURIComponent(after.seasonId)}` : "";
-  const url = mid ? matchUrl(mid, "siete") : `/pizarra?tablero=${encodeURIComponent(id)}${season}#charla`;
+  // (r14, PZ-D02: the season's official opens straight in its charla; a match's opens the public match page,
+  // whose «Ver la charla» takes a member to /pizarra/charla?tablero=<id> — the topic reaches the fans too)
+  const url = mid ? matchUrl(mid, "siete") : charlaUrl(id, after.seasonId);
   return { topic: "lineup", title: "Ya está el siete", body, tag: `lineup-${id}-${mid ?? "temporada"}`, url };
 }
 
@@ -654,7 +661,7 @@ export function sevenChangeNotice(id: string, baseline: readonly string[], now7:
     title: "Cambio en el siete",
     body: txt.replace(/^./, (c) => c.toUpperCase()) + (rival ? ` · contra ${rival}` : "") + (mid ? ". Míralo en el partido." : ". Mira el oficial en la pizarra."),
     tag: `seven-${id}`,
-    url: mid ? matchUrl(mid, "siete") : `/pizarra?tablero=${encodeURIComponent(id)}${season}`,
+    url: mid ? matchUrl(mid, "siete") : `/pizarra/siete?tablero=${encodeURIComponent(id)}${season}`,
   };
 }
 

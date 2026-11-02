@@ -402,7 +402,7 @@ function Convocatoria() {
               Copiar el de la pizarra
             </button>
           )}
-          <a className="vd-link spa-board__open" href={`/pizarra?${boardId ? `tablero=${encodeURIComponent(boardId)}&` : ""}season=${encodeURIComponent(m.seasonId ?? "")}`} target="_blank" rel="noopener">
+          <a className="vd-link spa-board__open" href={`/pizarra/siete?${boardId ? `tablero=${encodeURIComponent(boardId)}&` : ""}season=${encodeURIComponent(m.seasonId ?? "")}`} target="_blank" rel="noopener">
             Abrir la pizarra ↗<span className="vd-vh"> (se abre en otra pestaña)</span>
           </a>
           {pitch && pitch.subs.length > 0 && (

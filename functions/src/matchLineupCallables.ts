@@ -65,13 +65,17 @@ function playersProblem(players: readonly string[], roster: ReadonlySet<string>,
 }
 
 /** What «Mandar a la mesa» copies from the sent board onto the match's official: the seven and its places, and the
- *  plan that goes with it (cambios, roles/galones, lanzadores, the other versions). */
-export const SENT_KEYS = ["formation", "freeMode", "slots", "playerPositions", "subs", "roles", "takers", "variants"] as const;
+ *  plan that goes with it (cambios, roles/galones, lanzadores, the other versions — «2ª parte» and «Plan B», which
+ *  la mesa offers at half-time —, and r14's «Si pasa…» rules, PZ-D07, which la mesa shows when they come true). */
+export const SENT_KEYS = ["formation", "freeMode", "slots", "playerPositions", "subs", "roles", "takers", "variants", "condPlan"] as const;
 /** Whether two boards carry the same plan (the SENT_KEYS beyond the seven). */
 export function samePlan(a: object | undefined, b: object | undefined): boolean {
   const x = a as Record<string, unknown> | undefined, y = b as Record<string, unknown> | undefined;
-  return (["subs", "roles", "takers", "variants"] as const).every((k) => stable(x?.[k] ?? null) === stable(y?.[k] ?? null));
+  return (["subs", "roles", "takers", "variants", "condPlan"] as const).every((k) => stable(x?.[k] ?? null) === stable(y?.[k] ?? null));
 }
+/** The server's own fields of a board (pizarraR14.ts): a copy never carries them (its fan link, its seven's
+ *  version: the copy gets its own). */
+export const SERVER_KEYS = ["fanToken", "sevenKey", "sevenRev"] as const;
 /** JSON with every map's keys in order (Firestore doesn't keep a map's key order). */
 function stable(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(stable).join(",")}]`;
@@ -147,7 +151,9 @@ export const setMatchLineup = onCall(async (req): Promise<SetMatchLineupResult> 
       // The season's (or another match's) official stays where it is: the match gets its own copy.
       const nickname = actor.profile.get("nickname");
       const { reactions: _r, ...rest } = board;
-      tx.set(copyRef, { ...rest, ownerUid: actor.uid, ownerNickname: typeof nickname === "string" && nickname ? nickname : board.ownerNickname, name: "Siete del partido", isOfficial: true, matchId: data.matchId, createdAt: at, updatedAt: at });
+      for (const k of SERVER_KEYS) delete rest[k];
+      // (r14, PZ-D22T: a copy made from la mesa says so — «De la mesa» in Tableros)
+      tx.set(copyRef, { ...rest, fromMesa: true, ownerUid: actor.uid, ownerNickname: typeof nickname === "string" && nickname ? nickname : board.ownerNickname, name: "Siete del partido", isOfficial: true, matchId: data.matchId, createdAt: at, updatedAt: at });
     } else if (!official) {
       // No official yet: the sent board (the actor's own) becomes it («Ya está el siete»).
       tx.update(sourceRef, { isOfficial: true, matchId: data.matchId, updatedAt: at });

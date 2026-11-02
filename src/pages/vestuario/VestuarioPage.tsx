@@ -511,7 +511,7 @@ export function VestuarioPage() {
                     })}
                   </ul>
                   <nav className="ve-foot" aria-label="Más">
-                    <Go className="nx-lnk" href="/pizarra">
+                    <Go className="nx-lnk" href="/pizarra/siete">
                       Abrir la pizarra
                     </Go>
                     <Go className="nx-lnk" href={pid ? `/jugadores/${pid}` : "/perfil"}>

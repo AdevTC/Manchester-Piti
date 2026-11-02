@@ -29,7 +29,7 @@ export function ago(t: number | null, now: number): string {
 }
 
 /** Where a line goes, as a typed route: the vestuario, or the pizarra (on a board, in its season). */
-export type StuffLink = { to: "/vestuario" } | { to: "/pizarra"; search: { tablero?: string; season?: string } };
+export type StuffLink = { to: "/vestuario" } | { to: "/pizarra/siete"; search: { tablero?: string; season?: string } };
 
 export interface StuffLine {
   key: "call" | "boards" | "porra" | "conv";
@@ -59,7 +59,7 @@ export function stuffLines(s: { next: NextMatch | null; boards: BoardsLine; porr
     key: "boards",
     title: "Tus pizarras",
     text: !b.count || !b.last ? "Aún no tienes tableros: crea el primero" : b.count === 1 ? `1 tablero · «${b.last.name}», ${ago(b.last.at, s.now)}` : `${plural(b.count, "tablero", "tableros")} · el último, «${b.last.name}», ${ago(b.last.at, s.now)}`,
-    link: { to: "/pizarra", search: b.last ? { tablero: b.last.id, season: b.last.season ?? undefined } : {} },
+    link: { to: "/pizarra/siete", search: b.last ? { tablero: b.last.id, season: b.last.season ?? undefined } : {} },
     call: false,
   });
   const p = s.porra;

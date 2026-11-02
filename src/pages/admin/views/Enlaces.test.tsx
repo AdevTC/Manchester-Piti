@@ -87,21 +87,21 @@ describe("Convocatoria · «Abrir la pizarra» opens the match's board", () => {
     setAdminData(adminFixture({ officialLocks: { t1__m8: "b8", t1__temporada: "s1" } }));
     mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
     await screen.findByRole("heading", { level: 2, name: "Quién viene" });
-    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=b8&season=t1");
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra/siete?tablero=b8&season=t1");
   });
 
   it("still to be played with only the season's official: that board", async () => {
     setAdminData(adminFixture({ officialLocks: { t1__temporada: "s1" } }));
     mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
     await screen.findByRole("heading", { level: 2, name: "Quién viene" });
-    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?tablero=s1&season=t1");
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra/siete?tablero=s1&season=t1");
   });
 
   it("with none yet: the pizarra itself (to make and publish it)", async () => {
     setAdminData(adminFixture());
     mountAdmin("/admin/partidos/m8/convocatoria", { convocar: Convocar });
     await screen.findByRole("heading", { level: 2, name: "Quién viene" });
-    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra?season=t1");
+    expect(screen.getByRole("link", { name: /Abrir la pizarra/ })).toHaveAttribute("href", "/pizarra/siete?season=t1");
   });
 });
 
@@ -117,7 +117,7 @@ describe("⌘K · «Abrir la pizarra (J… · rival)»", () => {
     const options = within(list).getAllByRole("option", { name: new RegExp(name.replace(/[()]/g, "\\$&")) });
     expect(options).toHaveLength(1);
     await user.click(options[0]);
-    await waitFor(() => expect(router.state.location.pathname).toBe("/pizarra"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/pizarra/siete"));
     expect(router.state.location.search).toMatchObject({ tablero: "bh", season: "t1" });
   });
 

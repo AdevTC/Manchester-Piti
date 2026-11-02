@@ -239,6 +239,31 @@ service cloud.firestore {
           && request.resource.data.at == request.time;
         allow delete: if signedIn() && request.auth.uid == uid;
       }
+      // r14 · «Adivina el siete» (PZ-D04): before the match's official seven is published, each player (a member
+      // with a ficha) keeps his guess — seven player ids, keeper first — and may change or take it back. Nobody
+      // else reads it until the official is out; then the team sees them all (the hits are counted on the
+      // client against the official: src/pages/pizarra/data/guesses.ts).
+      match /guesses/{uid} {
+        allow read: if teamMember() && (request.auth.uid == uid || sieteOut(id));
+        allow create, update: if teamMember() && request.auth.uid == uid
+          && me().get('playerId', null) is string
+          && request.resource.data.keys().hasOnly(['slots','at'])
+          && request.resource.data.keys().hasAll(['slots','at'])
+          && guessSlotsOk(request.resource.data.slots)
+          && request.resource.data.at == request.time
+          && upcoming(id) && !sieteOut(id);
+        allow delete: if teamMember() && request.auth.uid == uid && !sieteOut(id);
+      }
+    }
+    // The match's official seven is out: its scope doc (lineupOfficials/{season}__{match}) exists.
+    function sieteOut(matchId) {
+      return exists(/databases/$(database)/documents/lineupOfficials/$(get(/databases/$(database)/documents/matches/$(matchId)).data.get('seasonId', '-') + '__' + matchId));
+    }
+    function guessId(v) { return v is string && v.size() >= 1 && v.size() <= 128; }
+    function guessSlotsOk(s) {
+      return s is list && s.size() == 7
+        && guessId(s[0]) && guessId(s[1]) && guessId(s[2]) && guessId(s[3])
+        && guessId(s[4]) && guessId(s[5]) && guessId(s[6]);
     }
     match /porraStandings/{seasonId} { allow read: if teamMember(); allow write: if false; }
     // Account ↔ player link: claims are reviewed by an admin; links are set by the backend.
@@ -400,6 +425,17 @@ service cloud.firestore {
         && request.resource.data.read.size() <= 200
         && request.resource.data.read.values().hasOnly([true, false]);
     }
+    // r14 · los ajustes de la pizarra te siguen (PZ-D21E): one private doc per member, only theirs. `prefs` is a
+    // small map (≤ 24 keys; its content is validated on read: src/pages/pizarra/data/prefs.ts) and the device
+    // keeps a copy (localStorage) as cache and fallback.
+    match /users/{uid}/private/pizarra {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['prefs','at'])
+        && request.resource.data.prefs is map
+        && request.resource.data.prefs.size() <= 24
+        && request.resource.data.at == request.time;
+    }
     // ---- El centro de avisos: every push notice kept (functions/src/push.ts sendTo, noticesLogic.ts), read
     // by audience: the team's by members, the captains' by admins, a personal one only by its member. Every
     // read filters by audience (the client's three queries). Only the backend writes; a TTL policy on
@@ -429,11 +465,48 @@ service cloud.firestore {
     }
     // The rival seven (null once taken off): their system and at most seven players, each a small map
     // (a dorsal and a note; their content is validated on read, see v2/rival.ts parseRival).
+    // r14 (PZ-D21P): «En el campo» (`visible`, false = their seven off the pitch) and their danger man
+    // (`danger`, the index of one of their seven, null = none) are saved with the rival.
     function rivalOk(d) {
       return !('rival' in d) || d.rival == null || (d.rival is map
-        && d.rival.keys().hasOnly(['formation','players'])
+        && d.rival.keys().hasOnly(['formation','players','visible','danger'])
         && d.rival.get('formation', null) is string && d.rival.formation.size() <= 10
-        && d.rival.get('players', []) is list && d.rival.get('players', []).size() <= 7);
+        && d.rival.get('players', []) is list && d.rival.get('players', []).size() <= 7
+        && d.rival.get('visible', true) is bool
+        && (d.rival.get('danger', null) == null
+          || (d.rival.danger is int && d.rival.danger >= 0 && d.rival.danger <= 6)));
+    }
+    // r14 · el plan (PZ-D22P/D23P): the keys (≤ 3 texts), each one's light on the pitch (`viz`, ≤ 3 maps), the
+    // notes for the charla and the set pieces (`parado`: corners / freekicks / penalties maps). Their content
+    // is validated on read (src/pages/pizarra/data/plan.ts); here, the shape and the caps.
+    function planOk(d) {
+      return d.get('plan', null) == null || (d.plan is map
+        && d.plan.keys().hasOnly(['claves','notes','viz','parado'])
+        && d.plan.get('claves', []) is list && d.plan.get('claves', []).size() <= 3
+        && d.plan.get('viz', []) is list && d.plan.get('viz', []).size() <= 3
+        && d.plan.get('notes', '') is string && d.plan.get('notes', '').size() <= 400
+        && (d.plan.get('parado', null) == null || (d.plan.parado is map
+          && d.plan.parado.keys().hasOnly(['corners','freekicks','penalties'])
+          && d.plan.parado.get('corners', {}) is map && d.plan.parado.get('corners', {}).size() <= 2
+          && d.plan.parado.get('freekicks', {}) is map && d.plan.parado.get('freekicks', {}).size() <= 2
+          && d.plan.parado.get('penalties', {}) is map && d.plan.parado.get('penalties', {}).size() <= 1)));
+    }
+    // r14: the board's other new fields. `seasonPlays` (PZ-D05) names the season plays it uses (ids, ≤ 24);
+    // `fromMesa` marks a scorer's copy made from la mesa (PZ-D22T); `fanToken` (the fan view's link,
+    // PZ-D21F), `sevenKey` and `sevenRev` (the official seven's fingerprint and version, PZ-D01) are the
+    // server's (functions/src/pizarraR14.ts): a client never sets nor changes them (boardServerKeysSame).
+    function boardR14Ok(d) {
+      return planOk(d)
+        && d.get('fromMesa', false) is bool
+        && d.get('seasonPlays', []) is list && d.get('seasonPlays', []).size() <= 24
+        && (d.get('fanToken', null) == null || (d.fanToken is string && d.fanToken.size() <= 64))
+        && (d.get('sevenKey', null) == null || (d.sevenKey is string && d.sevenKey.size() <= 1000))
+        && d.get('sevenRev', 0) is int;
+    }
+    function boardServerKeysSame() {
+      return request.resource.data.get('fanToken', null) == resource.data.get('fanToken', null)
+        && request.resource.data.get('sevenKey', null) == resource.data.get('sevenKey', null)
+        && request.resource.data.get('sevenRev', 0) == resource.data.get('sevenRev', 0);
     }
     // A string field that may be missing (older boards) but, when there, is a bounded string.
     function optStr(d, k, max) {
@@ -490,7 +563,8 @@ service cloud.firestore {
     function boardOk(d) {
       return d.keys().hasOnly(['formation','freeMode','slots','bench','roles','tactics','playerPositions','pinned',
           'variants','subs','takers',
-          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival','tags','voz'])
+          'drawings','plays','ownerUid','ownerNickname','seasonId','name','isOfficial','matchId','createdAt','updatedAt','shapeOff','condPlan','style','rival','tags','voz',
+          'plan','fromMesa','seasonPlays','fanToken','sevenKey','sevenRev'])
         && d.ownerUid is string
         && d.get('seasonId', null) is string && d.seasonId.size() <= 128
         && optStr(d, 'name', 60) && optStr(d, 'ownerNickname', 40) && optStr(d, 'formation', 10)
@@ -509,7 +583,8 @@ service cloud.firestore {
         && tacticaOk(d)
         && tagsOk(d)
         && variantsOk(d)
-        && boardExtrasOk(d);
+        && boardExtrasOk(d)
+        && boardR14Ok(d);
     }
     match /lineups/{id} {
       allow read: if teamMember();
@@ -519,6 +594,7 @@ service cloud.firestore {
         && request.resource.data.get('ownerNickname', null) == me().nickname
         && (!request.resource.data.get('isOfficial',false) || admin())
         && boardMatchActive(request.resource.data.get('matchId', null))
+        && !request.resource.data.keys().hasAny(['fanToken','sevenKey','sevenRev'])
         && boardOk(request.resource.data);
       // The owner and the season never change; the nickname only to the owner's own current one.
       allow update: if teamMember()
@@ -530,7 +606,10 @@ service cloud.firestore {
           && !resource.data.get('isOfficial',false) && !request.resource.data.get('isOfficial',false)))
         && boardMatchActive(resource.data.get('matchId', null))
         && boardMatchActive(request.resource.data.get('matchId', null))
+        && boardServerKeysSame()
         && boardOk(request.resource.data);
+      // (a captain deletes any board: «Borrar las copias de la mesa», PZ-D22T, is a captain deleting the scorers'
+      // `fromMesa` copies; the server then deletes its voz, reactions, history and fan view — pizarraR14.ts)
       allow delete: if teamMember() && boardMatchActive(resource.data.get('matchId', null))
         && (admin() || (resource.data.ownerUid == request.auth.uid && !resource.data.get('isOfficial',false)));
       // What each member thinks of the official seven: their own doc, «ok» or «dudas», only while
@@ -538,10 +617,14 @@ service cloud.firestore {
       // or is deleted, the captains (or its owner, once it is not official) clear them.
       match /reactions/{uid} {
         allow read: if teamMember();
+        // r14 (PZ-D01): `rev` is the version of the seven the member reacted to; when given it must be the
+        // board's current `sevenRev` (0 before the server ever stamped one). Without it: an older client.
         allow create, update: if teamMember() && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['value','at'])
+          && request.resource.data.keys().hasOnly(['value','at','rev'])
           && request.resource.data.value in ['ok','dudas']
           && request.resource.data.at == request.time
+          && (!('rev' in request.resource.data)
+            || request.resource.data.rev == get(/databases/$(database)/documents/lineups/$(id)).data.get('sevenRev', 0))
           && boardMatchActive(get(/databases/$(database)/documents/lineups/$(id)).data.get('matchId', null))
           && get(/databases/$(database)/documents/lineups/$(id)).data.get('isOfficial', false) == true;
         allow delete: if teamMember()
@@ -553,14 +636,16 @@ service cloud.firestore {
       // La voz en off de la charla (Bloque 5): at most six clips (the slot ids v0…v5), each a step's key, an
       // audio type, ≤ 30 s and ≤ 900 000 characters of base64 (well under a doc's 1 MiB). The team hears
       // them; whoever may edit the board (its owner while it is not official, or a captain) records and
-      // deletes them — the board must still exist (its clips go before it does).
+      // deletes them — the board must still exist (its clips go before it does). r14 (PZ-D22F): a voice is
+      // keyed by what it talks about («siete:<pid>», «jugada:<id>[:<paso>]», «plan», «rival»…); the old step
+      // keys still read and write.
       match /voz/{slot} {
         allow read: if teamMember();
         allow create, update: if teamMember() && vozEditor(id)
           && slot in ['v0','v1','v2','v3','v4','v5']
           && request.resource.data.keys().hasOnly(['step','mime','ms','data','by','at'])
           && request.resource.data.step is string
-          && request.resource.data.step.matches('(sistema|banquillo|balon|plan|quedada|final|siete-[1-7]|jugada-[1-8])')
+          && request.resource.data.step.matches('(sistema|banquillo|balon|plan|quedada|final|suplentes|galones|rival|vamos|siete-[1-7]|jugada-[1-8]|siete:[A-Za-z0-9_-]{1,128}|jugada:[A-Za-z0-9_-]{1,64}(:[0-9]{1,2})?)')
           && request.resource.data.mime is string && request.resource.data.mime.size() <= 60
           && request.resource.data.mime.matches('audio/[a-z0-9.+-]+(;.*)?')
           && request.resource.data.ms is int && request.resource.data.ms > 0 && request.resource.data.ms <= 30000
@@ -569,6 +654,13 @@ service cloud.firestore {
           && request.resource.data.by == request.auth.uid
           && request.resource.data.at == request.time;
         allow delete: if teamMember() && vozEditor(id);
+      }
+      // r14 · la historia del tablero (PZ-D21T): a snapshot each time the sistema changes, someone comes in
+      // or it is published. Only the server writes them (pizarraR14.ts onLineupR14); «Recuperar» is an
+      // ordinary edit of the board. The team reads them like the board.
+      match /history/{hid} {
+        allow read: if teamMember();
+        allow write: if false;
       }
     }
     function vozEditor(lineupId) {
@@ -603,6 +695,81 @@ service cloud.firestore {
         && request.resource.data.by == request.auth.uid
         && request.resource.data.at == request.time;
       allow delete: if false;
+    }
+    // ---- r14 · La pizarra (src/pages/pizarra/data/**; the contract: piti-diseno/src/pizarra/r14/impl/API.txt)
+    // La quedada de un partido (PZ-D03): when and where the team meets before it (Partido, la charla). The
+    // team reads it (not public: the match is); the captains write it while the match is active.
+    match /quedadas/{matchId} {
+      allow read: if teamMember();
+      allow create, update: if admin() && boardMatchActive(matchId)
+        && request.resource.data.keys().hasOnly(['at','where','note','by','setAt'])
+        && request.resource.data.keys().hasAll(['at','where','by','setAt'])
+        && request.resource.data.at is timestamp
+        && request.resource.data.where is string
+        && request.resource.data.where.size() >= 1 && request.resource.data.where.size() <= 80
+        && request.resource.data.get('note', '') is string && request.resource.data.get('note', '').size() <= 140
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.setAt == request.time;
+      allow delete: if admin();
+    }
+    // La pachanga del entreno (PZ-D09): who came to a confirmed training (ficha ids, ≤ 40) and the people from
+    // outside (names, ≤ 12), saved by a captain or whoever proposed the training; it counts as attendance.
+    // `slotId` is the training's confirmed slot. The team reads it.
+    match /trainingAttendance/{trainingId} {
+      allow read: if teamMember();
+      allow create, update: if teamMember() && attendanceAllowed(trainingId)
+        && request.resource.data.keys().hasOnly(['slotId','present','guests','by','at'])
+        && request.resource.data.keys().hasAll(['slotId','present','by','at'])
+        && request.resource.data.slotId == get(/databases/$(database)/documents/trainings/$(trainingId)).data.confirmed.slotId
+        && request.resource.data.present is list && request.resource.data.present.size() <= 40
+        && request.resource.data.get('guests', []) is list && request.resource.data.get('guests', []).size() <= 12
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow delete: if teamMember() && attendanceAllowed(trainingId);
+    }
+    function attendanceAllowed(trainingId) {
+      let t = get(/databases/$(database)/documents/trainings/$(trainingId)).data;
+      return 'confirmed' in t && (admin() || t.get('proposedBy', '') == request.auth.uid);
+    }
+    // Jugadas de la temporada (PZ-D05): a play kept outside any board, so it moves from one board to another
+    // without copying it (a board names the ones it uses in `seasonPlays`). `scope` «mine» (the member's own,
+    // for all his boards) or «team» (the team's library: captains). The play itself is the board's play shape
+    // (validated on read, src/pages/pizarra/data/seasonPlays.ts); here, its owner, season and size.
+    match /seasonPlays/{id} {
+      allow read: if teamMember();
+      allow create: if teamMember() && seasonPlayOk(request.resource.data)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerNickname == me().nickname
+        && request.resource.data.createdAt == request.time;
+      allow update: if teamMember() && seasonPlayOk(request.resource.data)
+        && (resource.data.ownerUid == request.auth.uid || admin())
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.ownerNickname == resource.data.ownerNickname
+        && request.resource.data.seasonId == resource.data.seasonId
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if teamMember() && (resource.data.ownerUid == request.auth.uid || admin());
+    }
+    function seasonPlayOk(d) {
+      return d.keys().hasOnly(['seasonId','ownerUid','ownerNickname','scope','play','createdAt','updatedAt'])
+        && d.keys().hasAll(['seasonId','ownerUid','ownerNickname','scope','play','createdAt','updatedAt'])
+        && d.seasonId is string && d.seasonId.size() >= 1 && d.seasonId.size() <= 128
+        && d.scope in ['mine','team'] && (d.scope == 'mine' || admin())
+        && d.play is map && d.play.size() <= 8
+        && d.play.get('frames', []) is list && d.play.get('frames', []).size() <= 8
+        && d.updatedAt == request.time;
+    }
+    // La vista de la afición (PZ-D21F): a public, read-only snapshot of a board (its cartel and its seven: shirt
+    // names and dorsales, never full names, notas or notes), at an unguessable token. Only the server writes it
+    // (setBoardFanLink, and refreshed when the board changes); anyone with the link reads it, nobody lists them.
+    // Fail-closed: it is served only while its board still exists and still names this token (a revoked,
+    // rotated or deleted link reads nothing even if a stale doc were left behind).
+    match /fanBoards/{token} {
+      allow get: if resource == null
+        || (resource.data.get('boardId', null) is string
+          && exists(/databases/$(database)/documents/lineups/$(resource.data.boardId))
+          && get(/databases/$(database)/documents/lineups/$(resource.data.boardId)).data.get('fanToken', null) == token);
+      allow list: if false;
+      allow write: if false;
     }
     // ---- Ausencias («no puedo del 12 al 19»): a member's own range of Madrid calendar days, inclusive, at
     // most 120 days (functions/src/absencesLogic.ts ABSENCE_MAX_DAYS), signed as themselves, with an
