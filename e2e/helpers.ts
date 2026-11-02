@@ -12,7 +12,7 @@ export async function enterVestuario(page: Page) {
 // ── Emulator-only fixtures (demo project, loopback): a spec sets up the state it needs itself. ──
 const EMULATOR = "demo-manchester-piti";
 /** The seeded preview admin as the Auth emulator knows it: its uid and an ID token. */
-async function emulatorAdmin(): Promise<{ uid: string; token: string }> {
+export async function emulatorAdmin(): Promise<{ uid: string; token: string }> {
   const b64 = (data: unknown) => Buffer.from(JSON.stringify(data)).toString("base64url");
   const fake = `${b64({ alg: "none", typ: "JWT" })}.${b64({ sub: "preview-admin", email: "admin@piti.test", email_verified: true, name: "Administrador de pruebas", aud: "demo", iss: "https://accounts.google.com" })}.`;
   const response = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=demo", {

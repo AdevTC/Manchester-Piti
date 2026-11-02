@@ -361,6 +361,12 @@ describe("the season", () => {
     expect(pizarraSeason(undefined, seasons, undefined, [])).toBe("t1");
     expect(pizarraSeason("gone", seasons, undefined, [])).toBe("t1");
   });
+  it("never answers a season that isn't in the list (SeasonUrlSync would turn it into «all»: a loop)", () => {
+    // the next match belongs to a season the list doesn't have (archived, or not loaded yet)
+    const next = { id: "m", seasonId: "hidden", date: 0, published: true } as unknown as Parameters<typeof pizarraSeason>[2];
+    expect(pizarraSeason("gone", seasons, next, [])).toBe("t1");
+    expect(pizarraSeason(undefined, [], next, [])).toBe("");
+  });
   it("the testkit's address follows navigate (route.sub too)", () => {
     const { P } = makeTestStore();
     P.act.go("/pizarra/plan/rival");

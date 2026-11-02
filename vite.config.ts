@@ -7,6 +7,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 import type { Plugin } from 'vite'
 import { readFileSync } from 'node:fs'
 
+// The Functions emulator the data bundle comes from: the same port the app is told (src/firebase.ts), so a dev
+// server on spare emulator ports never mixes another emulator's club with its own Firestore.
+const EMULATOR_FUNCTIONS = `http://127.0.0.1:${/^\d+$/.test(process.env.VITE_EMULATOR_FUNCTIONS_PORT ?? '') ? process.env.VITE_EMULATOR_FUNCTIONS_PORT : '5001'}`
+
 // https://vite.dev/config/
 // Match a node_modules package by exact name, anchored on the package
 // directory boundary (the segment right after the final `node_modules/`), so
@@ -266,12 +270,12 @@ export default defineConfig(({ isSsrBuild }) => ({
     strictPort: true,
     // Against the emulators, serve the data bundle like the Vercel rewrite does in production.
     proxy: process.env.VITE_USE_FIREBASE_EMULATOR === '1'
-      ? { '/datos/club.bundle': { target: 'http://127.0.0.1:5001', rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
+      ? { '/datos/club.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
       : undefined,
   },
   preview: {
     proxy: process.env.VITE_USE_FIREBASE_EMULATOR === '1'
-      ? { '/datos/club.bundle': { target: 'http://127.0.0.1:5001', rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
+      ? { '/datos/club.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
       : process.env.SSR_PREVIEW === '1'
         ? { '/datos/club.bundle': { target: 'https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net', changeOrigin: true, rewrite: () => '/clubBundle' } }
         : undefined,

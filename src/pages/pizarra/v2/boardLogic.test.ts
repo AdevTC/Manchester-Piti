@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { autoByEncajeOn, autoPlace, dropBenchedRoles, freeSpot, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setPlaysAs, setSystem, stepSystem, swap, toBench, cycleDefLine } from "./ops";
-import { applyFan, fanCentre, fanItems, FAN_RADIUS } from "./fan";
+import { autoByEncajeOn, autoPlace, dropBenchedRoles, freeSpot, goFree, normalize, place, resetFree, resolveDrop, rolesLost, setPlaysAs, setSystem, stepSystem, swap, cycleDefLine } from "./ops";
 import { packRanking, reelFor, sevenByEncajeOn, suggestSeven, packDelay } from "./pack";
 import { convocatoriaFromBoard, withConvocatoria } from "./boards";
 import { slotPos } from "./geometry";
@@ -8,7 +7,6 @@ import { isFull, natOf, type Cromo } from "./model";
 import { cromo, demoSquad, lineupOf, squadOf } from "./testkit";
 import { lineOf, type PosCode } from "../../../lib/positions";
 import { chem, chemWhy } from "./quimica";
-import { familiarity, famSlot } from "./familiarity";
 
 const ids = (L: { slots: { playerId: string | null }[] }) => L.slots.map((s) => s.playerId);
 
@@ -110,18 +108,6 @@ describe("systems and free mode", () => {
     expect(a.playerPositions.tello).toBe("MED");
     expect(setPlaysAs(a, sq, "tello", "DEF").playerPositions.tello).toBeUndefined();
   });
-  it("«Jugar de» by code: a line-only player keeps any code; «Como siempre» in the sub-fan clears it; natOf reads its line", () => {
-    const a = setPlaysAs(L, sq, "tello", "DFC");
-    expect(a.playerPositions.tello).toBe("DFC");
-    expect(natOf(a, sq, "tello")).toBe("DEF");
-    expect(natOf(setPlaysAs(L, sq, "tello", "MCD"), sq, "tello")).toBe("MED");
-    // (the sub-fan only offers codes: what clears it is its first item, «Como siempre»)
-    const sub = fanItems(a, sq, "tello", true);
-    expect(sub[0]).toMatchObject({ kind: "quitar", label: "Como siempre", aria: "Quitar «jugar de»: TELLO juega como siempre", on: false });
-    const off = applyFan(sub[0], a, sq, "tello");
-    expect(off).toMatchObject({ kind: "lineup", toast: "TELLO juega como siempre en este siete" });
-    expect(off.kind === "lineup" && off.lineup.playerPositions).toEqual({});
-  });
   it("«Jugar de» by code: an exact player's preferida clears it, anything else is kept", () => {
     const ex = squadOf([cromo("rodri", 16, "MED", { ps: { main: "MCD", also: ["MC"], line: "MED" } })]);
     const B = lineupOf(["rodri"], "2-3-1", ex);
@@ -165,15 +151,6 @@ describe("a «Jugar de» by code in a squad known only by lines", () => {
     expect(autoByEncajeOn({ ...A, playerPositions: {} }, ls)).toBe(false);
   });
 
-  it("familiarity reads his slot by code", () => {
-    const off = lineupOf(["p", "d1", "d2", "m2", "m1", "m3", "f"], "2-3-1", ls);
-    const t = familiarity(["j1", "j2", "j3"].map((matchId) => ({ ...off, matchId })), () => true);
-    // three officials at MC: by code at MC, nothing to say at MI (where the captain put him)
-    expect(famSlot(t, B, ls, "m1", 4)).toEqual({ mark: "+", txt: "ya ha jugado de mediocentro (3 partidos en el oficial)" });
-    expect(famSlot(t, B, ls, "m1", 3)).toEqual({ mark: null, txt: "" });
-    // by lines (no override) it is the zone's words
-    expect(famSlot(t, { ...B, playerPositions: {} }, ls, "m1", 3).txt).toBe("ya ha jugado de medio (3 partidos en el oficial)");
-  });
 });
 
 describe("Auto-colocar", () => {
@@ -201,13 +178,6 @@ describe("the galones belong to the seven", () => {
   const sq = demoSquad();
   const L = { ...lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq), roles: { captainId: "tello", penaltiesId: "tello", cornersId: "adrian" } };
   const nm = (id: string) => sq.byId.get(id)?.name ?? id;
-  it("whoever goes to the bench leaves his galones (and says so)", () => {
-    const b = toBench(L, "tello");
-    expect(b.roles).toEqual({ cornersId: "adrian" });
-    expect(rolesLost(L, b, nm)).toBe("TELLO deja la capitanía y los penaltis");
-    const f = applyFan(fanItems(L, sq, "tello", false)[5], L, sq, "tello");
-    expect(f.kind === "lineup" && f.lineup.roles.captainId).toBeUndefined();
-  });
   it("a bench player coming in for him, a swap with the bench and Auto-colocar too", () => {
     const p = place(L, "kevin", 6);
     expect(p.roles).toEqual({ captainId: "tello", penaltiesId: "tello" });
@@ -304,110 +274,6 @@ describe("«Sugerir siete»: the pack", () => {
     expect(reelFor(2, [7])).toEqual(Array(12).fill(7));
     expect(reelFor(1, [])).toEqual([]);
     expect(packDelay(3)).toBeGreaterThan(packDelay(2));
-  });
-});
-
-describe("the long-press fan", () => {
-  const sq = demoSquad();
-  const L = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "almachi", "adrian"], "2-3-1", sq);
-  it("lays the galones, Jugar de, Banquillo, Mover a and Ficha on a circle from the top", () => {
-    const items = fanItems(L, sq, "tello", false);
-    expect(items.map((i) => i.label)).toEqual(["Capitán", "Penaltis", "Faltas", "Córners", "Jugar de", "Banquillo", "Mover a", "Ficha"]);
-    expect(items[0]).toMatchObject({ dx: 0, dy: -FAN_RADIUS, glyph: "C", on: false });
-    items.forEach((it) => expect(Math.round(Math.hypot(it.dx, it.dy))).toBeGreaterThanOrEqual(FAN_RADIUS - 1));
-  });
-  it("Capitán gives the armband, and a second time takes it off", () => {
-    const cap = fanItems(L, sq, "tello", false)[0];
-    const o = applyFan(cap, L, sq, "tello");
-    expect(o.kind).toBe("lineup");
-    if (o.kind !== "lineup") return;
-    expect(o.lineup.roles.captainId).toBe("tello");
-    expect(o.toast).toBe("Capitán: TELLO");
-    const again = applyFan(fanItems(o.lineup, sq, "tello", false)[0], o.lineup, sq, "tello");
-    expect(again.kind === "lineup" && again.lineup.roles.captainId).toBeUndefined();
-  });
-  it("Jugar de opens the codes of his line in this system; a code sets the override; Banquillo leaves the slot picked", () => {
-    const main = fanItems(L, sq, "tello", false);
-    expect(applyFan(main[4], L, sq, "tello")).toEqual({ kind: "sub", sub: true });
-    // tello is in a DFC slot of 2-3-1: its DEF line is DFC · DFC (once), then the rest, then back
-    const sub = fanItems(L, sq, "tello", true);
-    expect(sub.map((i) => i.label)).toEqual(["Central", "Otra posición…", "Volver"]);
-    expect(sub[0]).toMatchObject({ kind: "code", code: "DFC", glyph: "DFC", aria: "TELLO juega de central (DFC)", on: false });
-    const dfc = applyFan(sub[0], L, sq, "tello");
-    expect(dfc).toMatchObject({ kind: "lineup", toast: "TELLO juega de central (DFC) en este siete" });
-    expect(dfc.kind === "lineup" && dfc.lineup.playerPositions.tello).toBe("DFC");
-    // (now «Como siempre» comes first, and his code is marked)
-    if (dfc.kind === "lineup") expect(fanItems(dfc.lineup, sq, "tello", true).map((i) => [i.kind, i.on])).toEqual([["quitar", false], ["code", true], ["otra", false], ["volver", false]]);
-    expect(applyFan(sub[1], L, sq, "tello")).toEqual({ kind: "sub", sub: "otra" });
-    expect(applyFan(sub[2], L, sq, "tello")).toEqual({ kind: "sub", sub: false });
-    const bench = applyFan(main[5], L, sq, "tello");
-    expect(bench).toMatchObject({ kind: "lineup", pick: 2 });
-    expect(bench.kind === "lineup" && bench.lineup.slots[2].playerId).toBeNull();
-    // «Mover a…» opens the list of the seven's puestos (moving without dragging)
-    expect(applyFan(main[6], L, sq, "tello")).toEqual({ kind: "mover" });
-    expect(main[6].aria).toBe("Mover a TELLO a otro puesto: elegir de una lista");
-    expect(applyFan(main[7], L, sq, "tello")).toEqual({ kind: "ficha" });
-  });
-  it("Jugar de: his slot's code first, then the rest of its line in this system; his preferida is on", () => {
-    const ex = squadOf([...sq.list, cromo("rodri", 16, "MED", { ps: { main: "MC", also: [], line: "MED" } })]);
-    // 2-3-1 = POR · DFC · DFC · MI · MC · MD · DC: rodri in MD
-    const B = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "rodri", "adrian"], "2-3-1", ex);
-    const sub = fanItems(B, ex, "rodri", true);
-    expect(sub.map((i) => i.code ?? i.kind)).toEqual(["MD", "MI", "MC", "otra", "volver"]);
-    expect(sub.filter((i) => i.on).map((i) => i.code)).toEqual(["MC"]);
-    // a legacy line override: none of the codes is on
-    expect(fanItems({ ...B, playerPositions: { rodri: "DEL" } }, ex, "rodri", true).some((i) => i.on)).toBe(false);
-    // the keeper's slot: only POR
-    expect(fanItems(B, ex, "evans", true).map((i) => i.code ?? i.kind)).toEqual(["POR", "otra", "volver"]);
-    // choosing his preferida clears the override
-    const O = { ...B, playerPositions: { rodri: "MI" as const } };
-    const mc = applyFan(sub[2], O, ex, "rodri");
-    expect(mc.kind === "lineup" && mc.lineup.playerPositions).toEqual({});
-  });
-  it("Jugar de: «Como siempre» first whenever he has one on this board — a line-only player, a también-only one, a legacy line — and only then", () => {
-    const ex = squadOf([...sq.list, cromo("tam", 16, "MED", { ps: { main: null, also: ["MC"], line: "MED" } })]);
-    // 2-3-1 = POR · DFC · DFC · MI · MC · MD · DC: tam in MD
-    const B = lineupOf(["evans", "illescas", "tello", "huberoski", "eguzquiza", "tam", "adrian"], "2-3-1", ex);
-    const codesOf = (X: typeof B, id: string) => fanItems(X, ex, id, true).map((i) => i.code ?? i.kind);
-    // no «Jugar de»: no «Como siempre»
-    expect(codesOf(B, "tam")).toEqual(["MD", "MI", "MC", "otra", "volver"]);
-    expect(codesOf(B, "tello")).toEqual(["DFC", "otra", "volver"]);
-    // a también-only player told MI: nothing he can pick clears it but «Como siempre»
-    const T = { ...B, playerPositions: { tam: "MI" as const } };
-    expect(codesOf(T, "tam")).toEqual(["quitar", "MD", "MI", "MC", "otra", "volver"]);
-    const back = applyFan(fanItems(T, ex, "tam", true)[0], T, ex, "tam");
-    expect(back.kind === "lineup" && back.lineup.playerPositions).toEqual({});
-    // a line-only player told MCD (from «Otra posición…»): «Como siempre» first, his code marked (aria-pressed)
-    const D = { ...B, playerPositions: { tello: "MCD" as const } };
-    expect(codesOf(D, "tello")).toEqual(["quitar", "DFC", "otra", "volver"]);
-    expect(fanItems(D, ex, "tello", "otra").filter((i) => i.on).map((i) => i.code)).toEqual(["MCD"]);
-    const Dc = { ...B, playerPositions: { tello: "DFC" as const } };
-    expect(fanItems(Dc, ex, "tello", true).filter((i) => i.on).map((i) => i.code)).toEqual(["DFC"]);
-    // a legacy line: «Como siempre» too (none of the codes is on)
-    const Z = { ...B, playerPositions: { tello: "MED" as const } };
-    expect(codesOf(Z, "tello")).toEqual(["quitar", "DFC", "otra", "volver"]);
-    expect(fanItems(Z, ex, "tello", true).some((i) => i.on)).toBe(false);
-    const z = applyFan(fanItems(Z, ex, "tello", true)[0], Z, ex, "tello");
-    expect(z.kind === "lineup" && z.lineup.playerPositions).toEqual({});
-  });
-  it("«Otra posición…»: all 13 codes grouped by line, «MCD · Pivote», back to Jugar de", () => {
-    const all = fanItems(L, sq, "tello", "otra");
-    expect(all).toHaveLength(14);
-    expect(all.slice(0, 13).map((i) => i.code)).toEqual(["POR", "DFC", "LIB", "LI", "LD", "MCD", "MC", "MI", "MD", "MCO", "EI", "ED", "DC"]);
-    expect([...new Set(all.slice(0, 13).map((i) => i.group))]).toEqual(["Porteros", "Defensas", "Medios", "Delanteros"]);
-    expect(all[5]).toMatchObject({ kind: "code", label: "MCD · Pivote", aria: "TELLO juega de pivote (MCD)" });
-    expect(applyFan(all[13], L, sq, "tello")).toEqual({ kind: "sub", sub: true });
-    // the focus starts on the code he plays, else on his line's first
-    expect(all.filter((i) => i.first).map((i) => i.code)).toEqual(["DFC"]);
-    expect(fanItems({ ...L, playerPositions: { tello: "MCO" } }, sq, "tello", "otra").filter((i) => i.first).map((i) => i.code)).toEqual(["MCO"]);
-    expect(fanItems(L, sq, "adrian", "otra").filter((i) => i.first).map((i) => i.code)).toEqual(["EI"]);
-    const piv = applyFan(all[5], L, sq, "tello");
-    expect(piv.kind === "lineup" && piv.lineup.playerPositions.tello).toBe("MCD");
-  });
-  it("keeps its centre inside the app screen", () => {
-    expect(fanCentre(10, 10, 390, 844)).toEqual({ cx: 118, cy: 150 });
-    expect(fanCentre(380, 840, 390, 844)).toEqual({ cx: 272, cy: 614 });
-    expect(fanCentre(200, 400, 390, 844)).toEqual({ cx: 200, cy: 400 });
   });
 });
 

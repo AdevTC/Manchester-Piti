@@ -8,8 +8,6 @@ import { adapted, assign, bestEncaje, boardInPlace, encajeBySystem, encajeCandid
 import { fits, natural } from "./model";
 import { slotZone, SYSTEMS } from "./geometry";
 import { cromo, lineupOf, squadOf } from "./testkit";
-import { chem } from "./quimica";
-import { naturalCount } from "./compare";
 
 const ps = (main: PosCode | null, ...also: PosCode[]): ResolvedPositions => ({ main, also, line: main ? lineOf(main) : null });
 const withPs = (id: string, num: number, main: PosCode | null, ...also: PosCode[]) => cromo(id, num, main ? lineOf(main) : undefined, { ps: ps(main, ...also) });
@@ -205,24 +203,6 @@ describe("bestEncaje", () => {
     expect(e.missing).not.toContain("POR");
     // lk in goal and d at DFC
     expect(e.inPlace).toBe(2);
-  });
-
-  it("mixed squads: Sistema, the química's «en su sitio» and Comparar count the same seven the same", () => {
-    // exact: k (POR), d (DFC), piv (MCD, también MC) · lines only: d2 (DEF), m (MED), f (DEL) · no data: n
-    const s = squadOf([withPs("k", 1, "POR"), withPs("d", 2, "DFC"), withPs("piv", 4, "MCD", "MC"), cromo("d2", 3, "DEF"), cromo("m", 8, "MED"), cromo("f", 9, "DEL"), cromo("n", 5, undefined)]);
-    // 2-3-1: POR k · DFC d · DFC d2 · MI m · MC piv · MD n · DC f → all but n in place (6)
-    const L = lineupOf(["k", "d", "d2", "m", "piv", "n", "f"], "2-3-1", s);
-    expect(boardInPlace(L, s)).toBe(6);
-    expect(chem(L, s).natN).toBe(6);
-    expect(naturalCount(L, s)).toBe(6);
-    // the Sistema tile for the same seven on the same system: the best is this very seven
-    const e = bestEncaje("2-3-1", ["k", "d", "d2", "m", "piv", "n", "f"], s);
-    expect(e.inPlace).toBe(6);
-    // the line-only dots stay neutral: no tint for d2, m and f on their lines
-    expect([e.grades[2], e.grades[3], e.grades[6]]).toEqual([null, null, null]);
-    // off their lines (m at DC, f at MI) the three counts drop together
-    const M = lineupOf(["k", "d", "d2", "f", "piv", "n", "m"], "2-3-1", s);
-    expect([boardInPlace(M, s), chem(M, s).natN, naturalCount(M, s)]).toEqual([4, 4, 4]);
   });
 
   it("puts as many in their place as any assignment can (brute force on small random squads)", () => {

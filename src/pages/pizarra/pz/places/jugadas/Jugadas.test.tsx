@@ -292,6 +292,10 @@ describe("Jugadas › Editar · the pitch is the editor (Dibujar's layer)", () =
     fireEvent.click(within(screen.getByRole("toolbar", { name: "Color, deshacer y listo" })).getByRole("button", { name: /Listo/ }));
     await flush();
     expect(P.state.drawing).toBe(false);
+    // the address says Ver now (a reload doesn't reopen Editar)
+    const last = String(host.navigate.mock.calls.at(-1)?.[0] ?? "");
+    expect(last).toContain("/pizarra/jugadas/jown");
+    expect(last).not.toContain("modo=editar");
   });
 });
 

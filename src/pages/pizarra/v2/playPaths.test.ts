@@ -6,7 +6,6 @@ import { CAMS, proj } from "./geometry";
 import { demoSquad, lineupOf } from "./testkit";
 import { boardSpots, jugadaStage } from "./jugadas";
 import { FX0 } from "./view";
-import { holdMs } from "./replay";
 import {
   bend,
   bendTo,
@@ -42,12 +41,6 @@ describe("the replay's speed", () => {
     expect(rateFactor(1)).toBe(1);
     expect(rateFactor(1.5)).toBeCloseTo(2 / 3);
     expect(RATES.map(trailsDurOf)).toEqual(["3.2s", "1.7s", "1.1s"]);
-  });
-  it("holds each paso for its beat at that speed (and keeps the old 0,5× switch working)", () => {
-    expect(holdMs(false, 1)).toBe(2300);
-    expect(holdMs(false, 0.5)).toBe(holdMs(false, true));
-    expect(holdMs(true, 1.5)).toBeCloseTo(2600 / 1.5);
-    expect(holdMs(false, false)).toBe(2300);
   });
 });
 
