@@ -109,7 +109,7 @@ test("jugadas: una jugada nueva, un paso más, y se reproduce hasta el final", a
 
     // Ver: back to the first step, play it, and it walks the steps and stops at the last one
     await page.getByRole("group", { name: "Ver o editar la jugada" }).getByRole("button", { name: "Ver" }).click();
-    await expect(page).not.toHaveURL(/modo=editar/);
+    await expect(page.getByRole("group", { name: "Ver o editar la jugada" }).getByRole("button", { name: "Ver" })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: /^Paso 1 de 3/ }).first().click();
     await expect(time).toContainText("Paso 1 de 3");
     await page.getByRole("button", { name: "Reproducir la jugada" }).click();
@@ -185,10 +185,11 @@ test("tableros: duplicar, borrar y «Deshacer», y comparar dos tableros", async
     await side.getByRole("button", { name: "Duplicar «E2E Tablero A»" }).click();
     await expect(toast(page)).toContainText("Copia creada: «E2E Tablero A (copia)»");
     await boardOpen(page, "E2E Tablero A (copia)");
-    const copies = (await fsWhere("lineups", "name", "E2E Tablero A (copia)")).filter((d) => d.data.seasonId === SEASON);
-    expect(copies).toHaveLength(1);
+    // (the copy reaches the server a moment later: the session's write)
+    let copies: { id: string }[] = [];
+    await expect.poll(async () => (copies = (await fsWhere("lineups", "name", "E2E Tablero A (copia)")).filter((d) => d.data.seasonId === SEASON)).length, { timeout: 15_000 }).toBe(1);
     const copy = copies[0].id;
-    expect(new URL(page.url()).searchParams.get("tablero")).toBe(copy);
+    await expect.poll(() => new URL(page.url()).searchParams.get("tablero")).toBe(copy);
 
     // delete B (not the one on screen) and bring it back
     const cardB = stage.getByRole("button", { name: /^E2E Tablero B\. / });

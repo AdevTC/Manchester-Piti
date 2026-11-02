@@ -177,7 +177,10 @@ test("el siete: colocar con toque y toque y con «Mover a…», cambiar el siste
   expect(((doc?.slots ?? []) as { playerId: string | null }[]).map((s) => s.playerId)).toEqual(PLAYERS.slice(0, 7));
   await sheet(page).getByRole("button", { name: "Volver al siete" }).click();
   await expect(sheet(page)).toHaveCount(0);
-  await expect(page.locator(".pz-7__ro")).toContainText("Oficial · solo lectura");
+  // the Siete says it is the official (a captain keeps editing it; «Deshacer» takes the publishing back)
+  await expect(page.getByRole("heading", { level: 1, name: /^El oficial de la J\d+$/ })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "La pizarra" }).getByRole("button", { name: "Siete: Oficial" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Deshacer: Publicado como oficial" })).toBeEnabled();
 
   await clearAdminBoards();
   await reopenGuesses(true);
@@ -195,7 +198,7 @@ test("la ficha: tocar dos veces a un jugador abre su ficha; se cierra con Esc y 
   await marcos.click();
   const ficha = sheet(page);
   await expect(ficha).toHaveAccessibleName(/^Marcos$/i);
-  await expect(ficha.getByRole("img", { name: /^La carta de Marcos: / })).toBeVisible();
+  await expect(ficha.getByRole("img", { name: /^La carta de Marcos: /i })).toBeVisible();
   await expect(ficha.getByRole("heading", { name: /^Sus últimas notas/ })).toBeVisible();
   await expect(ficha.getByRole("heading", { name: /^Dónde ha jugado/ })).toBeVisible();
   await expect(ficha.getByRole("heading", { name: /^La convocatoria/ })).toBeVisible();
