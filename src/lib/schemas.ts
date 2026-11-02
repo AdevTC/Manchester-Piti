@@ -333,6 +333,11 @@ export const PIZARRA_LIMITS = {
   strokeAnchors: 4,
   /** Trayectorias curvas (un punto de control por jugador) en un paso. */
   curves: 7,
+  /** r14: lo que dura un paso (ms) y los trazos dibujados dentro de un paso (pocos: 12 jugadas × 8 pasos caben en
+   *  el tope de 1 MiB de un documento). */
+  frameDurMin: 300,
+  frameDurMax: 10000,
+  frameStrokes: 8,
 } as const;
 
 /** Punto del campo en % (x 0→100 izquierda→derecha, y 0 = portería rival → 100 = la nuestra). */
@@ -405,6 +410,20 @@ export const playFrameSchema = z
     note: z.string().trim().max(PIZARRA_LIMITS.frameNote).optional(),
     /** Trayectorias curvas: el punto de control del camino de cada jugador que llega a este paso. */
     curves: z.record(itemId, boardPointSchema).optional(),
+    // r14 · Jugadas (PiJugadas): lo que dura el paso (ms), si es el «Paso clave» y lo dibujado dentro del paso (los
+    // mismos trazos que los dibujos del tablero, pocos). Tolerantes: un valor roto se cae, nunca el paso; un trazo
+    // roto se cae solo él.
+    dur: z.number().int().min(PIZARRA_LIMITS.frameDurMin).max(PIZARRA_LIMITS.frameDurMax).optional().catch(undefined),
+    key: z.boolean().optional().catch(undefined),
+    d: z
+      .array(z.unknown())
+      .max(PIZARRA_LIMITS.frameStrokes)
+      .transform((a) => a.flatMap((s) => {
+        const r = strokeSchema.safeParse(s);
+        return r.success ? [r.data] : [];
+      }))
+      .optional()
+      .catch(undefined),
   })
   .refine((f) => Object.keys(f.curves ?? {}).length <= PIZARRA_LIMITS.curves, { message: "Demasiadas curvas en un paso." })
   .refine((f) => Object.keys(f.players).length <= PIZARRA_LIMITS.framePlayers, { message: "Como mucho siete jugadores por paso." })
