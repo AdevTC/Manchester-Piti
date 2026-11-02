@@ -4,7 +4,7 @@
 import type { Lineup } from "../../formations";
 import type { LineupDoc } from "../../lineupDoc";
 import type { CalMatch } from "../../v2/boards";
-import { pairOf, type Cromo, type Squad } from "../../v2/model";
+import { bajaWords, pairOf, type Cromo, type Squad } from "../../v2/model";
 import { tierOf, TIER_NAME } from "../../../../lib/derived/card";
 import { currentSeasonId } from "../../../../lib/vestuario";
 import { playerPositions } from "../../../../lib/positionStats";
@@ -39,7 +39,7 @@ export function playerOf(c: Cromo, jornadaOf: (matchId: string) => number | null
       .sort((a, b) => a.date - b.date)
       .map((n) => ({ j: jornadaOf(n.matchId), matchId: n.matchId, rival: n.rival, n: n.nota, min: n.minutes })),
     playedAt: {},
-    ...(c.baja ? { baja: c.baja } : {}),
+    ...(c.baja ? { baja: c.baja, bajaWhy: bajaWords(c) } : {}),
   };
 }
 
@@ -102,6 +102,8 @@ export interface WorldInputs {
   absences?: { playerId: string | null; from: string; to: string; note: string }[];
   /** The answers of the board's match that an absence wrote (player ids). */
   byAbsence?: Set<string>;
+  /** The answers of members without a ficha (availability docs with no playerId). */
+  members?: { uid: string; name: string; response: string; byAbsence?: boolean }[];
   season: { id: string; name: string };
   squad: Squad;
   calendar: CalMatch[];
@@ -135,6 +137,10 @@ export function buildWorld(i: WorldInputs): PzWorld {
     season: i.season,
     squad,
     guests: (i.guests ?? []).map(guestOf),
+    members: (i.members ?? []).flatMap((a) => {
+      const v = a.response === "yes" ? "yes" : a.response === "maybe" ? "maybe" : a.response === "no" ? "no" : null;
+      return v ? [{ uid: a.uid, name: a.name, v, ...(a.byAbsence ? { why: "Puso una ausencia" } : {}) }] : [];
+    }),
     absences: (i.absences ?? []).flatMap((a) => (a.playerId ? [{ pid: a.playerId, from: a.from, to: a.to, note: a.note }] : [])),
     matches: i.calendar.map(matchOf),
     next: i.next?.id ?? null,

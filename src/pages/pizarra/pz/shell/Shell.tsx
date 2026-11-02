@@ -191,8 +191,13 @@ export function Shell() {
   const m = S.me;
   const lost = route.place === "perdido";
   const charla = place === "charla" && !m.fuera;
-  const sheetH = phone ? (S.sheetH === "full" ? "calc(100% - 196px)" : S.sheetH === "half" ? "262px" : "150px") : "0px";
-  const vars = { "--sh": sheetH, "--peek": "150px", "--stb": S.sheetH === "peek" ? "150px" : "262px" } as CSSProperties;
+  // the peek's height: the place's own (registerPlace peek), 120–260 px
+  const peekReg = place ? placeReg(place)?.peek : undefined;
+  const peekRaw = typeof peekReg === "function" ? peekReg(P) : (peekReg ?? 150);
+  const peek = Math.max(120, Math.min(260, Number.isFinite(peekRaw) ? peekRaw : 150));
+  const half = Math.max(262, peek + 40);
+  const sheetH = phone ? (S.sheetH === "full" ? "calc(100% - 196px)" : S.sheetH === "half" ? `${half}px` : `${peek}px`) : "0px";
+  const vars = { "--sh": sheetH, "--peek": `${peek}px`, "--stb": S.sheetH === "peek" ? `${peek}px` : `${half}px` } as CSSProperties;
   const xl = useXl();
 
   // Ctrl Z / Ctrl ⇧ Z / Ctrl Y and Esc (sheet → drawing → charla → the hand)

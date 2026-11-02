@@ -3,7 +3,10 @@
 // (P.sel.placeSub / primary / placeBadge / shareSheet / sheetMeta) and mounts the components.
 import type { ComponentType, LazyExoticComponent } from "react";
 import type { PzApi } from "./api";
-import type { OverlayPath, PlaceBadge, PlaceId, PrimaryAction, RegionProps, SheetProps, SheetText } from "./types";
+import type { OverlayPath, PlaceBadge, PlaceId, PrimaryAction, RegionProps, SheetProps } from "./types";
+
+/** A sheet's frame text: a string, or a function of its args and the store (the title can read the board). */
+export type SheetText = string | ((args: Record<string, unknown>, P: PzApi) => string);
 
 type Comp<P> = ComponentType<P> | LazyExoticComponent<ComponentType<P>>;
 
@@ -16,6 +19,9 @@ export interface PlaceReg {
   badge?: (P: PzApi) => PlaceBadge | null;
   /** The sheet the board bar's «Compartir» opens in this place. */
   share?: string;
+  /** The phone sheet's resting height for this place (px, default 150; 120–260): what its peek needs (a headline, a
+   *  ring and a button…). The pitch above gives up the room. A function reads the store (e.g. taller while live). */
+  peek?: number | ((P: PzApi) => number);
   /** The place's regions (lead · side · peek · panel · stage · full · dock). */
   Component?: Comp<RegionProps>;
 }

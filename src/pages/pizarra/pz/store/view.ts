@@ -169,7 +169,7 @@ function resolveAhora(spec: StageSpec, c: ViewCtx): Base {
   base.captionSet = true;
   if (next && spec.entra !== false) {
     const outS = base.slots.find((s) => s.pid === next.out);
-    if (outS) base.tokens.push({ id: "entra-" + next.in, kind: "ghost", pid: next.in, x: outS.x > 50 ? Math.min(97, outS.x + 13) : Math.max(3, outS.x - 13), y: outS.y, label: c.name(next.in), ring: "entra", tag: `Entra ${next.min}′` });
+    if (outS) base.tokens.push({ id: "entra-" + next.in, kind: "ghost", pid: next.in, x: outS.x > 50 ? Math.min(92, outS.x + 18) : Math.max(8, outS.x - 18), y: outS.y, label: c.name(next.in), ring: "entra", tag: `Entra ${next.min}′` });
   }
   return base;
 }

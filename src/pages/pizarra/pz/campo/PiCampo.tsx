@@ -8,7 +8,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject, type PointerEvent as ReactPointerEvent } from "react";
 import { usePz } from "../store/context";
 import type { Camera, Layout, StageSpec, Token, ViewSlot } from "../store/types";
-import { CAMPO_LAYERS, fitGeometry, planeTransform, round2, shapeLines, slotAhead } from "./geometry";
+import { CAMPO_LAYERS, RX as RX_OF, captionRoom, dodgeRivals, fitGeometry, plateCrowd, planeTransform, round2, shapeLines, slotAhead } from "./geometry";
 import { overlayPaths } from "./overlayPaths";
 import { CampoShirt, PzIcon } from "./Shirt";
 import "../../../../styles/pz/campo.css";
@@ -70,7 +70,7 @@ export function PiCampo(props: PiCampoProps) {
   const [hover, setHover] = useState<string | null>(null);
   const view = mini && props.show ? P.sel.view({ chrome: false, camera: props.camera || "grada", layer: "nada", ...props.show }) : P.sel.view(props.show);
   const cam: Camera = props.camera || view.camera || "pizarra";
-  const G = fitGeometry(cam, layout, mini, box.w, box.h, view.gradaPad || 0);
+  const G = fitGeometry(cam, layout, mini, box.w, box.h, view.gradaPad || 0, view.caption && !mini ? captionRoom(layout) : 0);
   const T = planeTransform(cam, G, view);
   const ro = !view.editable || inert || mini;
   const tinyTxt = mini && G.s * 0.52 < 11.5;
@@ -185,6 +185,43 @@ export function PiCampo(props: PiCampoProps) {
 
   // ── the seven
   const shortPlates = view.plates === "short" || (G.pw < (cam === "pizarra" ? 270 : 300) && !mini);
+  // the marks of a slot: one chip per mark (its icon + the minute), never twice the same
+  const marksOf = (s: ViewSlot) => {
+    if (mini) return [];
+    const seen = new Set<string>();
+    return (s.marks ?? [])
+      .concat((view.marksExtra && s.pid && view.marksExtra[s.pid]) || [])
+      .map((m) => ({ k: m.k, min: (m.t.match(/\d+′/) ?? [""])[0], t: m.t }))
+      .filter((m) => {
+        const key = m.k + m.min;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  };
+  // plates that would touch a neighbour's go short (first word); then the marks drop their minute
+  const crowd = mini
+    ? { short: new Set<number>(), tight: new Set<number>() }
+    : plateCrowd(
+        view.slots.filter((s) => s.p).map((s) => ({ i: s.i, x: s.x, y: s.y, label: shortPlates ? (s.p as NonNullable<ViewSlot["p"]>).shirt.split(/[ .]/)[0] : (s.p as NonNullable<ViewSlot["p"]>).shirt, marks: marksOf(s).length })),
+        G.pw,
+        G.ph,
+        G.s,
+        cam,
+      );
+  const flat = cam === "pizarra";
+  const plateH = Math.max(12, Math.min(15, G.s * 0.215)) * 1.25 + 6;
+  const plateLine = (m: { label: string; marks: { k: string; min: string }[]; tight: boolean }) => (
+    <span className="pz-c__pline">
+      <span className="pz-c__plate">{m.label}</span>
+      {m.marks.map((mk, k) => (
+        <span key={`mk${k}`} className={`pz-c__mk k-${mk.k}${m.tight ? " is-tight" : ""}`} aria-hidden="true">
+          <i />
+          {!m.tight && mk.min}
+        </span>
+      ))}
+    </span>
+  );
   const slotModel = (s: ViewSlot) => {
     const pl = s.p;
     let layV = "";
@@ -213,10 +250,11 @@ export function PiCampo(props: PiCampoProps) {
       layCls = "t-ok";
       layAria = `${pl.min || 0} minutos en ${pl.pj} partidos`;
     }
-    const marks = mini ? [] : (s.marks ?? []).concat((view.marksExtra && s.pid && view.marksExtra[s.pid]) || []).map((m) => ({ k: m.k, short: m.short ?? (m.k === "amarilla" ? "▮" : m.k === "tocado" ? "+" : m.k === "roja" ? "▮" : "●"), min: (m.t.match(/\d+′/) ?? [""])[0], t: m.t }));
+    const marks = marksOf(s);
+    const tight = crowd.tight.has(s.i);
     const galT = s.galones.map((g) => g.aria).join(", ");
     // (short: his first word — the shirt already shows the dorsal)
-    const label = pl ? (shortPlates ? pl.shirt.split(/[ .]/)[0] : pl.shirt) : s.code;
+    const label = pl ? (shortPlates || crowd.short.has(s.i) ? pl.shirt.split(/[ .]/)[0] : pl.shirt) : s.code;
     const posWord = P.sel.posName(s.code).toLowerCase();
     const aria = pl
       ? [
@@ -242,11 +280,12 @@ export function PiCampo(props: PiCampoProps) {
       label,
       aria,
       marks,
+      tight,
       gal,
       hasLay,
       layV,
       layCls,
-      rowNone: !(hasLay || gal.length || marks.length),
+      rowNone: !(hasLay || gal.length),
       cls: [s.sel && "is-sel", s.over && "is-over", fresh[s.i] && "is-new", isDrag && "is-drag", s.me && "is-me", s.out && "is-out", s.ring && `r-${s.ring}`].filter(Boolean).join(" "),
       slotCls: [s.picked && "is-pick", s.over && "is-over", drag && "is-drop"].filter(Boolean).join(" "),
       num: pl && !tinyTxt ? String(pl.num || pl.shirt[0] || "") : "",
@@ -271,7 +310,14 @@ export function PiCampo(props: PiCampoProps) {
   };
 
   // ── tokens
-  const others = [...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, id: `s${s.i}` })), ...view.tokens.filter((o) => o.pid || o.kind === "us").map((o) => ({ x: o.x, y: o.y, id: o.id }))];
+  // the rival discs off our shirts and plates, in pixels (display only)
+  const plateOf = (shirt: string) => (shortPlates ? shirt.split(/[ .]/)[0] : shirt);
+  const ours = [
+    ...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, label: s.p ? plateOf(s.p.shirt) : s.code, tagged: !!s.ring })),
+    ...view.tokens.filter((o) => o.kind !== "rival" && o.kind !== "ghost" && (o.pid || o.kind === "us")).map((o) => ({ x: o.x, y: o.y, label: o.label ?? "", tagged: !!(o.tag || o.ring) })),
+  ];
+  const tokens = mini ? view.tokens : dodgeRivals(view.tokens, ours, G.pw, G.ph, G.s);
+  const others = [...view.slots.filter((s) => s.pid).map((s) => ({ x: s.x, y: s.y, id: `s${s.i}` })), ...tokens.filter((o) => o.pid || o.kind === "us").map((o) => ({ x: o.x, y: o.y, id: o.id }))];
   const tokenModel = (t: Token) => {
     const pl = t.pid ? P.sel.player(t.pid) : null;
     const shirtKind = t.kind === "us" || t.kind === "petos" || t.kind === "sinpetos" || (t.kind === "ghost" && !!t.pid);
@@ -307,7 +353,7 @@ export function PiCampo(props: PiCampoProps) {
   const handles = mini || inert ? [] : (view.overlay?.paths ?? []).filter((d) => d.handle && (d.pts?.length ?? 0) > 0);
   const legend: { cls: string; t: string }[] = [];
   if (layer === "quimica" && ls.length) legend.push({ cls: "", t: "Muy buena" }, { cls: "t2", t: "Buena" }, { cls: "t1", t: "Floja" });
-  if (view.tokens.some((t) => t.kind === "rival")) legend.push({ cls: "riv", t: `${view.rivalName || "Rival"} · rival` });
+  if (tokens.some((t) => t.kind === "rival")) legend.push({ cls: "riv", t: `${view.rivalName || "Rival"} · rival` });
   const sysLabel = view.formation && view.source === "siete" ? (view.free ? "LIBRE" : view.formation) : "";
   const chrome = !mini && !inert && view.chrome !== false && !props.bare;
   const canDraw = chrome && view.source === "siete" && view.editable;
@@ -349,13 +395,13 @@ export function PiCampo(props: PiCampoProps) {
   });
   const at = (x: number, y: number, i?: number, extra?: Vars): CSSProperties => vars({ "--x": round2(x), "--y": round2(y), ...(i != null ? { "--i": i } : {}), ...extra });
 
-  const startHandle = (e: ReactPointerEvent, onMove: (y: number) => void, clamp: (v: number) => number, onEnd?: () => void) => {
+  const startHandle = (e: ReactPointerEvent, onMove: (v: number) => void, clamp: (v: number) => number, onEnd?: () => void, horiz = false) => {
     const plane = planeRef.current;
     if (!plane) return;
     e.preventDefault();
     e.stopPropagation();
     const r = plane.getBoundingClientRect();
-    const move = (ev: PointerEvent) => onMove(clamp(((ev.clientY - r.top) / r.height) * 100));
+    const move = (ev: PointerEvent) => onMove(clamp(horiz ? ((ev.clientX - r.left) / r.width) * 100 : ((ev.clientY - r.top) / r.height) * 100));
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
@@ -446,7 +492,7 @@ export function PiCampo(props: PiCampoProps) {
             </div>
           ))}
 
-          {view.tokens.map((t, k) => {
+          {tokens.map((t, k) => {
             const m = tokenModel(t);
             const ringCls = [t.kind === "ghost" ? "pz-c__ghostman" : "", t.ring ? `r-${t.ring}` : ""].filter(Boolean).join(" ");
             if (m.isShirt) {
@@ -456,7 +502,11 @@ export function PiCampo(props: PiCampoProps) {
                   <span className="pz-c__dn" aria-hidden="true">
                     {m.num}
                   </span>
-                  {m.label && <span className="pz-c__plate">{m.label}</span>}
+                  {m.label && (
+                    <span className="pz-c__pline">
+                      <span className="pz-c__plate">{m.label}</span>
+                    </span>
+                  )}
                   {m.tag && <span className={`pz-c__tag k-${t.ring ?? ""}`}>{m.tag}</span>}
                 </>
               );
@@ -507,8 +557,10 @@ export function PiCampo(props: PiCampoProps) {
             const hd = d.handle;
             const pts = d.pts ?? [];
             if (!hd) return null;
-            const mx = pts.reduce((a, q) => a + q[0], 0) / pts.length;
-            const my = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+            const mx = hd.x ?? pts.reduce((a, q) => a + q[0], 0) / pts.length;
+            const my = hd.y ?? pts.reduce((a, q) => a + q[1], 0) / pts.length;
+            const horiz = hd.axis === "x";
+            const keys = horiz ? ["ArrowLeft", "ArrowRight"] : ["ArrowUp", "ArrowDown"];
             const clamp = (v: number) => Math.max(hd.min ?? 5, Math.min(hd.max ?? 95, v));
             const step = hd.step || 5;
             return (
@@ -517,13 +569,14 @@ export function PiCampo(props: PiCampoProps) {
                   type="button"
                   className="pz-c__handle"
                   aria-label={`${hd.label || d.label || "Mover la línea"}: arrastra o usa las flechas`}
-                  aria-keyshortcuts="ArrowUp ArrowDown"
-                  onPointerDown={(e) => startHandle(e, hd.onMove, clamp, hd.onEnd)}
+                  aria-keyshortcuts={keys.join(" ")}
+                  onPointerDown={(e) => startHandle(e, hd.onMove, clamp, hd.onEnd, horiz)}
                   onKeyDown={(e) => {
-                    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+                    if (!keys.includes(e.key)) return;
                     e.preventDefault();
                     e.stopPropagation();
-                    hd.onMove(clamp(my + (e.key === "ArrowUp" ? -step : step)));
+                    const from = horiz ? mx : my;
+                    hd.onMove(clamp(from + (e.key === keys[0] ? -step : step)));
                     hd.onEnd?.();
                   }}
                 >
@@ -574,11 +627,6 @@ export function PiCampo(props: PiCampoProps) {
                       >
                         <span className={`pz-c__row${m.rowNone ? " is-none" : ""}`} aria-hidden="true">
                           {m.hasLay && <span className={`pz-c__lay ${m.layCls}`}>{m.layV}</span>}
-                          {m.marks.map((mk, k) => (
-                            <span key={`mk${k}`} className={`pz-c__mk k-${mk.k}`}>
-                              {mk.short} {mk.min}
-                            </span>
-                          ))}
                           {m.gal.map((g) => (
                             <span key={g.k} className={`pz-c__g pz-c__gal k-${g.k}`}>
                               {g.k}
@@ -589,8 +637,8 @@ export function PiCampo(props: PiCampoProps) {
                         <span className="pz-c__dn" aria-hidden="true">
                           {m.num}
                         </span>
-                        <span className="pz-c__plate">{m.label}</span>
-                        {m.tag && <span className={`pz-c__tag k-${s.ring}`}>{m.tag}</span>}
+                        {flat && plateLine(m)}
+                        {flat && m.tag && <span className={`pz-c__tag k-${s.ring}`}>{m.tag}</span>}
                       </button>
                     </span>
                   </>
@@ -598,6 +646,25 @@ export function PiCampo(props: PiCampoProps) {
               </div>
             );
           })}
+
+          {/* Grada / Foco: each plate line stands on its own ground point just in front of its player's feet (a
+              billboard below the feet would sink into the grass), so on screen it hangs right under his shirt */}
+          {!flat &&
+            !mini &&
+            view.slots.map((s) => {
+              if (!s.p) return null;
+              const m = slotModel(s);
+              const hBlock = plateH + (m.tag ? plateH : 0) + 8;
+              const dy = (hBlock / Math.max(1, G.ph * Math.cos(((RX_OF[cam] ?? 0) * Math.PI) / 180))) * 100;
+              return (
+                <div key={`pl${s.i}`} className={`pz-c__at pz-c__plat ${m.cls}`} style={at(s.x, s.y + dy, s.i)} aria-hidden="true">
+                  <span className="pz-c__man pz-c__plman">
+                    {plateLine(m)}
+                    {m.tag && <span className={`pz-c__tag k-${s.ring}`}>{m.tag}</span>}
+                  </span>
+                </div>
+              );
+            })}
 
           {lkWords.map((l, k) => (
             <div key={`w${k}`} className="pz-c__at" style={at((l.a.x + l.b.x) / 2, (l.a.y + l.b.y) / 2)} aria-hidden="true">
