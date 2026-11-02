@@ -200,6 +200,13 @@ describe("routes and the stage", () => {
     expect(P.sel.view().none).toBe(true);
   });
 
+  it("ahora: the marks go on the slots once (not again as extra marks)", () => {
+    const { P } = makeTestStore();
+    const v = P.sel.view({ source: "ahora", marks: { erik: [{ k: "amarilla", t: "Amarilla 17′" }] } });
+    expect(v.slots.find((s) => s.pid === "erik")?.marks).toHaveLength(1);
+    expect(v.marksExtra).toBeNull();
+  });
+
   it("the address opens a sheet (?hoja=ficha&jugador=erik) and the layer (?capa=quimica)", () => {
     const { P } = makeTestStore();
     P.setRoute({ place: "siete", sub: "", q: { hoja: "ficha", jugador: "erik", capa: "quimica" } });

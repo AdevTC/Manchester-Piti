@@ -197,3 +197,8 @@ div.pz-c{position:absolute;inset:0;overflow:hidden;font-family:var(--vd-sans);co
 .pz-c.pz-c--mini .pz-c__shadow{opacity:.8}
 .pz-c .pz-c__sr,.pz-c .pz-c__sr *{opacity:0}
 @media (prefers-reduced-motion:reduce){.pz-c *,.pz-c *::before,.pz-c *::after{transition:none!important;animation:none!important}}
+/* the dorsal over the kit's blank still (until his printed still arrives) */
+:is(.pz,.pz-c) .pz-c__num{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
+:is(.pz,.pz-c) .pz-c__num text{fill:#0c1733;font:800 80px/1 var(--vd-sans);letter-spacing:-.04em}
+:is(.pz,.pz-c) .pz-c__num.is-away text{fill:#fff}
+.pz-c.pz-c--noplate .pz-c__plate{display:none}
