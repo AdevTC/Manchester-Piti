@@ -18,7 +18,7 @@ export const VOZ_SLOTS = ["v0", "v1", "v2", "v3", "v4", "v5"] as const;
 export type VozSlotId = (typeof VOZ_SLOTS)[number];
 
 /** The keys firestore.rules accepts (the same regex). */
-export const VOZ_KEY_RE = /^(sistema|banquillo|balon|plan|quedada|final|suplentes|galones|rival|vamos|siete-[1-7]|jugada-[1-8]|siete:[A-Za-z0-9_-]{1,128}|jugada:[A-Za-z0-9_-]{1,64}(:[0-9]{1,2})?)$/;
+export const VOZ_KEY_RE = /^(sistema|banquillo|balon|plan|quedada|final|suplentes|galones|rival|vamos|siete-[1-7]|jugada-[1-8]|siete:(guest:)?[A-Za-z0-9_-]{1,128}|jugada:[A-Za-z0-9_-]{1,64}(:[0-9]{1,2})?)$/;
 const LEGACY_RE = /^(banquillo|balon|final|siete-[1-7]|jugada-[1-8])$/;
 
 export const sieteVoz = (playerId: string): string => "siete:" + playerId;
