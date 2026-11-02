@@ -2,7 +2,6 @@
 // cromo: GLOBAL, puesto, the six numbers, the tier's metal), his last notas, where he has played (minutes per F7
 // puesto on a mini pitch), his química with his neighbours in this seven, his answer to the convocatoria, «Jugar
 // de…» on this board, and the actions (Mover a…, Quitar del siete, el brazalete, Ver su página).
-import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { usePz } from "../../store/context";
 import type { SheetProps } from "../../store/types";
@@ -11,14 +10,14 @@ import { fmt } from "../../store/fmt";
 import { POSITIONS, type PosCode } from "../../../../../lib/positions";
 import { RowShirt } from "../../places/siete/RowShirt";
 import { POS_XY, convLine, tierCls } from "../../places/siete/sieteView";
-import { bindSieteApi } from "../../places/siete/sieteApi";
+import { useSieteApi } from "../../places/siete/sieteApi";
 import "../../../../../styles/pz/siete.css";
 
 const xy = (k: string): [number, number] => POS_XY[k] ?? [50, 50];
 
 export function FichaSheet({ args, layout }: SheetProps) {
   const P = usePz();
-  useEffect(() => bindSieteApi(P), [P]);
+  useSieteApi(P);
   const pid = typeof args.pid === "string" ? args.pid : typeof args.jugador === "string" ? args.jugador : (P.state.fichaPid ?? "");
   const pl = P.sel.player(pid);
   if (!pl) return <p className="pz-line">Ese jugador ya no está en la plantilla de esta temporada.</p>;

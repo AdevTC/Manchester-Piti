@@ -1,16 +1,15 @@
 // r14 «La pizarra» · «¿Quién al MC?» (PZ-M07): for an empty slot (or one to change), who fits best, with the
 // reasons in words — «Ha jugado de MC 44′ · nota 6,8 en la J2 · Voy» — the best one marked; then who can't.
-import { useEffect } from "react";
 import { usePz } from "../../store/context";
 import type { SheetProps } from "../../store/types";
 import { RowShirt } from "../../places/siete/RowShirt";
 import { shirtLabel } from "../../places/siete/sieteView";
-import { bindSieteApi } from "../../places/siete/sieteApi";
+import { useSieteApi } from "../../places/siete/sieteApi";
 import "../../../../../styles/pz/siete.css";
 
 export function CandidatosSheet({ args }: SheetProps) {
   const P = usePz();
-  useEffect(() => bindSieteApi(P), [P]);
+  useSieteApi(P);
   const v = P.sel.ver();
   const i = typeof args.hueco === "number" ? args.hueco : typeof args.slot === "number" ? args.slot : (P.state.slotPick ?? 0);
   const slot = v?.slots[i];

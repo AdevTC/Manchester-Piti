@@ -168,8 +168,9 @@
 .pz .pz-f__rate>span{font-size:17px;font-weight:760;letter-spacing:.02em;margin-top:12px}
 .pz .pz-f__rate>small{margin-top:6px;font-size:11.5px;font-weight:700;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.14)}
 .pz .pz-f__crest{width:40px;height:40px;max-width:none;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
-.pz .pz-f__art{display:grid;place-items:center;min-height:0}
-.pz .pz-f__art>.pz-shirt{--s:112px;filter:drop-shadow(0 16px 20px rgba(0,0,0,.45))}
+/* the shirt fills what the card leaves it (never over the name: the prototype's 112 px overflowed its row) */
+.pz .pz-f__art{display:grid;place-items:center;min-height:0;container-type:size}
+.pz .pz-f__art>.pz-shirt{--s:min(112px,calc(100cqh / 1.327 - 2px));filter:drop-shadow(0 16px 20px rgba(0,0,0,.45))}
 .pz .pz-f__name{text-align:center;font-size:25px;font-weight:820;letter-spacing:.02em;font-variation-settings:'wdth' 120;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pz .pz-f__club{text-align:center;font-size:11.5px;font-weight:600;color:#c3d5ec;margin:3px 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pz .pz-f__attrs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid rgba(255,255,255,.18);padding-top:4px}

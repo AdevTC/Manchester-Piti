@@ -1,7 +1,8 @@
 // r14 «La pizarra» · Siete: what the Siete's regions and sheets SAY, as pure functions of the store (the port of
 // PiSiete's renderVals). The components only draw it. Named sieteView.ts (not siete.ts: Siete.tsx on Windows).
-import type { PzApi } from "../../store/api";
+import type { PublishCheck, PzApi } from "../../store/api";
 import { GALONES } from "../../store/store";
+import { VERS, verOf } from "../../store/seven";
 import { fmt } from "../../store/fmt";
 import { SYSTEMS_CATALOGUE, systemDef } from "../../../../../lib/formations";
 import type { FormationName } from "../../../formations";
@@ -186,9 +187,21 @@ export function sysTiles(P: PzApi, v: PzVer | null): SysTile[] {
 }
 export const sysDots = (f: FormationName) => systemDef(f).spots.map((sp) => ({ x: sp[1], y: sp[2], in: false }));
 
+/** act.publishCheck without being an action (an action bumps the store: never during a render). Same rules: the
+ *  TITULAR is what is published (B-PZ-02). */
+export function publishCheck(P: PzApi): PublishCheck {
+  const b = P.sel.board();
+  const M = P.sel.match();
+  const t = b ? P.sel.ver(b, "titular") : null;
+  const st = P.sel.status(t);
+  const block = !b ? "Abre uno de tus tableros para publicarlo." : !st.gk ? "Pon un portero en la portería del titular para publicarlo." : st.n < 7 ? `Completa el titular para publicarlo (${st.n}/7).` : "";
+  const started = !!M && (M.phase === "juego" || M.phase === "descanso" || M.phase === "jugado");
+  return { block, warns: st.warns, st, M, started, versions: b ? VERS.filter((x) => verOf(b.lineup, x.id).exists).map((x) => x.t) : [] };
+}
+
 /** What publishing does, in words (the titular, the notice, the official). */
 export function conseq(P: PzApi): { icon: string; t: string; s: string }[] {
-  const pub = P.act.publishCheck();
+  const pub = publishCheck(P);
   const b = P.sel.board();
   const off = P.sel.official();
   const M = pub.M;

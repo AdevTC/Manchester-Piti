@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { usePz } from "../../store/context";
 import { PzIcon } from "../../campo/Shirt";
-import { conseq } from "../../places/siete/sieteView";
+import { conseq, publishCheck } from "../../places/siete/sieteView";
 import "../../../../../styles/pz/siete.css";
 
 export function PublicarSheet() {
@@ -21,7 +21,7 @@ export function PublicarSheet() {
     [P],
   );
   const b = P.sel.board();
-  const pub = P.act.publishCheck();
+  const pub = publishCheck(P);
   const M = pub.M;
   const J = M?.j ? "J" + M.j : "";
   const m = P.sel.me();

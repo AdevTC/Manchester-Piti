@@ -12,6 +12,7 @@ import { useMyGuess, saveGuess, guessHits, guessLine } from "../../../data/guess
 import type { PzApi } from "../../store/api";
 import type { RegionProps } from "../../store/types";
 import { RowShirt } from "./RowShirt";
+import { useSieteApi } from "./sieteApi";
 import { LINE_FILTERS, avisoText, benchGroups, benchRow, countChips, dudosos, fitIn, galRows, kicker, ringOff, sysDots, verLine, type BenchRow } from "./sieteView";
 import "../../../../../styles/pz/siete.css";
 
@@ -44,6 +45,7 @@ export function Siete({ region, layout }: RegionProps) {
 // ── lead ─────────────────────────────────────────────────────────────────────────────────────────────────────
 function Lead({ panel }: { panel: boolean }) {
   const P = usePz();
+  useSieteApi(P);
   const S = P.state;
   const b = P.sel.board();
   const v = P.sel.ver();
@@ -506,6 +508,7 @@ function BenchItem({ row, ro }: { row: BenchRow; ro: boolean }) {
 // ── phone peek: the state + the bench strip ─────────────────────────────────────────────────────────────────
 function Peek() {
   const P = usePz();
+  useSieteApi(P);
   const S = P.state;
   const head = P.sel.headline();
   const b = P.sel.board();
