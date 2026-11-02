@@ -215,7 +215,8 @@ export function PiCampo(props: PiCampoProps) {
     }
     const marks = mini ? [] : (s.marks ?? []).concat((view.marksExtra && s.pid && view.marksExtra[s.pid]) || []).map((m) => ({ k: m.k, short: m.short ?? (m.k === "amarilla" ? "▮" : m.k === "tocado" ? "+" : m.k === "roja" ? "▮" : "●"), min: (m.t.match(/\d+′/) ?? [""])[0], t: m.t }));
     const galT = s.galones.map((g) => g.aria).join(", ");
-    const label = pl ? (shortPlates ? `${pl.num ? `${pl.num} ` : ""}${pl.shirt.split(/[ .]/)[0]}` : pl.shirt) : s.code;
+    // (short: his first word — the shirt already shows the dorsal)
+    const label = pl ? (shortPlates ? pl.shirt.split(/[ .]/)[0] : pl.shirt) : s.code;
     const posWord = P.sel.posName(s.code).toLowerCase();
     const aria = pl
       ? [
@@ -324,6 +325,8 @@ export function PiCampo(props: PiCampoProps) {
     ro ? "is-ro" : "is-ed",
     mini && "pz-c--mini",
     mini && G.pw < 150 && "pz-c--disc",
+    // (a very small pitch — a short phone — leaves the plates to the printed shirts; the buttons keep their names)
+    !mini && G.pw < 170 && "pz-c--noplate",
     isTrue(props.main) && !mini && "pz-c--main",
     layout === "phone" && "pz-c--sm",
     sweep && "is-sweep",
