@@ -25,6 +25,15 @@ describe("the shell", () => {
     expect(r.container.querySelector(".pz-s__save")?.textContent).toMatch(/Guardado/);
   });
 
+  it("no button inside a button anywhere in the frame; the save state's time can be dropped without cutting the word", async () => {
+    const { r, flush } = renderWithPz(<Shell />);
+    await flush();
+    expect(r.container.querySelector("button button")).toBeNull();
+    const save = r.container.querySelector(".pz-s__save");
+    expect(save?.querySelector(".pz-s__saveh")?.textContent).toMatch(/^ \d\d:\d\d$/);
+    expect(save?.getAttribute("title")).toMatch(/^Guardado \d\d:\d\d$/);
+  });
+
   it("the bar follows the store (a later change re-renders it)", async () => {
     const h = renderWithPz(<Shell />);
     await h.flush();

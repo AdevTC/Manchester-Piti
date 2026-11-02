@@ -102,7 +102,7 @@ export interface PzHost {
   /** Another board changed (an undo after switching boards). */
   save(id: string, lineup: Lineup): void;
   open(id: string): void;
-  /** A copy of a board (null = the one on screen) opened; resolves with its id. */
+  /** A copy of a board (null = the one on screen) opened, with its charla's voices; resolves with its id. */
   duplicate(id: string | null): Promise<string | void>;
   /** Delete after a few seconds; the returned function undoes it. */
   remove(id: string): () => void;
@@ -136,7 +136,7 @@ export const NULL_HOST: PzHost = {
   setPrefs: noop,
 };
 
-export const EMPTY_WORLD: PzWorld = { now: 0, season: { id: "", name: "" }, squad: [], guests: [], matches: [], next: null, boards: [], official: null, rsvp: {}, absences: [], together: () => 0, games: 0 };
+export const EMPTY_WORLD: PzWorld = { now: 0, season: { id: "", name: "" }, squad: [], guests: [], matches: [], next: null, boards: [], official: null, rsvp: {}, absences: [], members: [], together: () => 0, games: 0 };
 export const NOBODY: PzMe = { uid: "", name: "", nick: "", label: "", pid: null, cap: false, general: false, socia: false, jugador: false, fuera: true, member: false };
 
 export type PzStore = PzApi & {
@@ -292,7 +292,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
   function rsvp(pid: string): PzRsvp {
     const p = player(pid);
     if (p?.guest) return { v: "guest", t: "Invitado", icon: "user", tone: "guest", why: "Invitado" + (p.by ? " de " + name(p.by) : "") + (p.note ? " · " + p.note : ""), can: true };
-    if (p?.baja) return { v: "baja", t: p.baja, icon: "warn", tone: "bad", why: p.baja, can: false };
+    if (p?.baja) return { v: "baja", t: p.baja, icon: "warn", tone: "bad", why: p.bajaWhy ? p.bajaWhy.charAt(0).toUpperCase() + p.bajaWhy.slice(1) : p.baja, can: false };
     // an absence over the match's day («no puedo del 12 al 19») wins over any answer
     const M = match();
     const day = M ? madridDate(M.at) : "";
@@ -304,7 +304,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     return { v: k, t: r.t, icon: r.icon, tone: r.tone, why: a?.why ?? "", at: a?.at ?? null, can: k !== "no" };
   }
   function counts() {
-    const c = { yes: 0, maybe: 0, no: 0, none: 0, baja: 0, guests: S.W.guests.length };
+    const c = { yes: 0, maybe: 0, no: 0, none: 0, baja: 0, guests: S.W.guests.length, members: S.W.members.map((x) => ({ uid: x.uid, who: x.name, v: x.v, ...(x.why ? { why: x.why } : {}) })) };
     S.W.squad.forEach((p) => {
       const r = rsvp(p.id);
       if (r.v === "baja") c.baja++;
@@ -598,10 +598,13 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
   }
 
   // ── history (one stack; each entry knows how to undo and redo itself) ──────────────────────────────────
-  function pushHist(label: string, undo: () => void, redo: () => void) {
-    S.hist.undo.push({ label, undo, redo });
+  let histSeq = 0;
+  function pushHist(label: string, undo: () => void, redo: () => void, scope = "siete"): number {
+    const id = ++histSeq;
+    S.hist.undo.push({ id, scope, label, undo, redo });
     if (S.hist.undo.length > 60) S.hist.undo.shift();
     S.hist.redo = [];
+    return id;
   }
   /** A board's new lineup, immutably (the world, its board list and the board are new objects: memoised renders see it). */
   function setLineup(id: string, L: Lineup) {
@@ -1032,7 +1035,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
         else host.save(cur.id, next);
       };
       write(after);
-      if (o.undoable !== false) pushHist(label, () => write(before), () => write(after));
+      if (o.undoable !== false) pushHist(label, () => write(before), () => write(after), "board");
       emit("board:saved", { boardId: id, keys });
       if (o.toast !== false) toast(label, { undo: o.undoable !== false, long: !!o.long });
       else bump();
@@ -1190,20 +1193,35 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
         toast("Para editar, entra con tu ficha");
         return;
       }
-      void host.duplicate(id ?? null).then((nid) => {
-        if (typeof nid === "string") {
-          const undoAdd = host.remove.bind(null, nid);
-          pushHist("Copia creada", () => void undoAdd(), noop);
-        }
-        toast("Copia creada: ya puedes editar", { undo: true });
-      });
+      void host
+        .duplicate(id ?? null)
+        .then((nid) => {
+          if (typeof nid === "string") {
+            // undo deletes the copy (with its 12 s); redo makes another one
+            let undoDel: () => void = noop;
+            pushHist("Copia creada", () => void (undoDel = host.remove(nid)), () => undoDel(), "boards");
+            toast("Copia creada: ya puedes editar", { undo: true });
+          } else toast("Copia creada: ya puedes editar");
+          bump();
+        })
+        .catch((e: unknown) => toast("No se ha podido duplicar: " + (e instanceof Error ? e.message : "inténtalo otra vez"), { icon: "warn" }));
     },
     deleteBoard(id) {
       const b = board(id);
       if (!b || !canEdit(b) || b.isOfficial) return;
-      const undo = host.remove(id);
-      pushHist("«" + b.name + "» borrado", undo, () => host.remove(id));
+      let undo = host.remove(id);
+      const hid = pushHist("«" + b.name + "» borrado", () => undo(), () => void (undo = host.remove(id)), "boards");
       toast("«" + b.name + "» borrado", { undo: true, long: true });
+      return hid;
+    },
+    undoEntry(hid) {
+      const k = S.hist.undo.findIndex((e) => e.id === hid);
+      if (k < 0) return false;
+      const [e] = S.hist.undo.splice(k, 1);
+      e.undo();
+      S.hist.redo.push(e);
+      toast("Deshecho: " + e.label, { icon: "undo" });
+      return true;
     },
     undo() {
       const e = S.hist.undo.pop();
@@ -1384,6 +1402,10 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
         },
       ),
     stage: () => S.stage,
+    histTop: () => {
+      const e = S.hist.undo[S.hist.undo.length - 1];
+      return e ? { id: e.id, scope: e.scope, label: e.label } : null;
+    },
     canUndo: () => S.hist.undo.length > 0,
     canRedo: () => S.hist.redo.length > 0,
     undoLabel: () => S.hist.undo[S.hist.undo.length - 1]?.label ?? "",
@@ -1407,7 +1429,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       const reg = sheetReg(sh.name);
       const pick = (x: unknown): string => {
         try {
-          return typeof x === "function" ? String((x as (a: Record<string, unknown>) => string)(sh.args)) : typeof x === "string" ? x : "";
+          return typeof x === "function" ? String((x as (a: Record<string, unknown>, P: PzApi) => string)(sh.args, api)) : typeof x === "string" ? x : "";
         } catch {
           return "";
         }
@@ -1480,9 +1502,10 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
     emit,
     slice: <T,>(nm: string, init?: T | ((W: PzWorld, P: PzApi) => T)) => slice<T>(nm, init),
     pushUndo(label, undo, redo, o) {
-      pushHist(label, undo, redo);
+      const hid = pushHist(label, undo, redo, o?.scope ?? "place");
       if (o?.toast === false) bump();
       else toast(label, { undo: true, long: !!o?.long });
+      return hid;
     },
     define(nm, fn) {
       sel[nm] = (...args: unknown[]) => fn(api, ...args);
@@ -1536,6 +1559,7 @@ export function createPzStore(init?: Partial<PzInputs> & { layout?: Layout; rout
       }
       if (r.q.capa && LAYERS.some((l) => l.id === r.q.capa)) S.layer = r.q.capa as LayerId;
       if (r.q.modo === "dibujar" && !S.drawing) S.drawing = true;
+      if (r.q.alto === "peek" || r.q.alto === "half" || r.q.alto === "full") S.sheetH = r.q.alto;
       applySheetFromRoute(r.q);
       if (changed) {
         emit("route", { place: r.place, sub: r.sub, from: prev.place });

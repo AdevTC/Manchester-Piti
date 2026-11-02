@@ -9,7 +9,8 @@ export const PLAN_PARTS = ["rival", "claves", "juego", "parado", "sipasa", "nota
 export type PlanPart = (typeof PLAN_PARTS)[number];
 /** The parameters the pizarra itself names (a place may add its own sheet arguments; the router keeps any
  *  short lowercase key). */
-export const PZ_KEYS = ["tablero", "hoja", "capa", "modo", "partido", "desde", "a", "b", "va", "vb", "jugador", "hueco", "paso"] as const;
+/** (alto = the phone sheet's height: peek · half · full) */
+export const PZ_KEYS = ["tablero", "hoja", "capa", "modo", "partido", "desde", "a", "b", "va", "vb", "jugador", "hueco", "paso", "alto"] as const;
 
 const isPlace = (s: string): s is PlaceId => (PLACE_IDS as readonly string[]).includes(s);
 

@@ -57,6 +57,8 @@ export interface PzPlayer {
   playedAt: Record<string, number>;
   /** Not available for any match: «Lesionado» · «Sancionado» · «Inactivo». */
   baja?: string;
+  /** The baja in words: «sancionado 2 partidos más (Federación)», «lesionado». */
+  bajaWhy?: string;
   guest?: boolean;
   note?: string;
   /** Who brought a guest. */
@@ -184,6 +186,8 @@ export interface PzWorld {
   /** The answers of the board's match («Voy», «Duda», «No va»), by player id (`why`: an answer written by an
    *  absence says so). */
   rsvp: Record<string, { v: "yes" | "maybe" | "no"; why?: string; at?: number }>;
+  /** Members without a ficha who answered the board's match («Marta (socia, sin ficha): va»). */
+  members: { uid: string; name: string; v: "yes" | "maybe" | "no"; why?: string }[];
   /** The team's absences still to come or under way («no puedo del 12 al 19»), by player (YYYY-MM-DD, Madrid). */
   absences: { pid: string; from: string; to: string; note: string }[];
   /** Minutes two players were on the pitch together this season (pairKey a|b). */
@@ -197,7 +201,11 @@ export type StageSource = "siete" | "ahora" | "jugada" | "pachanga" | "comparar"
 export type PathKind = "pase" | "carrera" | "conduccion" | "flecha" | "lapiz" | "zona";
 export type PathColor = "blanco" | "celeste" | "amarillo" | "coral";
 export interface OverlayHandle {
-  axis: "y";
+  /** The direction it drags: "y" (↑/↓, a line across the pitch) or "x" (←/→). onMove gets that coordinate. */
+  axis: "y" | "x";
+  /** Where the handle sits (pitch %; default: the path's middle). */
+  x?: number;
+  y?: number;
   min: number;
   max: number;
   step?: number;
@@ -384,8 +392,6 @@ export interface SheetProps {
   layout: Layout;
   args: Record<string, unknown>;
 }
-/** A sheet's frame texts: strings or functions of its args. */
-export type SheetText = string | ((args: Record<string, unknown>) => string);
 
 export interface Toast {
   id: number;
@@ -415,6 +421,10 @@ export interface Sel {
   slot: number | null;
 }
 export interface HistEntry {
+  /** Unique in the page: P.act.undoEntry(id) undoes this one (a card's «Deshacer» and the bar's are one entry). */
+  id: number;
+  /** What it changes: "siete" · "board" (saveBoard) · "boards" (copy, delete) · "slice" · "place" (pushUndo). */
+  scope: string;
   label: string;
   undo: () => void;
   redo: () => void;

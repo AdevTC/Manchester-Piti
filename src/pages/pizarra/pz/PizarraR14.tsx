@@ -2,7 +2,7 @@
 // and calendar, the boards, the board session with its autosave, the convocatoria, the reactions, the kit stills),
 // follows the address, and mounts the shell. One instance across every /pizarra/* address (the router's layout),
 // so the pitch never remounts between places.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuth } from "../../../context/AuthContext";
 import { useTeam } from "../../../context/TeamContext";
@@ -16,6 +16,7 @@ import { setConvocatoria } from "../../../lib/clubApi";
 import { useLineups } from "../useLineups";
 import { useReactions } from "../useReactions";
 import { usePizarraPrefs } from "../data/prefs";
+import { copyBoardVoices } from "../data/boards";
 import { boardSeason, useBoardData } from "../v2/useBoardData";
 import { useSeasonLineupDocs } from "../seasonLineups";
 import { useAbsences, useAvailability } from "../../vestuario/live";
@@ -70,6 +71,8 @@ export function PizarraR14() {
   // (the same shared listeners the vestuario opens: the answers an absence wrote, the team's absences)
   const answers = useAvailability(m?.id);
   const byAbsence = useMemo(() => new Set(answers.data.filter((a) => a.absenceId !== undefined && a.playerId).map((a) => a.playerId as string)), [answers.data]);
+  // the members without a ficha who answered («Marta (socia, sin ficha): va»)
+  const memberAnswers = useMemo(() => answers.data.filter((a) => !a.playerId).map((a) => ({ uid: a.uid, name: a.name, response: a.response, byAbsence: a.absenceId !== undefined })), [answers.data]);
   const absences = useAbsences(madridDate(now), !!member);
   // the season's finished matches: minutes per puesto (the actas) and the board's match's guests
   const games = useMemo(() => boardSeason(matches, seasonId).filter((g) => isCompleted(g)), [matches, seasonId]);
@@ -86,6 +89,16 @@ export function PizarraR14() {
   const prefs = usePizarraPrefs(user?.uid ?? null);
   const stills = usePageKitStills({ on: true, theme: theme === "light" ? "light" : "dark", kits: ["home", "away"], players: squad.list.map((c) => ({ name: c.name, num: String(c.num) })) });
 
+  // the boards being deleted (the session hides yours during the 12 s to undo): the store never shows them
+  const visibleDocs = useMemo(() => {
+    const mineShown = new Set(session.mine.map((d) => d.id));
+    return lineups.all.filter((d) => !(d.ownerUid === (user?.uid ?? "") && lineups.mine.some((x) => x.id === d.id) && !mineShown.has(d.id)));
+  }, [lineups.all, lineups.mine, session.mine, user?.uid]);
+  // the board on screen, for a copy made just now (copyBoard opens it and then reports its name, not its id)
+  const shownId = useRef<string | null>(session.id);
+  useEffect(() => {
+    shownId.current = session.id;
+  }, [session.id]);
   const [store] = useState<PzStore>(() => createPzStore({ route: parsePizarra(location.pathname, location.search as Record<string, unknown>) }));
   const layout = useLayout();
   useEffect(() => store.setLayout(layout), [store, layout]);
@@ -113,7 +126,19 @@ export function PizarraR14() {
       save: (id, L) => void lineups.save(id, L).catch((e: unknown) => console.error("No se pudo guardar el tablero", e)),
       open: (id) => session.open(id),
       duplicate: async (id) => {
+        const from = id ?? session.id;
+        const before = shownId.current;
         await session.copyBoard(id, true);
+        // the copy opens: wait for the session to show it (≤ 3 s), then copy the charla's voices to it
+        const t0 = Date.now();
+        while (shownId.current === before && Date.now() - t0 < 3000) await new Promise((r) => setTimeout(r, 50));
+        const nid = shownId.current !== before ? shownId.current : null;
+        if (!nid) return;
+        if (from) {
+          const n = await copyBoardVoices(from, nid, user?.uid ?? "");
+          if (n === null) store.toast("La voz de la charla no se ha copiado", { icon: "warn" });
+        }
+        return nid;
       },
       remove: (id) => session.remove(id),
       publish: async ({ convocatoria }) => {
@@ -144,11 +169,13 @@ export function PizarraR14() {
       squad,
       calendar: data.calendar,
       next: data.next,
-      docs: lineups.all,
+      // (a board the session is deleting — its 12 s to undo — is gone already)
+      docs: visibleDocs,
       session: { id: session.id, name: session.name, lineup: session.lineup, uid: user?.uid ?? "", nick: profile?.nickname ?? "", matchId: session.matchId, official: session.official },
       official,
       playedAt,
       guests,
+      members: memberAnswers,
       absences: absences.data,
       byAbsence,
     });
@@ -164,7 +191,7 @@ export function PizarraR14() {
       saved: session.savedAt,
       reactions: official ? { ok: reactions.ok, dudas: reactions.dudas, mine: reactions.mine, ...(reactions.who ? { who: reactions.who } : {}) } : undefined,
     });
-  }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, lineups.all, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, prefs.prefs, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
+  }, [store, now, seasonId, seasons, squad, data.calendar, data.next, data.loading, visibleDocs, memberAnswers, session.id, session.name, session.lineup, session.matchId, session.official, session.ready, session.status, session.savedAt, official, member, profile, user, isAdmin, online, playedAt, guests, absences.data, byAbsence, readError, prefs.prefs, stills, reactions.ok, reactions.dudas, reactions.mine, reactions.who]);
 
   // what changed under the board (another tab, a new official, a failed save) is said
   useEffect(() => {

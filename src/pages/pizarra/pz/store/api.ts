@@ -93,7 +93,8 @@ export interface PzSel {
   lastNota(pid: string): PzPlayer["notas"][number] | null;
   match(id?: string | null): PzMatch | null;
   rsvp(pid: string): PzRsvp;
-  counts(): { yes: number; maybe: number; no: number; none: number; baja: number; guests: number };
+  /** `members`: the members without a ficha who answered (they never take a slot). */
+  counts(): { yes: number; maybe: number; no: number; none: number; baja: number; guests: number; members: { uid: string; who: string; v: "yes" | "maybe" | "no"; why?: string }[] };
   board(id?: string | null): PzBoard | null;
   boards(): PzBoard[];
   official(): PzBoard | null;
@@ -117,6 +118,8 @@ export interface PzSel {
   primary(place?: PlaceId): PrimaryAction | null;
   view(spec?: StageSpec): PzView;
   stage(): StageSpec;
+  /** The newest history entry (what the bar's Deshacer would undo). */
+  histTop(): { id: number; scope: string; label: string } | null;
   canUndo(): boolean;
   canRedo(): boolean;
   undoLabel(): string;
@@ -165,7 +168,10 @@ export interface PzAct {
   // boards
   openBoard(id: string): void;
   duplicate(id?: string): void;
-  deleteBoard(id: string): void;
+  /** Deletes after 12 s (undoable); returns its history entry id. */
+  deleteBoard(id: string): number | undefined;
+  /** Undo one entry by id, wherever it is in the stack (a card's own «Deshacer»). */
+  undoEntry(id: number): boolean;
   // history
   undo(): void;
   redo(): void;
@@ -223,7 +229,8 @@ export interface PzApi {
   /** A namespaced, undoable piece of state (its init — a value or a function of the world — runs once per page). */
   slice<T>(name: string, init?: T | ((W: PzWorld, P: PzApi) => T)): PzSlice<T>;
   /** Anything undoable outside the seven and the slices. */
-  pushUndo(label: string, undo: () => void, redo: () => void, o?: { toast?: boolean; long?: boolean }): void;
+  /** Returns the entry's id (for P.act.undoEntry). */
+  pushUndo(label: string, undo: () => void, redo: () => void, o?: { toast?: boolean; long?: boolean; scope?: string }): number;
   define(name: string, fn: (P: PzApi, ...args: unknown[]) => unknown): void;
   action(name: string, fn: (P: PzApi, ...args: unknown[]) => unknown): void;
   subscribe(fn: () => void): () => void;

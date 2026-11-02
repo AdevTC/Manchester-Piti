@@ -35,9 +35,20 @@ export function BoardBar({ xl }: { xl: boolean }) {
           <b>{line.name}</b>
           <small>
             <span className="pz-s__bm">{line.match}</span>
-            <span className={`pz-s__save is-${line.save.tone}`}>
+            <span className={`pz-s__save is-${line.save.tone}`} title={line.save.t}>
               <PzIcon name={line.save.icon || "check"} />
-              {line.save.t}
+              {/* «Guardado» + its time: a compact bar keeps the word and drops the time (never cut) */}
+              {(() => {
+                const m = /^(.*\S) (\d\d:\d\d)$/.exec(line.save.t);
+                return m ? (
+                  <>
+                    {m[1]}
+                    <span className="pz-s__saveh"> {m[2]}</span>
+                  </>
+                ) : (
+                  line.save.t
+                );
+              })()}
             </span>
           </small>
         </span>

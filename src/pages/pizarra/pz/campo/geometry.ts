@@ -37,12 +37,13 @@ export function shirtSize(pw: number, mini: boolean): number {
   return Math.max(mini ? 9 : 26, Math.min(66, pw * (mini ? 0.13 : 0.126)));
 }
 
-export function fitGeometry(cam: Camera, layout: Layout, mini: boolean, boxW: number, boxH: number, gradaPad = 0): Geometry {
+export function fitGeometry(cam: Camera, layout: Layout, mini: boolean, boxW: number, boxH: number, gradaPad = 0, capRoom = 0): Geometry {
   const w = boxW || (layout === "phone" ? 358 : 560);
   const h = boxH || (layout === "phone" ? 540 : 760);
   const chrome = !mini;
   const padT = chrome ? (layout === "phone" ? 8 : 52) : 4;
-  const padB = chrome ? (layout === "phone" ? 52 : 56) : 4;
+  // (a caption gets its own room under the pitch: capRoom)
+  const padB = (chrome ? (layout === "phone" ? 52 : 56) : 4) + capRoom;
   const padX = mini ? 4 : layout === "phone" ? 6 : 16;
   const rx = RX[cam] ?? 0;
   if (cam === "grada" || cam === "foco") {
@@ -166,4 +167,117 @@ export function shapeLines(slots: readonly { code: string; x: number; y: number 
     else if (b.length === 1) for (const x of a) out.push({ x1: x.x, y1: x.y, x2: b[0].x, y2: b[0].y });
   }
   return out;
+}
+
+/** The room under the pitch for its caption (px): the caption never sits on a plate or a shirt. */
+export const captionRoom = (layout: Layout): number => (layout === "phone" ? 50 : 42);
+
+type Box = { l: number; r: number; t: number; b: number };
+const hits = (a: Box, b: Box) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
+
+/**
+ * The rival discs moved off our shirts and plates, in pixels (display only: the data keeps its spot). A shirt with
+ * its plate is as wide as its name; a disc is its dorsal plus the code under it. Each disc takes the nearest free spot
+ * around its own (12 directions, growing rings), inside the lines, never on another disc.
+ */
+export function dodgeRivals<T extends { id: string; kind: string; x: number; y: number; code?: string }>(
+  tokens: readonly T[],
+  ours: readonly { x: number; y: number; label: string }[],
+  pw: number,
+  ph: number,
+  s: number,
+): T[] {
+  if (!tokens.some((t) => t.kind === "rival") || pw <= 0 || ph <= 0) return tokens.slice();
+  const font = Math.max(12, Math.min(15, s * 0.215));
+  const blocked: Box[] = ours.map((o) => {
+    const cx = (o.x / 100) * pw;
+    const cy = (o.y / 100) * ph;
+    const half = Math.max(s * 0.55, (o.label.length * font * 0.62 + 16) / 2);
+    return { l: cx - half, r: cx + half, t: cy - s * 1.15, b: cy + s * 0.3 + font + 10 };
+  });
+  const r = Math.max(14, s * 0.31) + 3;
+  const out: T[] = [];
+  for (const t of tokens) {
+    if (t.kind !== "rival") {
+      out.push(t);
+      continue;
+    }
+    const x0 = (t.x / 100) * pw;
+    const y0 = (t.y / 100) * ph;
+    // with its code under it first; on a crowded small pitch, the disc alone (the dorsal stays, the legend names them)
+    const search = (code: number): [number, number] | null => {
+      const boxAt = (cx: number, cy: number): Box => ({ l: cx - r, r: cx + r, t: cy - r * 1.5, b: cy + r * 0.5 + code });
+      const ok = (cx: number, cy: number) => {
+        const b = boxAt(cx, cy);
+        return b.l >= 2 && b.r <= pw - 2 && b.t >= 2 && b.b <= ph - 2 && !blocked.some((o) => hits(o, b));
+      };
+      if (ok(x0, y0)) return [x0, y0];
+      for (let ring = 1; ring <= 12; ring++) {
+        const d = ring * r * 0.8;
+        for (let k = 0; k < 16; k++) {
+          const a = (k / 16) * Math.PI * 2;
+          const cx = x0 + Math.cos(a) * d;
+          const cy = y0 + Math.sin(a) * d;
+          if (ok(cx, cy)) return [cx, cy];
+        }
+      }
+      return null;
+    };
+    const withCode = t.code ? font + 6 : 0;
+    let code = withCode;
+    let best = search(code);
+    if (!best && code) {
+      code = 0;
+      best = search(0);
+    }
+    // nowhere free: at least inside the lines
+    const [bx, by] = best ?? [Math.max(r + 2, Math.min(pw - r - 2, x0)), Math.max(r * 1.5 + 2, Math.min(ph - r - code - 2, y0))];
+    blocked.push({ l: bx - r, r: bx + r, t: by - r * 1.5, b: by + r * 0.5 + code });
+    out.push({ ...t, x: round2((bx / pw) * 100), y: round2((by / ph) * 100), ...(code === withCode ? {} : { code: "" }) });
+  }
+  return out;
+}
+
+/** A plate line's width (px): the name plate and its mark chips (icon + minute) beside it. */
+export function plateLineWidth(label: string, marks: number, s: number, tight = false): number {
+  const font = Math.max(12, Math.min(15, s * 0.215));
+  return label.length * font * 0.62 + 14 + marks * (tight ? 22 : font * 2.4 + 12);
+}
+
+/**
+ * Which plates must shorten (first word) and which mark chips must drop their minute so no two plate lines touch:
+ * the players of a row are checked pairwise in pixels (Grada squeezes the depth, so rows come closer there).
+ */
+export function plateCrowd(
+  slots: readonly { i: number; x: number; y: number; label: string; marks: number }[],
+  pw: number,
+  ph: number,
+  s: number,
+  cam: Camera,
+): { short: Set<number>; tight: Set<number> } {
+  const short = new Set<number>();
+  const tight = new Set<number>();
+  const depth = cam === "pizarra" ? 1 : 0.62;
+  const lineH = s * 0.45 + 8;
+  const width = (o: (typeof slots)[number]) => plateLineWidth(short.has(o.i) ? o.label.split(/[ .]/)[0] : o.label, o.marks, s, tight.has(o.i));
+  const clash = (a: (typeof slots)[number], b: (typeof slots)[number]) => {
+    const dx = Math.abs(a.x - b.x) * pw * 0.01;
+    const dy = Math.abs(a.y - b.y) * ph * 0.01 * depth;
+    return dy < lineH && dx < (width(a) + width(b)) / 2 + 6;
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    for (let a = 0; a < slots.length; a++) {
+      for (let b = a + 1; b < slots.length; b++) {
+        if (!clash(slots[a], slots[b])) continue;
+        if (pass === 0) {
+          short.add(slots[a].i);
+          short.add(slots[b].i);
+        } else {
+          if (slots[a].marks) tight.add(slots[a].i);
+          if (slots[b].marks) tight.add(slots[b].i);
+        }
+      }
+    }
+  }
+  return { short, tight };
 }

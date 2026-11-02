@@ -114,8 +114,9 @@
 .pz.pz-s>header.vx-top{flex:none;position:relative;z-index:7}
 .pz.pz-s>.pz-s__frame{position:relative;z-index:1;flex:1;min-height:0;display:flex;flex-direction:column}
 .pz.pz-s>.pz-s__takeover{position:fixed;inset:0;z-index:70}
-.pz :where(h1,h2,h3,h4,p){margin:0}
-.pz :where(button){font:inherit;color:inherit}
+/* (zero specificity: the kit's buttons — nx-btn--pri, vd-btn--pri… — keep their own colours, in any CSS order) */
+:where(.pz) :where(h1,h2,h3,h4,p){margin:0}
+:where(.pz) :where(button){font:inherit;color:inherit}
 .pz button:disabled{cursor:default;opacity:.4}
 .pz :focus-visible{outline:2px solid var(--vd-celeste);outline-offset:3px}
 .pz svg.nx-ic{display:inline-block}
@@ -169,3 +170,16 @@
 .pz .pz-s__board small{min-width:0}
 .pz .pz-s__bm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pz .pz-s__save{flex:none;white-space:nowrap}
+/* a compact desktop (1100–1279): nothing in the board bar is cut — the places drop their icons, the save state its
+   time (the word stays: «Guardado»), the board's name gives way first */
+@media (min-width:1100px) and (max-width:1279px){
+  .pz.pz-l-desktop .pz-s__place>.nx-ic{display:none}
+  .pz.pz-l-desktop .pz-s__place{padding:4px 8px}
+  .pz.pz-l-desktop .pz-s__saveh{display:none}
+  .pz.pz-l-desktop .pz-s__board{max-width:210px;padding:4px 6px 4px 10px}
+  .pz.pz-l-desktop .pz-s__bar{gap:4px}
+  .pz.pz-l-desktop .pz-s__acts{gap:4px}
+}
+/* the phone's sheet at full height never reaches the board header (the header stays above it) */
+.pz.pz-l-phone .pz-s__ph{position:relative;z-index:36}
+.pz.pz-l-phone.is-full .pz-s__sheet{height:auto;top:56px}

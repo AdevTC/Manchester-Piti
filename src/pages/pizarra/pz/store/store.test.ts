@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeBoard, fakeWorld, makeTestStore, ME_CAPTAIN, ME_PLAYER } from "./testkit";
 import { guestOf, pizarraSeason } from "./world";
+import { registerSheet } from "./registry";
 import { rivalSpotNear } from "./view";
 import type { Lineup } from "../../formations";
 
@@ -99,6 +100,52 @@ describe("who can come", () => {
     w.squad = w.squad.map((p) => (p.id === "kevin" ? { ...p, playedAt: { DC: 44 } } : p));
     const { P } = makeTestStore({ world: w });
     expect(P.sel.candidates(6).find((c) => c.pid === "kevin")?.why).toMatch(/^Ha jugado de DC 44′/);
+  });
+});
+
+describe("history entries, copies, members, sheet texts", () => {
+  it("every entry has an id and a scope; undoEntry undoes that one wherever it is", () => {
+    const { P, host } = makeTestStore();
+    const hid = P.act.deleteBoard("b1");
+    expect(typeof hid).toBe("number");
+    expect(P.sel.histTop()).toMatchObject({ id: hid, scope: "boards" });
+    P.act.place("alcides", 6);
+    expect(P.sel.histTop()?.scope).toBe("siete");
+    const undoDelete = host.remove.mock.results[0]?.value as () => void;
+    expect(P.act.undoEntry(hid as number)).toBe(true);
+    expect(typeof undoDelete).toBe("function");
+    // the siete entry is still the top one
+    expect(P.sel.histTop()?.label).toBe("ALCIDES al DC");
+    expect(P.act.undoEntry(9999)).toBe(false);
+  });
+  it("pushUndo returns its id", () => {
+    const { P } = makeTestStore();
+    const id = P.pushUndo("Etiqueta", () => undefined, () => undefined, { toast: false, scope: "tableros" });
+    expect(P.sel.histTop()).toEqual({ id, scope: "tableros", label: "Etiqueta" });
+  });
+  it("duplicate: the copy's id comes back and undo deletes the copy", async () => {
+    const { P, host } = makeTestStore();
+    P.act.duplicate();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(host.duplicate).toHaveBeenCalledWith(null);
+    expect(P.sel.histTop()).toMatchObject({ label: "Copia creada", scope: "boards" });
+    P.act.undo();
+    expect(host.remove).toHaveBeenCalledWith("b-copia");
+  });
+  it("members without a ficha who answered are counted apart", () => {
+    const { P } = makeTestStore({ world: fakeWorld({ members: [{ uid: "u-marta", name: "Marta", v: "yes" }] }) });
+    expect(P.sel.counts().members).toEqual([{ uid: "u-marta", who: "Marta", v: "yes" }]);
+  });
+  it("a sheet's title can read the store", () => {
+    registerSheet("t-prueba", { title: (args, P) => `${String(args.n)} · ${P.sel.board()?.name ?? ""}` });
+    const { P } = makeTestStore();
+    P.act.openSheet("t-prueba", { n: 3 });
+    expect(P.sel.sheetMeta()?.title).toBe("3 · J3 · Red Demons");
+  });
+  it("?alto= opens the phone sheet at that height", () => {
+    const { P } = makeTestStore({ layout: "phone" });
+    P.setRoute({ place: "siete", sub: "", q: { alto: "full" } });
+    expect(P.state.sheetH).toBe("full");
   });
 });
 
@@ -249,6 +296,11 @@ describe("the season", () => {
     expect(pizarraSeason("all", seasons, undefined, [])).toBe("t1");
     expect(pizarraSeason(undefined, seasons, undefined, [])).toBe("t1");
     expect(pizarraSeason("gone", seasons, undefined, [])).toBe("t1");
+  });
+  it("the testkit's address follows navigate (route.sub too)", () => {
+    const { P } = makeTestStore();
+    P.act.go("/pizarra/plan/rival");
+    expect(P.state.route).toMatchObject({ place: "plan", sub: "rival" });
   });
   it("me of a captain edits any board", () => {
     const { P } = makeTestStore({ me: ME_CAPTAIN, world: fakeWorld({ boards: [fakeBoard({ isOfficial: true, ownerUid: "other" })] }) });
