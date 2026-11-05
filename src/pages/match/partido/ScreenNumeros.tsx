@@ -22,7 +22,7 @@ import { useBoardView, useMatchBoard } from "../../pizarra/useMatchBoard";
 import { rivalName } from "../../pizarra/v2/rival";
 import type { PageCtx } from "./ctx";
 import { Go, Icon, Tee } from "./bits";
-import { matchNumbers } from "./matchNumbers";
+import { useMatchNumbers } from "./useMatchNumbers";
 import {
   chipsOf,
   fixturesOf,
@@ -117,7 +117,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
     // cut at the final whistle, exact boundary actions stay in the completed acta.
     ...(c.dragged || !c.done && c.live ? { toSecond: Math.max(0, c.minute) * 60 } : {}),
   }), [match.id, c.dragged, c.done, c.live, c.minute]);
-  const figures = useMemo(() => c.played ? matchNumbers(match, chartPeople, chartFilters, c.score) : null, [c.played, match, chartPeople, chartFilters, c.score]);
+  const figures = useMatchNumbers(c.played, match, chartPeople, chartFilters, c.score);
   const nums = figures?.rows ?? [];
   const vistazo = c.done ? figures?.glance ?? [] : [];
   const leaders = c.done ? figures?.leaders ?? [] : [];
