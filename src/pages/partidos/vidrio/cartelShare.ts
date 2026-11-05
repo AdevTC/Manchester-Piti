@@ -135,24 +135,28 @@ function save(blob: Blob, name: string) {
 type ShareNavigator = Navigator & { canShare?: (data: ShareData) => boolean };
 
 /** Compartir (Web Share with the image where the browser can, else it is saved) and Guardar la imagen. */
-/** Draws the cartel and shares or saves it; `run` resolves true when the image went out. (null: nothing to draw.) */
-export function useCartelShare(cartel: Cartel | null, paint: SegmentPaint | null) {
+/** Draws the cartel and shares or saves it; `run` resolves true when the image went out. (null: nothing to draw.)
+ *  `cartel` may be a function that builds it: then it is built only when the image is asked for (Partidos rendered
+ *  its cartel — the match's signature ring — on every change of jornada, for a button seldom pressed). */
+export function useCartelShare(cartel: Cartel | null | (() => Cartel | null), paint: SegmentPaint | null) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const run = async (share: boolean): Promise<boolean> => {
     if (busy || !cartel || !paint) return false;
+    const c = typeof cartel === "function" ? cartel() : cartel;
+    if (!c) return false;
     setBusy(true);
     setNote("");
     try {
-      const blob = await drawCartel(cartel, paint);
-      const file = new File([blob], cartel.fileName, { type: "image/png" });
+      const blob = await drawCartel(c, paint);
+      const file = new File([blob], c.fileName, { type: "image/png" });
       const nav = navigator as ShareNavigator;
       if (share && typeof nav.share === "function" && nav.canShare?.({ files: [file] })) {
-        await nav.share({ files: [file], title: `Cartel de la ${cartel.jornadaLabel || "jornada"}`, text: cartel.aria });
+        await nav.share({ files: [file], title: `Cartel de la ${c.jornadaLabel || "jornada"}`, text: c.aria });
         setNote("Cartel compartido.");
         return true;
       } else {
-        save(blob, cartel.fileName);
+        save(blob, c.fileName);
         setNote(share ? "Este navegador no comparte imágenes: la hemos guardado." : "Imagen guardada.");
         return true;
       }

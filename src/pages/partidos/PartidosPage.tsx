@@ -503,7 +503,8 @@ export function PartidosPage() {
 
   const lens = lv?.lens;
   const cartelData = useMemo(() => (jor ? cartelView(jor.sel, seasonName) : null), [jor, seasonName]);
-  const shareCartel = useCartelShare(jor ? cartelOf(jor.sel.match, { jornada: jor.sel.j, seasonName, nameOf: nm, now, mvp: jor.sel.raw.mvp?.winners[0] ? nm(jor.sel.raw.mvp.winners[0]) : null }) : null, jor ? { a: jor.sel.paint.a, b: jor.sel.paint.b, m0: jor.sel.paint.m0, m1: jor.sel.paint.m1, sun: jor.sel.paint.sun, floods: jor.sel.paint.floods } : null);
+  // (built only when «Guardar la imagen» asks for it, not on every render: the signature ring costs ~9 ms a jornada)
+  const shareCartel = useCartelShare(jor ? () => cartelOf(jor.sel.match, { jornada: jor.sel.j, seasonName, nameOf: nm, now, mvp: jor.sel.raw.mvp?.winners[0] ? nm(jor.sel.raw.mvp.winners[0]) : null }) : null, jor ? { a: jor.sel.paint.a, b: jor.sel.paint.b, m0: jor.sel.paint.m0, m1: jor.sel.paint.m1, sun: jor.sel.paint.sun, floods: jor.sel.paint.floods } : null);
 
   const tb = useMemo(() => (screen === "tabla" ? tablaView(se, { picks, preset, asi, all }, ctx) : null), [screen, se, picks, preset, asi, all, ctx]);
   const bv = screen === "balance" ? balanceView(se, { bal, hover, facet, all: facetAll }, ctx, id.usRow) : null;
