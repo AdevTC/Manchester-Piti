@@ -1,5 +1,6 @@
 /* «Vidrio» choreography for every place / screen change (components/vidrio/transitions.ts → swap()).
-   1. outgoing regions exit first: fade + 8 px slide + 4 px blur, 160 ms, +30 ms per region;
+   1. outgoing regions exit first: fade + 8 px slide + 4 px blur, 160 ms, +30 ms per region (the whole page, on a
+      change of page, fades and slides the same without the blur: vd-x-page-*, chrome.css);
    2. shared objects (.vd-morph, own view-transition-name) morph continuously, never fade-swap at full opacity;
    3. incoming regions enter after the exit, 220 ms, +30 ms per region, from the direction of travel
       (html[data-vd-dir] = right | left | up).
@@ -47,6 +48,13 @@ html[data-vd-dir]::view-transition-old(root),html[data-vd-dir]::view-transition-
 @keyframes vd-x-in-r{from{opacity:0;transform:translateX(16px);filter:blur(4px)}}
 @keyframes vd-x-in-l{from{opacity:0;transform:translateX(-16px);filter:blur(4px)}}
 @keyframes vd-x-in-u{from{opacity:0;transform:translateY(16px);filter:blur(4px)}}
+/* the page itself, on a change of page (chrome.css): the same fade and slide, no blur */
+@keyframes vd-x-page-out-l{to{opacity:0;transform:translateX(-8px)}}
+@keyframes vd-x-page-out-r{to{opacity:0;transform:translateX(8px)}}
+@keyframes vd-x-page-out-d{to{opacity:0;transform:translateY(8px)}}
+@keyframes vd-x-page-in-r{from{opacity:0;transform:translateX(16px)}}
+@keyframes vd-x-page-in-l{from{opacity:0;transform:translateX(-16px)}}
+@keyframes vd-x-page-in-u{from{opacity:0;transform:translateY(16px)}}
 @keyframes vd-x-fade-out{to{opacity:0}}
 @keyframes vd-x-fade-in{from{opacity:0}}
 html[data-vd-calm]::view-transition-group(*){animation-duration:var(--vd-d-calm)!important}

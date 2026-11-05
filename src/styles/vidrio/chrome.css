@@ -142,12 +142,14 @@ html[data-vd-page] .vx > :is(main,.nu-main)[data-vd-out]{view-transition-name:vd
 html[data-vd-page]::view-transition-group(root){animation:none}
 html[data-vd-page]::view-transition-old(root){animation:none;opacity:0}
 html[data-vd-page]::view-transition-new(root){animation:none}
-html[data-vd-page][data-vd-dir]::view-transition-old(vd-page-out){animation:vd-x-out-l var(--vd-d-exit) var(--vd-ease) both}
-html[data-vd-page][data-vd-dir]::view-transition-new(vd-page){animation:vd-x-in-r var(--vd-d-enter) var(--vd-d-exit) var(--vd-ease) both}
-html[data-vd-page][data-vd-dir="left"]::view-transition-old(vd-page-out){animation-name:vd-x-out-r}
-html[data-vd-page][data-vd-dir="left"]::view-transition-new(vd-page){animation-name:vd-x-in-l}
-html[data-vd-page][data-vd-dir="up"]::view-transition-old(vd-page-out){animation-name:vd-x-out-d}
-html[data-vd-page][data-vd-dir="up"]::view-transition-new(vd-page){animation-name:vd-x-in-u}
+/* (the whole page fades and slides without the regions' blur: blurring a snapshot the size of the screen on every
+   frame was the change's largest cost on a phone's GPU) */
+html[data-vd-page][data-vd-dir]::view-transition-old(vd-page-out){animation:vd-x-page-out-l var(--vd-d-exit) var(--vd-ease) both}
+html[data-vd-page][data-vd-dir]::view-transition-new(vd-page){animation:vd-x-page-in-r var(--vd-d-enter) var(--vd-d-exit) var(--vd-ease) both}
+html[data-vd-page][data-vd-dir="left"]::view-transition-old(vd-page-out){animation-name:vd-x-page-out-r}
+html[data-vd-page][data-vd-dir="left"]::view-transition-new(vd-page){animation-name:vd-x-page-in-l}
+html[data-vd-page][data-vd-dir="up"]::view-transition-old(vd-page-out){animation-name:vd-x-page-out-d}
+html[data-vd-page][data-vd-dir="up"]::view-transition-new(vd-page){animation-name:vd-x-page-in-u}
 /* (the arriving page is a group of its own, so the browser stacks it after the bars, which were already there: they
    stay over it, as on the page — the tab bar vanished under the next page's content while it came in) */
 html[data-vd-page]::view-transition-group(vd-top),html[data-vd-page]::view-transition-group(vd-dock){animation:none;z-index:2}
