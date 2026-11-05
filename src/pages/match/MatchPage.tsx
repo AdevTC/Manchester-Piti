@@ -479,9 +479,11 @@ export function MatchPage() {
   const chip = useSyncChip(live || fase === "pitido", now);
   const syncChip = dev && search.red === "off" && (live || fase === "pitido") ? { text: "Sin conexión · marcador de hace 3 min" } : chip;
 
-  const chrome = (inner: React.ReactNode, cls = "") => (
+  // (`busy`: while the match loads the root says so, and the footer waits below the fold — vestuario.css — instead of
+  // showing under the header and being pushed down when the match arrives: CLS)
+  const chrome = (inner: React.ReactNode, cls = "", busy = false) => (
     <KitStillContext.Provider value={stillOf}>
-      <div className={`vx vd-pg pp ${cls}`.trim()} style={{ "--vd-sky-h": "1000px" } as CSSProperties} onPointerDown={onDown} onPointerUp={onUp}>
+      <div className={`vx vd-pg pp ${cls}`.trim()} style={{ "--vd-sky-h": "1000px" } as CSSProperties} aria-busy={busy || undefined} onPointerDown={onDown} onPointerUp={onUp}>
         <VidrioSky light="dorada" gold={skyGold} cold={skyCold} />
         <div className="pp-sky-b" style={{ opacity: dia ? 0 : flood }} aria-hidden="true">
           <VidrioSky light="noche" floodlit gold={skyGold} cold={skyCold} />
@@ -507,6 +509,8 @@ export function MatchPage() {
           Cargando el partido…
         </p>
       </main>,
+      "",
+      true,
     );
   if (!match || !lineup || !tl)
     return chrome(
