@@ -3,7 +3,7 @@
 // side. Desktop: el siete | the lens with the headline under it | «Lo que te toca» and the plays, the six doors in
 // one row under them (inicio.css balances the columns by how many tiles «Lo que te toca» holds); «Síguenos», the
 // club's Instagram and YouTube, closes the page.
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { Kit } from "../../../components/jersey3d/kitStill";
 import type { Act, HeroView } from "./model";
 import type { DoorsView, NightView, PlayRowV, Task, TaskAct, TasksView } from "./bands";
@@ -114,6 +114,66 @@ function TaskOut({ act, className, children, onTask }: { act: TaskAct; className
   );
 }
 
+/**
+ * «Lo que te toca»'s row of tiles, each one updated in place (stable keys): when the set of tiles changes (the viewer
+ * becomes known, a task comes or goes) the row goes back to its start, as a new row would — a snapping row whose
+ * tiles change re-snaps to whichever survives. It used to be keyed by all its tiles, so any change re-made the whole
+ * row (its tiles and their glass).
+ */
+function useRowAtStart(tiles: string) {
+  const row = useRef<HTMLUListElement | null>(null);
+  const was = useRef(tiles);
+  useLayoutEffect(() => {
+    if (was.current === tiles) return;
+    was.current = tiles;
+    if (row.current && row.current.scrollLeft !== 0) row.current.scrollLeft = 0;
+  }, [tiles]);
+  return row;
+}
+
+/** «Lo que te toca»: its head and its row of tiles. */
+export function TasksBand({ tasks, onTask, go }: Pick<PortadaProps, "tasks" | "onTask" | "go">) {
+  const tasksRow = useRowAtStart(tasks.list.map((t) => t.key).join(" "));
+  return (
+    <section className="in-band in-tasks" aria-labelledby="in-tasks-h">
+      <header className="in-band__head">
+        <div>
+          <h2 id="in-tasks-h">{tasks.h}</h2>
+          <p>{tasks.sub}</p>
+        </div>
+        {tasks.door && (
+          <a className="vd-glass vd-press vd-btn vd-btn--sm in-band__go" href="/hoy/lo-tuyo" onClick={go("lo-tuyo")}>
+            Todo lo tuyo
+            {tasks.badge > 0 && (
+              <span className="vd-badge" aria-hidden="true">
+                {tasks.badge}
+              </span>
+            )}
+            <PI name="chev-r" />
+          </a>
+        )}
+      </header>
+      {/* (its tiles change in place; when they are other ones the row goes back to its start: useRowAtStart) */}
+      <ul ref={tasksRow} data-scroll-x="" className="in-tasks__l" style={{ viewTransitionName: "in-tuyo" }}>
+        {tasks.list.map((t) => (
+          <TaskTile key={t.key} t={t} onTask={onTask} />
+        ))}
+        {tasks.note && (
+          <li className="in-task in-task--note">
+            <span className="in-task__ic" aria-hidden="true">
+              <PI name="cal" />
+            </span>
+            <div className="in-task__t">
+              <b>{tasks.note.t}</b>
+              <span>{tasks.note.d}</span>
+            </div>
+          </li>
+        )}
+      </ul>
+    </section>
+  );
+}
+
 export function Portada(p: PortadaProps) {
   const { hero, tasks, night, doors, kit } = p;
   return (
@@ -140,43 +200,7 @@ export function Portada(p: PortadaProps) {
         </div>
       </div>
 
-      <section className="in-band in-tasks" aria-labelledby="in-tasks-h">
-        <header className="in-band__head">
-          <div>
-            <h2 id="in-tasks-h">{tasks.h}</h2>
-            <p>{tasks.sub}</p>
-          </div>
-          {tasks.door && (
-            <a className="vd-glass vd-press vd-btn vd-btn--sm in-band__go" href="/hoy/lo-tuyo" onClick={p.go("lo-tuyo")}>
-              Todo lo tuyo
-              {tasks.badge > 0 && (
-                <span className="vd-badge" aria-hidden="true">
-                  {tasks.badge}
-                </span>
-              )}
-              <PI name="chev-r" />
-            </a>
-          )}
-        </header>
-        {/* (keyed by its tiles: when the viewer becomes known the row is a new one, at its start — a snapping row
-            whose tiles change in place re-snaps to whichever survives) */}
-        <ul key={tasks.list.map((t) => t.key).join(" ")} data-scroll-x="" className="in-tasks__l" style={{ viewTransitionName: "in-tuyo" }}>
-          {tasks.list.map((t) => (
-            <TaskTile key={t.key} t={t} onTask={p.onTask} />
-          ))}
-          {tasks.note && (
-            <li className="in-task in-task--note">
-              <span className="in-task__ic" aria-hidden="true">
-                <PI name="cal" />
-              </span>
-              <div className="in-task__t">
-                <b>{tasks.note.t}</b>
-                <span>{tasks.note.d}</span>
-              </div>
-            </li>
-          )}
-        </ul>
-      </section>
+      <TasksBand tasks={tasks} onTask={p.onTask} go={p.go} />
 
       <div className="in-left">
         {!night.noPitch && (
