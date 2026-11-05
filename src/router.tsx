@@ -17,6 +17,7 @@ import {
 import { matchSearchSchema } from "./lib/matchTabs";
 import { analysisSearchFields, statsScopeSearchFields } from "./lib/analysisSearch";
 import { legacyHref } from "./lib/legacyUrls";
+import { headlineFont } from "./lib/headlineFont";
 import { pageChangeTransition } from "./components/celeste/pageTransition";
 
 // Root-level search schema: `season` is inherited by all child routes so any
@@ -275,6 +276,8 @@ const statsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/estadisticas",
   validateSearch: numerosSearchSchema,
+  // (its headline's face, Anton, before the page paints: lib/headlineFont)
+  loader: ({ preload }) => headlineFont({ preload }),
   component: lazyRouteComponent(() => import("./pages/stats/NumerosPage"), "NumerosPage"),
 });
 const numerosIndexRoute = createRoute({ getParentRoute: () => statsRoute, path: "/" });
@@ -646,8 +649,9 @@ export const createAppRouter = (history?: RouterHistory) =>
     defaultViewTransition: pageChangeTransition(),
     scrollRestoration: true,
     context: { shown: { page: null } },
-    // Per-route boundaries (Phase 4). No route has a loader (the pages are realtime and
-    // handle their own loading), so defaultPendingComponent only shows when a page's
+    // Per-route boundaries (Phase 4). No route loads data (the pages are realtime and handle their
+    // own loading; Estadísticas only waits ≤ 400 ms for its headline's face), so
+    // defaultPendingComponent only shows when a page's
     // code takes longer than defaultPendingMs (1000ms) to arrive, for at least
     // defaultPendingMinMs (500ms). defaultErrorComponent gives every route an error
     // boundary so a render failure never blanks the screen.
