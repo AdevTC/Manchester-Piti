@@ -25,7 +25,8 @@ export function RootLayout() {
   const { member, ready } = useTeam();
   // The chrome's bell (NoticesGate) learns who is looking from here, after the first paint.
   const { member: inside, admin: captain, playerId } = viewerOf(member, profile);
-  useEffect(() => publishViewer({ member: inside, admin: captain, playerId }), [inside, captain, playerId]);
+  // (with whether that is settled: the session and the vestuario checked — the top bar waits for it, HeaderTools)
+  useEffect(() => publishViewer({ member: inside, admin: captain, playerId }, ready), [inside, captain, playerId, ready]);
   // (and his name, for the top bar's avatar «J Jordi»)
   const nickname = inside ? (profile?.nickname ?? "") : "";
   useEffect(() => publishAccount(nickname ? { name: nickname } : null), [nickname]);
