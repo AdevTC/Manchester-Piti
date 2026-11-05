@@ -480,6 +480,10 @@
 .cb .cb-mk__pic{position:relative;margin:0 auto;width:100%;max-width:360px;aspect-ratio:540/600;border-radius:24px;overflow:hidden;
   background:radial-gradient(60% 50% at 50% 30%,#2a5a96 0,#122a5c 55%,#081227 100%)}
 .cb .cb-mk__pic.is-dia{background:radial-gradient(70% 60% at 50% 30%,#ffffff 0,#d8ebfa 55%,#a9cdec 100%)}
+/* (the server can't know the theme: until React owns the page the light is the floodlit one, .is-auto, and the «día»
+   theme shows its own, the light the page then picks for it: Maker.tsx) */
+:root[data-theme="light"] .cb .cb-mk__pic.is-auto{background:radial-gradient(70% 60% at 50% 30%,#ffffff 0,#d8ebfa 55%,#a9cdec 100%)}
+:root[data-theme="light"] .cb .cb-mk__luz.is-auto{--i:1!important}
 .cb .cb-mk__img{position:absolute;inset:0;width:100%;height:100%;display:block}
 .cb .cb-mk__crest{position:absolute;top:12px;left:12px;width:28px;height:28px}
 .cb .cb-mk__form{display:grid;gap:12px;align-content:start}
