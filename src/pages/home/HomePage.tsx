@@ -15,6 +15,7 @@ import { KitStillContext, type Kit } from "../../components/jersey3d/kitStill";
 import { usePageKitStills } from "../../components/jersey3d/usePageKitStills";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { CelesteDock, CelesteFooter, CelesteHeader } from "../../components/celeste/Chrome";
+import { useHoldForData } from "./useHoldForData";
 import { PipWindow, bokehDiscs, openScorePip, useLightPointer, useReducedMotion, type ScorePip } from "../../components/vidrio";
 import { paintDiscs } from "../../components/vidrio/sky";
 import { clubMedals, seasonPulse, playerLines, upcomingBirthdays, type SquadMember } from "../../lib/home";
@@ -748,6 +749,9 @@ export function HomePage() {
         .map(([id, r]) => ({ id, name: niceOf(id), num: numOf(id), min: `${r.min}′` }))
     : [];
 
+  // (arriving from the shell before the data: the content waits, whole, instead of a stand-in that jumps; /camiseta
+  // needs no club data)
+  const holding = useHoldForData(loading && screen !== "camiseta");
   const pageCls = ["vx", "in", `f-${fase}`, `q-${quien}`, `s-${screen}`, dia ? "is-dia" : "", hoja ? "has-sheet" : "", isSub ? "is-sub" : "is-portada"].filter(Boolean).join(" ");
   return (
     <KitStillContext.Provider value={kitStillOf}>
@@ -759,6 +763,8 @@ export function HomePage() {
         <main className="in-stage" id="contenido" tabIndex={-1}>
           {isSub && <SubHead cap={cap} onBack={go("portada")} />}
           <div className="in-screen" id="in-screen">
+            {!holding && (
+            <>
             {sub && <SubTitle kicker={sub.kicker} h={sub.h} p={sub.p} />}
             {screen === "portada" && (
               <Portada
@@ -874,9 +880,11 @@ export function HomePage() {
                 }
               />
             )}
+            </>
+            )}
           </div>
         </main>
-        {!isSub && <CelesteFooter />}
+        {!isSub && !holding && <CelesteFooter />}
         <CelesteDock active="inicio" />
 
         <p className="vd-vh" role="status" aria-live="polite">
