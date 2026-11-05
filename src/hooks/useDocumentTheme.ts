@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-const read = () => (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+/** The theme <html data-theme> is in now (in the browser only). */
+export const documentTheme = (): "dark" | "light" => (document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+const read = documentTheme;
 function subscribe(onChange: () => void) {
   const mo = new MutationObserver(onChange);
   mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
