@@ -437,15 +437,17 @@ export function PlantillaPage() {
   }, [shown.focus, screen]);
 
   const matchday = !!stage;
-  const light = dia ? "noon" : matchday ? (stage === "pre" ? "dorada" : "noche") : "noche";
-  const floodlit = !dia && matchday && stage !== "pre";
+  // (the night's light whatever the theme: the «día» theme paints its own sky over it, sky.css, so the server's page is
+  // the same for both themes and the sky doesn't change when React takes it over; only the bokeh follows the theme)
+  const light = matchday ? (stage === "pre" ? "dorada" : "noche") : "noche";
+  const floodlit = matchday && stage !== "pre";
   const plCls = ["vx", "vd-pg", "pl", matchday ? `m-${stage}` : "", `scr-${screen}`, dia ? "is-dia" : ""].filter(Boolean).join(" ");
   const crumb = screen === "player" && pv ? pv.crumb : screen === "cara" && du ? { l: `Cara a cara · ${du.a.name} contra ${du.b.name}`, s: "Cara a cara" } : screen === "album" ? { l: `${who.me ? "Tu álbum" : "El álbum"} · ${seasonName}`, s: who.me ? "Tu álbum" : "El álbum" } : screen === "noexiste" ? { l: "Jugador no encontrado", s: "No encontrado" } : { l: "Plantilla", s: "Plantilla" };
 
   return (
     <KitStillContext.Provider value={stillOf}>
       <div className={plCls} data-kit={kit} style={{ "--vd-sky-h": "1000px" } as CSSProperties} aria-busy={screen === "cargando"} onPointerMove={screen === "player" && shown.sec === "cromo" ? foil : undefined}>
-        <VidrioSky light={light} floodlit={floodlit} height={1000} />
+        <VidrioSky light={light} day="noon" floodlit={floodlit} height={1000} />
         <CelesteHeader active="plantilla" actions={<ThemeToggle />} live={stage === "live" ? true : undefined} />
 
         <main className="pl-stage" id="pl-main">

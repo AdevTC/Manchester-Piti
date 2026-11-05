@@ -30,7 +30,7 @@ try{s=localStorage.getItem("selected_season_id")}catch(e){}
 var spa=!!location.search||!!(s&&s!=="all");if(spa){r.innerHTML="";d.removeAttribute("data-ssr")}
 var done=0;function go(){if(done)return;done=1;var h=document.head,p=location.pathname,f=${JSON.stringify(preloads.values)},m=${JSON.stringify(routes)},i;
 for(i=0;i<m.length;i++)if(new RegExp(m[i][0]).test(p)){f=f.concat(m[i][1]);break}
-f.forEach(function(u){if(/\\.css$/.test(u))return;var l=document.createElement("link");l.rel="modulepreload";l.crossOrigin="";l.href=u;h.appendChild(l)});
+f.forEach(function(u){if(/\\.(css|woff2)$/.test(u))return;var l=document.createElement("link");l.rel="modulepreload";l.crossOrigin="";l.href=u;h.appendChild(l)});
 var e=document.createElement("script");e.type="module";e.crossOrigin="";e.src=${JSON.stringify(entry.values[0])};h.appendChild(e);
 ${registerSw.values[0] ? `var w=document.createElement("script");w.src=${JSON.stringify(registerSw.values[0])};w.defer=true;h.appendChild(w);` : ""}}
 if(spa)return go();

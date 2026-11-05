@@ -310,7 +310,7 @@ export function ClubPage() {
   const cls = ["vx", "vd-pg", "cb", `q-${quien}`, `s-${scr === "camiseta" ? "equipo" : scr}`, day ? "is-dia" : ""].filter(Boolean).join(" ");
   return (
     <div className={cls} ref={pageRef} style={{ "--vd-sky-h": "1100px" } as CSSProperties} aria-busy={club.loading}>
-      <Sky day={day} />
+      <Sky />
       <Bokeh day={day} />
       <Sprite />
       <CelesteHeader active="club" actions={<ThemeToggle />} />

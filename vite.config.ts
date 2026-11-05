@@ -55,6 +55,10 @@ const ROUTE_CHUNKS: [RegExp, string][] = [
   [/^\/jugadores\//, 'src/pages/squad/SquadPage.tsx'],
   [/^\/(perfil|avisos)(\/|$)/, 'src/pages/perfil/ProfilePage.tsx'],
 ]
+// Faces a page's first screen paints with that CRITICAL_FONTS leaves out, preloaded with the page's own files:
+// Estadísticas' headline is Anton. Fetched only once the headline was laid out, it swapped from Archivo to Anton a
+// moment after the first paint (font-display: swap) on every first visit.
+const ROUTE_FONTS: Record<string, RegExp[]> = { 'src/pages/stats/NumerosPage.tsx': [/^assets\/anton-latin-400-normal-.*\.woff2$/] }
 // Same map, as JSON for the server render's shell (scripts/ssr-shell.mjs): which files each route needs.
 let routeAssets: (readonly [string, string[]])[] = []
 // The entry's own graph (what every page loads first): with routeAssets, what the service worker precaches.
@@ -97,14 +101,15 @@ const preloadRouteChunk = (): Plugin => ({
       const files = (route: (typeof chunks)[number]) => [...graph(route, loaded)].filter((f) => !loaded.has(f)).map((f) => '/' + f)
       const map = ROUTE_CHUNKS.flatMap(([re, src]) => {
         const chunk = chunks.find((c) => c.isDynamicEntry && c.facadeModuleId?.replace(/\\/g, '/').endsWith(src))
-        return chunk ? [[re.source, files(chunk)] as const] : []
+        const fonts = Object.keys(bundle).filter((f) => (ROUTE_FONTS[src] ?? []).some((font) => font.test(f))).map((f) => '/' + f)
+        return chunk ? [[re.source, files(chunk).concat(fonts)] as const] : []
       })
       routeAssets = map
-      // Tiny inline script: match the URL, add <link rel=modulepreload|preload> for its chunk graph.
+      // Tiny inline script: match the URL, add <link rel=modulepreload|preload> for its chunk graph (and its faces).
       const script =
         `(function(){var p=location.pathname,m=${JSON.stringify(map)};` +
         `for(var i=0;i<m.length;i++){if(new RegExp(m[i][0]).test(p)){m[i][1].forEach(function(h){` +
-        `var l=document.createElement('link');if(/\\.css$/.test(h)){l.rel='preload';l.as='style'}else{l.rel='modulepreload'}` +
+        `var l=document.createElement('link');if(/\\.css$/.test(h)){l.rel='preload';l.as='style'}else if(/\\.woff2$/.test(h)){l.rel='preload';l.as='font';l.type='font/woff2'}else{l.rel='modulepreload'}` +
         `l.crossOrigin='';l.href=h;document.head.appendChild(l)});break}}})()`
       return [{ tag: 'script', children: script, injectTo: 'head' as const }]
     },
