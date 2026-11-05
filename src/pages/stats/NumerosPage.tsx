@@ -628,9 +628,11 @@ export function NumerosPage() {
   const railOf = (id: Place) => v.rail.find((r) => r.id === id);
   return (
     <KitStillContext.Provider value={stillOf}>
-      <div ref={pageRef} className={["vx vd-pg palco", dia ? "is-dia" : "", v.withLive ? "is-live" : "", `p-${st.place}`].filter(Boolean).join(" ")} style={{ "--vd-sky-h": "1150px", "--nu-flood": dia ? 0 : v.flood } as CSSProperties} aria-busy={loading}>
-        <VidrioSky light={dia ? "noon" : "dorada"} floodlit={false} height={1150} />
-        <VidrioSky light={dia ? "noon" : "noche"} floodlit={!dia} height={1150} className="nu-sky-b" />
+      <div ref={pageRef} className={["vx vd-pg palco", dia ? "is-dia" : "", v.withLive ? "is-live" : "", `p-${st.place}`].filter(Boolean).join(" ")} style={{ "--vd-sky-h": "1150px", "--nu-flood": v.flood } as CSSProperties} aria-busy={loading}>
+        {/* (the night's skies whatever the theme: the «día» theme paints its own over them, palco.css and sky.css, so the
+            server's page is the same for both themes and the sky doesn't change when React takes it over) */}
+        <VidrioSky light="dorada" day="noon" floodlit={false} height={1150} />
+        <VidrioSky light="noche" day="noon" floodlit height={1150} className="nu-sky-b" />
         <CelesteHeader active="stats" actions={<ThemeToggle />} live={v.se.live ? true : undefined} />
         <main className="nx" id="nx-main">
           <section className="nx-hero">

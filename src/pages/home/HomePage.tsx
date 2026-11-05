@@ -432,15 +432,18 @@ export function HomePage() {
     nextHref: nm ? nm.id : null,
   };
 
-  // ── the page's light: golden (or the late night between matches, the day theme), the floodlit night over it
-  const floodOp = dia || fase === "semana" || fase === "antes" || fase === "aplazado" ? 0 : fase === "pendiente" ? 1 : fase === "pitido" ? (lit !== null && lit <= now ? 1 : 0.05) : (() => {
+  // ── the page's light: golden (or the late night between matches, the day theme), the floodlit night over it. The
+  // skies are the night's whatever the theme (the «día» theme paints its own over them: sky.css, inicio.css), so the
+  // server's page is the same for both themes and the sky doesn't change when React takes it over; the bokeh, drawn
+  // in the browser, follows the theme.
+  const floodOp = fase === "semana" || fase === "antes" || fase === "aplazado" ? 0 : fase === "pendiente" ? 1 : fase === "pitido" ? (lit !== null && lit <= now ? 1 : 0.05) : (() => {
     if (lit === null || ko === null) return 0;
     const on = (lit - ko) / MIN;
     if (m <= on - 4) return 0;
     if (m >= on + 18) return 1;
     return Math.round(((m - (on - 4)) / 22) * 100) / 100;
   })();
-  const skyA = dia ? "day" : fase === "semana" ? "late" : "golden";
+  const skyA = fase === "semana" ? "late" : "golden";
   const light = dia ? "day" : fase === "semana" ? "late" : floodOp >= 0.5 ? "flood" : "golden";
 
   // ── «La tarde» before the whistle
@@ -750,7 +753,7 @@ export function HomePage() {
     <KitStillContext.Provider value={kitStillOf}>
       <div ref={pageRef} className={pageCls} data-phase={day.phase} aria-busy={loading} style={{ "--vd-sky-h": "1000px" } as CSSProperties}>
         <SkyLayer light={skyA} gold={fx === "gold"} cold={fx === "cold"} />
-        <SkyLayer light={dia ? "day" : "flood"} gold={fx === "gold"} cold={fx === "cold"} className="pp-sky-b" style={{ opacity: dia ? 0 : floodOp }} />
+        <SkyLayer light="flood" gold={fx === "gold"} cold={fx === "cold"} className="pp-sky-b" style={{ opacity: floodOp }} />
         <Bokeh light={light} />
         <CelesteHeader active="inicio" sub="Manchester Piti" actions={<ThemeToggle />} />
         <main className="in-stage" id="contenido" tabIndex={-1}>

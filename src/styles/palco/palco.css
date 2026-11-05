@@ -21,6 +21,8 @@
 .palco{min-height:100vh;min-height:100dvh;overflow:clip;isolation:isolate}
 .palco>.vd-sky{position:absolute;inset:0;z-index:0}
 .palco>.nu-sky-b{opacity:var(--nu-flood,0);transition:opacity .9s var(--vd-ease)}
+/* the «día» theme has no floodlit sky (the page always says how lit the night is: the server can't know the theme) */
+:root[data-theme="light"] .palco>.nu-sky-b{opacity:0}
 .palco .vx-top{z-index:9}
 .nx{padding-top:64px}
 @media (max-width:699px){.nx{padding-top:56px}}

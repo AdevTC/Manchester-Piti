@@ -4,6 +4,7 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { bokehDiscs, paintDiscs, skyLightOf, type SkyInput } from "./sky";
 import { isShot, useReducedMotion } from "./env";
+import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/sky.css";
 import "../../styles/vidrio/field.css";
@@ -11,6 +12,11 @@ import "../../styles/vidrio/field.css";
 export interface VidrioSkyProps {
   /** The kick-off's light (sun.ts LightKey) or «noon». */
   light: SkyInput;
+  /** The bokeh's light in the «día» theme, when the page's light changes with the theme. The stylesheet paints the rest
+   *  of the day sky whatever the light (sky.css), so such a page passes its night light as `light` and its day one
+   *  here: the server's markup is then the same for both themes (it can't know which: it painted the day light, and
+   *  the night's visitors saw the sky change when React took the page over). */
+  day?: SkyInput;
   /** Floodlights on (default: at night). */
   floodlit?: boolean;
   /** Cloud cover softens the sun and raises the haze. */
@@ -26,8 +32,11 @@ export interface VidrioSkyProps {
   className?: string;
 }
 
-export function VidrioSky({ light, floodlit, weather, reduced, gold, cold, height, className }: VidrioSkyProps) {
+export function VidrioSky({ light, day, floodlit, weather, reduced, gold, cold, height, className }: VidrioSkyProps) {
   const sky = skyLightOf(light, floodlit);
+  // (the discs are drawn in the browser, after React took the page over: there the theme is known)
+  const theme = useDocumentTheme();
+  const discs = day !== undefined && theme === "light" ? skyLightOf(day) : sky;
   const calm = useReducedMotion();
   const still = reduced ?? calm;
   const canvas = useRef<HTMLCanvasElement | null>(null);
@@ -50,7 +59,7 @@ export function VidrioSky({ light, floodlit, weather, reduced, gold, cold, heigh
       if (!g) return;
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, w, h);
-      paintDiscs(g, bokehDiscs(sky, w, h));
+      paintDiscs(g, bokehDiscs(discs, w, h));
       cv.dataset.on = "";
     };
     if (isShot() || typeof ResizeObserver !== "function") {
@@ -67,7 +76,7 @@ export function VidrioSky({ light, floodlit, weather, reduced, gold, cold, heigh
       else window.clearTimeout(idle);
       ro.disconnect();
     };
-  }, [sky, height]);
+  }, [discs, height]);
 
   // The drift only runs while its layer is on screen and the tab is shown ([data-vd-off] pauses it where it is).
   useEffect(() => {

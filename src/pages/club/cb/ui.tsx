@@ -53,8 +53,11 @@ export function I({ n, className = "cb-i" }: { n: IconName; className?: string |
   );
 }
 
-/** The light field (the board's vd-sky, Noche floodlit or Día) and its bokeh canvas. */
-export function Sky({ day }: { day: boolean }) {
+/** The light field (the board's vd-sky, Noche floodlit or Día) and its bokeh canvas. El club passes no `day`: the
+ *  floodlit night whatever the theme, and the «día» theme paints the day over it (sky.css), so its server-rendered
+ *  page is the same for both themes and the sky doesn't change when React takes it over (the vestuario's rooms, never
+ *  server-rendered, still pass it). */
+export function Sky({ day = false }: { day?: boolean }) {
   return (
     <div className={`vd-sky ${day ? "vd-l-day" : "vd-l-flood"}`} aria-hidden="true">
       <div className="vd-sky__base" />
