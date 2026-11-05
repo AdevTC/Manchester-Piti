@@ -193,7 +193,8 @@ export const pizarraSearchSchema = (raw: Record<string, unknown>): PizarraSearch
 // link, a page noting its tab) is the page's own business. The router hears those too (@tanstack/history
 // listens to popstate and to every pushState/replaceState), so each router remembers the page it showed.
 interface RouterContext {
-  shown: { page: string | null };
+  /** `arriving`: this load is the visitor's arrival (no page shown yet), not a change of page. */
+  shown: { page: string | null; arriving?: boolean };
 }
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
@@ -201,7 +202,10 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   beforeLoad: ({ location, context, preload }) => {
     const page = location.pathname + location.searchStr;
     const samePage = context.shown.page === page;
-    if (!preload) context.shown.page = page;
+    if (!preload) {
+      context.shown.arriving = context.shown.page === null;
+      context.shown.page = page;
+    }
     const href = legacyHref(page + (location.hash && !samePage ? `#${location.hash}` : ""));
     if (href) {
       if (!preload) context.shown.page = null;
@@ -312,6 +316,11 @@ export const plantillaSearchSchema = z.object({
 const plantillaLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "plantilla",
+  // (arriving on it, the hanging shirts' still is sent for while the page's code loads, not once the page is idle:
+  // pages/squad/plantilla/warmPercha; never on a change of page or while preloading the route)
+  loader: ({ preload, context, location }) => {
+    if (!preload && context.shown.arriving) void import("./pages/squad/plantilla/warmPercha").then((m) => m.warmPercha(location.pathname, location.search));
+  },
   component: lazyRouteComponent(() => import("./pages/squad/SquadPage"), "SquadPage"),
 });
 const plantillaRoute = createRoute({

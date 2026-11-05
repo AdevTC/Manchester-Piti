@@ -2,7 +2,7 @@
 // squad, or the blank kit with the name and dorsal you type drawn as the kit prints them (Inicio's drawPrint), the
 // 1ª or the 2ª, with floodlights or by day; «Descargar la imagen» renders the 3D scene's own still with that print.
 // It starts on the viewer's own shirt. The name never travels in the address.
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import type { Kit } from "../../../components/jersey3d/kitStill";
 import { drawPrint } from "../../home/portada/print";
@@ -27,13 +27,22 @@ export interface MakerProps {
 
 const cleanName = (v: string) => v.toLocaleUpperCase("es").replace(/[^A-ZÁÉÍÓÚÜÑÇ .'-]/g, "").slice(0, 14);
 const cleanNum = (v: string) => v.replace(/\D/g, "").slice(0, 2);
+const noop = () => () => undefined;
+/** false on the server and while React takes the page over, true once the browser owns it. */
+const useHydrated = () => useSyncExternalStore(noop, () => true, () => false);
 
 export function Maker({ people, mine, day, back, say }: MakerProps) {
   const [who, setWho] = useState<string>(mine && people.some((p) => p.id === mine) ? mine : "custom");
   const [name, setName] = useState("");
   const [num, setNum] = useState("");
   const [kit, setKit] = useState<Kit>("home");
-  const [luz, setLuz] = useState<"focos" | "dia">(day ? "dia" : "focos");
+  // The light is the theme's until one is picked. The server can't know the theme, and React takes its page over as
+  // the server painted it: there it is the floodlit one and the «día» theme shows its own by CSS (club-vidrio.css,
+  // .is-auto). It was fixed when the page was made, so a first visit in Noche started «De día».
+  const hydrated = useHydrated();
+  const [picked, setLuz] = useState<"focos" | "dia" | null>(null);
+  const luz = picked ?? (hydrated && day ? "dia" : "focos");
+  const auto = !hydrated && picked === null;
   const [busy, setBusy] = useState(false);
   const theme = luz === "dia" ? ("light" as const) : ("dark" as const);
   const person = who === "custom" ? null : (people.find((p) => p.id === who) ?? null);
@@ -103,7 +112,7 @@ export function Maker({ people, mine, day, back, say }: MakerProps) {
         <p className="cb-roomhead__s">La camiseta de verdad: la de un jugador, o la tuya con tu nombre y tu dorsal.</p>
       </header>
       <div className="cb-mk">
-        <figure className={["cb-mk__pic", luz === "dia" ? "is-dia" : "", kit === "away" ? "is-away" : ""].filter(Boolean).join(" ")} style={{ viewTransitionName: "cb-mk-shirt" }}>
+        <figure className={["cb-mk__pic", luz === "dia" ? "is-dia" : "", kit === "away" ? "is-away" : "", auto ? "is-auto" : ""].filter(Boolean).join(" ")} style={{ viewTransitionName: "cb-mk-shirt" }}>
           {person ? src ? <img className="cb-mk__img" src={src} alt={alt} width={540} height={600} /> : <span className="cb-mk__img" role="img" aria-label={alt} /> : <canvas className="cb-mk__img" ref={canvas} width={540} height={600} role="img" aria-label={alt} />}
           <img className="cb-mk__crest" src={CREST} alt="" width={28} height={28} />
         </figure>
@@ -148,7 +157,7 @@ export function Maker({ people, mine, day, back, say }: MakerProps) {
                 2ª, negra
               </button>
             </div>
-            <div className="vd-glass vd-seg" role="group" aria-label="La foto" style={{ "--n": 2, "--i": luz === "dia" ? 1 : 0 } as CSSProperties}>
+            <div className={`vd-glass vd-seg cb-mk__luz${auto ? " is-auto" : ""}`} role="group" aria-label="La foto" style={{ "--n": 2, "--i": luz === "dia" ? 1 : 0 } as CSSProperties}>
               <span className="vd-shelf__bead" aria-hidden="true" />
               <button type="button" className="vd-seg__b" aria-pressed={luz === "focos"} onClick={() => setLuz("focos")}>
                 Con focos

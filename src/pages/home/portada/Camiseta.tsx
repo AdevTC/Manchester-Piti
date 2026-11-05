@@ -2,7 +2,7 @@
 // The kit's blank still (the 3D scene's, the kit and the light chosen) with the print drawn over it as the kit
 // prints it (Barlow Condensed 700 for the name, 600 for the number, the name over the number with its gap); the
 // image to download or share is the scene's own render with that print. The name never travels in the address.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import type { Kit } from "../../../components/jersey3d/kitStill";
 import { PageLink } from "./links";
@@ -11,12 +11,15 @@ import { drawPrint } from "./print";
 
 const cleanName = (v: string) => v.toLocaleUpperCase("es").replace(/[^A-ZÁÉÍÓÚÜÑÇ .'-]/g, "").slice(0, 12);
 const cleanNum = (v: string) => v.replace(/\D/g, "").slice(0, 2);
+const noop = () => () => undefined;
+/** false on the server and while React takes the page over, true once the browser owns it. */
+const useHydrated = () => useSyncExternalStore(noop, () => true, () => false);
 
 export interface CamisetaProps {
   initialName: string;
   initialNum: string;
   initialKit: Kit;
-  /** The page's theme: «De día» starts on in the light one. */
+  /** The page's theme: «De día» is on in the light one until a light is picked. */
   day: boolean;
   /** The player's own printed shirt (the real one, in his carta). */
   mine: { num: string; short: string } | null;
@@ -28,7 +31,13 @@ export function Camiseta({ initialName, initialNum, initialKit, day, mine, fan, 
   const [name, setName] = useState(initialName);
   const [num, setNum] = useState(initialNum);
   const [kit, setKit] = useState<Kit>(initialKit);
-  const [luz, setLuz] = useState<"focos" | "dia">(day ? "dia" : "focos");
+  // The light is the theme's until one is picked. The server can't know the theme, and React takes its page over as
+  // the server painted it: there it is the floodlit one and the «día» theme shows its own by CSS (inicio.css,
+  // .is-auto). It was fixed when the page was made, so a first visit in Noche started «De día».
+  const hydrated = useHydrated();
+  const [picked, setLuz] = useState<"focos" | "dia" | null>(null);
+  const luz = picked ?? (hydrated && day ? "dia" : "focos");
+  const auto = !hydrated && picked === null;
   const [busy, setBusy] = useState(false);
   const theme = luz === "dia" ? ("light" as const) : ("dark" as const);
   const blank = { kit, theme, name: "", num: "", yaw: 0 };
@@ -95,7 +104,7 @@ export function Camiseta({ initialName, initialNum, initialKit, day, mine, fan, 
   return (
     <section className="in-place in-cam" aria-label="Ponte la del Piti">
       <div className="ik-grid">
-        <figure className={`ik-fig ${luz === "dia" ? "is-dia" : "is-focos"} is-${kit}`}>
+        <figure className={`ik-fig ${luz === "dia" ? "is-dia" : "is-focos"} is-${kit}${auto ? " is-auto" : ""}`}>
           <span className="ik-glow" aria-hidden="true" />
           <canvas ref={canvas} className="ik-shirt" width={540} height={600} style={{ viewTransitionName: "in-tee" }} role="img" aria-label={label} />
           <figcaption className="ik-cap">{cap}</figcaption>
@@ -132,7 +141,7 @@ export function Camiseta({ initialName, initialNum, initialKit, day, mine, fan, 
               </span>
               <Seg labelledBy="ik-kit-l" opts={[{ id: "home", t: "Primera", on: kit === "home" }, { id: "away", t: "Segunda", on: kit === "away" }]} onPick={(id) => setKit(id === "away" ? "away" : "home")} />
             </div>
-            <div className="ik-segw">
+            <div className={`ik-segw${auto ? " is-auto" : ""}`}>
               <span className="ik-segl" id="ik-luz-l">
                 La luz
               </span>

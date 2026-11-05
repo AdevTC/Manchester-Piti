@@ -120,6 +120,38 @@ function frameThrottle(fn: () => void) {
 /** The lookup a version hands out: a new function only when the stills changed, so memoized readers can skip. */
 const lookupAt = (_version: number) => (r: StillRequest) => urls.get(stillKey(r));
 
+/** Stills sent for ahead of the page that shows them (warmStills): its hook waits for them instead of rendering them
+ *  again. Each one settles once it is in `urls` (or failed: the hook then makes it itself). */
+const coming = new Map<string, Promise<void>>();
+
+/**
+ * Sends for a page's first stills before the page can ask: from its route, while its code loads and React takes the
+ * page the server painted over (Plantilla's hanging shirts, its largest paint). From the device, or rendered in the
+ * Web Worker at once instead of when the page is idle; useShirtStills shows them as soon as they land. The same
+ * stills as the page's own, only sooner. Nothing on the server, nothing once stills have failed here.
+ */
+export function warmStills(reqs: readonly StillRequest[]): void {
+  if (typeof window === "undefined" || failed) return;
+  for (const r of reqs) {
+    const k = stillKey(r);
+    if (urls.has(k) || coming.has(k)) continue;
+    const job = (async () => {
+      // (the worker's code is sent for while the device is asked)
+      const client = import("./stillsClient");
+      client.catch(() => undefined);
+      const cached = await fromStore(k);
+      if (cached) return keep(k, cached);
+      const blob = await (await client).renderStillFast(parse(k));
+      keep(k, URL.createObjectURL(blob));
+      void toStore(k, blob);
+    })()
+      // (the page's own hook tries again, and says so if it fails too)
+      .catch(() => undefined)
+      .finally(() => coming.delete(k));
+    coming.set(k, job);
+  }
+}
+
 /** Rendering waits until the page is idle, so it never competes with the first paint. */
 const whenIdle = () =>
   new Promise<void>((ok) => ("requestIdleCallback" in window ? requestIdleCallback(() => ok(), { timeout: 1500 }) : setTimeout(ok, 200)));
@@ -142,10 +174,17 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
   }, [keys]);
   useEffect(() => {
     if (failed || !keys) return;
-    const todo = keys.split("\n").filter((k) => !urls.has(k));
-    if (!todo.length) return;
+    const wanted = keys.split("\n").filter((k) => !urls.has(k));
+    if (!wanted.length) return;
     let cancelled = false;
+    // (the ones already on their way, warmStills: shown when they land, not made again)
+    for (const k of wanted)
+      void coming.get(k)?.then(() => {
+        if (!cancelled && urls.has(k)) refresh.run();
+      });
+    const todo = wanted.filter((k) => !coming.has(k));
     (async () => {
+      if (!todo.length) return;
       const cached = await Promise.all(todo.map(fromStore));
       const missing: string[] = [];
       cached.forEach((url, i) => {
@@ -160,7 +199,9 @@ export function useShirtStills(reqs: StillRequest[], { offMainThread = false } =
         : (await import("./scene")).renderStill;
       for (const k of missing) {
         if (cancelled) return;
-        // (another page or shirt got it first: show it here too)
+        // (another page or shirt got it first, or it was sent for ahead meanwhile: show it here too)
+        await coming.get(k);
+        if (cancelled) return;
         if (urls.has(k)) {
           refresh.run();
           continue;

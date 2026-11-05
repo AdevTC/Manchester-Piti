@@ -76,11 +76,21 @@ beforeEach(() => {
 });
 
 describe("NoticesGate", () => {
-  it("nothing until the browser owns the page; then a member's bell, or a fan's", async () => {
+  it("nothing until the browser owns the page and knows who is looking; then a member's bell, or a fan's", async () => {
     render(<NoticesGate />);
     act(() => publishViewer({ member: true, admin: false, playerId: "adri" }));
     expect(await screen.findByRole("button", { name: "Avisos, 2 sin leer" })).toBeInTheDocument();
+    // (a fan once the session is checked: RootLayout says it is settled)
+    act(() => publishViewer({ member: false, admin: false, playerId: null }, true));
+    expect(await screen.findByRole("button", { name: "Avisos" })).toBeInTheDocument();
+  });
+
+  it("a fan whose session is not checked yet: no bell (it comes with «Buscar» once it is)", async () => {
     act(() => publishViewer({ member: false, admin: false, playerId: null }));
+    render(<NoticesGate />);
+    await act(async () => undefined);
+    expect(screen.queryByRole("button", { name: /^Avisos/ })).toBeNull();
+    act(() => publishViewer({ member: false, admin: false, playerId: null }, true));
     expect(await screen.findByRole("button", { name: "Avisos" })).toBeInTheDocument();
   });
 });
