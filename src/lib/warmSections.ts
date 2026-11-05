@@ -6,6 +6,11 @@ import { pageKeyOf } from "../components/celeste/pageTransition";
 
 export const SECTIONS = ["/", "/partidos", "/plantilla", "/estadisticas", "/club"] as const;
 
+/** The faces a section paints with that no other page loads (the browser fetches a face only once text uses it):
+ *  warmed with the section, so its first screen is painted in them instead of swapping a moment after the change of
+ *  page (Estadísticas' headline is Anton; the HTML preloads it only when Estadísticas is the first page: vite.config). */
+export const SECTION_FONTS: Partial<Record<(typeof SECTIONS)[number], string>> = { "/estadisticas": "1em Anton" };
+
 interface Connection {
   saveData?: boolean;
   effectiveType?: string;
@@ -25,6 +30,8 @@ export function warmSections(router: AnyRouter, delay = 2500, win: Window = wind
     if (!to) return;
     if (pageKeyOf(to) === here) return next();
     idle(() => {
+      const font = SECTION_FONTS[to as (typeof SECTIONS)[number]];
+      if (font) win.document.fonts?.load(font).catch(() => undefined);
       router
         .preloadRoute({ to })
         .catch(() => undefined)

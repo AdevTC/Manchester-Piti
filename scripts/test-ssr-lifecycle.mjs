@@ -153,3 +153,24 @@ await test("the server-rendered home's lens score and word outrank the kit's rul
     globalThis.fetch = fetchBefore;
   }
 });
+
+// Estadísticas' headline is Anton, a face no other page's first screen uses: the server-rendered page preloads it with
+// its stylesheets (vite.config.ts ROUTE_FONTS), so the headline is painted in Anton from the start instead of swapping
+// from Archivo a moment later. The other pages don't fetch it.
+await test("the server-rendered Estadísticas preloads its headline's face, and only Estadísticas does", async () => {
+  const fetchBefore = globalThis.fetch;
+  const bytes = bundle({ seasonId: "test", rival, date: Date.now() + 86400000, status: "scheduled", home: true });
+  globalThis.fetch = async () => new Response(bytes);
+  try {
+    const fonts = async (p) => [...(await (await GET(new Request(`https://piti.test/api/render?p=${p}`))).text()).matchAll(/<link rel="preload" as="font" type="font\/woff2" crossorigin href="([^"]+)">/g)].map((m) => m[1]);
+    const stats = await fonts("/estadisticas");
+    assert.equal(stats.length, 1);
+    assert.match(stats[0], /^\/assets\/anton-latin-400-normal-[\w-]+\.woff2$/);
+    readFileSync(new URL(`../dist${stats[0]}`, import.meta.url));
+    assert.deepEqual(await fonts("/estadisticas/jugadores"), stats);
+    assert.deepEqual(await fonts("/"), []);
+    assert.deepEqual(await fonts("/partidos"), []);
+  } finally {
+    globalThis.fetch = fetchBefore;
+  }
+});

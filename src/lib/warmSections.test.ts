@@ -29,6 +29,24 @@ describe("warming the sections", () => {
     expect(preloaded).toEqual(["/", "/plantilla", "/estadisticas", "/club"]);
   });
 
+  it("warms Estadísticas' headline face with it (no swap from Archivo to Anton after the change of page)", async () => {
+    vi.useFakeTimers();
+    const load = vi.fn(async () => []);
+    Object.defineProperty(document, "fonts", { value: { load }, configurable: true });
+    try {
+      warmSections(router("/").r, 100);
+      await flush();
+      expect(load.mock.calls).toEqual([["1em Anton"]]);
+      load.mockClear();
+      // (on Estadísticas itself the face came with the page)
+      warmSections(router("/estadisticas/juego").r, 100);
+      await flush();
+      expect(load).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(document, "fonts");
+    }
+  });
+
   it("does nothing on a connection that asks to save data", async () => {
     vi.useFakeTimers();
     Object.defineProperty(navigator, "connection", { value: { saveData: true }, configurable: true });

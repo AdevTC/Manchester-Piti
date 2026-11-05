@@ -86,8 +86,13 @@ export async function GET(request) {
     // (one instant for the whole page: its clocks read it, and the browser takes the page over at it too)
     const now = Date.now();
     const markup = await renderPage(url, bytes, now);
-    const css = (routes.find(([re]) => new RegExp(re).test(path))?.[1] ?? []).filter((f) => f.endsWith(".css"));
-    const head = css.map((file) => `<link rel="stylesheet" crossorigin href="${file}">`).join("");
+    const own = routes.find(([re]) => new RegExp(re).test(path))?.[1] ?? [];
+    const css = own.filter((f) => f.endsWith(".css"));
+    // (and the faces its first screen paints with that the shell doesn't preload: vite.config.ts ROUTE_FONTS)
+    const fonts = own.filter((f) => f.endsWith(".woff2"));
+    const head =
+      css.map((file) => `<link rel="stylesheet" crossorigin href="${file}">`).join("") +
+      fonts.map((file) => `<link rel="preload" as="font" type="font/woff2" crossorigin href="${file}">`).join("");
     // The data and the instant the page was painted with go in it too: the browser takes the page over from
     // them (src/main.tsx) and primes its cache with the bundle instead of downloading it again (src/lib/bundle.ts).
     const data = `<script type="application/json" id="club-bundle" data-at="${now}">${server.inlineBundle(bytes)}</script>`;
