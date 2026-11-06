@@ -272,10 +272,7 @@ const LONGHANDS: Record<string, string[]> = {
   "-webkit-backdrop-filter": ["backdrop-filter"],
 };
 const longhands = (prop: string) => LONGHANDS[prop] ?? [prop];
-const overlaps = (a: string, b: string) => {
-  const lb = new Set(longhands(b));
-  return longhands(a).some((p) => lb.has(p));
-};
+const overlaps = (a: string, b: string) => a === b || longhands(a).some((p) => longhands(b).includes(p));
 
 // ---------- markup: which classes are written together ----------
 
@@ -324,7 +321,22 @@ function ties(pageRules: Rule[], kitRules: Rule[], sets: Set<string>[]): Hit[] {
     const key = `${last.prefix}|${specificity(r.selector).join(",")}|${kc.rest}`;
     kit.set(key, [...(kit.get(key) ?? []), { r, classes: kc.classes }]);
   }
-  const together = (classes: string[]) => sets.some((s) => classes.every((c) => s.has(c)));
+  // which className attributes carry each class: two classes are written together when their lists meet
+  const where = new Map<string, Set<number>>();
+  sets.forEach((s, i) => {
+    for (const c of s) where.set(c, (where.get(c) ?? new Set()).add(i));
+  });
+  const seen = new Map<string, boolean>();
+  const together = (classes: string[]) => {
+    const key = [...classes].sort().join(" ");
+    let ok = seen.get(key);
+    if (ok === undefined) {
+      const lists = classes.map((c) => where.get(c) ?? new Set<number>()).sort((x, y) => x.size - y.size);
+      ok = [...lists[0]].some((i) => lists.every((l) => l.has(i)));
+      seen.set(key, ok);
+    }
+    return ok;
+  };
   const byKey = new Map<string, Set<string>>();
   for (const p of pageRules) {
     const pLast = lastCompound(p.selector);
@@ -332,6 +344,7 @@ function ties(pageRules: Rule[], kitRules: Rule[], sets: Set<string>[]): Hit[] {
     if (!pc.classes.length) continue;
     for (const k of kit.get(`${pLast.prefix}|${specificity(p.selector).join(",")}|${pc.rest}`) ?? []) {
       if (k.classes.every((c) => pc.classes.includes(c))) continue; // the same selector (or the page's own copy)
+      if (!together([...new Set([...pc.classes, ...k.classes])])) continue;
       const props: string[] = [];
       for (const [pp, pv] of p.decls) {
         for (const [kp, kv] of k.r.decls) {
@@ -341,7 +354,7 @@ function ties(pageRules: Rule[], kitRules: Rule[], sets: Set<string>[]): Hit[] {
           props.push(pp === kp ? pp : `${pp}/${kp}`);
         }
       }
-      if (!props.length || !together([...new Set([...pc.classes, ...k.classes])])) continue;
+      if (!props.length) continue;
       const key = `${p.file.replace(/^src\//, "")} ${p.selector} ⟷ ${k.r.file.replace(/^src\//, "")} ${k.r.selector}`;
       const acc = byKey.get(key) ?? new Set<string>();
       for (const x of props) acc.add(x);
