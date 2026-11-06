@@ -5,7 +5,9 @@ import './styles/fonts.css'
 import './index.css'
 import './styles/theme.css'
 import { Root } from './Root'
+import { notifyManager } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
+import { createPressAwareScheduler } from './lib/notifyScheduler'
 import { primeFromBundle, takeInlineBundle } from './lib/bundle'
 import { MATCHES_KEY, primePublicData } from './lib/publicData'
 import { seedPublicData } from './lib/publicSeed'
@@ -19,6 +21,9 @@ import { navProgress } from './components/celeste/navProgress'
 // The data bundle (inside a server-rendered page, or downloading since the HTML): the page paints from it
 // without Firebase, which loads after the first paint (lib/fb) and gets the same documents in its local cache
 // before its listeners open. (A downloaded one seeds the page unless the listeners got there first.)
+// (live data never re-renders the page between a finger going down and the frame that answers it: lib/notifyScheduler)
+notifyManager.setScheduler(createPressAwareScheduler(window))
+
 const inline = takeInlineBundle()
 primeFromBundle(inline?.text, (bytes) => {
   if (queryClient.getQueryData(MATCHES_KEY) === undefined) seedPublicData(queryClient, bytes, serverNow())
