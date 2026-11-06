@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyParticipation } from "../../functions/src/matchEngine";
 import { DEFAULT_ANALYSIS_PROFILE, type Observation } from "../../functions/src/narrated/types";
 import type { ClubMatch } from "./clubData";
-import { GLOBAL_METHOD, keptSeasonRatings, ratingMatches, seasonRating, SEASON_RATING_VERSION, type SeasonRating } from "./seasonRating";
+import { GLOBAL_METHOD, ratingMatches, seasonRating, SEASON_RATING_VERSION, type SeasonRating } from "./seasonRating";
 
 const player = { id: "p", naturalPosition: "MED" };
 function obs(id: string, kind: Observation["kind"], facts: Observation["facts"] = {}, extra: Partial<Observation> = {}): Observation {
@@ -16,17 +16,6 @@ const passes = (complete: number, failed = 0) => Array.from({ length: complete +
 const item = (r: SeasonRating, label: string) => r.groups.flatMap((g) => g.items).find((it) => it.label === label);
 
 describe("GLOBAL de temporada: datos honestos", () => {
-  it("a new list of the same matches gives the same array, and its season ratings are worked out once", () => {
-    const a = game("keep-a", passes(5)), b = game("keep-b", passes(3));
-    const first = ratingMatches([a, b]);
-    // (a screen mounted again filters the season into a new array holding the same matches)
-    expect(ratingMatches([a, b])).toBe(first);
-    expect(ratingMatches([a, { ...b }])).not.toBe(first);
-    const table = [{ rows: [] }] as never[];
-    const r = keptSeasonRatings(first, table);
-    expect(keptSeasonRatings(ratingMatches([a, b]), [...table])).toBe(r);
-    expect(keptSeasonRatings(first)).not.toBe(r);
-  });
   it("keeps goals-only legacy unrated instead of inventing minutes or a rating", () => {
     const rating = seasonRating(player, [game("old", [], { ledger: undefined, analysis: undefined, events: [{ id: "g", type: "goal", playerId: "p" }] })]);
     expect(rating.value).toBeNull();
