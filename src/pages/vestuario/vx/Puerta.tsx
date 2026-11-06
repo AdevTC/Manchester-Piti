@@ -201,6 +201,23 @@ interface PanelProps {
   byId: ReadonlyMap<string, SquadShirt>;
 }
 
+/** «Túnel en silencio»: nobody knocking. `hold`: unseen and out of reach, only keeping its place while loading. */
+function Silencio({ toInvite, hold = false }: { toInvite: () => void; hold?: boolean }) {
+  return (
+    <div className={hold ? "ve-empty vpu-wait__hold" : "ve-empty"} aria-hidden={hold || undefined} inert={hold || undefined}>
+      <Tile icon="door" />
+      <h2>Túnel en silencio: nadie llamando a la puerta.</h2>
+      <p>Cuando alguien pida entrar con su Google aparecerá aquí, con la camiseta que pide. ¿Esperas a alguien? Mándale un pase y entra sin esperar.</p>
+      <div className="ve-acts">
+        <button type="button" className={`${BTN} nx-btn--pri`} onClick={toInvite}>
+          <Ic name="link" />
+          Crear un pase
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Llamando({ cap, byId, squad, now, toInvite }: PanelProps & { squad: readonly SquadShirt[]; now: number; toInvite: () => void }) {
   // the ficha a captain changed before opening (by the request's uid)
   const [fixed, setFixed] = useState<Record<string, string>>({});
@@ -275,19 +292,14 @@ function Llamando({ cap, byId, squad, now, toInvite }: PanelProps & { squad: rea
       )}
       {!cap.queue.length &&
         (cap.loading ? (
-          <p className="vpu-lead">Mirando quién llama…</p>
-        ) : (
-          <div className="ve-empty">
-            <Tile icon="door" />
-            <h2>Túnel en silencio: nadie llamando a la puerta.</h2>
-            <p>Cuando alguien pida entrar con su Google aparecerá aquí, con la camiseta que pide. ¿Esperas a alguien? Mándale un pase y entra sin esperar.</p>
-            <div className="ve-acts">
-              <button type="button" className={`${BTN} nx-btn--pri`} onClick={toInvite}>
-                <Ic name="link" />
-                Crear un pase
-              </button>
-            </div>
+          // (the card that usually comes, already holding its place but unseen: the line says it is looking, and
+          // nothing below jumps when the answer arrives — CLS 0.127 on a phone before)
+          <div className="vpu-wait">
+            <p className="vpu-lead">Mirando quién llama…</p>
+            <Silencio toInvite={toInvite} hold />
           </div>
+        ) : (
+          <Silencio toInvite={toInvite} />
         ))}
       {p && (
         <p className="vd-glass vpu-undo" role="status">
