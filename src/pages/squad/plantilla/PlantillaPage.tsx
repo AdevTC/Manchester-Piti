@@ -30,7 +30,7 @@ import { useAvailability, useMatchScorers, useMvpResults } from "../../vestuario
 import { votesClosedAt } from "../../../lib/derived/mvpOf";
 import { applyMaqueta, readMaqueta } from "../../home/portada/maqueta";
 import { lastMatch, leaders, nextMatch, periodBase, periodCtx, seasonOfPlayer, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
-import { addrOf, hrefOf, type Addr } from "./address";
+import { addrOf, hrefOf, searchOnArrival, type Addr } from "./address";
 import { SECS, SEC_LABEL, albumView, duelView, homeView, ledeView, matchLines, playerView, railView, type AnCat, type DayInput, type Quien, type Screen, type Sec, type Squad, type ViewState, type Who } from "./views";
 import { Hook, Ic, Shirt } from "./bits";
 import "../../../styles/vidrio/tokens.css";
@@ -121,6 +121,8 @@ export function PlantillaPage() {
   const clockNow = useClock(15_000);
   // ── the address and what the page shows (it trails the address so «atrás» runs the choreography too)
   const addr = useMemo(() => addrOf(pathname, search), [pathname, search]);
+  // (the web's ?season=, written back with each address: «Todo el historial» has its own ?periodo=)
+  const webSeason = typeof search.season === "string" ? search.season : undefined;
   const [shown, setShown] = useState<Addr>(addr);
   const currentId = currentSeasonId(nextFixture(matches, clockNow), matches, seasons);
   const chosenSeasonId = selectedSeasonId !== "all" && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : currentId;
@@ -231,7 +233,14 @@ export function PlantillaPage() {
     }
     lastGo.current = key;
     const dir: Dir = addr.screen === "player" && shown.screen === "player" && addr.focus !== shown.focus ? (S.ids.indexOf(addr.focus ?? "") > S.ids.indexOf(shown.focus ?? "") ? "right" : "left") : addr.screen === shown.screen ? (SECS.indexOf(addr.sec) >= SECS.indexOf(shown.sec) ? "right" : "left") : addr.screen === "home" ? "left" : "right";
-    transition(dir, reduced, () => flushSync(() => setShown(addr)));
+    transition(dir, reduced, () =>
+      flushSync(() => {
+        setShown(addr);
+        // (la percha reached from outside — the dock, a link, «atrás» — searches what its address says: without a
+        // ?q= the box is empty again, not the text left from before)
+        setUi((u) => (searchOnArrival(addr, u.q) === u.q ? u : { ...u, q: searchOnArrival(addr, u.q) }));
+      }),
+    );
     // (only the address drives this)
   }, [addr]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -298,7 +307,7 @@ export function PlantillaPage() {
   const go = useCallback(
     (next: Addr, opts: { dir: Dir; replace?: boolean; el?: HTMLElement | null; home?: string | null; ui?: Partial<Ui> }) => {
       window.clearTimeout(qTimer.current);
-      const href = hrefOf(next);
+      const href = hrefOf(next, webSeason);
       lastGo.current = JSON.stringify(addrOf(href.to, href.search));
       const img = opts.el?.querySelector<HTMLElement>(".pl-shirt__img") ?? null;
       if (img) img.style.viewTransitionName = "pl-flight";
@@ -314,7 +323,7 @@ export function PlantillaPage() {
         await navigate({ to: href.to, search: href.search, replace: !!opts.replace, resetScroll: !opts.replace } as never);
       });
     },
-    [kit, reduced, navigate],
+    [kit, reduced, navigate, webSeason],
   );
   const openPlayer = (id: string, el?: HTMLElement | null, sec?: Sec) => {
     if (screen === "player" && shown.focus === id) return;
@@ -325,7 +334,8 @@ export function PlantillaPage() {
     }
     go(toAddr({ screen: "player", focus: id, sec: sec ?? "ficha", all: false }), { dir: "right", el });
   };
-  const goHome = () => go(toAddr({ screen: "home", focus: null, all: false }), { dir: "left", home: screen === "player" ? shown.focus : null });
+  // (back to la percha with the search still in the box: it goes in the address too)
+  const goHome = () => go(toAddr({ screen: "home", focus: null, all: false, q: ui.q }), { dir: "left", home: screen === "player" ? shown.focus : null });
   const stepPlayer = (d: 1 | -1) => {
     const n = S.ids.length;
     if (!n || !shown.focus) return;
@@ -344,7 +354,7 @@ export function PlantillaPage() {
     setUi((u) => ({ ...u, q }));
     window.clearTimeout(qTimer.current);
     qTimer.current = window.setTimeout(() => {
-      const href = hrefOf({ ...shown, q });
+      const href = hrefOf({ ...shown, q }, webSeason);
       lastGo.current = JSON.stringify(addrOf(href.to, href.search));
       setShown(addrOf(href.to, href.search));
       void navigate({ to: href.to, search: href.search, replace: true, resetScroll: false } as never);

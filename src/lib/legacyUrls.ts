@@ -243,10 +243,15 @@ export function legacyTarget(rawPathname: string, search: Search, rawHash = ""):
   return null;
 }
 
+/** An old href (path, search and hash) → where it lives now, by its parts, or null. */
+export function legacyLocation(href: string): LegacyTarget | null {
+  const url = new URL(href, "http://x");
+  return legacyTarget(url.pathname, defaultParseSearch(url.search), url.hash);
+}
+
 /** An old href (path, search and hash) → its new href, or null. Search as the router writes and reads it. */
 export function legacyHref(href: string): string | null {
-  const url = new URL(href, "http://x");
-  const target = legacyTarget(url.pathname, defaultParseSearch(url.search), url.hash);
+  const target = legacyLocation(href);
   if (!target) return null;
   return target.pathname + defaultStringifySearch(target.search) + (target.hash ? `#${target.hash}` : "");
 }

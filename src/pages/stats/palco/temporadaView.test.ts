@@ -165,3 +165,29 @@ describe("Temporada · ¿Y si…?", () => {
     expect(t.calSub).toBe("La liga solo guarda su tabla al día: tras la J2 llevábamos 4 puntos. Sigue el repaso o vuelve a hoy.");
   });
 });
+
+describe("Temporada · the words with «en casa» / «fuera»", () => {
+  const view = (p: Partial<NuState>, e: Env = env) => numerosView({ ...BASE, ...p }, e, mkAct());
+  it("count that side's partidos, never jornadas", () => {
+    const casa = view({ campo: "casa" });
+    expect(casa.lede).toBe("Temporada 1, después de los 2 partidos en casa. Oficial desde el acta; queda 1 por jugar en casa.");
+    expect(casa.tem.title).toBe("3 puntos en casa tras la J3");
+    expect(casa.tem.raceCap).toBe("En casa, en cabeza tras la J3: Alcides, 3");
+    const fuera = view({ campo: "fuera" });
+    expect(fuera.lede).toBe("Temporada 1, después del único partido fuera. Oficial desde el acta; queda 1 por jugar fuera.");
+    expect(fuera.tem.title).toBe("1 punto fuera tras la J3");
+    expect(fuera.tem.raceCap).toBe("Nadie ha marcado aún fuera de casa: el primero estrena la carrera.");
+  });
+  it("a side not played yet is not «ninguna jornada» (the J1 was played, at home)", () => {
+    // (only the J1 played, at home: the J2 and the J3 still to come)
+    const S1: NSeasonData = { ...S, matches: S.matches.map((x) => (x.j > 1 ? { ...x, st: "por", gf: null, ga: null, goals: [], opp: [] } : x)) };
+    const one: Env = { ...env, S: S1, moment: { edge: 1, live: false, closed: false } };
+    const fuera = view({ campo: "fuera" }, one);
+    expect(fuera.lede).toBe("Temporada 1. Aún no hemos jugado fuera: todos a cero; quedan 2 por jugar fuera.");
+    const noTable: Env = { ...one, S: { ...S1, standings: [] } };
+    expect(view({ campo: "fuera" }, noTable).tem.title).toBe("0 puntos: aún no hemos jugado fuera");
+    expect(view({ campo: "casa" }, noTable).tem.title).toBe("3 puntos en un partido en casa");
+    // (without the filter, the words are the season's as before)
+    expect(view({}, noTable).tem.title).toBe("3 puntos tras la primera jornada");
+  });
+});

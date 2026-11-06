@@ -132,6 +132,11 @@ describe("home season data", () => {
     const b = upcomingBirthdays(squad, NOW);
     expect(b.map((x) => [x.name, x.label, x.days])).toEqual([["ERIK", "12 oct", 2], ["ADRIÁN T.C.", "18 abr", 190]]);
   });
+  it("birthdays count from the club's day: at 00:30 in Madrid the UTC date is still yesterday", () => {
+    // 8 Nov 2026, 00:30 Madrid (23:30 UTC on the 7th)
+    const [b] = upcomingBirthdays([{ ...squad[0], birthDate: "1990-11-08" }], Date.UTC(2026, 10, 7, 23, 30), 1);
+    expect(b.days).toBe(0);
+  });
   it("countdown parts and the match as a calendar event", () => {
     expect(countdownParts(NOW + DAY + 3_600_000 * 2 + 60_000 * 5, NOW)).toEqual({ d: 1, h: 2, m: 5 });
     const ev = matchEvent({ id: "m9", date: Date.UTC(2026, 9, 18, 9), rival: "Rival X", venue: "Campo", duration: 50 }, "https://x.test");

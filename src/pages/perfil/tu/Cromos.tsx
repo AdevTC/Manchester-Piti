@@ -12,6 +12,7 @@ import type { ScreenProps } from "./screens/legacy";
 import { cromoStart, cromosOfData, cromosSheetBlob, cromoWords } from "./cromosModel";
 import { VSheet } from "./places/vitrina/Sheet";
 import { VIc } from "./places/vitrina/icons";
+import { usePreDrawn } from "./usePreDrawn";
 
 const themeNow = (): RecapTheme => (typeof document !== "undefined" && document.documentElement.dataset.theme === "light" ? "light" : "dark");
 
@@ -23,6 +24,10 @@ export function Cromos(p: ScreenProps & { onClose: () => void }) {
   const prevBtn = useRef<HTMLButtonElement>(null);
   const nextBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => cromoStart.clear(), []);
+  // the cromo on show, drawn before the tap (on an iPhone «Compartir este» has to open the share sheet with no wait)
+  const shown = cromos ? cromos.cards[Math.max(0, Math.min(i, cromos.cards.length - 1))] : null;
+  const shirtOf = cromos ? recapShirt(cromos.recap) : null;
+  const ready = usePreDrawn(shown ? JSON.stringify({ shown, theme: themeNow(), shirtOf }) : null, () => (shown && shirtOf ? recapCardBlob(shown, { theme: themeNow(), shirt: shirtOf }) : Promise.resolve(null)));
   if (!cromos)
     return (
       <VSheet id="tv-cr-h" kick="Tu temporada en cromos" title="Aún sin cromos" onClose={onClose} className="tv-cromos">
@@ -55,7 +60,7 @@ export function Cromos(p: ScreenProps & { onClose: () => void }) {
   const shareOne = async () => {
     if (busy) return;
     setBusy(true);
-    const blob = await recapCardBlob(cur, ctx()).catch(() => null);
+    const blob = ready ?? (await recapCardBlob(cur, ctx()).catch(() => null));
     const f = blob ? new File([blob], recapFileName(season, k, cur), { type: "image/png" }) : null;
     const out = await shareOut({ nav: navigator as ShareNav, file: f, link: `${p.origin}/jugadores/${pid}`, title: `${w.k} · Manchester Piti`, text: `${w.k}: ${w.t}.`, copy: copyText });
     setBusy(false);

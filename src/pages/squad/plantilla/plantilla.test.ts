@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { PlayerDoc } from "../../../lib/schemas";
-import { addrOf, hrefOf } from "./address";
+import { addrOf, hrefOf, searchOnArrival } from "./address";
 import { adn, age, birthday, heightText, medals, missing, periodCtx, seasonOfPlayer, sign, stats, toPlayer } from "./model";
 import { duelView, homeView, ledeView, matchLines, railView, type DayInput, type Squad, type ViewState, type Who } from "./views";
 
@@ -18,13 +18,32 @@ describe("the addresses", () => {
       ["/plantilla", { kit: "2", q: "jo" }],
       ["/plantilla/album", { ver: "tengo" }],
       ["/plantilla/cara-a-cara", { a: "x", b: "y" }],
-      ["/jugadores/abc/cromo", { season: "all" }],
+      ["/jugadores/abc/cromo", { periodo: "todo" }],
       ["/jugadores/abc", {}],
     ] as const) {
       const h = hrefOf(addrOf(path, search));
       expect(h.to).toBe(path);
       expect(h.search).toEqual(search);
     }
+  });
+  it("«Todo el historial» is the player's own ?periodo=todo: the web's ?season= stays the one chosen", () => {
+    const all = addrOf("/jugadores/abc/temporada", { periodo: "todo", season: "t2" });
+    expect(all).toMatchObject({ screen: "player", all: true });
+    expect(hrefOf(all, "t2")).toEqual({ to: "/jugadores/abc/temporada", search: { season: "t2", periodo: "todo" } });
+    expect(hrefOf({ ...all, all: false }, "t2")).toEqual({ to: "/jugadores/abc/temporada", search: { season: "t2" } });
+    // an old link's ?season=all (or «Todo el historial» chosen for the whole web) still reads as every season…
+    expect(addrOf("/jugadores/abc", { season: "all" }).all).toBe(true);
+    // …and «esta temporada» under it says so, or the ?season=all kept in the address would read as every season again
+    const esta = hrefOf({ ...addrOf("/jugadores/abc", { season: "all" }), all: false }, "all");
+    expect(esta.search).toEqual({ season: "all", periodo: "temporada" });
+    expect(addrOf(esta.to, esta.search).all).toBe(false);
+  });
+  it("la percha reached from outside without ?q= empties the search box; with ?q=, takes it", () => {
+    expect(searchOnArrival(addrOf("/plantilla", {}), "jo")).toBe("");
+    expect(searchOnArrival(addrOf("/plantilla", { q: "pe" }), "jo")).toBe("pe");
+    // (a player's or the album's address has no search: the box is la percha's, left as it was)
+    expect(searchOnArrival(addrOf("/jugadores/abc", {}), "jo")).toBe("jo");
+    expect(searchOnArrival(addrOf("/plantilla/album", {}), "jo")).toBe("jo");
   });
 });
 

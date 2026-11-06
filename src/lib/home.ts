@@ -8,6 +8,7 @@ import type { CalendarEvent } from "./calendarLinks";
 import { OURS, scoreOf } from "./partidos";
 import { resultLetter, type ResultLetter } from "./derived/result";
 import { jornadas } from "./derived/jornada";
+import { madridDayNumber } from "./derived/madrid";
 import { rankedLeaders } from "./clubAnalytics";
 import { withGuestNames } from "./derived/guests";
 import { scoreText } from "./derived/words";
@@ -197,8 +198,9 @@ export function clubMedals(p: Pulse, lines: PlayerLine[], nameOf: (id: string) =
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 /** Next birthdays of the squad (day and month only), soonest first. */
 export function upcomingBirthdays(squad: SquadMember[], now: number, n = 3) {
-  const today = new Date(now);
-  const base = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  // (the club's day: from midnight to 01:00/02:00 in Madrid the UTC date is still yesterday)
+  const today = new Date(madridDayNumber(now) * DAY);
+  const base = today.getTime();
   return squad
     .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.birthDate ?? ""))
     .map((p) => {
