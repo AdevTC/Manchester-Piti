@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import type { Plugin } from 'vite'
 import { readFileSync } from 'node:fs'
+import { ROUTE_ASSETS_ID, ROUTE_PRELOAD_JS } from './scripts/inlineScripts.mjs'
 
 // The Functions emulator the data bundle comes from: the same port the app is told (src/firebase.ts), so a dev
 // server on spare emulator ports never mixes another emulator's club with its own Firestore.
@@ -106,12 +107,11 @@ const preloadRouteChunk = (): Plugin => ({
       })
       routeAssets = map
       // Tiny inline script: match the URL, add <link rel=modulepreload|preload> for its chunk graph (and its faces).
-      const script =
-        `(function(){var p=location.pathname,m=${JSON.stringify(map)};` +
-        `for(var i=0;i<m.length;i++){if(new RegExp(m[i][0]).test(p)){m[i][1].forEach(function(h){` +
-        `var l=document.createElement('link');if(/\\.css$/.test(h)){l.rel='preload';l.as='style'}else if(/\\.woff2$/.test(h)){l.rel='preload';l.as='font';l.type='font/woff2'}else{l.rel='modulepreload'}` +
-        `l.crossOrigin='';l.href=h;document.head.appendChild(l)});break}}})()`
-      return [{ tag: 'script', children: script, injectTo: 'head' as const }]
+      // Its text is fixed (the CSP lists its hash): the map goes beside it as JSON (scripts/inlineScripts.mjs).
+      return [
+        { tag: 'script', attrs: { type: 'application/json', id: ROUTE_ASSETS_ID }, children: JSON.stringify(map).replace(/</g, '\\u003c'), injectTo: 'head' as const },
+        { tag: 'script', children: ROUTE_PRELOAD_JS, injectTo: 'head' as const },
+      ]
     },
   },
 })
