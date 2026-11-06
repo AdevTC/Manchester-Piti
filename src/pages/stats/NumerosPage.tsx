@@ -132,7 +132,8 @@ function transition(dir: "down" | "up" | null, reduced: boolean, update: () => v
 }
 
 export function NumerosPage() {
-  const club = useClubData();
+  // (with the narrated analysis: the game's numbers and charts — lib/matchAnalyses)
+  const club = useClubData({ analysis: "wait" });
   const realSeasons = useSeason().seasons;
   const { user } = useAuth();
   const navigate = useNavigate();

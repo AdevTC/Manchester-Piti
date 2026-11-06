@@ -39,9 +39,9 @@ export function noteServerDate(r: Response) {
 export const BUNDLE_WAIT_MS = 4000;
 
 /** The bundle the server put in the page and the instant it painted the page at, taken out of the page (its
- *  text is the page's largest node). */
-export function takeInlineBundle(doc: Document = document): { text: string; at: number | null } | null {
-  const el = doc.getElementById("club-bundle");
+ *  text is the page's largest node). `id`: «club-analisis» for the matches' analyses (lib/matchAnalyses). */
+export function takeInlineBundle(doc: Document = document, id = "club-bundle"): { text: string; at: number | null } | null {
+  const el = doc.getElementById(id);
   if (!el) return null;
   const text = el.textContent;
   const at = Number(el.getAttribute("data-at"));

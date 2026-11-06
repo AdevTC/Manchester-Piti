@@ -239,8 +239,9 @@ export default defineConfig(({ isSsrBuild }) => ({
             options: { cacheName: 'piti-assets', expiration: { maxEntries: 400, maxAgeSeconds: 30 * 24 * 3600 } },
           },
           {
-            // Public data bundle: the last copy at once on repeat visits, a fresh one fetched behind it.
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname === '/datos/club.bundle',
+            // Public data bundles (the club's, and the matches' analyses for the pages that show them): the last
+            // copy at once on repeat visits, a fresh one fetched behind it.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && (url.pathname === '/datos/club.bundle' || url.pathname === '/datos/analisis.bundle'),
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'piti-data', expiration: { maxEntries: 2 } },
           },
@@ -275,14 +276,23 @@ export default defineConfig(({ isSsrBuild }) => ({
     strictPort: true,
     // Against the emulators, serve the data bundle like the Vercel rewrite does in production.
     proxy: process.env.VITE_USE_FIREBASE_EMULATOR === '1'
-      ? { '/datos/club.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
+      ? {
+          '/datos/club.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' },
+          '/datos/analisis.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubAnalysisBundle' },
+        }
       : undefined,
   },
   preview: {
     proxy: process.env.VITE_USE_FIREBASE_EMULATOR === '1'
-      ? { '/datos/club.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' } }
+      ? {
+          '/datos/club.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubBundle' },
+          '/datos/analisis.bundle': { target: EMULATOR_FUNCTIONS, rewrite: () => '/demo-manchester-piti/europe-southwest1/clubAnalysisBundle' },
+        }
       : process.env.SSR_PREVIEW === '1'
-        ? { '/datos/club.bundle': { target: 'https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net', changeOrigin: true, rewrite: () => '/clubBundle' } }
+        ? {
+            '/datos/club.bundle': { target: 'https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net', changeOrigin: true, rewrite: () => '/clubBundle' },
+            '/datos/analisis.bundle': { target: 'https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net', changeOrigin: true, rewrite: () => '/clubAnalysisBundle' },
+          }
         : undefined,
   },
   build: {

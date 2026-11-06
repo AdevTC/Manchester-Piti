@@ -50,7 +50,8 @@ export function useMvpWinners(games: readonly ClubMatch[], results: ReadonlyMap<
 export function useBoardData(seasonId: string): BoardData {
   const { players, loading: playersLoading } = usePizarraPlayers();
   const { suspended, loading: statsLoading } = usePizarraStats(seasonId, players);
-  const { matches, loading: matchesLoading } = useClubData();
+  // (with the narrated analysis: the players' ratings read it — lib/matchAnalyses)
+  const { matches, loading: matchesLoading } = useClubData({ analysis: "wait" });
   const mvpResults = useMvpResults();
   const standings = useAllStandings();
   const now = useClock(60_000);

@@ -12,6 +12,7 @@ import type { MatchMesa } from "../../functions/src/mesaLogic";
 import type { KickoffWeather } from "../../functions/src/weatherLogic";
 import type { StoredNotas } from "../../functions/src/rating/frozen";
 import { dateFormat } from "./intlCache";
+import { useMatchAnalyses, withAnalyses } from "./matchAnalyses";
 export {
   EVENT_LABELS,
   dateMillis,
@@ -104,16 +105,25 @@ export interface ClubContentDraftDoc {
 export type { MatchMesa } from "../../functions/src/mesaLogic";
 export type { KickoffWeather } from "../../functions/src/weatherLogic";
 export type { StoredNotas } from "../../functions/src/rating/frozen";
-export function useClubData() {
+const NO_MATCHES: ClubMatch[] = [];
+/**
+ * The club's matches and players. `analysis`: the matches with their narrated analysis (`match.analysis`: the game's
+ * charts, the acta, the notas' detail), which lives apart (lib/matchAnalyses) and only these pages load — "wait": the
+ * page counts as loading until they are in (it paints with them, as it always did); "soft": it paints at once and they
+ * come in when they arrive (a server-rendered page whose first screen does not show them: its markup stays the server's).
+ */
+export function useClubData(options?: { analysis?: "wait" | "soft" }) {
   const matches = useFirestoreCollection(MATCHES_KEY, matchQuery, mapMatch);
   const players = useFirestoreCollection(PLAYERS_KEY, playerQuery, mapPlayer);
+  const analyses = useMatchAnalyses(!!options?.analysis);
   // Every page reads matches and players through the season: until the seasons arrive too, the page
   // would paint itself empty for a moment and then jump (the data bundle makes the other two instant).
   const seasonsLoading = useSeasonsLoading();
+  const list = (matches.data ?? NO_MATCHES) as ClubMatch[];
   return {
-    matches: (matches.data ?? []) as ClubMatch[],
+    matches: options?.analysis ? withAnalyses(list, analyses.data) : list,
     players: players.data ?? [],
-    loading: matches.isPending || players.isPending || seasonsLoading,
+    loading: matches.isPending || players.isPending || seasonsLoading || (options?.analysis === "wait" && analyses.isPending),
     error: matches.error || players.error,
   };
 }
