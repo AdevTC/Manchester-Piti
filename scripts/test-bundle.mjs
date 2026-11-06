@@ -19,7 +19,8 @@ await test("passes the function's bundle on, compressed and tagged for the CDN",
     assert.equal(res.headers.get("content-type"), "application/octet-stream");
     assert.equal(res.headers.get("content-encoding"), "gzip");
     assert.equal(res.headers.get("vercel-cache-tag"), "club-bundle");
-    assert.match(res.headers.get("vercel-cdn-cache-control") ?? "", /^max-age=60\b/);
+    // (fresh a minute, then served once more up to a day while a new one is built: every write deletes it)
+    assert.equal(res.headers.get("vercel-cdn-cache-control"), "max-age=60, stale-while-revalidate=86400, stale-if-error=86400");
     assert.deepEqual(gunzipSync(Buffer.from(await res.arrayBuffer())), body);
   } finally {
     globalThis.fetch = fetchBefore;

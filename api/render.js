@@ -2,7 +2,7 @@
 // addresses whose parameters move too (/stats?view=…, /partidos?view=…, /matches/<id>?tab=…: the router's
 // own table, src/lib/legacyUrls, built into dist-ssr). Renders the page with the public
 // data bundle and the same React code as the browser (dist-ssr, built by `pnpm build`), so the first
-// paint has the real content without waiting for the JavaScript. The rendered pages stay a minute in Vercel's
+// paint has the real content without waiting for the JavaScript. The rendered pages stay in Vercel's
 // CDN cache, and every write to the public data deletes them from it (functions/src/htmlCache.ts), so archived
 // or deleted matches cannot reappear in a cached page.
 // Any failure answers with the plain app shell: the page then boots exactly as without this.
@@ -18,6 +18,8 @@ export const PAGES = [
   /^\/hoy\/(campo|jugadas)$/,
   /^\/camiseta$/,
   /^\/partidos(\/(tabla|balance))?$/,
+  // (a match: El partido only, its other screens and la mesa keep the shell; the id is Firestore's)
+  /^\/partidos\/[A-Za-z0-9_-]+$/,
   /^\/estadisticas(\/(y-si|jugadores(\/(campo(\/puestos)?|evolucion))?|campo(\/(puestos|sistemas))?|juego(\/(tabla|catalogo))?|rivales|records(\/(marcas|cromos|evolucion))?))?$/,
   /^\/plantilla(\/(album|cara-a-cara))?$/,
   /^\/jugadores\/[A-Za-z0-9_-]+(\/(temporada|jornadas|juego|analisis|cromo))?$/,
@@ -49,15 +51,20 @@ async function bundle(origin) {
   return new Uint8Array(await response.arrayBuffer());
 }
 
-/** A server-rendered page: cached on Vercel's CDN for a minute (tag «club-html», deleted when the public data
- *  changes: functions/src/htmlCache.ts), then served for a few minutes more while a fresh one renders behind it.
- *  The browser always asks again (the service worker serves returning visitors the shell anyway). */
+/** How a server-rendered page is kept on Vercel's CDN (tag «club-html»): fresh for a minute, then still served for up
+ *  to a day, once, while a fresh one renders behind it. Its data is never old (every write to the public data deletes
+ *  it: functions/src/htmlCache.ts), only the instant it was painted at: past `data-until` (ssr/paintedUntil) the
+ *  browser drops the old markup and paints from the data inside (scripts/ssr-shell.mjs). Without that day the visit
+ *  after a quiet hour waited for a render that also rebuilt the bundle (7.7 s measured). */
+export const PAGE_CDN_CACHE = "max-age=60, stale-while-revalidate=86400, stale-if-error=86400";
+/** A server-rendered page. The browser always asks again (the service worker serves returning visitors the shell
+ *  anyway). */
 const page = (body) =>
   new Response(body, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=0, must-revalidate",
-      "vercel-cdn-cache-control": "max-age=60, stale-while-revalidate=300, stale-if-error=86400",
+      "vercel-cdn-cache-control": PAGE_CDN_CACHE,
       "vercel-cache-tag": "club-html",
     },
   });
@@ -82,10 +89,9 @@ export async function GET(request) {
     if (to) return moved(to);
     if (!isPage(path)) throw new Error(`not a server-rendered page: ${path}`);
     const [{ template, routes }, bytes] = await Promise.all([import("../dist-ssr/shell.js"), bundle(new URL(request.url).origin)]);
-    const { renderPage } = server;
     // (one instant for the whole page: its clocks read it, and the browser takes the page over at it too)
     const now = Date.now();
-    const markup = await renderPage(url, bytes, now);
+    const { markup, until } = await server.renderPainted(url, bytes, now);
     const own = routes.find(([re]) => new RegExp(re).test(path))?.[1] ?? [];
     const css = own.filter((f) => f.endsWith(".css"));
     // (and the faces its first screen paints with that the shell doesn't preload: vite.config.ts ROUTE_FONTS)
@@ -95,7 +101,8 @@ export async function GET(request) {
       fonts.map((file) => `<link rel="preload" as="font" type="font/woff2" crossorigin href="${file}">`).join("");
     // The data and the instant the page was painted with go in it too: the browser takes the page over from
     // them (src/main.tsx) and primes its cache with the bundle instead of downloading it again (src/lib/bundle.ts).
-    const data = `<script type="application/json" id="club-bundle" data-at="${now}">${server.inlineBundle(bytes)}</script>`;
+    // (and until when its markup can be shown as it is: a copy the CDN kept longer boots from the data instead)
+    const data = `<script type="application/json" id="club-bundle" data-at="${now}" data-until="${until}">${server.inlineBundle(bytes)}</script>`;
     // Function replacers: `$` in the markup must not be read as a replacement pattern.
     const body = template
       .replace("<!--ssr-head-->", () => head)

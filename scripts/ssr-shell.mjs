@@ -4,7 +4,8 @@
 // - the page's own stylesheets go in the head (<!--ssr-head-->), so the markup arrives styled;
 // - the JavaScript starts after the first paint (the markup needs none to be seen), so the page's CSS
 //   and fonts get the connection first; with a URL or saved season the server can't know about, the
-//   markup is dropped and the app boots exactly as from the shell;
+//   markup is dropped and the app boots exactly as from the shell; the same for a copy the CDN kept past its
+//   `data-until` (src/ssr/paintedUntil.ts: its clock's texts would be another day's or another moment's of a match);
 // - the data bundle comes inside the page (api/render.js), so the shell's preload of it is left out.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { cspHash, inlineScripts, jsonScript, ROUTE_ASSETS_ID, ROUTE_PRELOAD_JS, routerScrollScript, SSR_BOOT_ID, SSR_BOOT_JS } from "./inlineScripts.mjs";

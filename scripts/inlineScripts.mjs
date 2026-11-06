@@ -19,12 +19,13 @@ export const ROUTE_PRELOAD_JS =
 export const SSR_BOOT_ID = "ssr-boot";
 /**
  * The server-rendered page's boot (scripts/ssr-shell.mjs): with a URL or saved season the server can't know about,
- * the markup is dropped and the app boots as from the shell; otherwise the JavaScript starts after the first paint.
+ * the markup is dropped and the app boots as from the shell — the same for a copy the CDN kept past its `data-until`
+ * (src/ssr/paintedUntil.ts); otherwise the JavaScript starts after the first paint.
  */
 export const SSR_BOOT_JS =
   `(function(){var d=document.documentElement,r=document.getElementById("root"),s;` +
   `try{s=localStorage.getItem("selected_season_id")}catch(e){}` +
-  `var spa=!!location.search||!!(s&&s!=="all");if(spa){r.innerHTML="";d.removeAttribute("data-ssr")}` +
+  `var spa=!!location.search||!!(s&&s!=="all"),c=document.getElementById("club-bundle"),u=c&&+c.getAttribute("data-until");if(u&&Date.now()>u)spa=true;if(spa){r.innerHTML="";d.removeAttribute("data-ssr")}` +
   `var done=0;function go(){if(done)return;done=1;var b=JSON.parse(document.getElementById("${SSR_BOOT_ID}").textContent),h=document.head,p=location.pathname,f=b.f,m=b.m,i;` +
   `for(i=0;i<m.length;i++)if(new RegExp(m[i][0]).test(p)){f=f.concat(m[i][1]);break}` +
   `f.forEach(function(u){if(/\\.(css|woff2)$/.test(u))return;var l=document.createElement("link");l.rel="modulepreload";l.crossOrigin="";l.href=u;h.appendChild(l)});` +
