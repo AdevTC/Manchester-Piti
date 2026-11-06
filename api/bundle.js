@@ -15,7 +15,24 @@ export const bundleHeaders = {
   "vercel-cache-tag": "club-bundle",
 };
 
-export async function GET() {
+/** The bundle's one address. Nothing of the site asks it with a query (index.html's preload, lib/bundle.ts, the service
+ *  worker and api/render.js all ask exactly this), and the CDN keeps a copy per full URL: «?x=<anything>» would miss
+ *  it and rebuild the bundle from Firestore (every match, player, season… read again) on each request. Such a request
+ *  is sent here instead, with a redirect the CDN keeps a day. */
+export const BUNDLE_PATH = "/datos/club.bundle";
+
+/** The canonical-address redirect for a request that carries a query, or null. */
+export function withoutQuery(requestUrl) {
+  if (!new URL(requestUrl).search) return null;
+  return new Response(null, {
+    status: 308,
+    headers: { location: BUNDLE_PATH, "cache-control": "public, max-age=86400", "vercel-cdn-cache-control": "max-age=86400" },
+  });
+}
+
+export async function GET(request) {
+  const moved = withoutQuery(request.url);
+  if (moved) return moved;
   try {
     // (uncompressed from the function, compressed once here: the CDN keeps the compressed copy)
     const res = await fetch(BUNDLE_FUNCTION, { cache: "no-store", headers: { "accept-encoding": "identity" } });
