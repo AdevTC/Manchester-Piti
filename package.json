@@ -47,7 +47,7 @@
   "devDependencies": {
     "@babel/core": "^8.1.0",
     "@firebase/rules-unit-testing": "^6.0.0",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.65.0",
     "@rolldown/plugin-babel": "^0.3.0",
     "@tanstack/react-query-devtools": "^5.106.1",
     "@testing-library/dom": "^10.4.2",
