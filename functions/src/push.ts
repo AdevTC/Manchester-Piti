@@ -18,6 +18,7 @@ import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNot
 import { LATE_TOPICS, legacyTodoGets, presetOf, presetTopics, PUSH_PRESETS, TOPICS_VERSION } from "./pushPresets.js";
 import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
 import { isPaused } from "./pushPauseLogic.js";
+import { isPushServiceEndpoint } from "./pushEndpoint.js";
 import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
 import { NOTICE_TTL_MS, noticeRecord, noticeRecordAs, type NoticeAudience } from "./noticesLogic.js";
@@ -32,8 +33,10 @@ export const vapidPrivate = defineSecret("VAPID_PRIVATE_KEY");
 export const VAPID_PUBLIC = "BAZRaiFp6DqaRb1e2ONwNyUivVNI6AqQCrb-ovbyBJ7c_BYYHRt9SrPbE96MjDZfasbQrRqDREKCG6z7Ug3uDYc";
 const SITE = "https://manchester-piti.vercel.app";
 
+// Only the browsers' push services (pushEndpoint.ts); the emulators' fake devices (*.test) only under the emulator.
+const pushEndpointSchema = z.url().refine((u) => isPushServiceEndpoint(u, process.env.FUNCTIONS_EMULATOR === "true"), "Suscripción no válida.");
 const subscription = z.object({
-  endpoint: z.url().refine((u) => u.startsWith("https://"), "Suscripción no válida."),
+  endpoint: pushEndpointSchema,
   keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
 });
 const subId = (endpoint: string) => createHash("sha256").update(endpoint).digest("hex").slice(0, 40);
@@ -163,7 +166,7 @@ export async function forgetMemberDevices(uid: string): Promise<void> {
 export const pushSetMatchTopics = onCall(async (req) => {
   const input = parse(
     z.object({
-      endpoint: z.url().refine((u) => u.startsWith("https://"), "Suscripción no válida."),
+      endpoint: pushEndpointSchema,
       keys: subscription.shape.keys.optional(),
       matchId: idSchema,
       topics: z.array(z.enum(MATCH_TOPICS)).max(MATCH_TOPICS.length).nullable(),
