@@ -60,20 +60,26 @@ export function useLlegada(matchId: string, seasonId: string, server: readonly s
         return;
       }
       inflight.current = true;
-      const settle = (e?: { error: unknown }) => {
+      void (async () => {
+        // (the last list sent says how it went: an earlier failure the next one fixed is no error)
+        let next: string[] | null = ids;
+        let failure: { error: unknown } | null = null;
+        while (next) {
+          try {
+            await setMatchPresent({ matchId, present: next });
+            failure = null;
+          } catch (error: unknown) {
+            failure = { error };
+          }
+          next = waiting.current;
+          waiting.current = null;
+        }
         inflight.current = false;
-        const next = waiting.current;
-        waiting.current = null;
-        if (next) return send(next);
-        if (e) {
+        if (failure) {
           setSave("error");
-          setError(presentError(e.error));
+          setError(presentError(failure.error));
         } else setSave("saved");
-      };
-      setMatchPresent({ matchId, present: ids }).then(
-        () => settle(),
-        (error: unknown) => settle({ error }),
-      );
+      })();
     },
     [matchId],
   );
