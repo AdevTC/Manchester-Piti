@@ -79,6 +79,8 @@ html[data-nu-dir="up"]{--nu-ex:10px;--nu-en:-14px}
 .nx-sub{margin-top:10px!important;font-size:16px;color:var(--vd-ink2);line-height:1.5;max-width:68ch;text-wrap:pretty}
 .nx-sec{margin-top:44px;min-width:0}
 .nx-sec--first{margin-top:0}
+/* (Balance's door lands on «Rachas del equipo»: its heading clear of the top, and on a phone of the sticky bar) */
+.nx-sec#rachas{scroll-margin-top:24px}
 .nx-sec__head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px;margin-bottom:16px}
 .nx-h3{font-size:23px;line-height:1.12;font-weight:670;letter-spacing:-.016em;font-variation-settings:'wdth' 98;color:var(--vd-ink-strong)}
 .nx-h3--g{color:var(--vd-g-ink)}
@@ -254,6 +256,7 @@ html[data-nu-dir="up"]{--nu-ex:10px;--nu-en:-14px}
   .nx-find>span,.nx-find>kbd{display:none}
   .nx-shelf .nx-shelf__h{display:none}
   .nx-shelf .nx-shelf__s{display:block}
+  .nx-sec#rachas{scroll-margin-top:148px}
   .nx-bar{position:sticky;top:0;z-index:30;grid-template-columns:minmax(0,1fr);gap:8px;margin:4px -16px 20px;padding:8px 16px 12px;background:linear-gradient(180deg,rgba(8,18,39,.94) 0,rgba(8,18,39,.86) 72%,rgba(8,18,39,0))}
   :root[data-theme="light"] .nx-bar{background:linear-gradient(180deg,rgba(238,246,253,.96) 0,rgba(238,246,253,.88) 72%,rgba(238,246,253,0))}
   .nx-scope{--vd-r:18px;min-height:50px;padding:6px 12px}
