@@ -14,7 +14,7 @@ await test("passes the function's bundle on, compressed and tagged for the CDN",
     return new Response(body, { headers: { "content-type": "application/octet-stream" } });
   };
   try {
-    const res = await GET();
+    const res = await GET(new Request("https://example.test/datos/club.bundle"));
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "application/octet-stream");
     assert.equal(res.headers.get("content-encoding"), "gzip");
@@ -47,7 +47,7 @@ await test("a failing function answers 502, never cached", async () => {
   const fetchBefore = globalThis.fetch;
   globalThis.fetch = async () => new Response(null, { status: 500 });
   try {
-    const res = await GET();
+    const res = await GET(new Request("https://example.test/datos/club.bundle"));
     assert.equal(res.status, 502);
     assert.equal(res.headers.get("cache-control"), "no-store");
     assert.equal(res.headers.get("vercel-cache-tag"), null);
