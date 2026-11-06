@@ -9,18 +9,24 @@ import { RivalMark } from "../../../components/vidrio/RivalMark";
 
 function Sheet({ id, cls, title, sub, closeLabel, onClose, children }: { id: string; cls: string; title: string; sub?: string; closeLabel: string; onClose: () => void; children: ReactNode }) {
   const close = useRef<HTMLButtonElement | null>(null);
+  // (the latest onClose through a ref: Inicio hands a new one on every render — each tick of its clock, each vote
+  // counted —, and an effect keyed on it pulled the focus back to «Cerrar» from wherever it was in the sheet)
+  const closeNow = useRef(onClose);
+  useEffect(() => {
+    closeNow.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     close.current?.focus();
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeNow.current();
     };
     window.addEventListener("keydown", key);
     return () => {
       window.removeEventListener("keydown", key);
       if (back?.isConnected) back.focus();
     };
-  }, [onClose]);
+  }, []);
   return (
     <>
       <div className="pp-scrim" onClick={onClose} aria-hidden="true" />
