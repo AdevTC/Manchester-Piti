@@ -215,6 +215,22 @@ export function MatchPage() {
   const dragged = played && minute < edge;
   const [playing, setPlaying] = useState(false);
   const timer = useRef<number>(0);
+  // (the moviola belongs to its match: the page stays mounted from one match to the next — «Anterior» /
+  // «Siguiente» —, so a replay still running stops instead of playing the last match's goals over this one, and the
+  // new match opens at its address's minute, not at the one the last match was left on)
+  const [moviolaOf, setMoviolaOf] = useState(matchId);
+  if (moviolaOf !== matchId) {
+    setMoviolaOf(matchId);
+    setHeld(urlMin);
+    setPlaying(false);
+  }
+  useEffect(
+    () => () => {
+      window.clearInterval(timer.current);
+      timer.current = 0;
+    },
+    [matchId],
+  );
 
   // ---- the sheet (?hoja=) and the say line
   const sheet = (SHEETS as readonly string[]).includes(String(search.hoja)) ? (search.hoja as Sheet) : null;
@@ -357,7 +373,6 @@ export function MatchPage() {
       if (g) flashFor(g);
     }, 340);
   };
-  useEffect(() => () => window.clearInterval(timer.current), []);
   const onSeek = (m: number, drag: boolean) => {
     stop();
     seek(m);
