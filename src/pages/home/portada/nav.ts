@@ -27,12 +27,14 @@ export function readSearch(search: Record<string, unknown>): { min: number | nul
   return { min: str(search.min) !== "" && Number.isFinite(m) && m >= 0 ? Math.round(m) : null, hoja: h === "porra" || h === "mvp" || h === "cartel" ? h : null, jugador: j || null };
 }
 
-/** An Inicio address: `screen` with the minute (when it is not the edge), the sheet and the open row. */
-export function hrefOf(screen: Screen, o: { min?: number | null; hoja?: Hoja | null; jugador?: string | null }): string {
+/** An Inicio address: `screen` with the minute (when it is not the edge), the sheet and the open row. The web's
+ *  ?season= stays: without it SeasonUrlSync writes it back with a second navigation of its own. */
+export function hrefOf(screen: Screen, o: { min?: number | null; hoja?: Hoja | null; jugador?: string | null; season?: string | null }): string {
   const q: string[] = [];
   if (o.min !== null && o.min !== undefined && screen !== "lo-tuyo" && screen !== "camiseta") q.push(`min=${o.min}`);
   if (o.hoja) q.push(`hoja=${o.hoja}`);
   if (o.jugador && screen === "campo") q.push(`jugador=${encodeURIComponent(o.jugador)}`);
+  if (o.season) q.push(`season=${encodeURIComponent(o.season)}`);
   return `${SCREEN_PATH[screen]}${q.length ? `?${q.join("&")}` : ""}`;
 }
 
@@ -44,6 +46,7 @@ export function useInicioNav() {
   const loc = useRouterState({ select: (s) => s.location });
   const screen = screenOf(loc.pathname);
   const q = readSearch(loc.search as Record<string, unknown>);
+  const season = str((loc.search as Record<string, unknown>).season) || null;
   const pushedSheet = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // (a sheet closed by the browser's own back is no longer ours to go back from)
@@ -70,7 +73,7 @@ export function useInicioNav() {
         delete root.dataset.vdDir;
         delete root.dataset.vdCalm;
       };
-      const href = hrefOf(to, { min: o.min ?? null, jugador: o.jugador ?? null });
+      const href = hrefOf(to, { min: o.min ?? null, jugador: o.jugador ?? null, season });
       const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => { ready: Promise<void>; finished: Promise<void> } };
       if (typeof doc.startViewTransition !== "function" || isShot()) {
         clear();
@@ -97,23 +100,23 @@ export function useInicioNav() {
       vt.finished.catch(() => undefined).finally(clear);
       timer.current = setTimeout(clear, 1500);
     },
-    [router, screen],
+    [router, screen, season],
   );
 
   /** The moviola's minute in the address (null: the edge), without a new history entry. */
   const setMin = useCallback(
     (min: number | null, jugador?: string | null) => {
-      void router.navigate({ href: hrefOf(screen, { min, hoja: q.hoja, jugador: jugador === undefined ? q.jugador : jugador }), replace: true, resetScroll: false });
+      void router.navigate({ href: hrefOf(screen, { min, hoja: q.hoja, jugador: jugador === undefined ? q.jugador : jugador, season }), replace: true, resetScroll: false });
     },
-    [router, screen, q.hoja, q.jugador],
+    [router, screen, q.hoja, q.jugador, season],
   );
 
   const openSheet = useCallback(
     (hoja: Hoja, min: number | null) => {
       pushedSheet.current = true;
-      void router.navigate({ href: hrefOf(screen, { min, hoja, jugador: q.jugador }), resetScroll: false });
+      void router.navigate({ href: hrefOf(screen, { min, hoja, jugador: q.jugador, season }), resetScroll: false });
     },
-    [router, screen, q.jugador],
+    [router, screen, q.jugador, season],
   );
   const closeSheet = useCallback(
     (min: number | null) => {
@@ -122,9 +125,9 @@ export function useInicioNav() {
         router.history.back();
         return;
       }
-      void router.navigate({ href: hrefOf(screen, { min, jugador: q.jugador }), replace: true, resetScroll: false });
+      void router.navigate({ href: hrefOf(screen, { min, jugador: q.jugador, season }), replace: true, resetScroll: false });
     },
-    [router, screen, q.jugador],
+    [router, screen, q.jugador, season],
   );
   return { screen, min: q.min, hoja: q.hoja, jugador: q.jugador, go, setMin, openSheet, closeSheet };
 }
