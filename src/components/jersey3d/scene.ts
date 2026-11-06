@@ -162,20 +162,22 @@ function stage(canvas: Surface, o: Required<JerseyOptions>, A: Assets, dpr: numb
   renderer.setPixelRatio(Math.min(dpr, LIVE_DPR));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = NeutralToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  // (r187: the lighting recalibrated against the r170 stills — r181's brighter rough specular, r183's
+  // RoomEnvironment and r187's PMREM lit the same knobs ~7 levels brighter; piti-diseno/src/noche-2026-11-07/three-r187)
+  renderer.toneMappingExposure = 0.84;
   const scene = new Scene();
   const pmrem = new PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   const env = pmrem.fromScene(room, 0.04);
   scene.environment = env.texture;
-  scene.environmentIntensity = 0.55;
+  scene.environmentIntensity = 0.605;
   const camera = new PerspectiveCamera(26, 1, 0.1, 50);
-  const key = new SpotLight(0xffffff, 85, 20, Math.PI / 6.5, 0.6, 1.5);
-  const rimL = new DirectionalLight(0x9fd0f2, 3.2);
+  const key = new SpotLight(0xffffff, 89.25, 20, Math.PI / 6.5, 0.6, 1.5);
+  const rimL = new DirectionalLight(0x9fd0f2, 3.52);
   rimL.position.set(-4, 2.5, -2.5);
-  const rimR = new DirectionalLight(0xffc659, 1.4);
+  const rimR = new DirectionalLight(0xffc659, 1.54);
   rimR.position.set(4, 1.5, -2.5);
-  const fill = new HemisphereLight(0x9fd0f2, 0x0a1532, 0.4);
+  const fill = new HemisphereLight(0x9fd0f2, 0x0a1532, 0.246);
   scene.add(key, key.target, rimL, rimR, fill);
 
   const kitCanvas = makeCanvas(KIT, KIT);
@@ -260,15 +262,15 @@ function stage(canvas: Surface, o: Required<JerseyOptions>, A: Assets, dpr: numb
   function light() {
     const day = o.theme === "light";
     key.color.set(day ? 0xfff1d6 : 0xffffff);
-    key.intensity = day ? 70 : 85;
+    key.intensity = day ? 73.5 : 89.25;
     key.position.set(day ? 3.5 : 0.6, 5.5, 3.2);
     rimL.color.set(day ? 0xffffff : 0x9fd0f2);
-    rimL.intensity = day ? 1.2 : 3.2;
+    rimL.intensity = day ? 0.778 : 3.52;
     rimR.color.set(day ? 0xdcefff : 0xffc659);
-    rimR.intensity = day ? 1.0 : 1.4;
+    rimR.intensity = day ? 0.648 : 1.54;
     fill.color.set(day ? 0xdcefff : 0x9fd0f2);
     fill.groundColor.set(day ? 0xb9c8da : 0x0a1532);
-    fill.intensity = day ? 1.1 : 0.4;
+    fill.intensity = day ? 0.677 : 0.246;
   }
   paint();
   light();
