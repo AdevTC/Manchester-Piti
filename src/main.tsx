@@ -15,6 +15,11 @@ import { startAppUpdates } from './lib/appUpdate'
 import { followHistory, tapsSkipTransitions } from './components/celeste/pageTransition'
 import { warmSections } from './lib/warmSections'
 import { navProgress } from './components/celeste/navProgress'
+import { vitalsOff } from './lib/vitalsOff'
+
+// (a browser of this PC's tools opened with ?novitals keeps out of the field measurements: read before the router can
+// rewrite the address)
+const quiet = vitalsOff()
 
 // The data bundle (inside a server-rendered page, or downloading since the HTML): the page paints from it
 // without Firebase, which loads after the first paint (lib/fb) and gets the same documents in its local cache
@@ -52,7 +57,7 @@ const animateFromNextPage = () => {
 // on Vite's dev server every module is a request of its own, and warming five sections after each load floods the
 // page (and the e2e, which runs there) with hundreds of them.
 const measure = () => {
-  if (import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATOR !== '1') void import('./lib/vitals').then((m) => m.startVitals())
+  if (import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATOR !== '1' && !quiet) void import('./lib/vitals').then((m) => m.startVitals())
   if (import.meta.env.PROD) warmSections(router)
 }
 

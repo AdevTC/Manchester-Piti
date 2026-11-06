@@ -81,6 +81,15 @@ export function isFillerInp(m: Pick<VitalRecord, "n" | "v" | "a">): boolean {
   return a.fill === true || (a.el === undefined && a.input === 0 && a.proc === 0 && a.pres === m.v);
 }
 
+/** Jordi's PC as it reports itself (24 threads, 32 GB): the agents' browsers there (the desktop app's pane does not
+ *  say it is automated) measured pages no visitor waited for (FCP 3.2 s on 31-10, /admin 13 s on 28-10). Since
+ *  2026-11-06 its tools open the site with `?novitals` and send nothing (src/lib/vitalsOff.ts); this tells apart what
+ *  it sent before. A class, not an identifier: any other machine with the same two numbers is left out too. */
+export const AGENT_PCS: readonly { cpu: number; mem: number }[] = [{ cpu: 24, mem: 32 }];
+export function isAgentPc(d: Pick<VitalDevice, "cpu" | "mem"> | undefined): boolean {
+  return !!d && AGENT_PCS.some((pc) => d.cpu === pc.cpu && d.mem === pc.mem);
+}
+
 /** Reports one instance stores a minute at most. */
 export const RATE_PER_MIN = 60;
 /** Whether a report at `now` fits this minute's allowance; records it when it does (`recent` is the instance's list). */

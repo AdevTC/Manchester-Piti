@@ -2,13 +2,14 @@
 // the 75th percentile of each Core Web Vital overall, by device and by page, the slowest taps with what made them
 // slow, and the frames of the page changes. Read-only.
 //
-//   node scripts/vitals-report.mjs --project futbolmanagement-dc6cb [--days 7] [--touch]
+//   node scripts/vitals-report.mjs --project futbolmanagement-dc6cb [--days 7] [--touch] [--con-este-pc]
 //
 // Uses Application Default Credentials (gcloud auth application-default login). --touch: touch screens only.
+// --con-este-pc: keeps what Jordi's PC sent (left out by default: vitalsLogic isAgentPc).
 // Uses the COMPILED functions/lib (vitalsLogic): cd functions && npm run build first.
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { isFillerInp } from "../lib/vitalsLogic.js";
+import { isAgentPc, isFillerInp } from "../lib/vitalsLogic.js";
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -18,6 +19,7 @@ const projectId = arg("project");
 if (!projectId) throw new Error("Falta --project <id>");
 const days = Number(arg("days") ?? 7);
 const touchOnly = process.argv.includes("--touch");
+const withThisPc = process.argv.includes("--con-este-pc");
 initializeApp({ projectId });
 const db = getFirestore();
 
@@ -25,10 +27,14 @@ const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10
 const snap = await db.collection("vitals").where("day", ">=", since).get();
 // (what visitors sent is printed: control characters out, whatever got stored)
 const clean = (v) => (typeof v === "string" ? [...v].filter((c) => { const k = c.charCodeAt(0); return k >= 0x20 && !(k >= 0x7f && k <= 0x9f); }).join("") : Array.isArray(v) ? v.map(clean) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [clean(k), clean(x)])) : v);
-// (browsers driven by automation — crawlers, tests — left out)
+// (browsers driven by automation — crawlers, tests — left out; and, unless --con-este-pc, what the agents' browsers on
+// Jordi's PC sent before its tools opened the site with ?novitals: vitalsLogic isAgentPc)
 const all = snap.docs.map((d) => clean(d.data()));
-const reports = all.filter((r) => !r.d?.bot && (!touchOnly || r.d?.touch));
-const bots = all.length - all.filter((r) => !r.d?.bot).length;
+const people = all.filter((r) => !r.d?.bot);
+const bots = all.length - people.length;
+const visitors = withThisPc ? people : people.filter((r) => !isAgentPc(r.d));
+const thisPc = people.length - visitors.length;
+const reports = visitors.filter((r) => !touchOnly || r.d?.touch);
 // (the TTFB of a load that began in a hidden tab — the switch to a new deploy reloads tabs in the background — is no
 // one's wait: lib/vitals marks it `bg` and it stays out)
 const measured = reports.flatMap((r) => (r.m ?? []).map((m) => ({ ...m, d: r.d })));
@@ -38,7 +44,7 @@ const background = measured.length - shown.length;
 // tap: it stays out of the p75 and of the slowest taps, counted apart)
 const rows = shown.filter((m) => !isFillerInp(m));
 const fillers = shown.length - rows.length;
-console.log(`${reports.length} envíos, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}${bots ? ` (${bots} de robots fuera)` : ""}${background ? ` (${background} TTFB de pestañas ocultas fuera)` : ""}${fillers ? ` (${fillers} INP de relleno fuera)` : ""}\n`);
+console.log(`${reports.length} envíos, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}${bots ? ` (${bots} de robots fuera)` : ""}${thisPc ? ` (${thisPc} de este PC fuera)` : ""}${background ? ` (${background} TTFB de pestañas ocultas fuera)` : ""}${fillers ? ` (${fillers} INP de relleno fuera)` : ""}\n`);
 
 const p75 = (xs) => {
   if (!xs.length) return null;

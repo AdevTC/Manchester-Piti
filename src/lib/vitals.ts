@@ -5,6 +5,7 @@
 import type { CLSMetricWithAttribution, FCPMetricWithAttribution, INPMetricWithAttribution, LCPMetricWithAttribution, TTFBMetricWithAttribution } from "web-vitals/attribution";
 import type { VitalDevice, VitalRecord } from "../../functions/src/vitalsLogic";
 import { onViewTransition } from "../components/celeste/pageTransition";
+import { vitalsOff } from "./vitalsOff";
 export const VITALS_URL = "/datos/v";
 /** The share of visits that report (the club's traffic is small: all of them). */
 export const SAMPLE = 1;
@@ -240,7 +241,7 @@ function watchFrames(t: ViewTransition, page: boolean, push: (r: VitalRecord) =>
 let started = false;
 /** Starts measuring this visit (once). */
 export async function startVitals(): Promise<void> {
-  if (started || typeof window === "undefined" || typeof navigator.sendBeacon !== "function") return;
+  if (started || typeof window === "undefined" || typeof navigator.sendBeacon !== "function" || vitalsOff()) return;
   started = true;
   if (Math.random() >= SAMPLE) return;
   const queue: VitalRecord[] = [];
