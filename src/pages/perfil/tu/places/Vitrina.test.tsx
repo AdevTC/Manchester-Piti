@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ClubMatch, Participation } from "../../../../lib/clubData";
@@ -11,6 +11,8 @@ import { Cromos } from "../Cromos";
 import { Vitrina } from "./Vitrina";
 import type { PlaceProps } from "./types";
 
+// (jsdom draws no canvas: the cromo's PNG is a stand-in, drawn when asked)
+vi.mock("../../recapDraw", async (orig) => ({ ...(await orig<typeof import("../../recapDraw")>()), recapCardBlob: vi.fn(async () => new Blob(["png"], { type: "image/png" })) }));
 vi.mock("@tanstack/react-router", () => ({ Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => <a href={to} className={className}>{children}</a> }));
 
 // production-shaped: the J1 played (40′ at right back, nota 4,7), twenty to come; 60 Bronce, provisional
@@ -96,5 +98,28 @@ describe("Tu vitrina (a socio)", () => {
     expect(screen.getByRole("link", { name: "Elegir mi ficha" }).getAttribute("href")).toBe("/vestuario/ficha");
     expect(screen.queryByRole("button", { name: "Ver tus cromos" })).toBeNull();
     expect(screen.getByRole("button", { name: "Compartir mi póster" })).toBeTruthy();
+  });
+});
+
+describe("«Compartir este» on an iPhone", () => {
+  it("opens the share sheet inside the tap: the cromo was drawn before it", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn(async (_d: ShareData) => undefined);
+    Object.assign(navigator, { share: send, canShare: () => true });
+    try {
+      const p = props("jugador");
+      render(<Cromos data={p.data} who={p.who} go={p.go} actions={p.actions} now={NOW} maq={null} say={vi.fn()} flip={false} setFlip={vi.fn()} replay={vi.fn()} run={0} typed={null} setTyped={vi.fn()} origin="https://x" onClose={vi.fn()} />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Compartir este/ }));
+      // (no wait between the tap and the share sheet: Safari would have spent the gesture)
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send.mock.calls[0][0].files?.[0].type).toBe("image/png");
+    } finally {
+      Reflect.deleteProperty(navigator, "share");
+      Reflect.deleteProperty(navigator, "canShare");
+      vi.useRealTimers();
+    }
   });
 });

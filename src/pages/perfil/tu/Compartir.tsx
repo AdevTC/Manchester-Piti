@@ -15,6 +15,7 @@ import { shareImage, type Fmt } from "./shareDraw";
 import { VSheet } from "./places/vitrina/Sheet";
 import { VIc } from "./places/vitrina/icons";
 import { KitStillContext } from "../../../components/jersey3d/kitStill";
+import { usePreDrawn } from "./usePreDrawn";
 
 export function Compartir(p: ScreenProps & { card: CardModel; onClose: () => void }) {
   const { data, who, say, card, onClose } = p;
@@ -43,12 +44,14 @@ export function Compartir(p: ScreenProps & { card: CardModel; onClose: () => voi
   const slug = slugOf(vinc ? data.card.name || data.nickname : data.nickname);
   const file = shareFileName(isCarta ? "carta" : "poster", slug);
   const image = () => shareImage({ fmt, face, card: isCarta ? card : null, poster: isCarta ? null : poster, shirt: shirtSrc, crest: "/crest-128.webp" });
+  // (drawn before the tap: on an iPhone «Compartir» has to call the share sheet inside the tap, with no wait first)
+  const ready = usePreDrawn(JSON.stringify({ fmt, face, card: isCarta ? card : null, poster: isCarta ? null : poster, shirtSrc }), image);
 
   const download = async () => {
     if (busy) return;
     setBusy(true);
-    say("Preparando la imagen…");
-    const blob = await image().catch(() => null);
+    if (!ready) say("Preparando la imagen…");
+    const blob = ready ?? (await image().catch(() => null));
     setBusy(false);
     if (!blob) return say("No se ha podido preparar la imagen. Inténtalo otra vez.");
     saveBlob(blob, file);
@@ -57,7 +60,7 @@ export function Compartir(p: ScreenProps & { card: CardModel; onClose: () => voi
   const share = async () => {
     if (busy) return;
     setBusy(true);
-    const blob = await image().catch(() => null);
+    const blob = ready ?? (await image().catch(() => null));
     const f = blob ? new File([blob], file, { type: "image/png" }) : null;
     const nav = navigator as ShareNav;
     const words = shareWords({ state: data.ficha.state, design: isCarta ? "carta" : "poster", shirt: data.card.name || data.nickname, number: num });
