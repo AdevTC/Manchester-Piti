@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import type { INPMetricWithAttribution, LCPMetricWithAttribution, CLSMetricWithAttribution } from "web-vitals/attribution";
+import type { INPMetricWithAttribution, LCPMetricWithAttribution, CLSMetricWithAttribution, TTFBMetricWithAttribution } from "web-vitals/attribution";
 import { parseVitals, MAX_BODY, RATE_PER_MIN, withinRate } from "../../functions/src/vitalsLogic";
-import { attributionOf, deviceOf, pageOf, recordOf } from "./vitals";
+import { attributionOf, deviceOf, notRestored, pageOf, recordOf, startedHidden } from "./vitals";
 
 describe("pages group by their kind, ids folded", () => {
   it.each([
@@ -57,6 +57,44 @@ describe("a metric becomes one small record with its cause", () => {
     const m = { name: "CLS", value: 0.05312, rating: "good", attribution: { largestShiftTarget: "div.nu-screen", largestShiftValue: 0.0531, largestShiftTime: 1234.5 } } as unknown as CLSMetricWithAttribution;
     expect(recordOf(m).v).toBe(0.053);
     expect(attributionOf(m)).toEqual({ el: "div.nu-screen", shift: 0.053, at: 1235 });
+  });
+});
+
+describe("why a back/forward load did not come from the back/forward cache", () => {
+  it("collects the page's and its frames' reasons once each", () => {
+    const entry = { notRestoredReasons: { reasons: [{ reason: "unload-listener" }, { reason: "websocket" }], children: [{ reasons: [{ reason: "websocket" }, { reason: "masked" }], children: [] }] } };
+    expect(notRestored(entry)).toBe("unload-listener,websocket,masked");
+  });
+  it("says nothing for any other load, and «-» when Chrome gives no reason", () => {
+    expect(notRestored({ notRestoredReasons: null })).toBeUndefined();
+    expect(notRestored(undefined)).toBeUndefined();
+    expect(notRestored({ notRestoredReasons: { reasons: [], children: [] } })).toBe("-");
+  });
+  it("travels in the TTFB record", () => {
+    const ttfb = { name: "TTFB", value: 180, rating: "good", navigationType: "back-forward", attribution: { waitingDuration: 5, cacheDuration: 0, dnsDuration: 0, connectionDuration: 0, requestDuration: 175, navigationEntry: { notRestoredReasons: { reasons: [{ reason: "broadcastchannel" }] } } } } as unknown as TTFBMetricWithAttribution;
+    expect(recordOf(ttfb).a).toEqual({ wait: 5, cache: 0, dns: 0, conn: 0, req: 175, nr: "broadcastchannel" });
+  });
+});
+
+describe("a load that began in a hidden tab is marked", () => {
+  const perf = (first?: string) => ({ getEntriesByType: () => (first ? [{ name: first, startTime: 0 }] : []) }) as unknown as Performance;
+  it("reads how the document started, not how it is now", () => {
+    expect(startedHidden(perf("hidden"), { visibilityState: "visible" })).toBe(true);
+    expect(startedHidden(perf("visible"), { visibilityState: "hidden" })).toBe(false);
+  });
+  it("without the entry, whether it is hidden now", () => {
+    expect(startedHidden(perf(), { visibilityState: "hidden" })).toBe(true);
+    expect(startedHidden({ getEntriesByType: () => { throw new Error("unsupported"); } } as unknown as Performance, { visibilityState: "visible" })).toBe(false);
+  });
+  it("only its TTFB carries the mark", () => {
+    const ttfb = { name: "TTFB", value: 1062.4, rating: "poor", navigationType: "reload", attribution: { waitingDuration: 1060, cacheDuration: 0, dnsDuration: 0, connectionDuration: 0, requestDuration: 2 } } as unknown as TTFBMetricWithAttribution;
+    expect(recordOf(ttfb, true).a).toEqual({ wait: 1060, cache: 0, dns: 0, conn: 0, req: 2, bg: true });
+    expect(recordOf(ttfb).a).not.toHaveProperty("bg");
+    const cls = { name: "CLS", value: 0.01, rating: "good", attribution: {} } as unknown as CLSMetricWithAttribution;
+    expect(recordOf(cls, true).a).not.toHaveProperty("bg");
+    // (the function takes the mark as any other cause)
+    const body = JSON.stringify({ d: { os: "android", touch: true, w: 410, dpr: 2.63, ssr: false, sw: true }, m: [recordOf(ttfb, true)] });
+    expect(parseVitals(body)?.m[0].a).toMatchObject({ bg: true });
   });
 });
 

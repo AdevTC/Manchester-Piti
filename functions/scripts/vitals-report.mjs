@@ -27,8 +27,12 @@ const clean = (v) => (typeof v === "string" ? [...v].filter((c) => { const k = c
 const all = snap.docs.map((d) => clean(d.data()));
 const reports = all.filter((r) => !r.d?.bot && (!touchOnly || r.d?.touch));
 const bots = all.length - all.filter((r) => !r.d?.bot).length;
-const rows = reports.flatMap((r) => (r.m ?? []).map((m) => ({ ...m, d: r.d })));
-console.log(`${reports.length} envíos, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}${bots ? ` (${bots} de robots fuera)` : ""}\n`);
+// (the TTFB of a load that began in a hidden tab — the switch to a new deploy reloads tabs in the background — is no
+// one's wait: lib/vitals marks it `bg` and it stays out)
+const measured = reports.flatMap((r) => (r.m ?? []).map((m) => ({ ...m, d: r.d })));
+const rows = measured.filter((m) => !m.a?.bg);
+const background = measured.length - rows.length;
+console.log(`${reports.length} envíos, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}${bots ? ` (${bots} de robots fuera)` : ""}${background ? ` (${background} TTFB de pestañas ocultas fuera)` : ""}\n`);
 
 const p75 = (xs) => {
   if (!xs.length) return null;
@@ -64,3 +68,12 @@ console.log("\nsaltos más grandes (CLS): página · elemento · valor");
 for (const m of worst("CLS", 6)) console.log(`  ${m.p} · ${m.a?.el ?? "?"} · ${m.v} [${m.d?.os}]`);
 console.log("\nLCP más lentos: página · elemento · ms (ttfb / espera / carga / pintado)");
 for (const m of worst("LCP", 6)) console.log(`  ${m.p} · ${m.a?.el ?? "?"} · ${m.v} (${m.a?.ttfb ?? "?"}/${m.a?.wait ?? "?"}/${m.a?.load ?? "?"}/${m.a?.render ?? "?"}) [${m.d?.os}, ${m.nt}]`);
+
+// (back/forward loads: how many came back from the back/forward cache, and why the others didn't — lib/vitals `nr`)
+const bfLoads = rows.filter((m) => m.n === "TTFB" && (m.nt === "back-forward" || m.nt === "back-forward-cache"));
+if (bfLoads.length) {
+  const restored = bfLoads.filter((m) => m.nt === "back-forward-cache").length;
+  const why = new Map();
+  for (const m of bfLoads) for (const r of String(m.a?.nr ?? "").split(",").filter(Boolean)) why.set(r, (why.get(r) ?? 0) + 1);
+  console.log(`\natrás/adelante: ${restored} de ${bfLoads.length} desde la bfcache; por qué no las demás: ${[...why].sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(" · ") || "sin dato"}`);
+}
