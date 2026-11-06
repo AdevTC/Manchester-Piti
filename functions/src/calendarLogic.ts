@@ -37,3 +37,7 @@ export function calendarSlot(d: { date?: unknown; status?: unknown; postponedTo?
   const start = ms(d.date);
   return Number.isFinite(start) ? { start, status: "CONFIRMED", prefix: "", note: "" } : null;
 }
+
+/** The match fields the feed reads (isVisibleMatch, calendarSlot and the event lines in calendar.ts): the query asks
+ *  only these, never the match's game analysis (megabytes over a season, past the function's memory). */
+export const CALENDAR_FIELDS = ["archived", "individuallyArchived", "deleting", "seasonId", "status", "date", "postponedTo", "postponedReason", "goalsFor", "goalsAgainst", "rival", "venue", "duration"] as const;

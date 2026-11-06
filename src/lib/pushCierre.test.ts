@@ -3,7 +3,7 @@
 // slot of an aplazado and when the weather at kick-off is owed.
 import { describe, expect, it } from "vitest";
 import { cajaClaimNotice, devicePayload, GOAL_ACTIONS, noticesFor, postponedNotices, turnDoneNotice, type Notice } from "../../functions/src/pushLogic";
-import { calendarSlot, icsText } from "../../functions/src/calendarLogic";
+import { CALENDAR_FIELDS, calendarSlot, icsText } from "../../functions/src/calendarLogic";
 import { weatherStampDue } from "../../functions/src/weatherLogic";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
@@ -84,5 +84,17 @@ describe("the weather at kick-off is owed", () => {
     expect(weatherStampDue({ status: "scheduled", date: NOW - 1 }, NOW)).toBeNull();
     expect(weatherStampDue({ status: "finished", date: NOW + 1 }, NOW)).toBeNull();
     expect(weatherStampDue({ status: "finished", date: NOW - 1, archived: true }, NOW)).toBeNull();
+  });
+});
+
+describe("the .ics feed reads only the fields it needs", () => {
+  it("a match cut to CALENDAR_FIELDS gives the same slot as the whole document", () => {
+    const full = { date: Date.UTC(2026, 10, 8, 10), status: "postponed", postponedTo: Date.UTC(2026, 10, 15, 10), postponedReason: "lluvia", goalsFor: 2, goalsAgainst: 1, rival: "Rayo", venue: "Palomeras", duration: 50, seasonId: "s1", analysis: { huge: true } };
+    const cut = Object.fromEntries(Object.entries(full).filter(([k]) => (CALENDAR_FIELDS as readonly string[]).includes(k)));
+    expect(cut).not.toHaveProperty("analysis");
+    expect(calendarSlot(cut)).toEqual(calendarSlot(full));
+  });
+  it("covers what the feed's filters and lines read", () => {
+    for (const k of ["archived", "individuallyArchived", "deleting", "seasonId", "status", "date", "postponedTo", "postponedReason", "goalsFor", "goalsAgainst", "rival", "venue", "duration"]) expect(CALENDAR_FIELDS).toContain(k);
   });
 });

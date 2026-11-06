@@ -3,7 +3,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { db, siteUrl } from "./common.js";
 import { isVisibleMatch } from "./matchEngine.js";
-import { calendarSlot, icsText as esc, type CalendarSlot } from "./calendarLogic.js";
+import { CALENDAR_FIELDS, calendarSlot, icsText as esc, type CalendarSlot } from "./calendarLogic.js";
 import { matchUrl } from "./noticeUrl.js";
 
 const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -12,7 +12,9 @@ const fold = (line: string) => line.match(/.{1,73}/gu)?.join("\r\n ") ?? line;
 
 export const clubCalendar = onRequest(async (_req, res) => {
   const [matches, seasons, trainings] = await Promise.all([
-    db.collection("matches").get(),
+    // (only what the feed reads: a match document also carries its whole game analysis, megabytes over the season,
+    // which took the function past its 256 MiB and every refresh of the feed answered 500)
+    db.collection("matches").select(...CALENDAR_FIELDS).get(),
     db.collection("seasons").get(),
     db.collection("trainings").where("confirmed.slotId", "!=", null).get(),
   ]);
