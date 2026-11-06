@@ -720,6 +720,9 @@
 
 /* ================================================================ View Transitions: exit → morph → enter */
 ::view-transition-old(root),::view-transition-new(root){animation:none}
+/* (and between screens or facets the root is not captured: its new picture, still and over the old one, was the live
+   page itself) */
+html:is([data-pa-dir],[data-pa-facet]):not([data-pa-calm]){view-transition-name:none}
 ::view-transition-group(pa-screen){animation-duration:.9s}
 html[data-pa-dir]::view-transition-old(pa-screen){animation:pa-out-f .16s cubic-bezier(.4,0,1,1) both}
 html[data-pa-dir]::view-transition-new(pa-screen){animation:pa-in-f .24s cubic-bezier(0,0,.2,1) .66s both}

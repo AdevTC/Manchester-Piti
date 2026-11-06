@@ -12,6 +12,20 @@ const transitions = readFileSync("src/styles/vidrio/transitions.css", "utf8");
 const keyframes = (name: string) => transitions.match(new RegExp(`@keyframes ${name}\\{(.*)\\}\\r?\\n`))?.[1] ?? "";
 const pageAnimations = [...chrome.matchAll(/::view-transition-(?:old\(vd-page-out\)|new\(vd-page\))\{animation(?:-name)?:([\w-]+)/g)].map((m) => m[1]);
 
+describe("the root in the choreographies", () => {
+  const partidos = readFileSync("src/styles/partidos-vidrio.css", "utf8");
+  it("is not captured where its picture never shows (a change of page, of region, of Partidos' screen or facet)", () => {
+    expect(chrome).toContain("html[data-vd-page]:not([data-vd-calm]){view-transition-name:none}");
+    expect(transitions).toContain("html[data-vd-dir]:not([data-vd-calm]){view-transition-name:none}");
+    expect(partidos).toContain("html:is([data-pa-dir],[data-pa-facet]):not([data-pa-calm]){view-transition-name:none}");
+  });
+
+  it("is, under reduced motion's crossfade, where the new root fades in", () => {
+    expect(chrome).toMatch(/html\[data-vd-page\]::view-transition-new\(root\)\{animation:none\}/);
+    expect(transitions).toMatch(/html\[data-vd-calm\]::view-transition-new\(\*\)\{animation:vd-x-fade-in/);
+  });
+});
+
 describe("the page change's animations", () => {
   it("are the page's own six: out left/right/down, in right/left/up", () => {
     expect(pageAnimations.sort()).toEqual(["vd-x-page-in-l", "vd-x-page-in-r", "vd-x-page-in-u", "vd-x-page-out-d", "vd-x-page-out-l", "vd-x-page-out-r"]);
