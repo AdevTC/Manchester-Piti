@@ -3,11 +3,10 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { db, siteUrl } from "./common.js";
 import { isVisibleMatch } from "./matchEngine.js";
-import { calendarSlot, type CalendarSlot } from "./calendarLogic.js";
+import { calendarSlot, icsText as esc, type CalendarSlot } from "./calendarLogic.js";
 import { matchUrl } from "./noticeUrl.js";
 
 const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-const esc = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n");
 /** RFC 5545 lines are folded at 75 octets. */
 const fold = (line: string) => line.match(/.{1,73}/gu)?.join("\r\n ") ?? line;
 

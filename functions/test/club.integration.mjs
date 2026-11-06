@@ -153,6 +153,14 @@ await denied("requestAccess", asker, {}, "INVALID_ARGUMENT");
 assert.equal((await ok("requestAccess", asker, { name: "Pide " + suffix })).status, "pending");
 assert.equal((await db.doc("accessRequests/" + asker.uid).get()).get("status"), "pending");
 checked += 2;
+{
+  // asking again while it still waits doesn't ring the captains again (its `pingedAt` stays)
+  const rang = (await db.doc("accessRequests/" + asker.uid).get()).get("pingedAt");
+  assert.equal(typeof rang, "number");
+  assert.equal((await ok("requestAccess", asker, { name: "Pide " + suffix })).status, "pending");
+  assert.equal((await db.doc("accessRequests/" + asker.uid).get()).get("pingedAt"), rang);
+  checked += 3;
+}
 await denied("resolveAccess", member, { uid: asker.uid, approve: true }, "PERMISSION_DENIED");
 await ok("resolveAccess", admin, { uid: asker.uid, approve: true });
 assert.equal((await db.doc("teamMembers/" + asker.uid).get()).exists, true);

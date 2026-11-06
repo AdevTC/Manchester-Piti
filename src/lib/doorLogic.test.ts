@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, FOREVER_MS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates } from "../../functions/src/doorLogic";
+import { cleanName, DOOR_PING_GAP_MS, doorPingDue, FOREVER_MS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates } from "../../functions/src/doorLogic";
 
 describe("La puerta: invitaciones", () => {
   it("codes are 10 readable symbols, never 0/O/1/I/L", () => {
@@ -42,5 +42,23 @@ describe("La puerta: quién eres", () => {
   it("typed names are trimmed and capped", () => {
     expect(cleanName("  Pepe   el   portero ")).toBe("Pepe el portero");
     expect(cleanName("x".repeat(80))).toHaveLength(40);
+  });
+});
+
+describe("La puerta: «Llaman a la puerta» suena una vez por petición", () => {
+  const now = 1_800_000_000_000;
+  it("a first request, or one replacing an answered one, rings the captains", () => {
+    expect(doorPingDue(null, now)).toBe(true);
+    expect(doorPingDue({ status: "rejected", pingedAt: now - 1000 }, now)).toBe(true);
+    expect(doorPingDue({ status: "removed" }, now)).toBe(true);
+    // (a pending one from before the stamp)
+    expect(doorPingDue({ status: "pending" }, now)).toBe(true);
+  });
+  it("asking again while it still waits rings only once the gap has passed", () => {
+    expect(doorPingDue({ status: "pending", pingedAt: now - 1000 }, now)).toBe(false);
+    expect(doorPingDue({ status: "pending", pingedAt: now - DOOR_PING_GAP_MS + 1 }, now)).toBe(false);
+    expect(doorPingDue({ status: "pending", pingedAt: now - DOOR_PING_GAP_MS }, now)).toBe(true);
+    // (a stamp from the future — a clock gone wrong — never silences it)
+    expect(doorPingDue({ status: "pending", pingedAt: now + 60_000 }, now)).toBe(true);
   });
 });

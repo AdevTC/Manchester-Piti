@@ -57,6 +57,16 @@ export function nicknameCandidates(base: string, n = 20) {
   return Array.from({ length: n }, (_, i) => (i === 0 ? base : base.slice(0, 15 - String(i + 1).length) + (i + 1)));
 }
 
+/** «Llaman a la puerta» rings the captains' phones once per request: asking again while the same request still
+ *  waits only rings again after this long (any Google account can call requestAccess, so pressing it in a loop
+ *  must not flood the captains with notices). */
+export const DOOR_PING_GAP_MS = 60 * 60_000;
+/** Whether a request at `now` rings the captains, given the one it replaces (its status and when it last rang). */
+export function doorPingDue(previous: { status?: unknown; pingedAt?: unknown } | null | undefined, now: number): boolean {
+  if (!previous || previous.status !== "pending" || typeof previous.pingedAt !== "number") return true;
+  return now - previous.pingedAt >= DOOR_PING_GAP_MS || previous.pingedAt > now;
+}
+
 /** A display name typed by someone who isn't in the squad. */
 export const cleanName = (s: string) => s.replace(/\s+/g, " ").trim().slice(0, 40);
 

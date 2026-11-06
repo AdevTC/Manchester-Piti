@@ -3,7 +3,7 @@
 // slot of an aplazado and when the weather at kick-off is owed.
 import { describe, expect, it } from "vitest";
 import { cajaClaimNotice, devicePayload, GOAL_ACTIONS, noticesFor, postponedNotices, turnDoneNotice, type Notice } from "../../functions/src/pushLogic";
-import { calendarSlot } from "../../functions/src/calendarLogic";
+import { calendarSlot, icsText } from "../../functions/src/calendarLogic";
 import { weatherStampDue } from "../../functions/src/weatherLogic";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
@@ -66,6 +66,14 @@ describe("the .ics slot", () => {
     expect(calendarSlot({ date, status: "postponed", postponedTo: null })).toEqual({ start: date, status: "TENTATIVE", prefix: "Aplazado · ", note: "Nueva fecha por decidir." });
     expect(calendarSlot({ date: { toMillis: () => date }, status: "scheduled" })).toEqual({ start: date, status: "CONFIRMED", prefix: "", note: "" });
     expect(calendarSlot({ status: "scheduled" })).toBeNull();
+  });
+  it("a text value can't break its line: every break is «\\n», the rest of the control characters go", () => {
+    expect(icsText("Campo 3; puerta A, \\ arriba")).toBe("Campo 3\\; puerta A\\, \\\\ arriba");
+    expect(icsText("a\r\nb\nc\rd")).toBe("a\\nb\\nc\\nd");
+    // (a lone CR used to pass through raw and start a property of its own)
+    expect(icsText("Polideportivo\rATTACH:https://x.example/a")).toBe("Polideportivo\\nATTACH:https://x.example/a");
+    expect(icsText("a\u0000b\tc\u007fd\u001be")).toBe("abcde");
+    expect(icsText("Ñandú · Atlético")).toBe("Ñandú · Atlético");
   });
 });
 

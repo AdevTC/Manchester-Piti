@@ -6,7 +6,7 @@ import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestor
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { admin, db, googleUser, idSchema, parse } from "./common.js";
-import { cleanName, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, outNotOnHisOwn, removedByCaptain, returningRole } from "./doorLogic.js";
+import { cleanName, doorPingDue, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, outNotOnHisOwn, removedByCaptain, returningRole } from "./doorLogic.js";
 import { forgetMemberDevices, sendTo } from "./push.js";
 import { nameFor } from "./names.js";
 
@@ -154,14 +154,21 @@ export const requestAccess = onCall(async (req) => {
     return { status: "member" as const, ...result };
   }
   const email = (req.auth?.token.email as string | undefined) ?? "";
-  await db.doc(`accessRequests/${uid}`).set({
+  const ref = db.doc(`accessRequests/${uid}`);
+  const previous = await ref.get();
+  const now = Date.now();
+  const ping = doorPingDue(previous.exists ? { status: previous.get("status"), pingedAt: previous.get("pingedAt") } : null, now);
+  await ref.set({
     status: "pending",
     googleName: (req.auth?.token.name as string | undefined) ?? "",
     email,
     photo: (req.auth?.token.picture as string | undefined) ?? "",
     ...(input.playerId ? { playerId: input.playerId, playerName: playerLabel(player!) } : { name: cleanName(input.name ?? "") }),
     at: FieldValue.serverTimestamp(),
+    // (when it last rang the captains: doorPingDue)
+    pingedAt: ping ? now : previous.get("pingedAt"),
   });
+  if (!ping) return { status: "pending" as const };
   const who = input.playerId ? playerLabel(player!) : cleanName(input.name ?? "") || "Alguien";
   await sendTo({ topic: "door", title: "Llaman a la puerta del vestuario", body: `${who} pide entrar${email ? ` (${email})` : ""}.`, tag: `door-${uid}`, url: "/vestuario/puerta" });
   return { status: "pending" as const };
