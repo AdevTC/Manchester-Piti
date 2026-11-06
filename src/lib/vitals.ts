@@ -5,7 +5,6 @@
 import type { CLSMetricWithAttribution, FCPMetricWithAttribution, INPMetricWithAttribution, LCPMetricWithAttribution, TTFBMetricWithAttribution } from "web-vitals/attribution";
 import type { VitalDevice, VitalRecord } from "../../functions/src/vitalsLogic";
 import { onViewTransition } from "../components/celeste/pageTransition";
-
 export const VITALS_URL = "/datos/v";
 /** The share of visits that report (the club's traffic is small: all of them). */
 export const SAMPLE = 1;
@@ -57,6 +56,15 @@ export function notRestored(entry: unknown): string | undefined {
   return text([...seen].join(","), 120) || "-";
 }
 
+/** When the View Transitions of this visit started (performance.now()), the last few: an INP that started one says so. */
+const vtStarts: number[] = [];
+/** Whether a View Transition started between a tap and the frame that showed its answer (`starts`: their start times). */
+export function startedTransition(a: { interactionTime?: number; nextPaintTime?: number }, starts: readonly number[] = vtStarts): boolean {
+  const { interactionTime: from, nextPaintTime: to } = a;
+  if (typeof from !== "number" || typeof to !== "number") return false;
+  return starts.some((t) => t >= from && t <= to);
+}
+
 /** What made a metric what it is, in a few fields. */
 export function attributionOf(m: AnyMetric): Attr {
   switch (m.name) {
@@ -66,6 +74,9 @@ export function attributionOf(m: AnyMetric): Attr {
     }
     case "INP": {
       const a = m.attribution;
+      // (with reportSoftNavs, a page reached by a soft navigation whose taps were all quick still reports an INP, with
+      // no interaction behind it: web-vitals fills it in as all «presentation» and no element. A filler, not a tap.)
+      if (m.entries.length === 0) return compact({ fill: true, load: a.loadState });
       const ls = a.longestScript;
       return compact({
         el: text(a.interactionTarget),
@@ -80,6 +91,8 @@ export function attributionOf(m: AnyMetric): Attr {
         script: urlPath(ls?.entry.sourceURL) ?? text(ls?.entry.invoker),
         scriptMs: ms(ls?.intersectingDuration),
         load: a.loadState,
+        // (the tap started a View Transition: its «presentation» includes the transition's first frame)
+        vt: startedTransition(a) || undefined,
       });
     }
     case "CLS": {
@@ -140,12 +153,64 @@ export function deviceOf(nav: Navigator = navigator, win: Window = window, doc: 
   };
 }
 
+/** A Long Animation Frame entry (Chrome 123+), the fields used here. */
+export type Loaf = {
+  startTime: number;
+  duration: number;
+  renderStart: number;
+  styleAndLayoutStart: number;
+  scripts?: readonly { duration: number; forcedStyleAndLayoutDuration?: number; sourceURL?: string; invoker?: string }[];
+};
+/** The long animation frames seen lately (Chrome only; the observer keeps the last ones). */
+const loafs: Loaf[] = [];
+let loafObserver: PerformanceObserver | null = null;
+const MAX_LOAFS = 60;
+const keepLoafs = (list: PerformanceEntryList) => {
+  for (const e of list) loafs.push(e as unknown as Loaf);
+  if (loafs.length > MAX_LOAFS) loafs.splice(0, loafs.length - MAX_LOAFS);
+};
+function watchLoafs() {
+  try {
+    if (!PerformanceObserver.supportedEntryTypes?.includes("long-animation-frame")) return;
+    loafObserver = new PerformanceObserver((l) => keepLoafs(l.getEntries()));
+    loafObserver.observe({ type: "long-animation-frame", buffered: true });
+  } catch {
+    loafObserver = null;
+  }
+}
+
+/** Where the time of a View Transition's worst frame went, from the long animation frames that overlap it (`from`–`to`):
+ *  `lf` the frame, `lfJs` tasks and scripts before rendering, `lfRaf` rAF callbacks and observers, `lfLay` style,
+ *  layout and paint, `lfForced` layout forced from scripts, `lfScript` its longest script, `lfN` how many long frames.
+ *  Long frames short next to the longest frame rAF saw mean the time went to the GPU (raster, compositing). */
+export function frameBreakdown(entries: readonly Loaf[], from: number, to: number): Attr {
+  const during = entries.filter((e) => e.startTime < to && e.startTime + e.duration > from);
+  if (!during.length) return {};
+  const worst = during.reduce((a, b) => (b.duration > a.duration ? b : a));
+  const end = worst.startTime + worst.duration;
+  const rendered = worst.renderStart > 0;
+  const scripts = worst.scripts ?? [];
+  const longest = scripts.reduce<(typeof scripts)[number] | undefined>((a, b) => (!a || b.duration > a.duration ? b : a), undefined);
+  return compact({
+    lf: ms(worst.duration),
+    lfJs: ms((rendered ? worst.renderStart : end) - worst.startTime),
+    lfRaf: rendered ? ms(Math.max(0, (worst.styleAndLayoutStart || end) - worst.renderStart)) : 0,
+    lfLay: rendered ? ms(end - (worst.styleAndLayoutStart || end)) : 0,
+    lfForced: ms(scripts.reduce((s, x) => s + (x.forcedStyleAndLayoutDuration ?? 0), 0)),
+    lfScript: urlPath(longest?.sourceURL) ?? text(longest?.invoker),
+    lfN: during.length,
+  });
+}
+
 /** The page on screen before the current change (the router writes the new address before its transition starts). */
 let here = "";
-/** The frames of a View Transition: its longest, how many took over 50 ms, and how long it ran. */
+/** The frames of a View Transition: its longest, how many took over 50 ms, how long it ran, and (Chrome) where the
+ *  time of its worst frame went. */
 function watchFrames(t: ViewTransition, page: boolean, push: (r: VitalRecord) => void) {
   const from = here || pageOf(location.pathname);
   const start = performance.now();
+  vtStarts.push(start);
+  if (vtStarts.length > 20) vtStarts.shift();
   let last = start;
   let longest = 0;
   let slow = 0;
@@ -164,7 +229,10 @@ function watchFrames(t: ViewTransition, page: boolean, push: (r: VitalRecord) =>
   const end = () => {
     running = false;
     here = pageOf(location.pathname);
-    push({ n: "VT", v: Math.round(longest), p: here, a: { kind: page ? "page" : "inpage", from, slow, dur: Math.round(performance.now() - start) } });
+    const now = performance.now();
+    // (the frames that ended just now may not have reached the observer's callback yet)
+    if (loafObserver) keepLoafs(loafObserver.takeRecords());
+    push({ n: "VT", v: Math.round(longest), p: here, a: { kind: page ? "page" : "inpage", from, slow, dur: Math.round(now - start), ...frameBreakdown(loafs, start, now) } });
   };
   t.finished.then(end, end);
 }
@@ -186,6 +254,7 @@ export async function startVitals(): Promise<void> {
     navigator.sendBeacon(VITALS_URL, new Blob([body], { type: "text/plain" }));
   };
   here = pageOf(location.pathname);
+  watchLoafs();
   onViewTransition((t, page) => watchFrames(t, page, push));
   const { onCLS, onFCP, onINP, onLCP, onTTFB } = await import("web-vitals/attribution");
   const hidden = startedHidden();
