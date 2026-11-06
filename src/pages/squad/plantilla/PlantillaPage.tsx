@@ -288,8 +288,12 @@ export function PlantillaPage() {
 
   // ── moving: every change is a View Transition and an address
   const toAddr = (patch: Partial<Addr>): Addr => ({ ...shown, ...patch });
+  // (the search box's pending address write: a move or leaving the page drops it, or it would bring the percha back)
+  const qTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(qTimer.current), []);
   const go = useCallback(
     (next: Addr, opts: { dir: Dir; replace?: boolean; el?: HTMLElement | null; home?: string | null; ui?: Partial<Ui> }) => {
+      window.clearTimeout(qTimer.current);
       const href = hrefOf(next);
       lastGo.current = JSON.stringify(addrOf(href.to, href.search));
       const img = opts.el?.querySelector<HTMLElement>(".pl-shirt__img") ?? null;
@@ -332,7 +336,6 @@ export function PlantillaPage() {
   const local = (patch: Partial<Ui>, dir: Dir = "up") => transition(dir, reduced, () => flushSync(() => setUi((u) => ({ ...u, ...patch }))));
 
   // the search writes ?q= without entering the history
-  const qTimer = useRef(0);
   const setQ = (q: string) => {
     setUi((u) => ({ ...u, q }));
     window.clearTimeout(qTimer.current);
