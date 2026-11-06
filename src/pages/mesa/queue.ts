@@ -355,6 +355,16 @@ export class MesaQueue {
   }
 }
 
+/** «Deshacer» / «Borrar» of play `index` of a queued item. Still on this phone: it just leaves the queue. Already
+ *  up (the server took it) but not yet in the realtime doc: deleted on the server, and then it leaves the queue
+ *  too — kept as «sent», it would still show as a local play and, after RESEND_SENT_MS, go up again under the
+ *  same requestId (the server only knows ids still in the record), bringing the undone goal back. */
+export async function removeQueued(queue: Pick<MesaQueue, "drop"> | null, q: { item: Pick<QueueItem, "requestId" | "status">; index: number }, deleteOnServer: () => Promise<void>): Promise<void> {
+  if (q.item.status !== "sent" && queue?.drop(q.item.requestId, q.index)) return;
+  await deleteOnServer();
+  if (q.item.status === "sent") queue?.drop(q.item.requestId);
+}
+
 /** The plays per player still to go up (the «↓N» badges): who did it and who came in. */
 export function pendingByPlayer(items: readonly QueueItem[]): Record<string, number> {
   const out: Record<string, number> = {};
