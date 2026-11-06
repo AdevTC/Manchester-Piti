@@ -10,7 +10,7 @@ Spanish-first web app for an amateur football club: match-day entry, historical 
 - Firebase Authentication and Firestore
 - TanStack Router and Query
 - Tailwind CSS 4 and shadcn/ui (components in `src/components/ui`, themed through the `--mp-*` variables)
-- Zod, React Hook Form and Motion; three.js for the 3D scenes
+- Zod; three.js for the 3D scenes
 - Vitest and Playwright
 - Oxlint (`pnpm lint`)
 
