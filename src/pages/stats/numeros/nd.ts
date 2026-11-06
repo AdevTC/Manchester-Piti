@@ -150,6 +150,12 @@ export interface Moment {
   live: boolean;
   closed: boolean;
 }
+/** The moment a season is at: the last jornada played (or tonight's), tonight live, every jornada played (a
+ *  postponed one is still to play: the season is not over while it waits). */
+export function seasonMoment(S: Pick<NSeasonData, "matches">): Moment {
+  const done = S.matches.filter((m) => m.st === "fin" || m.st === "live");
+  return { edge: Math.max(1, ...done.map((m) => m.j)), live: S.matches.some((m) => m.st === "live"), closed: done.length > 0 && !S.matches.some((m) => m.st === "por" || m.st === "live" || m.st === "apl") };
+}
 
 export interface Se {
   S: NSeasonData;
@@ -368,12 +374,13 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
     });
     gs.forEach((m) => {
       const won = (m.gf ?? 0) > (m.ga ?? 0);
+      // (an acta with minutes knows everyone's: whoever is not in it, a signing still to come, played 0′)
+      if (m.ledger || m.minutes) IDS.forEach((id) => R[id].tracked++);
       if (m.ledger) {
         Object.keys(m.ledger).forEach((id) => {
           const r = R[id];
           const l = m.ledger?.[id];
           if (!r || !l) return;
-          r.tracked++;
           r.ledgered++;
           if (l.pl) {
             r.pj++;
@@ -397,10 +404,7 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
           else r.ban++;
           if (won) r.wins++;
           r.games.push(m);
-          if (m.minutes) {
-            r.min += m.minutes[id] || 0;
-            r.tracked++;
-          }
+          if (m.minutes) r.min += m.minutes[id] || 0;
         });
         m.notCalled.forEach((id) => {
           if (R[id]) R[id].nc++;
@@ -433,10 +437,12 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
       m.reds.forEach((c) => R[c[0]] && R[c[0]].rc++);
       (m.mvps ?? (m.mvp ? [m.mvp] : [])).forEach((id) => R[id] && R[id].mvp++);
     });
+    // (a match being played has no acta yet: its minutes are not missing, they are still to come)
+    const timed = gs.filter((m) => m.st !== "live").length;
     let all = IDS.map((id) => {
       const r = R[id];
       r.ga = r.g + r.a;
-      r.minKnown = gs.length > 0 && r.tracked === gs.length;
+      r.minKnown = timed > 0 && r.tracked === timed;
       r.tech = r.games.some(m => m.technicalAvailable ?? !!m.ledger);
       r.passPct = r.pok + r.pko ? Math.round((r.pok / (r.pok + r.pko)) * 100) : null;
       Object.keys(r.perGame).forEach((k) => {
@@ -545,17 +551,24 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
   }
   function rivals(se: Se, upto: number, gs: NMatch[]) {
     const R: Record<string, RivalRow> = {};
+    const rowOf = (rival: string) => (R[rival] = R[rival] || { rival, pj: 0, g: 0, e: 0, p: 0, gf: 0, ga: 0, games: [], next: null });
+    const tally = (r: RivalRow, m: NMatch) => {
+      r.pj++;
+      r[res(m)]++;
+      r.gf += m.gf ?? 0;
+      r.ga += m.ga ?? 0;
+      r.games.push(m);
+    };
     se.matches.forEach((m) => {
-      const r = (R[m.rival] = R[m.rival] || { rival: m.rival, pj: 0, g: 0, e: 0, p: 0, gf: 0, ga: 0, games: [], next: null });
-      if (gs.includes(m)) {
-        r.pj++;
-        r[res(m)]++;
-        r.gf += m.gf ?? 0;
-        r.ga += m.ga ?? 0;
-        r.games.push(m);
-      }
+      const r = rowOf(m.rival);
+      if (gs.includes(m)) tally(r, m);
       if (m.st === "live" && m.j <= upto) r.next = m;
       else if (!r.next && !gs.includes(m) && (m.st === "por" || m.st === "apl" || m.j > upto)) r.next = m;
+    });
+    // («todas las temporadas»: the other seasons' matches against them too, and a rival only met in another one)
+    const own = new Set(se.matches);
+    gs.forEach((m) => {
+      if (!own.has(m)) tally(rowOf(m.rival), m);
     });
     return Object.keys(R).map((k) => R[k]);
   }
@@ -647,13 +660,13 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
     if (fw) got("partidos", "Primera victoria", `${fw.gf}–${fw.ga}`, "", "El equipo", fw);
     else slot("partidos", "Primera victoria", "falta 1 victoria");
     if (t10) got("goles", "10 goles del equipo", "10", "goles", name(t10.id), t10.m);
-    else slot("goles", "10 goles del equipo", `faltan ${10 - goalsRun} goles`);
+    else slot("goles", "10 goles del equipo", faltan(10 - goalsRun, "gol", "goles"));
     if (fc) got("partidos", "Primera portería a cero", `${fc.gf}–0`, "", fc.starters[0] ? name(fc.starters[0]) : "El equipo", fc);
     else slot("partidos", "Primera portería a cero", "falta 1 partido");
     if (v5) got("partidos", "5 victorias", "5", "victorias", "El equipo", v5);
-    else slot("partidos", "5 victorias", `faltan ${5 - wins} victorias`);
+    else slot("partidos", "5 victorias", faltan(5 - wins, "victoria", "victorias"));
     if (t25) got("goles", "25 goles del equipo", "25", "goles", name(t25.id), t25.m);
-    else slot("goles", "25 goles del equipo", `faltan ${25 - goalsRun} goles`);
+    else slot("goles", "25 goles del equipo", faltan(25 - goalsRun, "gol", "goles"));
     const acc: Record<string, number> = {};
     let a5: { m: NMatch; id: string } | null = null;
     gs.forEach((m) =>
@@ -666,13 +679,13 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
     const topA = ranked(rs, "asist")[0];
     const as5 = a5 as { m: NMatch; id: string } | null;
     if (as5) got("asist", "5 asistencias", "5", "asistencias", name(as5.id), as5.m);
-    else slot("asist", "5 asistencias de un jugador", `faltan ${5 - (topA ? topA.a : 0)}`);
+    else slot("asist", "5 asistencias de un jugador", faltan(5 - (topA ? topA.a : 0)));
     if (ht) got("goles", "Primer hat-trick", "3", "goles", name(ht.id), ht.m);
     else slot("goles", "Primer hat-trick", "aún nadie");
     if (v10) got("partidos", "10 victorias", "10", "victorias", "El equipo", v10);
-    else slot("partidos", "10 victorias", `faltan ${10 - wins} victorias`);
+    else slot("partidos", "10 victorias", faltan(10 - wins, "victoria", "victorias"));
     if (t50) got("goles", "50 goles del equipo", "50", "goles", name(t50.id), t50.m);
-    else slot("goles", "50 goles del equipo", `faltan ${50 - goalsRun} goles`);
+    else slot("goles", "50 goles del equipo", faltan(50 - goalsRun, "gol", "goles"));
     return out;
   }
   /** The cumulative line of each player across the jornadas (the evolution chart, 600 × 160). */
@@ -700,6 +713,9 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
     return {
       n,
       max,
+      // (the axis is the matches played: a postponed jornada between them leaves no gap, so its ends are named by theirs)
+      firstJ: pl[0]?.j ?? 1,
+      lastJ: pl.at(-1)?.j ?? 1,
       d: ids.map((id) => series[id].map((p, i) => `${i ? "L" : "M"}${((p[0] / n) * 600).toFixed(1)} ${(156 - (p[1] / max) * 146).toFixed(1)}`).join(" ")),
       last: ids.map((id) => series[id][series[id].length - 1][1]),
     };
@@ -739,6 +755,8 @@ export interface Cromo {
 
 const NO_STREAK: Streak = { best: 0, cur: 0, from: null, to: null };
 const nOrd = (r: { n: number | "" }) => (r.n === "" ? 999 : r.n);
+/** «faltan 3 goles», «falta 1 gol» (what a locked cromo still needs). */
+const faltan = (n: number, one = "", many = ""): string => (n === 1 ? `falta 1${one ? ` ${one}` : ""}` : `faltan ${n}${many ? ` ${many}` : ""}`);
 const TECH_KEYS = ["pas", "pok", "pko", "punk", "kp", "cr", "sh", "sot", "tov", "rec", "int", "tk", "cl", "bl", "du", "duw", "dr", "to"] as const;
 /** The app's 24 player metrics (clubAnalytics.metrics) + the narrated counts, by key → the row's field. */
 const MK: Record<string, string> = {

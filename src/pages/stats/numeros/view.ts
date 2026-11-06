@@ -317,7 +317,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       act.say("Filtros quitados.");
     },
     players: st.jug.length > 0,
-    count: `${T.pj}${T.pj === 1 ? " partido" : " partidos"} · ${rs.filter((r) => r.pj).length} jugadores · ${tracked}${tracked === 1 ? " acta con minutos" : " actas con minutos"}`,
+    count: `${T.pj}${T.pj === 1 ? " partido" : " partidos"} · ${nW(rs.filter((r) => r.pj).length, "jugador", "jugadores")} · ${tracked}${tracked === 1 ? " acta con minutos" : " actas con minutos"}`,
   };
 
   // ---------- Temporada
@@ -417,7 +417,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     if (bestRec && bestRec.rec) said.push(`${bestRec.name} recupera más balones que nadie: ${bestRec.rec}.`);
   }
   const subsN = gsDone.reduce((s, m) => s + (m.subs || 0), 0);
-  if (subsN) said.push(`${subsN} cambios en ${gsDone.length === 1 ? "un partido" : `${gsDone.length} partidos`}: en fútbol 7 se entra y se sale las veces que haga falta.`);
+  if (subsN) said.push(`${nW(subsN, "cambio", "cambios")} en ${gsDone.length === 1 ? "un partido" : `${gsDone.length} partidos`}: en fútbol 7 se entra y se sale las veces que haga falta.`);
   const tsNow = ND.teamStreaks(gsDone).find((x) => x.s.cur >= 2);
   if (tsNow) said.push(`${tsNow.k}: ${tsNow.s.cur} y contando.`);
   const recs0 = ND.recordsOf(gsDone);
@@ -750,7 +750,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     ).map((v) => ({ t: v[1], on: (st.colSet || "basico") === v[0], pick: set({ colSet: v[0] }) })),
     setI: ["basico", "minutos", "mesa", "penaltis", "narrado"].indexOf(st.colSet || "basico"),
     q: st.q, setQ: (v: string) => act.set({ q: v }), empty: full.length === 0, csv: () => act.csv("jugadores"),
-    count: `${full.length} jugadores · ordenado por ${(NU_MET[sortK] || { t: sortK }).t.toLowerCase()} · «–» es que el dato no está registrado`,
+    count: `${nW(full.length, "jugador", "jugadores")} · ordenado por ${(NU_MET[sortK] || { t: sortK }).t.toLowerCase()} · «–» es que el dato no está registrado`,
     table: { head: ["Jugador", "Dorsal", ...colKeys.map((k) => (NU_MET[k] || { t: k }).t)], rows: full.map((r) => [r.name, String(r.n), ...r.cells.map((c) => String(c.v))]) },
   };
 
@@ -1159,6 +1159,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   };
   const best = rv.filter((r) => r.pj).sort((a, b) => (b.g * 3 + b.e) / b.pj - (a.g * 3 + a.e) / a.pj);
   const bestPpg = best[0] ? (best[0].g * 3 + best[0].e) / best[0].pj : 0;
+  const worst = best.at(-1);
+  // (only a rival worse than the best one sticks in our throat: against all of them alike, nobody does)
+  const choke = worst && best.length > 1 && (worst.g * 3 + worst.e) / worst.pj < bestPpg ? worst : null;
   const unplayedR = rv.filter((r) => !r.pj).length;
   const rivales = {
     kick: `Rivales · ${rv.length} en la liga`,
@@ -1172,7 +1175,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
             : best[0]
               ? `Contra ${best[0].rival}, lo mejor`
               : "Por estrenar",
-    sub: `El cara a cara con cada rival en el período.${best.length > 1 ? ` El que más se nos atraganta: ${best[best.length - 1].rival}.` : ""}${unplayedR ? ` ${unplayedR}${unplayedR === 1 ? " rival, por estrenar." : " rivales, por estrenar."}` : ""}`,
+    sub: `El cara a cara con cada rival en el período.${choke ? ` El que más se nos atraganta: ${choke.rival}.` : ""}${unplayedR ? ` ${unplayedR}${unplayedR === 1 ? " rival, por estrenar." : " rivales, por estrenar."}` : ""}`,
     rows: rvRows, all: rvAll, phoneRows: rvRows.slice(0, 7), more: Math.max(0, rvRows.length - 7), moreT: `Todos los rivales (${rvRows.length})`,
     q: st.rq, setQ: (v: string) => act.set({ rq: v }), empty: rvRows.length === 0, n: rv.length, growNote: `${rv.length} rivales en la liga.${rv[0]?.next?.st === "live" ? ` Primero, el de ${tonightWord(rv[0].next.time)}.` : ""}`, openAll: () => act.grow("rivales"),
     d: dossier(selRival), sel: selRival, i: info("rivalesb"),
@@ -1307,7 +1310,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     }),
     evo: {
       d: ev.d, keys: evoIds.map((id, i) => ({ key: id, id, name: ND.name(id), v: evoK === "min" ? Math.round(ev.last[i]) : ev.last[i], cls: `nu-evo__k--${i}`, alt: `La camiseta de ${ND.name(id)}` })),
-      cap: `Acumulado de ${EVO_WORD[evoK]} hasta la J${upto}`, one: ev.n <= 1, n: ev.n,
+      cap: `Acumulado de ${EVO_WORD[evoK]} hasta la J${upto}`, one: ev.n <= 1, n: ev.n, firstJ: ev.firstJ, lastJ: ev.lastJ,
     },
     hitos: ND.ranked(rDone, "goles")
       .filter((r) => r.g > 0)

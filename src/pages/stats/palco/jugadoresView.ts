@@ -211,7 +211,7 @@ export function jugadores(v: V, st: NuState, act: Act) {
     evoOpts: R.evoOpts, evoI: Math.max(0, R.evoI),
     evoLines: ev.d.map((d, i) => ({ key: i, d, cls: `l${i % 6}` })),
     evoKeys: ev.keys.map((k, i) => ({ key: k.key, name: k.name, v: k.v, cls: `k${i % 6}` })),
-    evoAria: ev.cap || "La evolución, jornada a jornada", evoFrom: "J1", evoTo: ev.keys.length ? `J${ev.n}` : "", evoOne: ev.one && ev.keys.length > 0,
+    evoAria: ev.cap || "La evolución, jornada a jornada", evoFrom: `J${ev.firstJ}`, evoTo: ev.keys.length ? `J${ev.lastJ}` : "", evoOne: ev.one && ev.keys.length > 0,
     evoPeople: R.evoPeople,
   };
 }

@@ -267,7 +267,7 @@ export function temporadaView(v: NuView, st: NuState, act: Act) {
       { k: "e", L: "E", n: e },
       { k: "p", L: "P", n: l },
     ].filter((x) => x.n > 0),
-    wdlAria: `${w} ganados, ${e} empatados y ${l} perdidos`,
+    wdlAria: `${plural(w, "ganado", "ganados")}, ${plural(e, "empatado", "empatados")} y ${plural(l, "perdido", "perdidos")}`,
     pct: fig(kf(/^de victorias/)), pts: fig(kf(/^puntos?\b/)), pj: fig(kf(/^partidos?$/)), gpp: fig(kf(/por partido/)), cs: fig(kf(/porterías?/)),
     gf, gc, gfW: Math.round((gf / gmax) * 100), gcW: Math.round((gc / gmax) * 100),
     chips: [kf(/amarilla/), kf(/por jugar/)].filter((k) => k.t).map(fig),
