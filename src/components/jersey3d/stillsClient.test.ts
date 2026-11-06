@@ -6,8 +6,8 @@ import type { StillJob, StillReply } from "./stillsClient";
 
 const scene = vi.hoisted(() => ({ renderStill: vi.fn(async () => new Blob(["main"], { type: "image/webp" })) }));
 vi.mock("./scene", () => scene);
-// ONE_FALLBACK: Vitest hands the second of two concurrent dynamic imports of a mocked module the real one (which
-// can't render here), so where two jobs fail over at once only the first is checked to resolve; the other to settle.
+// (Vitest 5.0 handed the second of two concurrent dynamic imports of a mocked module the real one; since 5.1 both get
+// the mock, so where two jobs fail over at once both resolve on the main thread.)
 
 class FakeWorker {
   static all: FakeWorker[] = [];
@@ -77,9 +77,9 @@ describe("renderStillFast", () => {
     const w = await ready();
     expect(w.jobs).toHaveLength(2);
     w.crash();
-    // neither hangs: both go to the main thread (only the first is checked to resolve: see ONE_FALLBACK)
+    // neither hangs: both go to the main thread
     await expect(a).resolves.toBeInstanceOf(Blob);
-    await b.catch(() => undefined);
+    await expect(b).resolves.toBeInstanceOf(Blob);
     expect(scene.renderStill).toHaveBeenCalledWith(REQ, "image/webp", 1);
     expect(w.terminated).toBe(true);
     const c = renderStillFast(REQ);
@@ -87,7 +87,8 @@ describe("renderStillFast", () => {
     expect(fresh).not.toBe(w);
     fresh.reply({ id: fresh.jobs[0].id, blob: new Blob(["again"]) });
     await expect(c).resolves.toBeInstanceOf(Blob);
-    expect(scene.renderStill).toHaveBeenCalledTimes(1);
+    // (a and b on the main thread; c in the new worker)
+    expect(scene.renderStill).toHaveBeenCalledTimes(2);
   });
 
   it("stops starting workers that keep dying", async () => {
@@ -109,11 +110,12 @@ describe("renderStillFast", () => {
     const w = await ready();
     w.reply({ id: w.jobs[0].id, error: "context lost" });
     await expect(a).resolves.toBeInstanceOf(Blob);
-    await b.catch(() => undefined);
+    await expect(b).resolves.toBeInstanceOf(Blob);
     expect(w.terminated).toBe(true);
     await expect(renderStillFast(REQ)).resolves.toBeInstanceOf(Blob);
     expect(FakeWorker.all).toHaveLength(1);
-    expect(scene.renderStill).toHaveBeenCalledTimes(2);
+    // (a, b and the next one, all on the main thread: the worker is not used again)
+    expect(scene.renderStill).toHaveBeenCalledTimes(3);
   });
 
   it("lets an idle worker go and starts a new one on the next request", async () => {
