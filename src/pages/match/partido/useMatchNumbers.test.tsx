@@ -26,6 +26,24 @@ describe("useMatchNumbers", () => {
     expect(matchNumbers).toHaveBeenLastCalledWith(match, people, filters, { us: 3, them: 1 });
   });
 
+  it("keeps the figures per match across visits to the screen (a remount), not across new match snapshots", () => {
+    matchNumbers.mockClear();
+    const m = { id: "m2" } as unknown as ClubMatch;
+    const visit = (match: ClubMatch, p = [{ id: "p1", name: "Jordi" }]) => renderHook(() => useMatchNumbers(true, match, p, { matchIds: ["m2"] }, { us: 1, them: 0 }));
+    const first = visit(m);
+    const figures = first.result.current;
+    first.unmount();
+    // (the screen mounts again with new arrays and objects holding the same values)
+    const again = visit(m);
+    expect(again.result.current).toBe(figures);
+    expect(matchNumbers).toHaveBeenCalledTimes(1);
+    // a renamed player or a new snapshot of the match: worked out again
+    visit(m, [{ id: "p1", name: "Jordi R." }]);
+    expect(matchNumbers).toHaveBeenCalledTimes(2);
+    visit({ id: "m2" } as unknown as ClubMatch);
+    expect(matchNumbers).toHaveBeenCalledTimes(3);
+  });
+
   it("has nothing to work out before the match is played", () => {
     matchNumbers.mockClear();
     const { result } = renderHook(() => useMatchNumbers(false, match, people, filters, { us: 0, them: 0 }));
