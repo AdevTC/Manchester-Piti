@@ -12,7 +12,7 @@ import { dateMillis, isVisibleMatch, type Participation } from "../../../../func
 import { useReducedMotion } from "../../../components/vidrio";
 import { jornadaOf } from "../../../lib/derived/jornada";
 import { PROVISIONAL_MINUTES } from "../../../lib/rating/constants";
-import { NO_STANDINGS, ratedMatch, ratingMatches, seasonRatings } from "../../../lib/seasonRating";
+import { keptSeasonRatings, NO_STANDINGS, ratedMatch, ratingMatches } from "../../../lib/seasonRating";
 import { useStandings } from "../../../lib/useStandings";
 import { mvpWinners, voteLeft } from "../../../lib/vestuario";
 import type { PageCtx } from "./ctx";
@@ -69,7 +69,7 @@ export function SieteActa({ c }: { c: PageCtx }) {
     [c.matches, match.seasonId],
   );
   const table = useMemo(() => (standings ? [standings] : NO_STANDINGS), [standings]);
-  const ratings = useMemo(() => seasonRatings(ratingMatches(seasonGames), table), [seasonGames, table]);
+  const ratings = useMemo(() => keptSeasonRatings(ratingMatches(seasonGames), table), [seasonGames, table]);
   // (this match as its notas are rated: its values at the season's calibrations, each one's team part and how his
   // fixed position weighs his actions)
   const rated = useMemo(() => ratedMatch(match, ratingMatches(seasonGames), table), [match, seasonGames, table]);

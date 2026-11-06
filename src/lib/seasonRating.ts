@@ -53,6 +53,7 @@ export interface RatingPlayer {
 /** Latest revision wins before visibility is checked: stale copies cannot revive an archive. (The same
  *  input gives the same array, so the season's numbers are computed once for every player.) */
 const selected = new WeakMap<readonly ClubMatch[], ClubMatch[]>();
+const recent: ClubMatch[][] = [];
 export function ratingMatches(matches: readonly ClubMatch[]): ClubMatch[] {
   const hit = selected.get(matches);
   if (hit) return hit;
@@ -61,10 +62,31 @@ export function ratingMatches(matches: readonly ClubMatch[]): ClubMatch[] {
     const previous = unique.get(match.id);
     if (!previous || (match.revision ?? 0) >= (previous.revision ?? 0)) unique.set(match.id, match);
   }
-  const out = [...unique.values()].filter(isCompleted);
+  const fresh = [...unique.values()].filter(isCompleted);
+  // (a new list holding the same matches — a screen mounted again filters the season afresh — gives the array it gave
+  // before, so what is kept per array below is found again)
+  const out = recent.find((r) => r.length === fresh.length && r.every((m, i) => m === fresh[i])) ?? fresh;
+  if (out === fresh) {
+    recent.unshift(fresh);
+    recent.length = Math.min(recent.length, 4);
+  }
   selected.set(matches, out);
   selected.set(out, out);
   return out;
+}
+
+/** seasonRatings for a list from ratingMatches and a table, kept per list: El siete of a match rated the whole season
+ *  (~45 ms with the CPU ×4) each time its tab was tapped, inside the tab's View Transition. */
+const ratingsKept = new WeakMap<readonly ClubMatch[], { table: readonly StandingsLike[]; ratings: SeasonRatings }[]>();
+export function keptSeasonRatings(games: ClubMatch[], table: readonly StandingsLike[] = NO_STANDINGS): SeasonRatings {
+  const list = ratingsKept.get(games) ?? [];
+  const hit = list.find((e) => e.table.length === table.length && e.table.every((t, i) => t === table[i]));
+  if (hit) return hit.ratings;
+  const ratings = seasonRatings(games, table);
+  list.unshift({ table: [...table], ratings });
+  list.length = Math.min(list.length, 4);
+  ratingsKept.set(games, list);
+  return ratings;
 }
 
 /** His line: the one with most minutes certified by the actas (an estimated position is not proof), else
