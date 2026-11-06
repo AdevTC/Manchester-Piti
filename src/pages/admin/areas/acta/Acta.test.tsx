@@ -456,6 +456,26 @@ describe("Después", () => {
     await waitFor(() => expect(recalc).toHaveBeenCalledWith({ matchId: "m6" }));
   });
 
+  it("a double tap on «Recalcular las notas» or «Cerrar ya» sends one call (the buttons are aria-disabled, which still takes taps)", async () => {
+    const now = adminFixture().now;
+    setAdminData(adminFixture({ published: fullJ1({ notas: undefined, voteClosesAt: now + 5 * 3_600_000, actaPublishedAt: now - 43 * 3_600_000 }) }));
+    live.notasError = { at: 1, message: "Falta la tabla" };
+    live.mvp = new Map([["m6", { id: "m6", counts: {}, total: 6, eligible: 14, open: true }]]);
+    let finish: () => void = () => undefined;
+    recalc.mockImplementationOnce(() => new Promise((ok) => (finish = () => ok({ data: { players: 9, mean: 6.8 } } as never))) as never);
+    const user = userEvent.setup();
+    open("/admin/partidos/m6/despues");
+    const button = await screen.findByRole("button", { name: "Recalcular las notas" });
+    await user.click(button);
+    await user.click(button);
+    await user.click(screen.getByRole("button", { name: "Cerrar ya" }));
+    expect(recalc).toHaveBeenCalledTimes(1);
+    expect(mvpVote).not.toHaveBeenCalled();
+    await act(async () => finish());
+    await user.click(screen.getByRole("button", { name: "Cerrar ya" }));
+    await waitFor(() => expect(mvpVote).toHaveBeenCalledTimes(1));
+  });
+
   it("the notices that went out, the cost and the table point to their places; the foot shares the cartel", async () => {
     setAdminData(adminFixture({ published: fullJ1() }));
     live.pushSent = [{ id: "p1", d: { title: "Final: Manchester Piti 4–1 Emirates", body: "", topic: "final", url: "/partidos/m6", tag: "", matchId: "m6", audience: "publico", kind: "auto", devices: 23, members: 14, by: null, at: 1_700_000_000_000 } }];
