@@ -25,7 +25,8 @@ export const MVP_CLOSE_LOOKBACK_MS = 30 * 86_400_000;
 /** Publishes the counts of every vote that closed and still shows only its turnout (idempotent: a closed
  *  doc is left as it is). Returns how many it closed. */
 export async function closeDueVotes(now: number): Promise<number> {
-  const due = await db.collection("matches").where("voteClosesAt", ">=", now - MVP_CLOSE_LOOKBACK_MS).where("voteClosesAt", "<=", now).get();
+  // (only what the loop reads: a match also carries its game analysis; the transaction reads the match itself)
+  const due = await db.collection("matches").where("voteClosesAt", ">=", now - MVP_CLOSE_LOOKBACK_MS).where("voteClosesAt", "<=", now).select("archived", "voteClosesAt").get();
   let closed = 0;
   for (const m of due.docs) {
     if (m.get("archived") === true) continue;
@@ -49,7 +50,7 @@ export async function closeDueVotes(now: number): Promise<number> {
 /** An open vote whose doc still shows its counts (written before this rule, or by an old trigger still
  *  running): rewritten to its turnout only. Idempotent. Returns how many it hid. */
 export async function hideOpenCounts(now: number): Promise<number> {
-  const open = await db.collection("matches").where("voteClosesAt", ">", now).get();
+  const open = await db.collection("matches").where("voteClosesAt", ">", now).select("voteClosesAt").get();
   let hidden = 0;
   for (const m of open.docs) {
     const stored = (await db.doc(`mvpResults/${m.id}`).get()).data();

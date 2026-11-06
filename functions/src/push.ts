@@ -23,7 +23,7 @@ import { nameFor } from "./names.js";
 import { isGuestId } from "./guests.js";
 import { NOTICE_TTL_MS, noticeRecord, noticeRecordAs, type NoticeAudience } from "./noticesLogic.js";
 import { claimSiete, sevenEdited, sevenPublished } from "./seven.js";
-import { jornadaOf } from "./jornada.js";
+import { JORNADA_FIELDS, jornadaOf } from "./jornada.js";
 import { absencesOnMatch } from "./absenceAnswers.js";
 import { archivedMatch, matchActive, matchActiveTx, noticeMatchId, runOptionalMatchTransaction } from './matchAccess.js';
 import { freezeOnMatch, notifyRota, notifyRotaChange } from "./rota.js";
@@ -482,7 +482,7 @@ export async function deliver(n: Notice, uid?: string): Promise<void> {
 /** A published match's jornada in its season — the one numbering (jornada.ts), the same «J5» the web
  *  shows (null: not in the calendar, cancelled…). Archived matches are left out, as the web's mappers do. */
 export async function seasonJornada(seasonId: string, matchId: string): Promise<number | null> {
-  const all = await db.collection("matches").where("seasonId", "==", seasonId).get();
+  const all = await db.collection("matches").where("seasonId", "==", seasonId).select(...JORNADA_FIELDS).get();
   return jornadaOf(
     all.docs
       .filter((d) => d.get("archived") !== true)
@@ -533,7 +533,7 @@ export const MVP_NEWS_MS = 24 * 3600_000;
  *  (pushLog `mvp-win-<id>`), with the winner counted like the web (mvpWinnerIds over mvpResults). */
 export async function announceMvpWinners(now: number): Promise<void> {
   // voteClosesAt range only (a number in ms, single-field index); the rest is checked here.
-  const closed = await db.collection("matches").where("voteClosesAt", ">=", now - MVP_NEWS_MS).where("voteClosesAt", "<=", now).get();
+  const closed = await db.collection("matches").where("voteClosesAt", ">=", now - MVP_NEWS_MS).where("voteClosesAt", "<=", now).select("archived", "status", "voteClosesAt", "seasonId", "rival").get();
   for (const m of closed.docs) {
     if (m.get("archived") || m.get("status") !== "finished") continue;
     if ((await db.doc(`pushLog/mvp-win-${m.id}`).get()).exists) continue;

@@ -52,6 +52,10 @@ export function jornadas(matches: readonly JornadaMatch[], seasonId: string): Ma
 }
 
 /** One match's jornada in its season (null: a draft, cancelled, without season, or not in `matches`). */
+/** The match fields the numbering reads (hasJornada, calendarOrder): a query for it asks only these, never a
+ *  match's game analysis (megabytes over a season: past a function's memory). */
+export const JORNADA_FIELDS = ["seasonId", "date", "status", "published", "archived", "individuallyArchived", "deleting"] as const;
+
 export function jornadaOf(matches: readonly JornadaMatch[], matchId: string): number | null {
   const m = matches.find((x) => x.id === matchId);
   if (!m || !hasJornada(m)) return null;

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { cajaClaimNotice, devicePayload, GOAL_ACTIONS, noticesFor, postponedNotices, turnDoneNotice, type Notice } from "../../functions/src/pushLogic";
 import { CALENDAR_FIELDS, calendarSlot, icsText } from "../../functions/src/calendarLogic";
 import { weatherStampDue } from "../../functions/src/weatherLogic";
+import { JORNADA_FIELDS, jornadaOf } from "../../functions/src/jornada";
 
 const NOW = Date.UTC(2026, 10, 8, 11, 20);
 const goal: Notice = { topic: "goals", title: "¡Gol de ERIK!", body: "Minuto 3. Piti 1, MAD SKY 0.", tag: "goal-m1", url: "/partidos/m1", log: "goal-m1-e1", actions: GOAL_ACTIONS, matchId: "m1" };
@@ -96,5 +97,22 @@ describe("the .ics feed reads only the fields it needs", () => {
   });
   it("covers what the feed's filters and lines read", () => {
     for (const k of ["archived", "individuallyArchived", "deleting", "seasonId", "status", "date", "postponedTo", "postponedReason", "goalsFor", "goalsAgainst", "rival", "venue", "duration"]) expect(CALENDAR_FIELDS).toContain(k);
+  });
+});
+
+describe("the jornada number reads only the fields it needs", () => {
+  it("matches cut to JORNADA_FIELDS number the same as the whole documents", () => {
+    const day = (d: number) => Date.UTC(2026, 9, d, 10);
+    const full = [
+      { id: "a", seasonId: "s1", date: day(4), status: "finished", analysis: { big: 1 } },
+      { id: "draft", seasonId: "s1", date: day(8), status: "scheduled", published: false },
+      { id: "gone", seasonId: "s1", date: day(9), status: "finished", individuallyArchived: true },
+      { id: "x", seasonId: "s1", date: day(10), status: "cancelled" },
+      { id: "b", seasonId: "s1", date: day(11), status: "finished", ledger: [1, 2, 3] },
+      { id: "c", seasonId: "s1", date: day(18), status: "scheduled" },
+    ];
+    const cut = full.map((m) => ({ id: m.id, ...Object.fromEntries(Object.entries(m).filter(([k]) => (JORNADA_FIELDS as readonly string[]).includes(k))) }));
+    for (const id of ["a", "b", "c", "draft", "gone", "x"]) expect(jornadaOf(cut, id)).toBe(jornadaOf(full, id));
+    expect(jornadaOf(cut, "c")).toBe(3);
   });
 });

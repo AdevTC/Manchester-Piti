@@ -16,7 +16,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db, idSchema, memberAs, parse } from "./common.js";
-import { jornadaOf, type JornadaMatch } from "./jornada.js";
+import { JORNADA_FIELDS, jornadaOf, type JornadaMatch } from "./jornada.js";
 import { archivedMatch } from "./matchAccess.js";
 import { sevenOf } from "./pushLogic.js";
 import { fanBoardOf, fanTokenOf, historyKind, historyPlan, reactionCurrent, sevenStamp, snapshotOf, type FanPlayerSource, type R14Board } from "./pizarraR14Logic.js";
@@ -33,7 +33,7 @@ export const fanFieldsChanged = (a: R14Board | undefined, b: R14Board | undefine
   FAN_FIELDS.some((k) => stable((a as Record<string, unknown> | undefined)?.[k]) !== stable((b as Record<string, unknown> | undefined)?.[k]));
 
 async function seasonJornada(seasonId: string, matchId: string): Promise<number | null> {
-  const all = await db.collection("matches").where("seasonId", "==", seasonId).get();
+  const all = await db.collection("matches").where("seasonId", "==", seasonId).select(...JORNADA_FIELDS).get();
   // (every field the numbering reads — published, archived, individuallyArchived, deleting, status — as the web)
   return jornadaOf(all.docs.map((d) => ({ ...(d.data() as JornadaMatch), id: d.id })), matchId);
 }
