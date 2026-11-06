@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { inlineBundle } from "./inlineBundle";
-import { identityTokenUrl, PURGE_GAP_MS, PURGE_URL, purgeRequest, purgeScheduler, purgeWait } from "../../functions/src/htmlCacheLogic";
+import { identityTokenUrl, inBatches, PURGE_GAP_MS, PURGE_URL, purgeRequest, purgeScheduler, purgeWait, SITE, WARM_BUNDLE_ENCODINGS, WARM_PAGES, warmPlan } from "../../functions/src/htmlCacheLogic";
 import { takeInlineBundle } from "./bundle";
 
 vi.mock("../firebase", () => ({ db: {} }));
@@ -124,5 +124,59 @@ describe("deleting the cached pages when the data changes", () => {
     expect(runs).toEqual([1_000, 1_000 + PURGE_GAP_MS]);
     release();
     await second;
+  });
+
+  it("tells the deletion whether a later write is already waiting (then it doesn't warm: that one will)", async () => {
+    let t = 1_000;
+    const seen: boolean[] = [];
+    let wake = () => {};
+    let endGap = () => {};
+    const purge = purgeScheduler(
+      async (waiting) => {
+        await new Promise<void>((r) => (wake = r));
+        seen.push(waiting());
+      },
+      () => t,
+      (ms) => new Promise<void>((r) => (endGap = () => ((t += ms), r()))),
+    );
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    const first = purge();
+    await tick();
+    t = 3_000;
+    const second = purge();
+    wake();
+    await first;
+    expect(seen).toEqual([true]);
+    endGap();
+    await tick();
+    wake();
+    await second;
+    expect(seen).toEqual([true, false]);
+  });
+});
+
+describe("warming the pages again after a deletion", () => {
+  it("asks for the bundle as Chrome and Safari do, then one page, then the rest and the matches just written", () => {
+    const plan = warmPlan(["a1", "bad/id", "b2", "c3", "d4"]);
+    expect(plan.bundle.map((b) => b.url)).toEqual([`${SITE}/datos/club.bundle`, `${SITE}/datos/club.bundle`]);
+    expect(plan.bundle.map((b) => (b.init.headers as Record<string, string>)["accept-encoding"])).toEqual(WARM_BUNDLE_ENCODINGS);
+    expect(SITE).toBe("https://manchester-piti.vercel.app");
+    expect(plan.first).toBe(`${SITE}/`);
+    expect(plan.pages).toEqual([...WARM_PAGES.slice(1), "/partidos/b2", "/partidos/c3", "/partidos/d4"].map((p) => SITE + p));
+  });
+
+  it("runs a few at a time, all of them", async () => {
+    let running = 0;
+    let most = 0;
+    const done: number[] = [];
+    await inBatches([1, 2, 3, 4, 5, 6, 7], 3, async (n) => {
+      running++;
+      most = Math.max(most, running);
+      await new Promise((r) => setTimeout(r, 1));
+      done.push(n);
+      running--;
+    });
+    expect(most).toBe(3);
+    expect(done.sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });

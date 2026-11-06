@@ -45,3 +45,12 @@ await test("the endpoint refuses a call without a valid token, before touching t
     assert.equal(res.status, 401);
   }
 });
+
+await test("the pages the functions warm after a deletion are pages the server renders", async () => {
+  const { PAGES } = await import("../api/render.js");
+  const source = readFileSync("functions/src/htmlCacheLogic.ts", "utf8");
+  const warmed = JSON.parse(source.match(/export const WARM_PAGES: readonly string\[\] = (\[[^\]]*\]);/)?.[1] ?? "[]");
+  assert.ok(warmed.length >= 5);
+  // (and a match's own page, warmed for the matches just written)
+  for (const path of [...warmed, "/partidos/abcDEF123xyz"]) assert.ok(PAGES.some((re) => re.test(path)), path);
+});
