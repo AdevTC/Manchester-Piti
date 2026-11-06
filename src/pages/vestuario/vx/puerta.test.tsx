@@ -14,6 +14,7 @@ const cap = vi.hoisted(() => ({
     inside: [] as { uid: string; joinedAt: number; via: string; me: boolean; person?: PersonRow }[],
     linked: new Set<string>(),
     pending: null as null | { row: DoorRequestRow; approve: boolean; playerId?: string; until: number },
+    loading: false,
   },
   decide: vi.fn(),
   undo: vi.fn(),
@@ -22,7 +23,7 @@ const cap = vi.hoisted(() => ({
   removeMember: vi.fn(async () => true),
 }));
 vi.mock("../../acceso/useCaptainDoor", () => ({
-  useCaptainDoor: () => ({ admin: true, loading: false, busy: "", error: "", clearError: vi.fn(), ...cap.state, decide: cap.decide, undo: cap.undo, invite: cap.invite, revokeInvite: cap.revokeInvite, removeMember: cap.removeMember }),
+  useCaptainDoor: () => ({ admin: true, busy: "", error: "", clearError: vi.fn(), ...cap.state, decide: cap.decide, undo: cap.undo, invite: cap.invite, revokeInvite: cap.revokeInvite, removeMember: cap.removeMember }),
 }));
 vi.mock("../../../lib/push", () => ({ pushState: () => "ready", savedTopics: () => [], toggleTopic: vi.fn(async () => ["door"]) }));
 
@@ -61,6 +62,7 @@ beforeEach(() => {
   cap.state.inside = [];
   cap.state.linked = new Set();
   cap.state.pending = null;
+  cap.state.loading = false;
   vi.clearAllMocks();
 });
 
@@ -204,4 +206,17 @@ it("dentro: each account since when, and «Quitar acceso» asks first", () => {
   expect(within(items[1]).getByRole("alertdialog")).toHaveTextContent("¿Quitar a Kevin? Se le cierra en todos sus móviles.");
   fireEvent.click(within(items[1]).getByRole("button", { name: "Quitar" }));
   expect(cap.removeMember).toHaveBeenCalledWith("k");
+});
+
+it("loading: «Mirando quién llama…» over the unseen quiet card, which already holds its height (no jump when it comes)", () => {
+  cap.state.loading = true;
+  const { container } = render(<PuertaBlock c={ctx()} />);
+  const wait = container.querySelector(".vpu-wait");
+  expect(wait).toHaveTextContent("Mirando quién llama…");
+  const hold = wait!.querySelector(".ve-empty.vpu-wait__hold");
+  expect(hold).toHaveAttribute("aria-hidden", "true");
+  expect(hold).toHaveTextContent("Túnel en silencio: nadie llamando a la puerta.");
+  // (out of reach while it only holds the place)
+  expect(screen.queryByRole("button", { name: "Crear un pase" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Túnel en silencio: nadie llamando a la puerta." })).toBeNull();
 });

@@ -7,6 +7,15 @@ import { PERFIL_MOVES } from "../../../lib/legacyUrls";
 /** «Salir en este dispositivo» failed: say why (the connection, Google…), not only that it failed. */
 export const signOutFailText = (e: unknown): string => `No se ha podido cerrar la sesión. ${apiError(e)}`;
 
+/**
+ * Whether /perfil still waits to know who looks (its «Cargando», not the door): while the team doesn't know the
+ * account yet, or it is inside and its profile is still on its way. A member whose profile is known to be missing
+ * (never made, or unreadable) is not waited for: the door sends him to the vestuario's «¿Quién eres?» — before, he
+ * waited on «Cargando» forever.
+ */
+export const tuChecking = (o: { teamReady: boolean; member: boolean; hasProfile: boolean; profileLoading: boolean }): boolean =>
+  !o.teamReady || (o.member && !o.hasProfile && o.profileLoading);
+
 /** Who looks: no session · a member without a ficha (his carné) · a new account whose ficha is pending or was
  *  turned down (the sobre / the pick) · a player with his ficha linked. */
 export type Kind = "fan" | "socio" | "nuevo" | "jugador";

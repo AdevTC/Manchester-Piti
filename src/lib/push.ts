@@ -204,7 +204,11 @@ async function register(sub: PushSubscription, topics: Topic[], fallback = false
 /** This browser's push subscription, asking for the permission first when it isn't there yet (call it from
  *  the tap): the first step of every choice that turns notices on (setTopics, setMatchTopics). */
 async function ensureSubscription(reg: ServiceWorkerRegistration, sub: PushSubscription | null): Promise<PushSubscription> {
-  if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") throw new Error("Sin permiso para avisos en este navegador.");
+  if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") {
+    // (refused at the prompt: whoever shows this device's state reads it again — «denied» now)
+    notifyPreset();
+    throw new Error("Sin permiso para avisos en este navegador.");
+  }
   return sub ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC) }));
 }
 
@@ -428,7 +432,39 @@ export interface PushPresetState {
   state: PushState;
 }
 let presetSnapshot: PushPresetState | null = null;
-const presetState = (): PushPresetState => (presetSnapshot ??= { choice: presetOf(savedTopics()), vibrate: savedVibrate(), state: pushState() });
+// (the browser's permission can change behind the app — refused at the prompt, or in its settings: a snapshot whose
+// state is no longer the real one is taken again)
+const presetState = (): PushPresetState => {
+  if (presetSnapshot && presetSnapshot.state !== pushState()) presetSnapshot = null;
+  return (presetSnapshot ??= { choice: presetOf(savedTopics()), vibrate: savedVibrate(), state: pushState() });
+};
+/** Calls `cb` when the notifications permission may have changed: the Permissions API's change, and coming back
+ *  to the tab (from the settings app). */
+function watchNotificationPermission(cb: () => void): () => void {
+  let status: PermissionStatus | null = null;
+  let stopped = false;
+  try {
+    void navigator.permissions
+      ?.query({ name: "notifications" })
+      .then((s) => {
+        if (stopped) return;
+        status = s;
+        s.addEventListener("change", cb);
+      })
+      .catch(() => undefined);
+  } catch {
+    /* no Permissions API: the visibility check still catches it */
+  }
+  const onVisible = () => {
+    if (!document.hidden) cb();
+  };
+  document.addEventListener("visibilitychange", onVisible);
+  return () => {
+    stopped = true;
+    status?.removeEventListener("change", cb);
+    document.removeEventListener("visibilitychange", onVisible);
+  };
+}
 const SERVER_PRESET: PushPresetState = { choice: "nada", vibrate: false, state: "unsupported" };
 
 /**
@@ -440,8 +476,10 @@ export function usePushPreset(): PushPresetState & { set: (preset: PushPreset, v
   const subscribe = useCallback((cb: () => void) => {
     presetListeners.add(cb);
     void syncFromWorker();
+    const stopWatch = watchNotificationPermission(cb);
     return () => {
       presetListeners.delete(cb);
+      stopWatch();
     };
   }, []);
   const s = useSyncExternalStore(subscribe, presetState, () => SERVER_PRESET);

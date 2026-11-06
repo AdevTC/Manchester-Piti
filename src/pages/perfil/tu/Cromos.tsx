@@ -3,7 +3,7 @@
 // PNG by recapDraw, to the phone's share sheet, else the link) and «Descargar todos en una imagen» (ONE file: a
 // browser blocks a burst of downloads, bug 17). The cromos are tu/cromosModel's (the season recap, the single model).
 // A dialog (VSheet): the focus goes in and stays, Esc / × / the scrim go back to the vitrina.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { copyText, saveBlob } from "../fxRuntime";
 import { shareOut, slugOf, type ShareNav } from "../share";
 import { drawRecapCard, recapCardBlob, RECAP_PALETTE, type RecapTheme } from "../recapDraw";
@@ -20,6 +20,8 @@ export function Cromos(p: ScreenProps & { onClose: () => void }) {
   const cromos = data.ficha.state === "vinculada" ? cromosOfData(data, p.now) : null;
   const [i, setI] = useState(() => cromoStart.peek());
   const [busy, setBusy] = useState(false);
+  const prevBtn = useRef<HTMLButtonElement>(null);
+  const nextBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => cromoStart.clear(), []);
   if (!cromos)
     return (
@@ -41,7 +43,13 @@ export function Cromos(p: ScreenProps & { onClose: () => void }) {
   const season = cromos.recap.seasonName;
   const pid = data.ficha.playerId ?? "";
   const ctx = () => ({ theme: themeNow(), shirt: recapShirt(cromos.recap) });
-  const prev = () => setI(Math.max(0, k - 1));
+  const prev = () => {
+    const to = Math.max(0, k - 1);
+    // (on the first cromo «Cromo anterior» is disabled: the focus it holds would fall to the page, so it goes to the
+    // next one's button first)
+    if (to === 0 && document.activeElement === prevBtn.current) nextBtn.current?.focus({ preventScroll: true });
+    setI(to);
+  };
   const next = () => (k < n - 1 ? setI(k + 1) : onClose());
 
   const shareOne = async () => {
@@ -101,11 +109,11 @@ export function Cromos(p: ScreenProps & { onClose: () => void }) {
         ))}
       </div>
       <div className="nx-sheet__btns">
-        <button type="button" className="vd-glass vd-press nx-btn" onClick={prev} disabled={k === 0}>
+        <button ref={prevBtn} type="button" className="vd-glass vd-press nx-btn" onClick={prev} disabled={k === 0}>
           <VIc name="chevL" />
           Cromo anterior
         </button>
-        <button type="button" className="vd-glass vd-press nx-btn" onClick={next}>
+        <button ref={nextBtn} type="button" className="vd-glass vd-press nx-btn" onClick={next}>
           {k < n - 1 ? "Siguiente cromo" : "Cerrar los cromos"}
           {k < n - 1 && <VIc name="chevR" />}
         </button>

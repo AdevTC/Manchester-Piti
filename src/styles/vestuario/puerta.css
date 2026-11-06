@@ -8,6 +8,10 @@
 .vst .vpu-panel:focus-visible{outline-offset:6px;border-radius:12px}
 .vst .vpu-lead{font-size:14.5px;line-height:1.5;color:var(--vd-ink2);max-width:62ch}
 .vst .vpu-lead>b{color:var(--vd-ink-strong)}
+/* «Mirando quién llama…» over the unseen «Túnel en silencio» card, which holds its height while loading (no jump) */
+.vst .vpu-wait{position:relative}
+.vst .vpu-wait>.vpu-lead{position:absolute;top:0;left:0;right:0;margin:0}
+.vst .vpu-wait__hold{visibility:hidden}
 .vst .vpu-knocks{display:grid;gap:14px}
 .vst .vpu-knock{display:grid;gap:16px}
 .vst .vpu-who{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px}
