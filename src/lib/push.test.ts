@@ -10,7 +10,8 @@ const h = vi.hoisted(() => ({ call: vi.fn(), auth: { currentUser: null as { uid:
 vi.mock("firebase/functions", () => ({ httpsCallable: () => h.call }));
 vi.mock("../firebase", () => ({ functions: {}, auth: h.auth, FUNCTIONS_REGION: "europe-southwest1" }));
 
-import { REASSERT_EVERY_MS, reassertDue, reassertPush, REVERIFY_EVERY_MS, pushChoiceKey, pushChoiceOf, savedMatchTopics, setMatchTopics, setPushPreset, setTopics, upgradeLegacyTopics, type ReassertInput } from "./push";
+import { renderHook, act } from "@testing-library/react";
+import { REASSERT_EVERY_MS, reassertDue, reassertPush, REVERIFY_EVERY_MS, pushChoiceKey, pushChoiceOf, savedMatchTopics, setMatchTopics, setPushPreset, setTopics, upgradeLegacyTopics, usePushPreset, type ReassertInput } from "./push";
 
 const DAY = REASSERT_EVERY_MS;
 const WEEK = REVERIFY_EVERY_MS;
@@ -339,5 +340,27 @@ describe("setMatchTopics: this device's avisos for one match", () => {
     h.call.mockResolvedValue({ data: { topics: [] } });
     await setTopics([]);
     expect(savedMatchTopics()).toEqual({});
+  });
+});
+
+describe("usePushPreset: the device state follows the real permission", () => {
+  it("refused at the prompt: the state reads «denied», not the «ready» it had cached", async () => {
+    permission = "default";
+    const { result } = renderHook(() => usePushPreset());
+    expect(result.current.state).toBe("ready");
+    permission = "denied";
+    await act(async () => {
+      await expect(setPushPreset("goles", false)).rejects.toThrow(/Sin permiso/);
+    });
+    expect(result.current.state).toBe("denied");
+  });
+  it("changed in the browser settings: back on the tab, the state is the real one", () => {
+    const { result } = renderHook(() => usePushPreset());
+    expect(result.current.state).toBe("ready");
+    permission = "denied";
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(result.current.state).toBe("denied");
   });
 });
