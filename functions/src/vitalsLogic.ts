@@ -23,7 +23,9 @@ const record = z.object({
   p: text(80),
   /** how the page was reached: navigate · reload · back-forward · back-forward-cache · prerender · restore · soft-navigation */
   nt: short(24),
-  /** causes (each metric its own: lib/vitals.ts attributionOf) */
+  /** causes (each metric its own: lib/vitals.ts attributionOf). INP `fill`: a soft navigation's filler, no tap behind
+   *  it; INP `vt`: the tap started a View Transition; VT `lf*`: where its worst long animation frame went
+   *  (lib/vitals.ts frameBreakdown) */
   a: z.record(text(24), z.union([z.number().finite(), text(120), z.boolean()])).optional(),
 });
 export type VitalRecord = z.infer<typeof record>;
@@ -68,6 +70,24 @@ export function parseVitals(body: string): VitalsPayload | null {
   }
   const parsed = vitalsPayload.safeParse(json);
   return parsed.success ? parsed.data : null;
+}
+
+/** An INP with no tap behind it: with reportSoftNavs, web-vitals reports one for each page reached by a soft navigation
+ *  even when none of its taps was slow, all «presentation» and no element. Marked `fill` by the site since 2026-11-06;
+ *  the ones stored before are told by their shape (no element, no input or processing, presentation = the value). */
+export function isFillerInp(m: Pick<VitalRecord, "n" | "v" | "a">): boolean {
+  if (m.n !== "INP") return false;
+  const a = m.a ?? {};
+  return a.fill === true || (a.el === undefined && a.input === 0 && a.proc === 0 && a.pres === m.v);
+}
+
+/** Jordi's PC as it reports itself (24 threads, 32 GB): the agents' browsers there (the desktop app's pane does not
+ *  say it is automated) measured pages no visitor waited for (FCP 3.2 s on 31-10, /admin 13 s on 28-10). Since
+ *  2026-11-06 its tools open the site with `?novitals` and send nothing (src/lib/vitalsOff.ts); this tells apart what
+ *  it sent before. A class, not an identifier: any other machine with the same two numbers is left out too. */
+export const AGENT_PCS: readonly { cpu: number; mem: number }[] = [{ cpu: 24, mem: 32 }];
+export function isAgentPc(d: Pick<VitalDevice, "cpu" | "mem"> | undefined): boolean {
+  return !!d && AGENT_PCS.some((pc) => d.cpu === pc.cpu && d.mem === pc.mem);
 }
 
 /** Reports one instance stores a minute at most. */

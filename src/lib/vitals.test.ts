@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type { INPMetricWithAttribution, LCPMetricWithAttribution, CLSMetricWithAttribution, TTFBMetricWithAttribution } from "web-vitals/attribution";
-import { parseVitals, MAX_BODY, RATE_PER_MIN, withinRate } from "../../functions/src/vitalsLogic";
-import { attributionOf, deviceOf, notRestored, pageOf, recordOf, startedHidden } from "./vitals";
+import { isFillerInp, parseVitals, MAX_BODY, RATE_PER_MIN, withinRate } from "../../functions/src/vitalsLogic";
+import { attributionOf, deviceOf, frameBreakdown, notRestored, pageOf, recordOf, startedHidden, startedTransition, type Loaf } from "./vitals";
 
 describe("pages group by their kind, ids folded", () => {
   it.each([
@@ -22,6 +22,7 @@ describe("a metric becomes one small record with its cause", () => {
       value: 312.4,
       rating: "poor",
       navigationType: "navigate",
+      entries: [{}],
       attribution: {
         interactionTarget: "button.nu-rail__b",
         interactionType: "pointer",
@@ -57,6 +58,55 @@ describe("a metric becomes one small record with its cause", () => {
     const m = { name: "CLS", value: 0.05312, rating: "good", attribution: { largestShiftTarget: "div.nu-screen", largestShiftValue: 0.0531, largestShiftTime: 1234.5 } } as unknown as CLSMetricWithAttribution;
     expect(recordOf(m).v).toBe(0.053);
     expect(attributionOf(m)).toEqual({ el: "div.nu-screen", shift: 0.053, at: 1235 });
+  });
+});
+
+describe("what a slow tap and a slow transition were made of", () => {
+  const inp = (entries: unknown[], extra: Record<string, unknown> = {}) =>
+    ({ name: "INP", value: 296, rating: "needs-improvement", navigationType: "soft-navigation", entries, attribution: { inputDelay: 0, processingDuration: 0, presentationDelay: 296, loadState: "complete", processedEventEntries: [], longAnimationFrameEntries: [], ...extra } }) as unknown as INPMetricWithAttribution;
+
+  it("an INP with no tap behind it (a soft navigation's filler) is marked and carries nothing else", () => {
+    const r = recordOf(inp([]));
+    expect(r.a).toEqual({ fill: true, load: "complete" });
+    expect(isFillerInp(r)).toBe(true);
+  });
+  it("tells the fillers stored before the mark by their shape, never a real tap", () => {
+    expect(isFillerInp({ n: "INP", v: 296, a: { input: 0, proc: 0, pres: 296, load: "complete" } })).toBe(true);
+    expect(isFillerInp({ n: "INP", v: 296, a: { el: "button", input: 0, proc: 0, pres: 296 } })).toBe(false);
+    expect(isFillerInp({ n: "INP", v: 296, a: { input: 4, proc: 90, pres: 202 } })).toBe(false);
+    expect(isFillerInp({ n: "VT", v: 296, a: { fill: true } })).toBe(false);
+  });
+  it("marks a tap that started a View Transition before its next paint", () => {
+    expect(startedTransition({ interactionTime: 1000, nextPaintTime: 1300 }, [400, 1012])).toBe(true);
+    expect(startedTransition({ interactionTime: 1000, nextPaintTime: 1300 }, [400, 1400])).toBe(false);
+    expect(startedTransition({}, [1012])).toBe(false);
+    expect(recordOf(inp([{}], { interactionTarget: "a.vx-tab", interactionTime: 0, nextPaintTime: 0 })).a).not.toHaveProperty("vt");
+  });
+  it("splits a transition's worst long frame into script, rAF, style-layout-paint and forced layout", () => {
+    const frames: Loaf[] = [
+      { startTime: 0, duration: 400, renderStart: 300, styleAndLayoutStart: 350, scripts: [] }, // before the transition
+      {
+        startTime: 1000,
+        duration: 180,
+        renderStart: 1060,
+        styleAndLayoutStart: 1070,
+        scripts: [
+          { duration: 40, forcedStyleAndLayoutDuration: 12, sourceURL: `${location.origin}/assets/PartidosPage-x.js`, invoker: "BUTTON.onclick" },
+          { duration: 15, forcedStyleAndLayoutDuration: 3, sourceURL: "", invoker: "FrameRequestCallback" },
+        ],
+      },
+      { startTime: 1300, duration: 60, renderStart: 0, styleAndLayoutStart: 0 }, // a frame with no rendering
+    ];
+    expect(frameBreakdown(frames, 990, 1500)).toEqual({ lf: 180, lfJs: 60, lfRaf: 10, lfLay: 110, lfForced: 15, lfScript: "/assets/PartidosPage-x.js", lfN: 2 });
+    expect(frameBreakdown([frames[2]], 990, 1500)).toEqual({ lf: 60, lfJs: 60, lfRaf: 0, lfLay: 0, lfForced: 0, lfN: 1 });
+    expect(frameBreakdown(frames, 2000, 2400)).toEqual({});
+  });
+  it("the function stores the new causes as they come", () => {
+    const body = JSON.stringify({
+      d: { os: "android", touch: true, w: 410, dpr: 2.63, ssr: false, sw: true },
+      m: [recordOf(inp([])), { n: "INP", v: 380, p: "/partidos", a: { el: "a.vx-tab", vt: true } }, { n: "VT", v: 1150, p: "/partidos/tabla", a: { kind: "page", from: "/partidos", slow: 8, dur: 1400, lf: 420, lfJs: 300, lfRaf: 20, lfLay: 100, lfForced: 35, lfScript: "/assets/PartidosPage-x.js", lfN: 3 } }],
+    });
+    expect(parseVitals(body)?.m).toHaveLength(3);
   });
 });
 
