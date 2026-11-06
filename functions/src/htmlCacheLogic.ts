@@ -15,5 +15,30 @@ export function purgeRequest(idToken: string): { url: string; init: RequestInit 
   return { url: PURGE_URL, init: { method: "POST", headers: { authorization: `Bearer ${idToken}` } } };
 }
 
-/** Whether a write at `now` deletes the cache, the last deletion having been at `last` (0: none yet). */
-export const purgeDue = (now: number, last: number): boolean => last === 0 || now - last >= PURGE_GAP_MS;
+/** How long a write at `now` waits before its deletion, the last one having been at `last` (0: none yet): none
+ *  when that one is a gap old, else until the gap ends. */
+export const purgeWait = (now: number, last: number): number => (last === 0 ? 0 : Math.max(0, PURGE_GAP_MS - (now - last)));
+
+/**
+ * One deletion per gap that never drops a write: a write inside the gap waits for its end, and every write that
+ * comes while one is waiting joins it (one deletion for all of them, after the last). A write while a deletion is
+ * already on its way schedules the next one: that deletion may have left before the write. `run` does the deletion;
+ * the promise of each write ends when the deletion that covers it has run (the function has to wait for it: an
+ * instance that answered has no CPU left to run a timer).
+ */
+export function purgeScheduler(run: () => Promise<void>, now: () => number = Date.now, sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))) {
+  let last = 0;
+  let waiting: Promise<void> | null = null;
+  return (): Promise<void> => {
+    if (waiting) return waiting;
+    const wait = purgeWait(now(), last);
+    // (`then` runs after `waiting` is set, even without a wait)
+    const job = (wait > 0 ? sleep(wait) : Promise.resolve()).then(() => {
+      last = now();
+      waiting = null;
+      return run();
+    });
+    waiting = job;
+    return job;
+  };
+}

@@ -6,14 +6,9 @@
 // the pages refresh on their own within a minute.
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { REGION } from "./common.js";
-import { identityTokenUrl, PURGE_URL, purgeDue, purgeRequest } from "./htmlCacheLogic.js";
+import { identityTokenUrl, PURGE_URL, purgeRequest, purgeScheduler } from "./htmlCacheLogic.js";
 
-let lastPurge = 0;
-
-async function purge(now = Date.now()): Promise<void> {
-  // (the emulator has no metadata server and no Vercel cache)
-  if (process.env.FUNCTIONS_EMULATOR === "true" || !purgeDue(now, lastPurge)) return;
-  lastPurge = now;
+async function deleteCache(): Promise<void> {
   try {
     const id = await fetch(identityTokenUrl(PURGE_URL), { headers: { "Metadata-Flavor": "Google" }, signal: AbortSignal.timeout(5_000) });
     if (!id.ok) throw new Error(`identity token ${id.status}`);
@@ -25,7 +20,12 @@ async function purge(now = Date.now()): Promise<void> {
   }
 }
 
-const on = (document: string) => onDocumentWritten({ document, region: REGION, maxInstances: 1 }, () => purge());
+// (one per instance: at most one deletion every PURGE_GAP_MS, the writes inside the gap deleted at its end)
+const scheduled = purgeScheduler(deleteCache);
+// (the emulator has no metadata server and no Vercel cache)
+const purge = (): Promise<void> => (process.env.FUNCTIONS_EMULATOR === "true" ? Promise.resolve() : scheduled());
+
+const on =(document: string) => onDocumentWritten({ document, region: REGION, maxInstances: 1 }, () => purge());
 
 export const htmlCacheMatches = on("matches/{id}");
 export const htmlCachePlayers = on("players/{id}");
