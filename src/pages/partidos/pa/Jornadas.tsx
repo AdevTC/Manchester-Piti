@@ -76,6 +76,17 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
   const [actL, actR] = homeFirst(lens.home, act.gf, act.ga);
   const filtI = FILTS.findIndex((f) => f[0] === p.filt);
   const tabI = Math.max(0, lens.tabs.findIndex((t) => t.on));
+  // (the lens's tabs keep one stop in the tab order, the chosen one: the arrows, Home and End move between them —
+  // without them the keyboard could not reach Previa, Directo or Acta; a tab not open yet is skipped)
+  const lensTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const open = lens.tabs.map((t, i) => (t.off ? -1 : i)).filter((i) => i >= 0);
+    const at = open.indexOf(tabI);
+    const k = e.key === "ArrowRight" ? open[(at + 1) % open.length] : e.key === "ArrowLeft" ? open[(at - 1 + open.length) % open.length] : e.key === "Home" ? open[0] : e.key === "End" ? open[open.length - 1] : undefined;
+    if (k === undefined) return;
+    e.preventDefault();
+    e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]")[k]?.focus();
+    if (k !== tabI) p.onLente(lens.tabs[k].id, false);
+  };
   return (
     <div className="pa-jor">
       <div className="pa-jbar">
@@ -133,7 +144,7 @@ export function Jornadas({ ribBox, mmBox, lensBox, ...p }: JornadasProps) {
           </div>
           <div className="pa-lh__end">
             {lens.tabs.length > 0 && (
-              <div className="vd-glass vd-seg pa-ltabs" role="tablist" aria-label="La jornada" style={{ "--n": lens.tabs.length, "--i": tabI } as CSSProperties}>
+              <div className="vd-glass vd-seg pa-ltabs" role="tablist" aria-label="La jornada" style={{ "--n": lens.tabs.length, "--i": tabI } as CSSProperties} onKeyDown={lensTabKey}>
                 <span className="vd-shelf__bead" aria-hidden="true" />
                 {lens.tabs.map((b) => (
                   <button key={b.id} type="button" role="tab" className="vd-seg__b" aria-selected={b.on} aria-disabled={b.off} tabIndex={b.on ? 0 : -1} onClick={() => p.onLente(b.id, b.off)}>

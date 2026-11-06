@@ -228,6 +228,19 @@ it("a screen change pushes its address; «Abrir el partido» goes to the match p
   route.navigate.mockClear();
 });
 
+it("the lens's tabs answer the arrows (one tab stop: the keyboard reaches Previa and back to Directo)", () => {
+  render(<PartidosPage />);
+  const tabs = within(lens()).getByRole("tablist", { name: "La jornada" });
+  const directo = within(tabs).getByRole("tab", { name: /Directo/ });
+  directo.focus();
+  fireEvent.keyDown(directo, { key: "ArrowLeft" });
+  const previa = within(lens()).getByRole("tab", { name: /Previa/ });
+  expect(previa).toHaveAttribute("aria-selected", "true");
+  expect(previa).toHaveFocus();
+  fireEvent.keyDown(previa, { key: "ArrowRight" });
+  expect(within(lens()).getByRole("tab", { name: /Directo/ })).toHaveAttribute("aria-selected", "true");
+});
+
 it("the web's ?season= stays in every address it writes (dropped, SeasonUrlSync navigated again to put it back)", () => {
   route.search = { season: "t9" };
   render(<PartidosPage />);
