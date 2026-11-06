@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MesaQueue, RESEND_SENT_MS, isRejection, itemPlays, parseQueue, pendingByPlayer, queueKey, removeQueued, serializeQueue, type QueueItem } from "./queue";
+import { MesaQueue, RESEND_SENT_MS, SESSION_GONE, isRejection, itemPlays, parseQueue, pendingByPlayer, queueKey, removeQueued, serializeQueue, type QueueItem } from "./queue";
 
 const memory = () => {
   const m = new Map<string, string>();
@@ -263,6 +263,28 @@ describe("la cola de la mesa", () => {
     await expect(removeQueued(q2, { item: q2.getSnapshot().items[0], index: 0 }, async () => { throw offline(); })).rejects.toThrow();
     expect(q2.getSnapshot().items.map((x) => x.status)).toEqual(["sent"]);
     q2.close();
+  });
+
+  it("con la sesión caducada la jugada no se reintenta sin fin como «sin señal»: va a «Por revisar» diciéndolo", async () => {
+    vi.useFakeTimers();
+    let tries = 0;
+    const q = new MesaQueue({
+      key: "k",
+      storage: memory(),
+      channel: null,
+      isOnline: () => true,
+      send: async () => {
+        tries++;
+        throw Object.assign(new Error("unauthenticated"), { code: "functions/unauthenticated" });
+      },
+    });
+    q.enqueue(item("a"));
+    await flushed();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(tries).toBe(1);
+    expect(q.getSnapshot().offline).toBe(false);
+    expect(q.getSnapshot().items[0]).toMatchObject({ status: "review", reason: SESSION_GONE });
+    q.close();
   });
 
   it("solo los códigos de rechazo van a revisar; la red se reintenta", () => {

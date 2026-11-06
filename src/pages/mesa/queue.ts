@@ -70,12 +70,16 @@ export const serializeQueue = (items: readonly QueueItem[]): string => JSON.stri
 
 /** The callable's codes that mean «the server looked at it and said no»: anything else is the network
  *  (or a passing hiccup) and is simply tried again. */
-const REJECTED = new Set(["invalid-argument", "failed-precondition", "permission-denied", "not-found", "out-of-range", "already-exists"]);
+//  `unauthenticated` is one of them: the session is gone (signed out, revoked), and trying again every 5 s under
+//  «sin señal» would never get it up — the play waits in «Por revisar», saying so, to be resent once signed in.
+const REJECTED = new Set(["invalid-argument", "failed-precondition", "permission-denied", "not-found", "out-of-range", "already-exists", "unauthenticated"]);
+const codeOf = (error: unknown): string => (typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "").replace(/^functions\//, "");
 export function isRejection(error: unknown): boolean {
-  const code = typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "";
-  return REJECTED.has(code.replace(/^functions\//, ""));
+  return REJECTED.has(codeOf(error));
 }
+export const SESSION_GONE = "Tu sesión ha caducado: vuelve a entrar y reenvía la jugada. Sigue guardada en este móvil.";
 const messageOf = (error: unknown): string => {
+  if (codeOf(error) === "unauthenticated") return SESSION_GONE;
   const m = typeof error === "object" && error && "message" in error ? String((error as { message: unknown }).message) : "";
   return m && !/^(internal|INTERNAL)$/.test(m) ? m : "El servidor no ha aceptado la jugada.";
 };
