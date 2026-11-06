@@ -44,24 +44,36 @@ export function useLlegada(matchId: string, seasonId: string, server: readonly s
   const [error, setError] = useState("");
   const timer = useRef<number | null>(null);
   const latest = useRef<string[] | null>(null);
-  const seq = useRef(0);
+  // One save at a time: a list tapped while another goes up waits and goes after it (two saves in flight could
+  // land in the other order and leave the older list on the server).
+  const inflight = useRef(false);
+  const waiting = useRef<string[] | null>(null);
 
   const shown = useMemo(() => (local && samePresent(local.base, server) ? local.ids : [...(server ?? [])]), [local, server]);
 
   const send = useCallback(
     (ids: string[]) => {
-      const n = ++seq.current;
       setSave("saving");
       setError("");
-      setMatchPresent({ matchId, present: ids })
-        .then(() => {
-          if (n === seq.current) setSave("saved");
-        })
-        .catch((e: unknown) => {
-          if (n !== seq.current) return;
+      if (inflight.current) {
+        waiting.current = ids;
+        return;
+      }
+      inflight.current = true;
+      const settle = (e?: { error: unknown }) => {
+        inflight.current = false;
+        const next = waiting.current;
+        waiting.current = null;
+        if (next) return send(next);
+        if (e) {
           setSave("error");
-          setError(presentError(e));
-        });
+          setError(presentError(e.error));
+        } else setSave("saved");
+      };
+      setMatchPresent({ matchId, present: ids }).then(
+        () => settle(),
+        (error: unknown) => settle({ error }),
+      );
     },
     [matchId],
   );
@@ -90,7 +102,9 @@ export function useLlegada(matchId: string, seasonId: string, server: readonly s
     () => () => {
       if (timer.current !== null) {
         window.clearTimeout(timer.current);
-        if (latest.current) void setMatchPresent({ matchId, present: latest.current }).catch(() => undefined);
+        // (behind the save in flight, if there is one: it goes when that one ends)
+        if (latest.current && inflight.current) waiting.current = latest.current;
+        else if (latest.current) void setMatchPresent({ matchId, present: latest.current }).catch(() => undefined);
       }
     },
     [matchId],
