@@ -29,7 +29,7 @@ import { siteOrigin } from "../../../lib/derived/venue";
 import { useAvailability, useMatchScorers, useMvpResults } from "../../vestuario/live";
 import { votesClosedAt } from "../../../lib/derived/mvpOf";
 import { applyMaqueta, readMaqueta } from "../../home/portada/maqueta";
-import { lastMatch, leaders, nextMatch, periodBase, periodCtx, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
+import { lastMatch, leaders, nextMatch, periodBase, periodCtx, seasonOfPlayer, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
 import { addrOf, hrefOf, type Addr } from "./address";
 import { SECS, SEC_LABEL, albumView, duelView, homeView, ledeView, matchLines, playerView, railView, type AnCat, type DayInput, type Quien, type Screen, type Sec, type Squad, type ViewState, type Who } from "./views";
 import { Hook, Ic, Shirt } from "./bits";
@@ -119,7 +119,14 @@ export function PlantillaPage() {
   const standings = useAllStandings();
   const viewer = useViewer();
   const clockNow = useClock(15_000);
-  const seasonId = selectedSeasonId !== "all" && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : currentSeasonId(nextFixture(matches, clockNow), matches, seasons);
+  // ── the address and what the page shows (it trails the address so «atrás» runs the choreography too)
+  const addr = useMemo(() => addrOf(pathname, search), [pathname, search]);
+  const [shown, setShown] = useState<Addr>(addr);
+  const currentId = currentSeasonId(nextFixture(matches, clockNow), matches, seasons);
+  const chosenSeasonId = selectedSeasonId !== "all" && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : currentId;
+  // (a player who is not in the season chosen elsewhere — a link from the club or the search, which list this
+  // season's squad — opens on a season of his own, never on «Jugador no encontrado»)
+  const seasonId = shown.screen === "player" ? seasonOfPlayer(shown.focus, chosenSeasonId, currentId, players, seasons) : chosenSeasonId;
   const seasonName = seasons.find((s) => s.id === seasonId)?.name ?? "Temporada";
 
   // (DEV: ?maqueta= turns the last match into any moment, ?quien=fan|socio|jugador|capitan&yo=<id> looks as someone else)
@@ -209,9 +216,6 @@ export function PlantillaPage() {
     return m && r && typeof r.eligible === "number" ? { j: cur.jornada.get(m.id) ?? null, total: r.total, eligible: r.eligible } : null;
   }, [cur, now, results]);
 
-  // ── the address and what the page shows (it trails the address so «atrás» runs the choreography too)
-  const addr = useMemo(() => addrOf(pathname, search), [pathname, search]);
-  const [shown, setShown] = useState<Addr>(addr);
   const [ui, setUi] = useState<Ui>(() => ({ pick: "b", bdayOpen: false, numOpen: false, anCat: "pases", anNotes: false, adnSel: null, radarVs: "media", turned: false, flip: false, run: 0, flyHome: null, said: "", q: addr.q }));
   const kit = shown.screen === "player" ? (carry.kit ?? "home") : shown.kit;
   useEffect(() => {
