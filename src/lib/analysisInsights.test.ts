@@ -37,6 +37,15 @@ describe("interactive game insights", () => {
     expect(buildInsightTimeline([a], { playerIds: ["unused"] }).segments).toEqual([]);
     expect(buildPassMatrix([a], people).senders.map(p => p.id)).not.toContain("unused");
   });
+  it("hands the same pass matrix again for the same matches, people and filters (a screen mounted again)", () => {
+    const a = game("memo-a", [pass("one", 20)]);
+    const first = buildPassMatrix([a], people, { matchIds: ["memo-a"] });
+    expect(buildPassMatrix([a], people.map(p => ({ ...p })), { matchIds: ["memo-a"] })).toBe(first);
+    expect(buildPassMatrix([a], people, { matchIds: ["memo-a"], period: 2 })).not.toBe(first);
+    expect(buildPassMatrix([a], [{ ...people[0], name: "Alejandro" }, ...people.slice(1)], { matchIds: ["memo-a"] })).not.toBe(first);
+    // (a new snapshot of the match is a new object: worked out again)
+    expect(buildPassMatrix([{ ...a }], people, { matchIds: ["memo-a"] })).not.toBe(first);
+  });
   it("never assumes 25-minute halves when their actual limits are missing", () => {
     const m = game(); m.analysis!.observations = [pass("p", 350)];
     expect(buildInsightTimeline([m]).segments.every(s => s.period === 0)).toBe(true);

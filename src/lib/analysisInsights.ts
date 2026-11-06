@@ -109,9 +109,23 @@ export function buildInsightTimeline(matches: readonly NarratedMatch[], filters:
   return { segments: [...buckets.values()].map(({ segment, results }) => ({ ...segment, result: ["not_configured", "not_applicable"].includes(guard.status) ? { ...guard, evidenceEventIds: [] } : pool(results, metricId) })).sort((a, b) => a.period - b.period || a.from - b.from), omittedMatches, uncertainActions, matchCount: selected.length };
 }
 
+/** The pass matrix for the same matches (the same objects), people and filters is worked out once and handed again:
+ * the match page's «Números» draws the network (which builds the matrix) and the matrix (which builds it again) each
+ * time its tab is tapped, inside the tab's View Transition (~40 ms each with the CPU ×4). A few recent ones are kept. */
+const passMatrices: { matches: readonly NarratedMatch[]; key: string; matrix: PassMatrix }[] = [];
+export function buildPassMatrix(matches: readonly NarratedMatch[], people: readonly WorkspacePerson[], filters: AnalysisFilters = {}): PassMatrix {
+  const key = JSON.stringify([filters, people.map(p => [p.id, p.name, p.number ?? null])]);
+  const hit = passMatrices.find(e => e.key === key && e.matches.length === matches.length && e.matches.every((m, i) => m === matches[i]));
+  if (hit) return hit.matrix;
+  const matrix = computePassMatrix(matches, people, filters);
+  passMatrices.unshift({ matches: [...matches], key, matrix });
+  passMatrices.length = Math.min(passMatrices.length, 4);
+  return matrix;
+}
+
 /** Destination remains visible when filtering the sender. A failed delivery uses only
  * an explicitly named intended recipient; no recipient is inferred from possession. */
-export function buildPassMatrix(matches: readonly NarratedMatch[], people: readonly WorkspacePerson[], filters: AnalysisFilters = {}): PassMatrix {
+function computePassMatrix(matches: readonly NarratedMatch[], people: readonly WorkspacePerson[], filters: AnalysisFilters = {}): PassMatrix {
   const selected = selectAnalysisMatches(matches, filters);
   const ctx = prepareNarrated(selected, filters);
   const profiles = new Map(ctx.matches.map(m => [m.match.id, m.profile]));
