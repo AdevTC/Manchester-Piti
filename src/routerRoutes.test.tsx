@@ -250,3 +250,24 @@ describe("Plantilla's search keeps a dorsal", () => {
     expect(router.state.matches.at(-1)?.search).toMatchObject({ q: "11" });
   });
 });
+
+describe("the web's ?season= travels with every change of page", () => {
+  it("a move whose address leaves it out keeps it (no second navigation from SeasonUrlSync)", async () => {
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/plantilla?season=t2"] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
+    await act(() => router.navigate({ to: "/jugadores/$playerId", params: { playerId: "erik" }, search: {} } as never));
+    expect(router.state.location.pathname).toBe("/jugadores/erik");
+    expect(router.state.location.search).toEqual({ season: "t2" });
+    await act(() => router.navigate({ to: "/partidos", search: { temporada: "temporada-1" } } as never));
+    expect(router.state.location.search).toEqual({ temporada: "temporada-1", season: "t2" });
+    expect(router.buildLocation({ to: "/club" } as never).href).toBe("/club?season=t2");
+  });
+  it("a page that names a season still sets it", async () => {
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/plantilla?season=t2"] }));
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "la percha" })).toBeInTheDocument();
+    await act(() => router.navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, season: "all" }) } as never));
+    expect(router.state.location.search).toEqual({ season: "all" });
+  });
+});

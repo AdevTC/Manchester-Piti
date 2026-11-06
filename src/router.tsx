@@ -5,6 +5,7 @@ import {
   lazyRouteComponent,
   Navigate,
   redirect,
+  retainSearchParams,
   type RouterHistory,
 } from "@tanstack/react-router";
 import { z } from "zod";
@@ -16,7 +17,7 @@ import {
 } from "./components/route-states";
 import { matchSearchSchema } from "./lib/matchTabs";
 import { analysisSearchFields, statsScopeSearchFields } from "./lib/analysisSearch";
-import { legacyHref } from "./lib/legacyUrls";
+import { legacyLocation } from "./lib/legacyUrls";
 import { headlineFont } from "./lib/headlineFont";
 import { pageChangeTransition } from "./components/celeste/pageTransition";
 
@@ -199,6 +200,10 @@ interface RouterContext {
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
   validateSearch: rootSearchSchema,
+  // Every change of page keeps the web's ?season= (a link or a page's own address that leaves it out): without it,
+  // SeasonUrlSync put it back with a second navigation (and a second render of the page) after each move. A page
+  // that names a season (the selectors, SeasonUrlSync's «all») still sets its own.
+  search: { middlewares: [retainSearchParams(["season"])] },
   beforeLoad: ({ location, context, preload }) => {
     const page = location.pathname + location.searchStr;
     const samePage = context.shown.page === page;
@@ -206,10 +211,14 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
       context.shown.arriving = context.shown.page === null;
       context.shown.page = page;
     }
-    const href = legacyHref(page + (location.hash && !samePage ? `#${location.hash}` : ""));
-    if (href) {
+    const to = legacyLocation(page + (location.hash && !samePage ? `#${location.hash}` : ""));
+    if (to) {
       if (!preload) context.shown.page = null;
-      throw redirect({ href, replace: true });
+      // (by its parts, ?season= named even when the new address has none: an old one that renamed it — /stats's
+      // ?season= is Estadísticas' ?temporada= — must not get it back from the address it leaves)
+      const search: Record<string, unknown> = { ...to.search };
+      if (!("season" in search)) search.season = undefined;
+      throw redirect({ to: to.pathname, search, hash: to.hash || undefined, replace: true } as never);
     }
   },
   // An unknown address is the 404 («Fuera de juego»), with the site chrome and a way back, never a
