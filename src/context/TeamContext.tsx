@@ -30,6 +30,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   // so the layout keeps the door up for it (an effect in the door would run too late: it is gone).
   const waited = useRef(false);
   useEffect(() => {
+    // (another account on this device: a request the previous one left waiting is not this one's — without this, an
+    // account already inside got the «let in» welcome on signing in after one that was at the door)
+    waited.current = false;
     if (!uid || uid === "preview") return;
     return withFirebase((fb) => fb.onSnapshot(
       fb.doc(fb.db, "teamMembers", uid),
