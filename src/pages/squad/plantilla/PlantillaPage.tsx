@@ -121,6 +121,8 @@ export function PlantillaPage() {
   const clockNow = useClock(15_000);
   // ── the address and what the page shows (it trails the address so «atrás» runs the choreography too)
   const addr = useMemo(() => addrOf(pathname, search), [pathname, search]);
+  // (the web's ?season=, written back with each address: «Todo el historial» has its own ?periodo=)
+  const webSeason = typeof search.season === "string" ? search.season : undefined;
   const [shown, setShown] = useState<Addr>(addr);
   const currentId = currentSeasonId(nextFixture(matches, clockNow), matches, seasons);
   const chosenSeasonId = selectedSeasonId !== "all" && seasons.some((s) => s.id === selectedSeasonId) ? selectedSeasonId : currentId;
@@ -298,7 +300,7 @@ export function PlantillaPage() {
   const go = useCallback(
     (next: Addr, opts: { dir: Dir; replace?: boolean; el?: HTMLElement | null; home?: string | null; ui?: Partial<Ui> }) => {
       window.clearTimeout(qTimer.current);
-      const href = hrefOf(next);
+      const href = hrefOf(next, webSeason);
       lastGo.current = JSON.stringify(addrOf(href.to, href.search));
       const img = opts.el?.querySelector<HTMLElement>(".pl-shirt__img") ?? null;
       if (img) img.style.viewTransitionName = "pl-flight";
@@ -314,7 +316,7 @@ export function PlantillaPage() {
         await navigate({ to: href.to, search: href.search, replace: !!opts.replace, resetScroll: !opts.replace } as never);
       });
     },
-    [kit, reduced, navigate],
+    [kit, reduced, navigate, webSeason],
   );
   const openPlayer = (id: string, el?: HTMLElement | null, sec?: Sec) => {
     if (screen === "player" && shown.focus === id) return;
@@ -344,7 +346,7 @@ export function PlantillaPage() {
     setUi((u) => ({ ...u, q }));
     window.clearTimeout(qTimer.current);
     qTimer.current = window.setTimeout(() => {
-      const href = hrefOf({ ...shown, q });
+      const href = hrefOf({ ...shown, q }, webSeason);
       lastGo.current = JSON.stringify(addrOf(href.to, href.search));
       setShown(addrOf(href.to, href.search));
       void navigate({ to: href.to, search: href.search, replace: true, resetScroll: false } as never);
