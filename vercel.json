@@ -85,6 +85,10 @@
       "destination": "/api/render?p=/partidos/:screen"
     },
     {
+      "source": "/partidos/:id",
+      "destination": "/api/render?p=/partidos/:id"
+    },
+    {
       "source": "/estadisticas",
       "destination": "/api/render?p=/estadisticas"
     },

@@ -18,6 +18,8 @@ export const PAGES = [
   /^\/hoy\/(campo|jugadas)$/,
   /^\/camiseta$/,
   /^\/partidos(\/(tabla|balance))?$/,
+  // (a match: El partido only, its other screens and la mesa keep the shell; the id is Firestore's)
+  /^\/partidos\/[A-Za-z0-9_-]+$/,
   /^\/estadisticas(\/(y-si|jugadores(\/(campo(\/puestos)?|evolucion))?|campo(\/(puestos|sistemas))?|juego(\/(tabla|catalogo))?|rivales|records(\/(marcas|cromos|evolucion))?))?$/,
   /^\/plantilla(\/(album|cara-a-cara))?$/,
   /^\/jugadores\/[A-Za-z0-9_-]+(\/(temporada|jornadas|juego|analisis|cromo))?$/,

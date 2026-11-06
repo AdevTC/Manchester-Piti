@@ -96,6 +96,29 @@ await test("Tabla and Balance are their own server-rendered addresses; Jornadas 
   }
 });
 
+// The match's own address, the link that gets shared, arrives painted like the other public pages; its other screens
+// (El siete, Números, Vestuario) and la mesa keep the shell.
+await test("El partido is server-rendered at /partidos/<id>; its other screens are not", async () => {
+  const fetchBefore = globalThis.fetch;
+  const bytes = bundle({ seasonId: "test", rival, date: Date.now() - 3 * 86400000, status: "finished", home: true, goalsFor: 3, goalsAgainst: 1 });
+  globalThis.fetch = async () => new Response(bytes);
+  try {
+    const page = async (path) => (await GET(new Request(`https://piti.test/api/render?p=${path}&id=test`))).text();
+    const html = await page("/partidos/test");
+    assert.ok(html.includes("data-ssr"), "must render actual page, not fallback shell");
+    const [markup] = html.split('<script type="application/json" id="club-bundle"');
+    assert.ok(markup.includes('class="vx vd-pg pp '), "the match page");
+    assert.ok(markup.includes(rival), "with its match");
+    assert.ok(!markup.includes("pp-404"), "found");
+    // (its own stylesheets come with it: the route's files, vite.config.ts ROUTE_CHUNKS)
+    assert.match(html, /<link rel="stylesheet" crossorigin href="\/assets\/MatchPage-[\w-]+\.css">/);
+    assert.ok((await page("/partidos/nada")).includes("pp-404"), "a match that isn't there is the page's own «no encontrado»");
+    for (const path of ["/partidos/test/siete", "/partidos/test/numeros", "/partidos/test/vestuario", "/partidos/test/mesa"]) assert.ok(!(await page(path)).includes("data-ssr"), `${path} keeps the shell`);
+  } finally {
+    globalThis.fetch = fetchBefore;
+  }
+});
+
 await test("the old addresses answer a permanent redirect with their parameters, before any data is read", async () => {
   const fetchBefore = globalThis.fetch;
   globalThis.fetch = async () => {
