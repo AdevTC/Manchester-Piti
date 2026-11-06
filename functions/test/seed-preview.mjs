@@ -37,11 +37,12 @@ if (!user.idToken) throw new Error("No se pudo crear la cuenta de prueba.");
 await db
   .doc("users/" + user.localId)
   .set({
-    email: "admin@piti.test",
     nickname: "capi_prueba", // not a reserved handle: the profile e2e changes it and puts it back
     role: "admin",
     createdAt: new Date(),
   });
+// (the email apart from the profile, as the door writes it: memberEmails)
+await db.doc("memberEmails/" + user.localId).set({ email: "admin@piti.test" });
 const call = async (name, data) => {
   const r = await fetch(
     "http://127.0.0.1:5001/demo-manchester-piti/europe-southwest1/" + name,

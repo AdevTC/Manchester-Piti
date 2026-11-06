@@ -7,6 +7,7 @@
 //   markup is dropped and the app boots exactly as from the shell;
 // - the data bundle comes inside the page (api/render.js), so the shell's preload of it is left out.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cspHash, inlineScripts, jsonScript, ROUTE_ASSETS_ID, ROUTE_PRELOAD_JS, routerScrollScript, SSR_BOOT_ID, SSR_BOOT_JS } from "./inlineScripts.mjs";
 
 const shell = readFileSync("dist/shell.html", "utf8");
 const routes = JSON.parse(readFileSync("dist/route-assets.json", "utf8"));
@@ -18,31 +19,37 @@ const take = (re) => {
 };
 const entry = take(/<script type="module" crossorigin src="([^"]+)"><\/script>/g);
 const preloads = take(/<link rel="modulepreload" crossorigin href="([^"]+)">/g);
-const routePreload = take(/<script>(\(function\(\)\{var p=location\.pathname[\s\S]*?)<\/script>/g);
+// (the shell's route preload: its data and its fixed code; the boot does that job in the server-rendered page)
+const routePreload = { tags: [shell.match(new RegExp(`<script type="application/json" id="${ROUTE_ASSETS_ID}">[\\s\\S]*?</script>`))?.[0], `<script>${ROUTE_PRELOAD_JS}</script>`].filter((t) => t && shell.includes(t)) };
 const registerSw = take(/<script id="vite-plugin-pwa:register-sw" src="([^"]+)" defer(?:="")?><\/script>/g);
 const bundlePreload = take(/<link rel="preload" href="\/datos\/club\.bundle"[^>]*>\s*/g);
 if (entry.values.length !== 1 || bundlePreload.tags.length !== 1 || !shell.includes('<div id="root"></div>')) {
   throw new Error("ssr-shell: shell.html no longer has the expected entry script / bundle preload / root");
 }
 
-const boot = `(function(){var d=document.documentElement,r=document.getElementById("root"),s;
-try{s=localStorage.getItem("selected_season_id")}catch(e){}
-var spa=!!location.search||!!(s&&s!=="all");if(spa){r.innerHTML="";d.removeAttribute("data-ssr")}
-var done=0;function go(){if(done)return;done=1;var h=document.head,p=location.pathname,f=${JSON.stringify(preloads.values)},m=${JSON.stringify(routes)},i;
-for(i=0;i<m.length;i++)if(new RegExp(m[i][0]).test(p)){f=f.concat(m[i][1]);break}
-f.forEach(function(u){if(/\\.(css|woff2)$/.test(u))return;var l=document.createElement("link");l.rel="modulepreload";l.crossOrigin="";l.href=u;h.appendChild(l)});
-var e=document.createElement("script");e.type="module";e.crossOrigin="";e.src=${JSON.stringify(entry.values[0])};h.appendChild(e);
-${registerSw.values[0] ? `var w=document.createElement("script");w.src=${JSON.stringify(registerSw.values[0])};w.defer=true;h.appendChild(w);` : ""}}
-if(spa)return go();
-try{new PerformanceObserver(function(l){if(l.getEntriesByName("first-contentful-paint").length)setTimeout(go,0)}).observe({type:"paint",buffered:true})}catch(e){}
-setTimeout(go,1500)})()`;
+// The boot (scripts/inlineScripts.mjs SSR_BOOT_JS): its text is fixed — the CSP lists its hash —, what changes from one
+// build to the next goes beside it as JSON.
+const bootData = jsonScript(SSR_BOOT_ID, { f: preloads.values, m: routes, e: entry.values[0], w: registerSw.values[0] ?? "" });
 
 let template = shell;
 for (const tag of [...entry.tags, ...preloads.tags, ...routePreload.tags, ...registerSw.tags, ...bundlePreload.tags]) template = template.replace(tag, "");
 template = template
   .replace(/<html([^>]*)>/, "<html$1 data-ssr>")
   .replace("</head>", "<!--ssr-head--></head>")
-  .replace('<div id="root"></div>', `<div id="root"><!--ssr-root--></div><script>${boot.replace(/\n/g, "")}</script>`);
+  .replace('<div id="root"></div>', `<div id="root"><!--ssr-root--></div>${bootData}<script>${SSR_BOOT_JS}</script>`);
+
+// Every script the browser runs inline, in the shell and in the server-rendered page, must have its hash in the
+// Content-Security-Policy of vercel.json: one changed without it would be blocked once the policy is enforced.
+const csp = JSON.parse(readFileSync("vercel.json", "utf8"))
+  .headers.flatMap((h) => h.headers)
+  .filter((h) => /^content-security-policy(-report-only)?$/i.test(h.key) && /script-src/.test(h.value))
+  .map((h) => h.value)
+  .join(" ");
+// (and the router's scroll restoration, which the server render writes into every page's markup)
+const unlisted = [...inlineScripts(shell), ...inlineScripts(template), routerScrollScript()].filter((code) => !csp.includes(cspHash(code)));
+if (!csp || unlisted.length) {
+  throw new Error(`ssr-shell: inline scripts whose hash is not in vercel.json's script-src: ${unlisted.map((c) => `${cspHash(c)} ${c.slice(0, 60)}…`).join(" · ") || "(no script-src policy)"}`);
+}
 
 writeFileSync(
   "dist-ssr/shell.js",

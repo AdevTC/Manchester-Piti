@@ -518,7 +518,8 @@ export const nicknameSchema = z
 export const normalizeNickname = (raw: string): string => raw.trim().toLowerCase();
 
 export const userProfileSchema = z.object({
-  email: z.string(),
+  /** Only on profiles from before the email moved to memberEmails/{uid} (the migration takes it out). */
+  email: z.string().optional(),
   nickname: z.string(),
   role: roleSchema,
   createdAt: firestoreDate.optional(),

@@ -195,6 +195,13 @@ service cloud.firestore {
       allow list: if admin();
       allow write: if false;
     }
+    // Each member's Google email, apart from the profile every member lists (users/{uid}): only the member and the
+    // captains read it; the backend writes it at the door (functions/src/door.ts admit).
+    match /memberEmails/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || admin());
+      allow list: if admin();
+      allow write: if false;
+    }
     match /nicknames/{name} { allow read: if teamMember(); allow write: if false; }
     match /matchDrafts/{id} { allow read: if admin(); allow write: if false; }
     match /matchAudit/{id} { allow read: if admin(); allow write: if false; }

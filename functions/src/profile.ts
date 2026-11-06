@@ -141,7 +141,8 @@ export const leaveVestuario = onCall(async (req) => {
     status: "left",
     resolvedBy: uid,
     resolvedAt: FieldValue.serverTimestamp(),
-    email: profile.get("email") ?? "",
+    // (his own token's: the profile no longer carries it — memberEmails)
+    email: (req.auth?.token.email as string | undefined) ?? profile.get("email") ?? "",
     name: profile.get("nickname") ?? "",
   });
   await batch.commit();

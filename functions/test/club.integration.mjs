@@ -142,7 +142,10 @@ assert.equal(joined.nickname, "x" + suffix);
 const newcomerUser = (await db.doc("users/" + newcomer.uid).get()).data();
 assert.equal(newcomerUser.role, "user");
 assert.ok((await db.doc("teamMembers/" + newcomer.uid).get()).get("expiresAt").toMillis() > Date.UTC(2100, 0, 1));
-checked += 3;
+// the email: apart (memberEmails), never in the profile every member lists
+assert.equal(newcomerUser.email, undefined);
+assert.equal((await db.doc("memberEmails/" + newcomer.uid).get()).get("email"), newcomer.email);
+checked += 5;
 // A single-use invitation can't be used twice.
 await denied("joinWithInvite", blocked, { code: invite.code, name: "Otro" }, "FAILED_PRECONDITION");
 assert.equal((await ok("inviteInfo", null, { code: invite.code })).state, "used");

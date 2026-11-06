@@ -163,7 +163,8 @@ export function useAdminData(seasonPick?: string): AdminData {
   const archiveDraftsQ = useFirestoreCollection(ARCHIVED_DRAFTS_KEY, archivedDraftsQuery, mapArchivedMatch, canReadArchives);
   const archivePlayersQ = useFirestoreCollection(ARCHIVED_PLAYERS_KEY, archivedPlayersQuery, mapRawPlayer, canReadArchives);
   const claimsQ = usePendingClaims(true);
-  const peopleQ = useClubPeople(true);
+  // (with their emails: Socios and Capitanes show them)
+  const peopleQ = useClubPeople(true, true);
   const doorQ = useDoorRequests(true);
   const content = useClubContent();
   const [contentDrafts] = useContentDrafts(user?.uid);

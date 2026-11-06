@@ -18,19 +18,8 @@
     <meta property="og:image" content="/crest.png" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:image" content="/crest.png" />
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem("mp_theme");
-          if (t !== "light" && t !== "dark") {
-            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          }
-          document.documentElement.setAttribute("data-theme", t);
-        } catch (e) {
-          document.documentElement.setAttribute("data-theme", "light");
-        }
-      })();
-    </script>
+    <!-- One line on purpose: the Content-Security-Policy in vercel.json lists this script's sha256 (CRLF or LF, the same). -->
+    <script>(function(){try{var t=localStorage.getItem("mp_theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","light")}})();</script>
   </head>
   <body>
     <div id="root"></div>

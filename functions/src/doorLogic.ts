@@ -67,6 +67,28 @@ export function doorPingDue(previous: { status?: unknown; pingedAt?: unknown } |
   return now - previous.pingedAt >= DOOR_PING_GAP_MS || previous.pingedAt > now;
 }
 
+/** doorShirts (public, no account) reads every ficha link and the profiles on each call: each instance keeps its
+ *  answer this long, as the door keeps it on the phone (useDoor `staleTime`), so a loop of calls costs one read
+ *  per window. Who takes a ficha meanwhile is still checked at the door itself (admit). */
+export const DOOR_SHIRTS_MEMO_MS = 30_000;
+/**
+ * `load` kept for `ttlMs`: calls inside the window (also those while it is still loading) share one load; a failed
+ * load is not kept. `now` for the tests.
+ */
+export function memoFor<T>(ttlMs: number, load: () => Promise<T>, now: () => number = Date.now): () => Promise<T> {
+  let kept: { at: number; value: Promise<T> } | null = null;
+  return () => {
+    const t = now();
+    if (kept && t - kept.at < ttlMs && t >= kept.at) return kept.value;
+    const entry = { at: t, value: load() };
+    kept = entry;
+    entry.value.catch(() => {
+      if (kept === entry) kept = null;
+    });
+    return entry.value;
+  };
+}
+
 /** A display name typed by someone who isn't in the squad. */
 export const cleanName = (s: string) => s.replace(/\s+/g, " ").trim().slice(0, 40);
 

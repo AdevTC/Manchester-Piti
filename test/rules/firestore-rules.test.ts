@@ -377,6 +377,21 @@ describe("Vestuario e identidad", () => {
     await assertFails(setDoc(doc(db("new"), "accessRequests", "new"), { status: "pending" }));
     await assertFails(setDoc(doc(db("admin"), "invites", "ZZZZZZZZ22"), { by: "admin" }));
   });
+  it("el correo de cada socio (memberEmails) solo lo leen él y los capitanes", async () => {
+    await seed("memberEmails/member", { email: "member@test.dev" });
+    await seed("memberEmails/other", { email: "other@test.dev" });
+    await assertSucceeds(getDoc(doc(db("member"), "memberEmails", "member")));
+    await assertFails(getDoc(doc(db("member"), "memberEmails", "other")));
+    await assertFails(getDocs(collection(db("member"), "memberEmails")));
+    await assertFails(getDoc(doc(db("outsider"), "memberEmails", "member")));
+    await assertFails(getDoc(doc(db(), "memberEmails", "member")));
+    await assertSucceeds(getDoc(doc(db("admin"), "memberEmails", "other")));
+    await assertSucceeds(getDocs(collection(db("admin"), "memberEmails")));
+    // only the backend writes it, not even its owner or a captain
+    await assertFails(setDoc(doc(db("member"), "memberEmails", "member"), { email: "otro@test.dev" }));
+    await assertFails(setDoc(doc(db("admin"), "memberEmails", "other"), { email: "otro@test.dev" }));
+    await assertFails(deleteDoc(doc(db("admin"), "memberEmails", "other")));
+  });
   it("no se puede descubrir el contador de intentos", async () => {
     await assertFails(getDoc(doc(db("member"), "accessAttempts", "member")));
   });

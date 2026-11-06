@@ -30,6 +30,10 @@ describe("userProfileSchema", () => {
     });
     expect(p.role).toBe("user");
   });
+  it("acepta un perfil sin correo (ya vive en memberEmails)", () => {
+    const p = userProfileSchema.parse({ nickname: "piti", role: "user", createdAt: new Date() });
+    expect(p.email).toBeUndefined();
+  });
   it("rechaza un rol desconocido", () => {
     expect(userProfileSchema.safeParse({ email: "a@b.com", nickname: "piti", role: "root" }).success).toBe(false);
   });
