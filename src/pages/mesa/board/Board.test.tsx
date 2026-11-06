@@ -200,6 +200,19 @@ describe("descanso", () => {
     expect(v.actions.addMany).not.toHaveBeenCalled();
     expect(line()).toHaveTextContent("Otra persona ha cambiado el reloj.");
   });
+  it("deshacer el arranque de la 2ª quita sus cambios del último al primero (quitar uno de una tanda en el móvil renumera los de detrás)", async () => {
+    const v = half();
+    v.actions.addMany = vi.fn(() => ["live-w-0", "live-w-1"]);
+    mount(v);
+    fireEvent.click(screen.getByRole("button", { name: /^Pablo, juega la 2ª/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Hugo, no juega la 2ª/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Arrancar con 1 cambio" }));
+    await flush();
+    fireEvent.click(within(line()).getByRole("button", { name: /Deshacer/ }));
+    await flush();
+    expect(vi.mocked(v.actions.remove).mock.calls.map((c) => c[0])).toEqual(["live-w-1", "live-w-0"]);
+    expect(v.actions.clock).toHaveBeenLastCalledWith("undo_second");
+  });
   it("B-MESA-07: la selección sigue al campo cuando otro anotador hace un cambio", async () => {
     const v = half();
     const { rerender } = mount(v);
@@ -329,6 +342,15 @@ describe("la crónica", () => {
     fireEvent.click(screen.getByRole("button", { name: "Borrar: Falta de Mario" }));
     await flush();
     expect(line()).toHaveTextContent("Esa jugada ya se ha borrado.");
+  });
+  it("deshacer el borrado de un gol lo vuelve a apuntar con su pase", async () => {
+    const v = playing({ events: [ev("g1", "goal", 9, { playerId: "mario", assistId: "sergio", assistReviewed: true, text: "Gol de Mario" })] });
+    mount(v, "cronica");
+    fireEvent.click(screen.getByRole("button", { name: "Borrar: Gol de Mario" }));
+    await flush();
+    expect(v.actions.remove).toHaveBeenCalledWith("g1");
+    fireEvent.click(within(line()).getByRole("button", { name: /Deshacer/ }));
+    expect(v.actions.add).toHaveBeenCalledWith("goal", { playerId: "mario", assistPlayerId: "sergio" }, { elapsed: 490, period: 1 });
   });
   it("filtra por tipo y marca el inicio de la 2ª", () => {
     mount(playing({ events: [ev("a", "foul", 5, { text: "Falta de Mario" }), ev("b", "goal", 30, { period: 2, playerId: "mario", text: "Gol de Mario" })] }), "cronica");
