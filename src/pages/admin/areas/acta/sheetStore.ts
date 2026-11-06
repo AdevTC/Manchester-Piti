@@ -88,6 +88,18 @@ export class SheetStore {
     const s = this.state;
     this.put({ ...s, src, base: saved, value: s.value === saved ? saved : s.value, savedAt: at, refused: null, pendingSync: false });
   }
+  /** After a successful save of `sent` (the edits as they were when the save began): `sent` becomes the base, and
+   *  what was edited while it went up (a slow network, the draft that uploads by itself when the signal is back)
+   *  stays dirty — it was never sent. A publish bumps the revision (and the analysis') of both. */
+  saved(sent: MatchSheet, published: boolean, at: number) {
+    const bump = (v: MatchSheet): MatchSheet =>
+      published ? { ...v, revision: (sent.revision ?? 0) + 1, ...(v.analysis && sent.analysis ? { analysis: { ...v.analysis, revision: sent.analysis.revision + 1 } } : {}) } : v;
+    const base = bump(sent);
+    const now = this.state.value;
+    const value = now === sent ? base : bump(now);
+    if (value !== now) this.set(() => value);
+    this.commit(base, this.state.src, at);
+  }
   /** The edits thrown away (back to the base). */
   reset() {
     const s = this.state;
