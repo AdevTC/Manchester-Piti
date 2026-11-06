@@ -6,7 +6,7 @@ import { dateMillis, minuteOfPlay, type MatchEvent } from "../../../functions/sr
 import type { ClubMatch } from "../../lib/clubData";
 import type { MatchdayModel, MatchdayPhase, ViewerRole } from "../../lib/derived/matchday";
 import { floodlightsOn, sunPosition, sunTimes } from "../../lib/derived/sun";
-import { madridDate, madridTime } from "../../lib/derived/madrid";
+import { madridDate, madridDayNumber, madridTime } from "../../lib/derived/madrid";
 import { AWAITING_ACTA } from "../../lib/derived/kickoff";
 import { venueName } from "../../lib/derived/venue";
 import { eventMetaOf, eventSentence, settled } from "../../lib/eventMeta";
@@ -33,7 +33,8 @@ export const andList = (xs: readonly string[]) => (xs.length < 2 ? (xs[0] ?? "")
 export function dayWord(at: number, now: number): string {
   const a = madridDate(at);
   if (a === madridDate(now)) return "hoy";
-  if (a === madridDate(now + 86_400_000)) return "mañana";
+  // (by the calendar: on the day the clocks change, `now + 24 h` is the day beside near midnight)
+  if (madridDayNumber(at) - madridDayNumber(now) === 1) return "mañana";
   return at - now < 6.5 * 86_400_000 ? `el ${weekday(at)}` : `el ${weekday(at)} ${Number(a.slice(8))}`;
 }
 

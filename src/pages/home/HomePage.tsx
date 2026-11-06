@@ -30,7 +30,7 @@ import { jornadaOf as jornadaOfMatch } from "../../lib/derived/jornada";
 import { logoOf, rivalLogos } from "../../lib/derived/rivalLogo";
 import { parseMatchLineup } from "../../lib/matchLineup";
 import { mapsUrl, venueName } from "../../lib/derived/venue";
-import { isEveningKickoff, madridDate, madridTime } from "../../lib/derived/madrid";
+import { isEveningKickoff, madridDate, madridDayAfter, madridDayNumber, madridTime } from "../../lib/derived/madrid";
 import { sunTimes } from "../../lib/derived/sun";
 import { scoreOf } from "../../lib/partidos";
 import { mesaOf } from "../../lib/derived/mesa";
@@ -94,11 +94,6 @@ function crestCode(m: Pick<ClubMatch, "rival" | "rivalShort" | "rivalInitials">)
 const meetTime = (note: string) => {
   const t = /(\d{1,2})[:.h](\d{2})/.exec(note);
   return t ? `${Number(t[1])}:${t[2]}` : null;
-};
-/** Days since the epoch of the Madrid day `ms` falls on (two of them subtract to whole days). */
-const madridDayNumber = (ms: number) => {
-  const [y, mo, d] = madridDate(ms).split("-").map(Number);
-  return Date.UTC(y, mo - 1, d) / 86_400_000;
 };
 const madridMinutes = (ms: number) => {
   const [h, m] = madridTime(ms).split(":").map(Number);
@@ -529,7 +524,7 @@ export function HomePage() {
     rail: railIds.map((id) => ({ id, num: numOf(id) })),
     standings: standings && usRow >= 0 && pulse.played.length > 0 ? { pos: usRow + 1, of: standings.rows.length, pts: standings.rows[usRow].pts } : null,
     leader: leaders.goals[0] ? { name: niceName(leaders.goals[0].name), goals: leaders.goals[0].value } : null,
-    birthday: bd ? { id: bd.id, num: bd.num, name: niceName(bd.name), when: bd.days === 0 ? "hoy" : bd.days === 1 ? "mañana" : `el ${weekday(now + bd.days * 86_400_000)} ${Number(madridDate(now + bd.days * 86_400_000).slice(8))}` } : null,
+    birthday: bd ? { id: bd.id, num: bd.num, name: niceName(bd.name), when: bd.days === 0 ? "hoy" : bd.days === 1 ? "mañana" : `el ${weekday(madridDayAfter(now, bd.days))} ${Number(madridDate(madridDayAfter(now, bd.days)).slice(8))}` } : null,
     vitrina: medal ? `La vitrina: ${medal.kicker.toLocaleLowerCase("es")}` : "La vitrina, por estrenar",
     mine: meId && byId.get(meId) ? { id: meId, num: numOf(meId), short: shortOf(meId) } : null,
   };

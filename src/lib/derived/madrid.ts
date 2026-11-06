@@ -5,6 +5,19 @@ import { madridDate, MONTHS_SHORT } from "../../../functions/src/madrid";
 
 export { madridDate, MONTHS_SHORT };
 
+/** Days since the epoch of the Madrid day `ms` falls on: two of them subtract to calendar days, also across a change
+ *  of clocks (a 23- or 25-hour day), where `now + n · 24 h` lands on the day beside. */
+export function madridDayNumber(ms: number): number {
+  const [y, mo, d] = madridDate(ms).split("-").map(Number);
+  return Date.UTC(y, mo - 1, d) / 86_400_000;
+}
+
+/** Noon (UTC) of the Madrid day `n` calendar days after the one `ms` falls on: its Madrid date and weekday are that
+ *  day's, whatever the clocks did in between. */
+export function madridDayAfter(ms: number, n: number): number {
+  return (madridDayNumber(ms) + n) * 86_400_000 + 12 * 3_600_000;
+}
+
 /** «12» and «oct»: a Madrid day and its short month, apart (a calendar tile prints them on two lines). */
 export function madridDayParts(ms: number): { day: string; month: string } {
   const [, mo, d] = madridDate(ms).split("-");

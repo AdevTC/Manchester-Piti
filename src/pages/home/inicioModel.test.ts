@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { matchdayOf, type MatchdayPhase } from "../../lib/derived/matchday";
-import { heroCopy, matchViewAt, niceName, type CopyCtx } from "./inicioModel";
+import { dayWord, heroCopy, matchViewAt, niceName, type CopyCtx } from "./inicioModel";
 import { HOUR, KO, MIN, SCENES, nameOf } from "./inicio.fixtures";
 
 const nice = (id: string) => niceName(nameOf(id));
@@ -93,5 +93,17 @@ describe("names", () => {
   it("names in capitals read as names", () => {
     expect(niceName("ADRIÁN T.C.")).toBe("Adrián T.C.");
     expect(niceName("Jordi")).toBe("Jordi");
+  });
+});
+
+describe("dayWord on the night the clocks change", () => {
+  // Saturday 28 Mar 2026, 23:30 Madrid: that night has 23 hours
+  const now = Date.UTC(2026, 2, 28, 22, 30);
+  it("Sunday is «mañana» and Monday is not", () => {
+    expect(dayWord(Date.UTC(2026, 2, 29, 9), now)).toBe("mañana");
+    expect(dayWord(Date.UTC(2026, 2, 30, 18), now)).toBe("el lunes");
+  });
+  it("after the 25-hour night too: Monday is «mañana» from Sunday 00:10", () => {
+    expect(dayWord(Date.UTC(2026, 9, 26, 18), Date.UTC(2026, 9, 24, 22, 10))).toBe("mañana");
   });
 });

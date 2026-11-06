@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEveningKickoff, tonightWord, TonightWord } from "./madrid";
+import { isEveningKickoff, madridDate, madridDayAfter, madridDayNumber, tonightWord, TonightWord } from "./madrid";
 
 // 25 Oct 2026 is winter time (UTC+1); 14 Jun 2026 is summer time (UTC+2).
 const morning = Date.UTC(2026, 9, 25, 10, 0); // 11:00 Madrid
@@ -29,5 +29,21 @@ describe("isEveningKickoff / tonightWord", () => {
     expect(tonightWord(null)).toBe("hoy");
     expect(tonightWord(Number.NaN)).toBe("hoy");
     expect(tonightWord("--:--")).toBe("hoy");
+  });
+});
+
+describe("madridDayNumber / madridDayAfter: calendar days across a change of clocks", () => {
+  // 28 Mar 2026, 23:30 Madrid (winter time); the clocks go forward that night, so +24 h is Monday 00:30
+  const satNight = Date.UTC(2026, 2, 28, 22, 30);
+  // 25 Oct 2026, 00:10 Madrid (summer time); the clocks go back that night, so +24 h is still Sunday 23:10
+  const sunEarly = Date.UTC(2026, 9, 24, 22, 10);
+  it("counts days by the calendar, not by 24 hours", () => {
+    expect(madridDayNumber(Date.UTC(2026, 2, 29, 9)) - madridDayNumber(satNight)).toBe(1);
+    expect(madridDayNumber(Date.UTC(2026, 9, 26, 9)) - madridDayNumber(sunEarly)).toBe(1);
+  });
+  it("lands on the right day n days later", () => {
+    expect(madridDate(madridDayAfter(satNight, 1))).toBe("2026-03-29");
+    expect(madridDate(madridDayAfter(sunEarly, 1))).toBe("2026-10-26");
+    expect(madridDate(madridDayAfter(sunEarly, 0))).toBe("2026-10-25");
   });
 });
