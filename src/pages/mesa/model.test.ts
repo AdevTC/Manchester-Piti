@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent } from "../../../functions/src/matchEngine";
-import { boardExtrasOf, buzzOf, eventText, mesaSuggestion, NO_EXTRAS, penaltyNow, withLocal, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
+import { assistReviewedOf, boardExtrasOf, buzzOf, eventText, mesaSuggestion, NO_EXTRAS, penaltyNow, withLocal, fieldSpots, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub, pickScreen, pitchTop, rivalShortOf, spreadTops, stintsOf } from "./model";
 
 const ev = (id: string, type: MatchEvent["type"], at: number, more: Partial<MatchEvent> = {}): MatchEvent => ({ id, type, elapsedSeconds: at, period: 1, ...more });
 
@@ -238,5 +238,17 @@ describe("r14 · la pizarra llega a la mesa: «Si pasa…» y el lanzador de pen
     expect(penaltyNow([pen, { id: "g", type: "goal_penalty", minute: 21, elapsedSeconds: 1210, period: 1 }], ["mario"], ["mario"])).toBeNull();
     expect(penaltyNow([{ id: "y", type: "yellow_card", minute: 18, elapsedSeconds: 1050, period: 1 }, pen], ["mario"], ["mario"])).toBe("mario");
     expect(penaltyNow([pen, { id: "y2", type: "yellow_card", minute: 22, elapsedSeconds: 1300, period: 1 }], ["mario"], ["mario"])).toBeNull();
+  });
+});
+
+describe("el pase contestado de un gol nuevo", () => {
+  it("un gol con goleador lo tiene contestado si lleva pase o si vuelve con «Sin pase»; los demás solo si vuelven así", () => {
+    expect(assistReviewedOf("goal", {})).toEqual({});
+    expect(assistReviewedOf("goal", { playerId: "a" })).toEqual({ assistReviewed: false });
+    expect(assistReviewedOf("goal", { playerId: "a", assistPlayerId: "b" })).toEqual({ assistReviewed: true });
+    expect(assistReviewedOf("goal", { playerId: "a", assistReviewed: true })).toEqual({ assistReviewed: true });
+    expect(assistReviewedOf("goal_freekick", { playerId: "a" })).toEqual({});
+    expect(assistReviewedOf("goal_freekick", { playerId: "a", assistReviewed: true })).toEqual({ assistReviewed: true });
+    expect(assistReviewedOf("opponent_goal", { assistReviewed: true })).toEqual({});
   });
 });

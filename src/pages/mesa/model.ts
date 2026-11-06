@@ -67,6 +67,13 @@ export const counted = (e: Pick<MatchEvent, "dupOf" | "dupOk">): boolean => !(e.
 export function goalSide(type: string): "us" | "them" | null {
   return OUR_GOALS.has(type) ? "us" : THEIR_GOALS.has(type) ? "them" : null;
 }
+/** A new play's «pass answered» mark: a goal tapped with its scorer is answered when it has a pass; one brought
+ *  back by «Deshacer» keeps the mark it had («Sin pase» included), so Final doesn't ask the pass again. */
+export function assistReviewedOf(type: string, opts: { playerId?: string; assistPlayerId?: string; assistReviewed?: boolean }): { assistReviewed?: true | false } {
+  if (goalSide(type) !== "us") return {};
+  if (type === "goal" && opts.playerId) return { assistReviewed: !!opts.assistPlayerId || !!opts.assistReviewed };
+  return opts.assistReviewed ? { assistReviewed: true } : {};
+}
 /** The score everyone sees: possible duplicates count once. */
 export function mesaScore(events: readonly Pick<MatchEvent, "type" | "dupOf" | "dupOk">[] | undefined): { us: number; them: number } {
   let us = 0;

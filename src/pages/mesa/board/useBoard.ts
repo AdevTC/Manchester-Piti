@@ -393,8 +393,8 @@ export function useBoard(view: MesaView, vista: string | undefined, sheetCtl?: S
       const e = u.play;
       setStatus({ tag: "Deshecho", msg: "La jugada vuelve a estar apuntada.", tone: "", at: Date.now() });
       if (!isMesaType(e.type)) return;
-      // (with its pass: a goal brought back keeps who gave it)
-      cur.actions.add(e.type as MesaType, { ...(e.playerId ? { playerId: e.playerId } : {}), ...(e.assistId ? { assistPlayerId: e.assistId } : {}), ...(e.inPlayerId ? { inPlayerId: e.inPlayerId } : {}) }, { elapsed: elapsedAt(e), period: e.period });
+      // (with its pass: a goal brought back keeps who gave it, or its «Sin pase»)
+      cur.actions.add(e.type as MesaType, { ...(e.playerId ? { playerId: e.playerId } : {}), ...(e.assistId ? { assistPlayerId: e.assistId } : {}), ...(e.goal === "us" && e.assistReviewed ? { assistReviewed: true } : {}), ...(e.inPlayerId ? { inPlayerId: e.inPlayerId } : {}) }, { elapsed: elapsedAt(e), period: e.period });
       return;
     }
     if (u.k === "kick")

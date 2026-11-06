@@ -20,9 +20,9 @@ import { useMaqueta } from "./useMaqueta";
 import { addSubs, MAX_WAVE } from "./api";
 import { MesaQueue, itemPlays, pendingByPlayer, queueKey, removeQueued, type QueueItem, type QueuePayload } from "./queue";
 import {
-  buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
+  buzzOf, counted, eventText, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
   boardExtrasOf, NO_EXTRAS, rivalInitialsOf, rivalShortOf, withLocal, type BoardExtras, type LocalPlay, type PlayerInfo,
-  mesaSuggestion, penaltyNow,
+  mesaSuggestion, penaltyNow, assistReviewedOf,
 } from "./model";
 import type { ClockAction, MesaActions, MesaAddOpts, MesaEditPatch, MesaNav, MesaPresence, MesaQueueState, MesaType, MesaView, MesaWaveItem } from "./types";
 
@@ -266,7 +266,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
         ...(opts.playerId ? { playerId: opts.playerId } : {}),
         ...(opts.assistPlayerId ? { assistPlayerId: opts.assistPlayerId } : {}),
         ...(opts.inPlayerId ? { inPlayerId: opts.inPlayerId } : {}),
-        ...(goalSide(type) === "us" && type === "goal" && opts.playerId ? { assistReviewed: !!opts.assistPlayerId } : {}),
+        ...assistReviewedOf(type, opts),
       };
     };
     const textOf = (type: MesaType, opts: MesaAddOpts) =>

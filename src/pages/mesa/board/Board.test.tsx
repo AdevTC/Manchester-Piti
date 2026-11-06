@@ -350,7 +350,15 @@ describe("la crónica", () => {
     await flush();
     expect(v.actions.remove).toHaveBeenCalledWith("g1");
     fireEvent.click(within(line()).getByRole("button", { name: /Deshacer/ }));
-    expect(v.actions.add).toHaveBeenCalledWith("goal", { playerId: "mario", assistPlayerId: "sergio" }, { elapsed: 490, period: 1 });
+    expect(v.actions.add).toHaveBeenCalledWith("goal", { playerId: "mario", assistPlayerId: "sergio", assistReviewed: true }, { elapsed: 490, period: 1 });
+  });
+  it("deshacer el borrado de un gol «sin pase» lo devuelve con el pase ya contestado (Final no lo vuelve a preguntar)", async () => {
+    const v = playing({ events: [ev("g1", "goal", 9, { playerId: "mario", assistReviewed: true, text: "Gol de Mario" })] });
+    mount(v, "cronica");
+    fireEvent.click(screen.getByRole("button", { name: "Borrar: Gol de Mario" }));
+    await flush();
+    fireEvent.click(within(line()).getByRole("button", { name: /Deshacer/ }));
+    expect(v.actions.add).toHaveBeenCalledWith("goal", { playerId: "mario", assistReviewed: true }, { elapsed: 490, period: 1 });
   });
   it("filtra por tipo y marca el inicio de la 2ª", () => {
     mount(playing({ events: [ev("a", "foul", 5, { text: "Falta de Mario" }), ev("b", "goal", 30, { period: 2, playerId: "mario", text: "Gol de Mario" })] }), "cronica");
