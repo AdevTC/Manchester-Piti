@@ -48,19 +48,22 @@ await test("public HTML follows archive, deletion and restoration without servin
       const response = await GET(new Request("https://piti.test/api/render?p=/partidos"));
       const html = await response.text();
       assert.equal(response.status, 200);
-      // (each render reads the bundle afresh; Vercel's CDN keeps the page a minute under «club-html», which every
-      // write to the public data deletes: functions/src/htmlCache.ts)
+      // (each render reads the bundle afresh; Vercel's CDN keeps the page under «club-html», fresh a minute and then
+      // once more up to a day, and every write to the public data deletes it: functions/src/htmlCache.ts)
       assert.equal(response.headers.get("cache-control"), "public, max-age=0, must-revalidate");
-      assert.match(response.headers.get("vercel-cdn-cache-control") ?? "", /^max-age=60\b/);
+      assert.equal(response.headers.get("vercel-cdn-cache-control"), "max-age=60, stale-while-revalidate=86400, stale-if-error=86400");
       assert.equal(response.headers.get("vercel-cache-tag"), "club-html");
       const [markup, rest] = html.split('<script type="application/json" id="club-bundle"');
       assert.equal(markup.includes(rival), visible);
       assert.ok(html.includes("data-ssr"), "must render actual page, not fallback shell");
       // The page carries the data it was painted with (no «<» inside it) and that instant, for the browser to take over.
-      const inline = rest?.match(/^ data-at="(\d+)">([^<]*)<\/script>/);
+      const inline = rest?.match(/^ data-at="(\d+)" data-until="(\d+)">([^<]*)<\/script>/);
       assert.ok(inline, "must carry its bundle");
+      // (and until when its texts that read the clock hold: at most the end of its Madrid day, src/ssr/paintedUntil.ts)
+      const left = Number(inline[2]) - Number(inline[1]);
+      assert.ok(left > 0 && left <= 25 * 3_600_000, `data-until ${left} ms after data-at`);
       // (the same bundle /datos/club.bundle serves: an archived match is still a document, which the app's mappers drop)
-      assert.equal(inline[2].includes(rival), match !== null);
+      assert.equal(inline[3].includes(rival), match !== null);
       assert.ok(!html.includes('rel="preload" href="/datos/club.bundle"'), "no second download of the bundle");
     }
     assert.equal(requests, 4);

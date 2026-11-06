@@ -4,7 +4,8 @@
 // - the page's own stylesheets go in the head (<!--ssr-head-->), so the markup arrives styled;
 // - the JavaScript starts after the first paint (the markup needs none to be seen), so the page's CSS
 //   and fonts get the connection first; with a URL or saved season the server can't know about, the
-//   markup is dropped and the app boots exactly as from the shell;
+//   markup is dropped and the app boots exactly as from the shell; the same for a copy the CDN kept past its
+//   `data-until` (src/ssr/paintedUntil.ts: its clock's texts would be another day's or another moment's of a match);
 // - the data bundle comes inside the page (api/render.js), so the shell's preload of it is left out.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 
@@ -27,7 +28,7 @@ if (entry.values.length !== 1 || bundlePreload.tags.length !== 1 || !shell.inclu
 
 const boot = `(function(){var d=document.documentElement,r=document.getElementById("root"),s;
 try{s=localStorage.getItem("selected_season_id")}catch(e){}
-var spa=!!location.search||!!(s&&s!=="all");if(spa){r.innerHTML="";d.removeAttribute("data-ssr")}
+var spa=!!location.search||!!(s&&s!=="all"),b=document.getElementById("club-bundle"),u=b&&+b.getAttribute("data-until");if(u&&Date.now()>u)spa=true;if(spa){r.innerHTML="";d.removeAttribute("data-ssr")}
 var done=0;function go(){if(done)return;done=1;var h=document.head,p=location.pathname,f=${JSON.stringify(preloads.values)},m=${JSON.stringify(routes)},i;
 for(i=0;i<m.length;i++)if(new RegExp(m[i][0]).test(p)){f=f.concat(m[i][1]);break}
 f.forEach(function(u){if(/\\.(css|woff2)$/.test(u))return;var l=document.createElement("link");l.rel="modulepreload";l.crossOrigin="";l.href=u;h.appendChild(l)});
