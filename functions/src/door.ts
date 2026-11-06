@@ -57,10 +57,13 @@ async function admit(tx: Transaction, req: CallableRequest, uid: string, who: { 
   const role = returningRole(user.get("role"), removed) ?? (email === SUPERADMIN && req.auth?.token.email_verified === true ? "superadmin" : "user");
   tx.set(db.doc(`teamMembers/${uid}`), { expiresAt: Timestamp.fromMillis(FOREVER_MS), joinedAt: FieldValue.serverTimestamp(), via, by });
   if (nameRef) tx.set(nameRef, { uid });
+  // The email lives apart (memberEmails: only the member and the captains read it), never in the profile every
+  // member can list; an older profile's copy goes.
+  if (email) tx.set(db.doc(`memberEmails/${uid}`), { email });
   tx.set(
     userRef,
     {
-      email,
+      email: FieldValue.delete(),
       nickname,
       role,
       ...(who.name && !who.playerId ? { displayName: cleanName(who.name) } : {}),
@@ -208,7 +211,7 @@ export const revokeMember = onCall(async (req) => {
   // it clears what an older removal left behind.
   const result = await db.runTransaction(async (tx) => {
     const userRef = db.doc(`users/${uid}`);
-    const [user, me] = await tx.getAll(userRef, db.doc(`users/${by}`));
+    const [user, me, mail] = await tx.getAll(userRef, db.doc(`users/${by}`), db.doc(`memberEmails/${uid}`));
     if (user.get("role") === "superadmin") throw new HttpsError("permission-denied", "No se puede quitar el acceso al superadministrador.");
     // M-40: taking the access takes the brazalete too, so only the capitán general does it to another captain.
     if (user.get("role") === "admin" && me.get("role") !== "superadmin") throw new HttpsError("permission-denied", "Solo el capitán general puede quitar el acceso a otro capitán.");
@@ -223,7 +226,7 @@ export const revokeMember = onCall(async (req) => {
     const freed = link?.exists && link.get("uid") === uid ? playerId! : null;
     if (freed) tx.delete(link!.ref);
     if (claim.exists && claim.get("status") === "pending") tx.delete(claim.ref);
-    tx.set(db.doc(`accessRequests/${uid}`), { status: "removed", resolvedBy: by, resolvedAt: FieldValue.serverTimestamp(), email: user.get("email") ?? "", name: user.get("nickname") ?? "", ...(freed ? { freedPlayerId: freed } : {}), ...(wasCaptain ? { wasCaptain: true } : {}) });
+    tx.set(db.doc(`accessRequests/${uid}`), { status: "removed", resolvedBy: by, resolvedAt: FieldValue.serverTimestamp(), email: mail.get("email") ?? user.get("email") ?? "", name: user.get("nickname") ?? "", ...(freed ? { freedPlayerId: freed } : {}), ...(wasCaptain ? { wasCaptain: true } : {}) });
     return { freed, wasCaptain };
   });
   // (like leaving: their devices keep the club's public notices, never the vestuario's any more)

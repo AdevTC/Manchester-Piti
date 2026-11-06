@@ -20,7 +20,8 @@ export function useCaptainDoor() {
   const requests = useDoorRequests(admin);
   const invites = useInvites(admin);
   const members = useTeamMembers(admin);
-  const people = useClubPeople(admin);
+  // (with their emails: the door's list shows them)
+  const people = useClubPeople(admin, true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);

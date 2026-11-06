@@ -23,6 +23,7 @@ import { byAbsence, currentAbsences, parseAbsence, type Absence } from "../../li
 import { parseRotaTurns, type RotaTurnsDoc } from "../../lib/derived/rota";
 import { parsePoll, parsePollVote, type Poll, type PollVote } from "../../lib/derived/polls";
 import { parseRatingDoc, parseReactionDoc, type RatingDoc, type ReactionDoc } from "../../lib/derived/trasElPartido";
+import { withEmails, type MemberEmail } from "../../lib/memberEmails";
 
 interface Live<T> {
   data: T;
@@ -581,8 +582,16 @@ export interface PersonRow {
   /** Who took it away (r12: the captain, or his own uid when he left); absent on the old removals. */
   removedBy?: string | null;
 }
-export function useClubPeople(enabled: boolean) {
-  return useLiveQuery<PersonRow>(enabled ? "users" : null, (fb) => fb.collection(fb.db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: d.email ?? "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt, removedAt: millis(d.removedAt), removedBy: typeof d.removedBy === "string" ? d.removedBy : null }));
+/**
+ * The club's people (captains only). `withEmail`: also each one's email, from memberEmails/{uid} (only captains
+ * list it; a profile from before the move still has its own copy). Without it, `email` is that old copy or "".
+ */
+export function useClubPeople(enabled: boolean, withEmail = false): Live<PersonRow[]> {
+  const people = useLiveQuery<PersonRow>(enabled ? "users" : null, (fb) => fb.collection(fb.db, "users"), (uid, d) => ({ uid, nickname: d.nickname ?? "", displayName: d.displayName ?? "", email: typeof d.email === "string" ? d.email : "", role: d.role ?? "user", playerId: d.playerId || null, removed: !!d.removedAt, removedAt: millis(d.removedAt), removedBy: typeof d.removedBy === "string" ? d.removedBy : null }));
+  // (an error here only leaves the emails out: the list itself is the profiles')
+  const emails = useLiveQuery<MemberEmail>(enabled && withEmail ? "memberEmails" : null, (fb) => fb.collection(fb.db, "memberEmails"), (uid, d) => ({ uid, email: typeof d.email === "string" ? d.email : "" }));
+  const data = useMemo(() => withEmails(people.data, emails.data), [people.data, emails.data]);
+  return useMemo(() => (data === people.data ? people : { ...people, data }), [people, data]);
 }
 
 // ---------- your own membership (/profile: «Tu acceso» and the back of the card)

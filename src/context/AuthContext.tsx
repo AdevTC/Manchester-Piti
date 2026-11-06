@@ -7,7 +7,8 @@ import { reportDroppedDoc } from "../lib/docTelemetry";
 import { reassertPush } from "../lib/push";
 
 export interface UserProfile {
-  email: string;
+  /** Only on profiles from before the move to memberEmails/{uid}: the account's email is `user.email`. */
+  email?: string;
   nickname: string;
   role: "superadmin" | "admin" | "user";
   createdAt: Date | import("firebase/firestore").Timestamp;
