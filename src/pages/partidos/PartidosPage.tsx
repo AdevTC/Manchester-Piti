@@ -297,11 +297,14 @@ export function PartidosPage() {
   const id = useMemo(() => identityView(se, ctx), [se, ctx]);
 
   // ── the address follows the screen's state (replace), a screen change pushes
+  // (the web's ?season= stays, last as SeasonUrlSync writes it: dropped, SeasonUrlSync put it back with a second
+  // navigation after every one of these)
+  const webSeason = str(search.season) ?? undefined;
   const searchFor = (s: Screen): Record<string, string | undefined> => {
     const base: Record<string, string | undefined> = { temporada };
-    if (s === "jornadas") return { ...base, jornada: sel !== null ? String(sel) : undefined, lente: lente ?? undefined, ver: filt !== "todos" ? filt : undefined, hoja: cartel ? "cartel" : undefined };
-    if (s === "tabla") return { ...base, ver: all ? "entera" : undefined, "y-si": picksParam(picks, ms) };
-    return { ...base, jornada: bal !== null ? String(bal) : undefined, faceta: facet !== "goles" ? facet : undefined, ver: facetAll ? "todo" : undefined };
+    if (s === "jornadas") return { ...base, jornada: sel !== null ? String(sel) : undefined, lente: lente ?? undefined, ver: filt !== "todos" ? filt : undefined, hoja: cartel ? "cartel" : undefined, season: webSeason };
+    if (s === "tabla") return { ...base, ver: all ? "entera" : undefined, "y-si": picksParam(picks, ms), season: webSeason };
+    return { ...base, jornada: bal !== null ? String(bal) : undefined, faceta: facet !== "goles" ? facet : undefined, ver: facetAll ? "todo" : undefined, season: webSeason };
   };
   const clean = (o: Record<string, string | undefined>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
   const wanted = JSON.stringify(clean(searchFor(screen)));
@@ -469,7 +472,7 @@ export function PartidosPage() {
         setBal(null);
         setAll(false);
         setQ("");
-        void navigate({ to: pathOf(screen), search: sid === current || !s ? {} : { temporada: slugW(s.name) }, replace: false, resetScroll: false } as never);
+        void navigate({ to: pathOf(screen), search: clean({ temporada: sid === current || !s ? undefined : slugW(s.name), season: webSeason }), replace: false, resetScroll: false } as never);
       }),
     );
   };

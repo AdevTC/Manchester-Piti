@@ -11,6 +11,8 @@ import { matchPhase } from "../../../functions/src/matchEngine";
 import { useMatchClock } from "../../hooks/useMatchClock";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import { useViewer } from "../../hooks/useViewer";
+import { useAuth } from "../../context/AuthContext";
+import { useTeam } from "../../context/TeamContext";
 import { KitStillContext, type Kit } from "../../components/jersey3d/kitStill";
 import { usePageKitStills } from "../../components/jersey3d/usePageKitStills";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -557,7 +559,11 @@ export function HomePage() {
   // a screen a viewer can't have goes home (/hoy/lo-tuyo is a player's)
   const screen: Screen = nav.screen === "lo-tuyo" && hydrated && !meId ? "portada" : nav.screen;
   const sentHome = useRef(false);
-  const goHome = nav.screen === "lo-tuyo" && hydrated && !loading && !meId;
+  // (only once the session is known: the club's data comes from the cache or the server's page before Firebase
+  // says who is looking, and a player opening his own /hoy/lo-tuyo was sent home in that gap)
+  const { loading: authLoading } = useAuth();
+  const { ready: teamReady } = useTeam();
+  const goHome = nav.screen === "lo-tuyo" && hydrated && !loading && !authLoading && teamReady && !meId;
   useEffect(() => {
     if (!goHome) {
       sentHome.current = false;

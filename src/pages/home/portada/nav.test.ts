@@ -25,6 +25,13 @@ describe("Inicio's addresses", () => {
     expect(hrefOf("camiseta", { min: 20 })).toBe("/camiseta");
   });
 
+  it("keeps the web's ?season= on every screen (else SeasonUrlSync navigates a second time to put it back)", () => {
+    expect(hrefOf("portada", { min: 36, season: "t2" })).toBe("/?min=36&season=t2");
+    expect(hrefOf("campo", { min: null, hoja: "mvp", jugador: "jordi", season: "t2" })).toBe("/hoy/campo?hoja=mvp&jugador=jordi&season=t2");
+    expect(hrefOf("camiseta", { min: 20, season: "t2" })).toBe("/camiseta?season=t2");
+    expect(hrefOf("portada", { min: null, season: null })).toBe("/");
+  });
+
   it("travels right going deeper and left going home", () => {
     expect(travelOf("portada", "campo")).toBe("right");
     expect(travelOf("campo", "jugadas")).toBe("right");

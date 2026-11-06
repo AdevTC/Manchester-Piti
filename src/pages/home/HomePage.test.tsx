@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   now: 0,
   viewer: { member: false, admin: false, playerId: null as string | null },
   loading: false,
+  authLoading: false,
   scorers: [] as string[],
   path: "/",
   search: {} as Record<string, unknown>,
@@ -35,7 +36,7 @@ vi.mock("../../lib/clubContent", async () => {
   return { useClubContent: () => (state.content ? { ...DEFAULT_CONTENT, ...state.content } : DEFAULT_CONTENT) };
 });
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1" }] }) }));
-vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null, loading: false }) }));
+vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null, loading: state.authLoading }) }));
 vi.mock("../../context/TeamContext", () => ({ useTeam: () => ({ member: false, ready: true }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => state.viewer }));
 vi.mock("../../hooks/useMatchClock", () => ({ useMatchClock: () => state.now }));
@@ -83,6 +84,7 @@ const at = (phase: keyof typeof SCENES, path = "/") => {
 beforeEach(() => {
   state.viewer = { member: false, admin: false, playerId: null };
   state.loading = false;
+  state.authLoading = false;
   state.scorers = [];
   state.path = "/";
   state.search = {};
@@ -237,6 +239,18 @@ describe("Inicio's screens", () => {
     at("acta", "/hoy/lo-tuyo");
     render(<HomePage />);
     expect(state.navigate).toHaveBeenCalledWith({ href: "/" });
+  });
+
+  it("/hoy/lo-tuyo waits for the session before sending anyone home (the data can arrive first)", () => {
+    at("acta", "/hoy/lo-tuyo");
+    state.authLoading = true;
+    const { rerender } = render(<HomePage />);
+    expect(state.navigate).not.toHaveBeenCalled();
+    // (the session arrives: a player stays on his screen)
+    state.authLoading = false;
+    state.viewer = { member: true, admin: false, playerId: "jordi" };
+    rerender(<HomePage />);
+    expect(state.navigate).not.toHaveBeenCalled();
   });
 
   it("/camiseta: the name in capitals, the dorsal in figures", () => {
