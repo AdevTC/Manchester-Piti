@@ -30,7 +30,7 @@ import { matchPhase } from "../../../functions/src/matchEngine";
 import { niceName } from "../../lib/derived/words";
 import { leaguePhrase } from "../partidos/vidrio/model";
 import type { Demo } from "../partidos/pa/demo";
-import { makeND, slug, type Moment, type NSeasonData } from "./numeros/nd";
+import { makeND, seasonMoment, slug, type Moment, type NSeasonData } from "./numeros/nd";
 import { seasonData, squadOf, type SquadInput } from "./numeros/adapt";
 import { useCatalog } from "./numeros/useCatalog";
 import { addressKey, peopleIndex, stateFromUrl, urlOf, type Search } from "./numeros/url";
@@ -64,11 +64,7 @@ const leagueOf = (competition: string | null | undefined): string => {
   const said = p && !/f[úu]tbol|f-?7|f-?11/i.test(p) ? `${p} de fútbol 7` : p;
   return said ? said.charAt(0).toLocaleUpperCase("es") + said.slice(1) : "";
 };
-/** The moment the season is at: the last jornada played (or tonight's), tonight live, every jornada played. */
-function momentOf(S: NSeasonData): Moment {
-  const done = S.matches.filter((m) => m.st === "fin" || m.st === "live");
-  return { edge: Math.max(1, ...done.map((m) => m.j)), live: S.matches.some((m) => m.st === "live"), closed: done.length > 0 && !S.matches.some((m) => m.st === "por" || m.st === "live") };
-}
+const momentOf = seasonMoment;
 /** The DEV board strip's demo MVP for the long season (it keeps no votes): most G+A that night, a clean sheet the keeper's. */
 function demoMvp(m: NSeasonData["matches"][number]): string | null {
   if (m.st !== "fin") return null;

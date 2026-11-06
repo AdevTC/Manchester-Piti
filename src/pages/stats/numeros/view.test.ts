@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { makeND, type NMatch, type NSeasonData } from "./nd";
+import { makeND, seasonMoment, type LRow, type NMatch, type NSeasonData } from "./nd";
 import { squadOf } from "./adapt";
 import { numerosView, type Act, type Env, type NuState } from "./view";
 
@@ -91,5 +91,73 @@ describe("Números · «El cielo»: nobody shares a point", () => {
     expect(points.size).toBe(16);
     expect(squad.find((p) => p.id === "por")).toMatchObject({ x: 6, y: 50 });
     expect(squad.find((p) => p.id === "c")).toMatchObject({ x: 22, y: 84, pos: "DEF" });
+  });
+});
+
+describe("Números · minutes known", () => {
+  const Z = { min: 0, tit: 0, ban: 0, nc: 0, pl: 0, sin: 0, sout: 0, st: [], dy: 0, pcm: 0, prc: 0, psv: 0, pms: 0, gpen: 0, gfk: 0, wood: 0, ch: 0, sv: 0, f: 0, fr: 0, pas: 0, pok: 0, pko: 0 } as unknown as LRow;
+  const L = (min: number): LRow => ({ ...Z, min, pl: min ? 1 : 0, tit: min ? 1 : 0 });
+  const ND = makeND(squad);
+  it("a match being played does not turn everyone's minutes into starts", () => {
+    const gs = [m(1, { st: "fin", gf: 1, ga: 0, starters: ["a"], ledger: { a: L(50), b: L(20) }, minutes: { a: 50, b: 20 } }), m(2, { st: "live", gf: 1, ga: 0, starters: ["a"] })];
+    const a = ND.rows(gs).find((r) => r.id === "a")!;
+    expect(a.minKnown).toBe(true);
+    expect(ND.metricOf(a, "min")).toBe(50);
+  });
+  it("a signing missing from the earlier actas played 0′ in them: minutes, not starts", () => {
+    const gs = [m(1, { st: "fin", gf: 1, ga: 0, ledger: { a: L(50) }, minutes: { a: 50 } }), m(2, { st: "fin", gf: 1, ga: 0, ledger: { a: L(50), c: L(30) }, minutes: { a: 50, c: 30 } })];
+    const rs = ND.rows(gs);
+    expect(rs.find((r) => r.id === "c")).toMatchObject({ minKnown: true, min: 30 });
+    expect(rs.find((r) => r.id === "a")).toMatchObject({ minKnown: true, min: 100 });
+  });
+});
+
+describe("Números · the locked cromos say what is left in good Spanish", () => {
+  it("«falta 1 gol», «falta 1 victoria», «faltan 6 victorias»", () => {
+    const ND = makeND(squad);
+    const goals = Array.from({ length: 9 }, (_, i): [string, null, number] => ["a", null, i + 1]);
+    const gs = [m(1, { st: "fin", gf: 9, ga: 0, goals, starters: ["a"] }), ...[2, 3, 4].map((j) => m(j, { st: "fin", gf: 1, ga: 0, starters: ["a"] }))];
+    const left = Object.fromEntries(ND.collection(gs, ND.rows(gs)).map((c) => [c.title, c.left]));
+    expect(left["10 goles del equipo"]).toBe("falta 1 gol");
+    expect(left["5 victorias"]).toBe("falta 1 victoria");
+    expect(left["10 victorias"]).toBe("faltan 6 victorias");
+    expect(left["5 asistencias de un jugador"]).toBe("faltan 5");
+  });
+});
+
+describe("Números · Rivales", () => {
+  it("names the rival that sticks in our throat only when one does", () => {
+    expect(numerosView({ ...BASE, place: "rivales" }, env(), act).rivales.sub).toContain("El que más se nos atraganta: Rival 2.");
+    const won: NSeasonData = { ...S, matches: [S.matches[0], { ...S.matches[1], gf: 1, ga: 0, goals: [["a", null, 10]] }, S.matches[2]] };
+    const v = numerosView({ ...BASE, place: "rivales" }, env({ nd: makeND(squadOf(people, won.matches)), S: won }), act);
+    expect(v.rivales.title).toBe("Contra Rival 1, siempre ganando");
+    expect(v.rivales.sub).not.toContain("atraganta");
+  });
+});
+
+describe("Números · the moment of the season", () => {
+  it("a postponed jornada still to play keeps the season open", () => {
+    const fin = m(1, { st: "fin", gf: 1, ga: 0 });
+    expect(seasonMoment({ matches: [fin, m(2, { st: "fin", gf: 0, ga: 0 })] })).toEqual({ edge: 2, live: false, closed: true });
+    expect(seasonMoment({ matches: [fin, m(2, { st: "apl" }), m(3, { st: "fin", gf: 2, ga: 2 })] })).toEqual({ edge: 3, live: false, closed: false });
+  });
+});
+
+describe("Números · Rivales over every season", () => {
+  it("«todas las temporadas» counts the other seasons' matches against each rival, and a rival only met before", () => {
+    const S0: NSeasonData = { ...S, id: "t0", slug: "temporada-0", name: "Temporada 0", matches: [m(1, { id: "old1", st: "fin", gf: 2, ga: 0 }), m(2, { id: "old2", st: "fin", gf: 1, ga: 1, rival: "Viejo rival" })] };
+    const v = numerosView({ ...BASE, place: "rivales", temporada: "todas" }, env({ others: [{ S: S0, moment: { edge: 2, live: false, closed: true } }] }), act);
+    const pj = Object.fromEntries(v.rivales.all.map((r: { rival: string; pj: number }) => [r.rival, r.pj]));
+    expect(pj["Rival 1"]).toBe(2);
+    expect(pj["Viejo rival"]).toBe(1);
+    expect(numerosView({ ...BASE, place: "rivales" }, env({ others: [{ S: S0, moment: { edge: 2, live: false, closed: true } }] }), act).rivales.all.some((r: { rival: string }) => r.rival === "Viejo rival")).toBe(false);
+  });
+});
+
+describe("Números · la evolución's axis", () => {
+  it("names its ends by the jornadas played (a postponed one between them)", () => {
+    const ND = makeND(squad);
+    const se = ND.season({ ...S, matches: [m(1, { st: "fin", gf: 1, ga: 0, goals: [["a", null, 3]] }), m(2, { st: "apl" }), m(3, { st: "fin", gf: 1, ga: 0 })] }, { edge: 3, live: false, closed: false });
+    expect(ND.evo(se, 3, ["a"], "goles")).toMatchObject({ n: 2, firstJ: 1, lastJ: 3 });
   });
 });

@@ -315,8 +315,9 @@ export function Hub({ headSub, next, share, social, pieces, focus, pick, seasonN
                       </span>
                     )}
                     <span className="cb-door__spons">
-                      {(d.spons ?? []).map((s) => (
-                        <i key={s}>{s}</i>
+                      {(d.spons ?? []).map((s, i) => (
+                        // (two sponsors can share their initials)
+                        <i key={i}>{s}</i>
                       ))}
                       <i className="is-free">+</i>
                     </span>

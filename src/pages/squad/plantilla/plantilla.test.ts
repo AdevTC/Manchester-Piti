@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { PlayerDoc } from "../../../lib/schemas";
 import { addrOf, hrefOf } from "./address";
-import { adn, age, birthday, heightText, missing, periodCtx, sign, stats, toPlayer } from "./model";
+import { adn, age, birthday, heightText, medals, missing, periodCtx, sign, stats, toPlayer } from "./model";
 import { duelView, homeView, ledeView, matchLines, railView, type DayInput, type Squad, type ViewState, type Who } from "./views";
 
 describe("the addresses", () => {
@@ -98,5 +98,21 @@ describe("the season", () => {
     const d = duelView(S, ST);
     expect(d.rows.find((r) => r.t === "Altura")).toMatchObject({ av: "1,86 m", bv: "1,78 m", aw: "is-win" });
     expect(d.verdict).toContain("Evans le saca 8 cm a Jordi.");
+  });
+});
+
+describe("a career beyond the season on screen", () => {
+  it("counts an MVP won in another season among his medals", () => {
+    const old: ClubMatch = { ...J1, id: "t0j1", seasonId: "t0", date: Date.UTC(2025, 9, 18, 17), voteClosesAt: Date.UTC(2025, 9, 19, 17) };
+    const results = new Map([["t0j1", { id: "t0j1", counts: { alcides: 3 }, total: 3 }]]);
+    const seasons = [{ id: "t0", name: "Temporada 0" }, ...SEASONS];
+    const cur = periodCtx(PLAYERS, [old, J1], "t1", seasons, results, NOW, []);
+    expect(medals("alcides", [old, J1], cur, seasons).got.map((a) => a.id)).toContain("mvp");
+  });
+  it("tags a goal confirmed as a second one (not a pending duplicate) under his shirt", () => {
+    const last: ClubMatch = { ...J1, events: [{ id: "e1", type: "goal", minute: 43, playerId: "alcides" } as never, { id: "e2", type: "goal", minute: 44, playerId: "jordi", dupOf: "e1", dupOk: true } as never, { id: "e3", type: "goal", minute: 45, playerId: "evans", dupOf: "e1" } as never] };
+    const lines = matchLines({ ...squad(), matches: [last] }, { ...DAY, last });
+    expect(lines.get("jordi")?.tags).toEqual([{ cls: "vd-tag--gol", text: "Gol 44′" }]);
+    expect(lines.get("evans")?.tags).toEqual([]);
   });
 });
