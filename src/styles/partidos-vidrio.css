@@ -427,6 +427,10 @@
 .pa .pa-wait__i{width:28px;height:28px;margin-top:2px;color:var(--vd-celeste-ink)}
 .pa .pa-wait .pa-h3{font-size:21px}
 .pa .pa-tb__side{display:flex;flex-direction:column;gap:22px;min-width:0}
+/* Tabla's side column and «Qué verás aquí», and the lens's columns after the first (off the screen it is neither styled, laid out nor painted until it nears: nor captured whole by a View Transition) */
+.pa .pa-tb .pa-tb__side{content-visibility:auto;contain-intrinsic-size:auto 570px}
+.pa .pa-tb .pa-will{content-visibility:auto;contain-intrinsic-size:auto 320px}
+.pa .pa-lb>.pa-col~.pa-col{content-visibility:auto;contain-intrinsic-size:auto 360px}
 .pa .pa-blk{min-width:0}
 .pa .pa-tb__side .pa-k,.pa .pa-bal .pa-k{color:var(--vd-ink-strong)}
 .pa .pa-us{display:flex;align-items:center;gap:16px}
@@ -720,6 +724,9 @@
 
 /* ================================================================ View Transitions: exit → morph → enter */
 ::view-transition-old(root),::view-transition-new(root){animation:none}
+/* (and between screens or facets the root is not captured: its new picture, still and over the old one, was the live
+   page itself) */
+html:is([data-pa-dir],[data-pa-facet]):not([data-pa-calm]){view-transition-name:none}
 ::view-transition-group(pa-screen){animation-duration:.9s}
 html[data-pa-dir]::view-transition-old(pa-screen){animation:pa-out-f .16s cubic-bezier(.4,0,1,1) both}
 html[data-pa-dir]::view-transition-new(pa-screen){animation:pa-in-f .24s cubic-bezier(0,0,.2,1) .66s both}

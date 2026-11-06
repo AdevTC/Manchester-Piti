@@ -1,5 +1,7 @@
 .sc-panel{min-width:0;width:100%;max-width:100%;color:var(--vd-ink);font-family:var(--vd-sans)}
 .ppn-charts{min-width:0;margin-top:36px;padding-top:28px;border-top:1px solid var(--vd-rule);scroll-margin-top:150px}.ppn-charts__scope{font:500 13px/1.5 var(--vd-sans);color:var(--vd-ink2);margin:0 0 18px}
+/* the match's charts, under its numbers (off the screen it is neither styled, laid out nor painted until it nears: nor captured whole by a View Transition) */
+.pp .pp-place--numeros .pp-place__body>.ppn-charts{content-visibility:auto;contain-intrinsic-size:auto 2270px}
 .sc-panel .sc-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px}
 .sc-panel .sc-head>div{min-width:0;flex:1 1 380px}
 .sc-panel .sc-head h3{margin:0;font-size:25px;line-height:1.1;font-weight:670;letter-spacing:-.016em;font-variation-settings:'wdth' 98;color:var(--vd-ink-strong)}

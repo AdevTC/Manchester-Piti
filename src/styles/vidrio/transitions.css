@@ -42,6 +42,9 @@ html[data-vd-dir="up"]::view-transition-new(*.vd-reg){animation-name:vd-x-in-u}
 ::view-transition-old(*.vd-grow),::view-transition-new(*.vd-grow){height:100%;width:100%;object-fit:none;object-position:0 0}
 /* the page itself never cross-fades: only the named regions move */
 html[data-vd-dir]::view-transition-old(root),html[data-vd-dir]::view-transition-new(root){animation:none}
+/* (so it is not captured either: its new picture, still and over the old one, was the live page itself; reduced
+   motion's crossfade keeps it) */
+html[data-vd-dir]:not([data-vd-calm]){view-transition-name:none}
 @keyframes vd-x-out-l{to{opacity:0;transform:translateX(-8px);filter:blur(4px)}}
 @keyframes vd-x-out-r{to{opacity:0;transform:translateX(8px);filter:blur(4px)}}
 @keyframes vd-x-out-d{to{opacity:0;transform:translateY(8px);filter:blur(4px)}}

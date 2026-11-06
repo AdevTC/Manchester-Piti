@@ -2,14 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetTapsForTesting, followHistory, pageChangeTypes, pageKeyOf, setAppTravel, startPageTransition, tapsSkipTransitions } from "./pageTransition";
 
-type FakeTransition = { finished: Promise<void>; ready: Promise<void>; skipTransition: ReturnType<typeof vi.fn>; end: () => void };
+type FakeTransition = { finished: Promise<void>; ready: Promise<void>; updateCallbackDone: Promise<void>; skipTransition: ReturnType<typeof vi.fn>; end: () => void };
 function fakeDocument() {
   const doc = document.implementation.createHTMLDocument("t");
   const started: FakeTransition[] = [];
   (doc as unknown as { startViewTransition: () => FakeTransition }).startViewTransition = () => {
     let end = () => {};
     const finished = new Promise<void>((resolve) => (end = resolve));
-    const t: FakeTransition = { finished, ready: Promise.resolve(), skipTransition: vi.fn(), end };
+    const t: FakeTransition = { finished, ready: Promise.resolve(), updateCallbackDone: Promise.resolve(), skipTransition: vi.fn(), end };
     started.push(t);
     return t;
   };
@@ -92,6 +92,80 @@ describe("a tap during a View Transition", () => {
     const clicked = tabUnderTheFinger(doc);
     doc.documentElement.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(clicked).not.toHaveBeenCalled();
+  });
+});
+
+describe("a transition asked for in a tap's frame", () => {
+  const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 5)));
+  function counting() {
+    const f = fakeDocument();
+    let calls = 0;
+    const real = (f.doc as unknown as { startViewTransition: () => FakeTransition }).startViewTransition;
+    (f.doc as unknown as { startViewTransition: () => FakeTransition }).startViewTransition = () => {
+      calls++;
+      return real();
+    };
+    tapsSkipTransitions(f.doc);
+    const click = () => f.doc.dispatchEvent(new MouseEvent("click"));
+    return { ...f, click, calls: () => calls };
+  }
+
+  it("starts after the tap's frame is out, so the tap is seen first", async () => {
+    const { start, click, calls, started } = counting();
+    click();
+    const t = start();
+    expect(calls()).toBe(0);
+    let done = false;
+    void t.finished.then(() => (done = true));
+    await frame();
+    expect(calls()).toBe(1);
+    started[0].end();
+    await t.finished;
+    expect(done).toBe(true);
+  });
+
+  it("starts at once when no tap is waiting for its frame", async () => {
+    const { start, click, calls } = counting();
+    click();
+    await frame();
+    start();
+    expect(calls()).toBe(1);
+  });
+
+  it("a tap while it waits starts it and skips it", () => {
+    const { start, click, tap, calls, started } = counting();
+    click();
+    start();
+    tap();
+    expect(calls()).toBe(1);
+    expect(started[0].skipTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("a second one while the first waits starts the first at once, then itself", () => {
+    const { start, click, calls } = counting();
+    click();
+    start();
+    start();
+    expect(calls()).toBe(2);
+  });
+});
+
+describe("waiting for the transitions to be over", () => {
+  it("resolves at once without one, and after the last one otherwise", async () => {
+    const { afterTransitions } = await import("./pageTransition");
+    const { doc, start, started } = fakeDocument();
+    tapsSkipTransitions(doc);
+    await afterTransitions();
+    start();
+    let over = false;
+    void afterTransitions().then(() => (over = true));
+    start();
+    started[0].end();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(over).toBe(false);
+    started[1].end();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(over).toBe(true);
   });
 });
 

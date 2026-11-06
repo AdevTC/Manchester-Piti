@@ -4,6 +4,7 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { bokehDiscs, paintDiscs, skyLightOf, type SkyInput } from "./sky";
 import { isShot, useReducedMotion } from "./env";
+import { afterTransitions, transitionRunning } from "../celeste/pageTransition";
 import { useDocumentTheme } from "../../hooks/useDocumentTheme";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/sky.css";
@@ -47,7 +48,15 @@ export function VidrioSky({ light, day, floodlit, weather, reduced, gold, cold, 
     const host = cv?.parentElement;
     if (!cv || !host || typeof cv.getContext !== "function") return;
     let width = 0;
+    let gone = false;
     const draw = () => {
+      if (gone) return;
+      // (nor while a View Transition runs: the arriving page is captured live, and the discs and their fade-in would
+      // be captured again on every frame of it)
+      if (transitionRunning()) {
+        void afterTransitions().then(draw);
+        return;
+      }
       const w = host.clientWidth;
       const h = host.clientHeight || height || 900;
       if (!w || w === width) return;
@@ -72,6 +81,7 @@ export function VidrioSky({ light, day, floodlit, weather, reduced, gold, cold, 
     const ro = new ResizeObserver(() => width && draw());
     ro.observe(host);
     return () => {
+      gone = true;
       if (typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idle);
       else window.clearTimeout(idle);
       ro.disconnect();

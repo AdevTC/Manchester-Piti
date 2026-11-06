@@ -14,6 +14,8 @@ html.sn-lock{overflow:hidden}
 .pp .sn .sn-sub,.pp .sn .sn-foot{font-size:13.5px;line-height:1.45;color:var(--vd-ink2);text-shadow:var(--vd-field-shade,none)}
 .pp .sn .sn-foot{font-size:13px;margin-top:4px}
 .pp .sn .sn-sec{display:flex;flex-direction:column;gap:8px;min-width:0}
+/* the bench and the cameras, under the pitch on a phone (off the screen it is neither styled, laid out nor painted until it nears: nor captured whole by a View Transition) */
+.pp .sn .sn-body>.sn-sec{content-visibility:auto;contain-intrinsic-size:auto 600px}
 .pp .sn .vd-tag svg[fill="currentColor"],.pp .sn .vd-tag svg path[fill="currentColor"]{stroke:none}
 
 /* ---------- the head: what the pitch shows, and the three views */

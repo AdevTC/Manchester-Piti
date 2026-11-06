@@ -125,6 +125,11 @@ export function followHistory(history: HistoryLike, win: Window = window): void 
 let running: ViewTransition | null = null;
 /** Whether a View Transition is on now (from its start to its end). */
 export const transitionRunning = (): boolean => running !== null;
+/** Resolves once no View Transition runs (at once when none does): what draws itself (a 3D shirt, the sky's discs)
+ *  holds still meanwhile, since the arriving page's capture is live and every frame it drew would be captured again. */
+export async function afterTransitions(): Promise<void> {
+  while (running) await running.finished.catch(() => undefined);
+}
 
 interface ChangeInfo {
   fromLocation?: { pathname: string };
@@ -178,6 +183,7 @@ export function onViewTransition(watch: (t: ViewTransition, page: boolean) => vo
  *   pseudo-elements cover the page (a page change is ~380 ms), so the tap's pointerdown lands on <html> and its click
  *   follows it there (`pointer-events:none` on ::view-transition changes nothing in WebKit or Chrome). That click is
  *   sent on to what is under the finger once the transition is gone: tapping the tab bar quickly lost every other tap;
+ * - one asked for in the same frame as a tap starts after that frame, so the tap shows it was heard first (below);
  * - a transition skipped or cut short rejects its `ready`, which nobody else waits for: handled here, not an error;
  * - a change of page takes the attributes startPageTransition armed and clears them when it is over. Once the next
  *   page is in, what it kept of the last one (a match page showing another match keeps its elements) is no longer
@@ -187,6 +193,64 @@ export function tapsSkipTransitions(doc: Document = document): void {
   if (tapsInstalled || typeof doc.startViewTransition !== "function") return;
   tapsInstalled = true;
   const start = doc.startViewTransition.bind(doc);
+  const win: Window = doc.defaultView ?? window;
+  type Options = ViewTransitionUpdateCallback | StartViewTransitionOptions | undefined;
+  const begin = (options: Options, page: typeof armed): ViewTransition => {
+    const t = start(options);
+    t.ready.catch(() => {});
+    running = t;
+    const done = () => {
+      if (running === t) running = null;
+      page?.clear();
+    };
+    t.finished.then(done, done);
+    for (const watch of watchers) watch(t, page !== null || pageTransitionActive());
+    return t;
+  };
+  // A tap's next frame shows that the tap was heard (the tab pressed and lit, the button down) before the
+  // transition starts: one asked for before that frame (the same task as the tap, or its microtasks) waits for it
+  // (web.dev's «yield after the visual response»). Otherwise that frame would be the transition's first — the old
+  // state's capture, the update and the new state's capture — and the tap would look unanswered until then. The
+  // frame that waits shows exactly what the old state's capture shows, so the choreography does not change.
+  let unpainted: Promise<void> | null = null;
+  const heard = () => {
+    unpainted ??= new Promise<void>((resolve) =>
+      win.requestAnimationFrame(() =>
+        win.setTimeout(() => {
+          unpainted = null;
+          resolve();
+        }, 0),
+      ),
+    );
+  };
+  for (const type of ["pointerup", "click", "keydown"]) doc.addEventListener(type, heard, { capture: true, passive: true });
+  /** The transition waiting for its tap's frame (started at once by the next one, or by a skip). */
+  let waiting: (() => ViewTransition) | null = null;
+  const later = (options: Options, page: typeof armed, frame: Promise<void>): ViewTransition => {
+    let real: ViewTransition | null = null;
+    let started!: (t: ViewTransition) => void;
+    const got = new Promise<ViewTransition>((resolve) => (started = resolve));
+    const go = (): ViewTransition => {
+      if (real) return real;
+      if (waiting === go) waiting = null;
+      real = begin(options, page);
+      started(real);
+      return real;
+    };
+    waiting = go;
+    void frame.then(go);
+    const types = typeof options === "object" && options?.types ? [...options.types] : [];
+    const t: ViewTransition = {
+      ready: got.then((r) => r.ready),
+      finished: got.then((r) => r.finished),
+      updateCallbackDone: got.then((r) => r.updateCallbackDone),
+      types: new Set(types),
+      skipTransition: () => go().skipTransition(),
+    };
+    t.ready.catch(() => {});
+    running = t;
+    return t;
+  };
   doc.startViewTransition = (arg?: ViewTransitionUpdateCallback | StartViewTransitionOptions) => {
     const page = armed;
     armed = null;
@@ -200,21 +264,14 @@ export function tapsSkipTransitions(doc: Document = document): void {
         arrived();
       }
     };
-    const options: ViewTransitionUpdateCallback | StartViewTransitionOptions | undefined = !page
-      ? arg
-      : typeof arg === "function" || arg === undefined
-        ? wrap(arg)
-        : { ...arg, update: wrap(arg.update) };
-    const t = start(options);
-    t.ready.catch(() => {});
-    running = t;
-    const done = () => {
-      if (running === t) running = null;
-      page?.clear();
-    };
-    t.finished.then(done, done);
-    for (const watch of watchers) watch(t, page !== null || pageTransitionActive());
-    return t;
+    const options: Options = !page ? arg : typeof arg === "function" || arg === undefined ? wrap(arg) : { ...arg, update: wrap(arg.update) };
+    // (a second one while the first still waits: the first starts now, and the browser skips it for this one, as
+    // it would have)
+    if (waiting) {
+      waiting();
+      return begin(options, page);
+    }
+    return unpainted ? later(options, page, unpainted) : begin(options, page);
   };
   let skippedAt = -1;
   doc.addEventListener(
