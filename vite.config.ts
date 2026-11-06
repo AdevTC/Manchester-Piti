@@ -296,10 +296,7 @@ export default defineConfig(({ isSsrBuild }) => ({
         codeSplitting: {
           groups: [
             { name: 'firebase', test: vendor('@firebase', 'firebase', 'idb') },
-            // React first (higher priority): otherwise it lands in the `motion` chunk, which pulls it in, and
-            // motion (admin only) would ride on every page's entry path.
             { name: 'react-vendor', test: vendor('react', 'react-dom', 'scheduler'), priority: 2 },
-            { name: 'motion', test: vendor('motion-dom', 'framer-motion', 'motion-utils'), priority: 1 },
           ],
         },
       },
