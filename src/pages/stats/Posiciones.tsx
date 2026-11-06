@@ -145,7 +145,7 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
       ) : (
         <div className="st-pos" ref={posRef}>
           <div className="st-pos-field">
-            <div className={`st-pitch${picked ? " has-pick" : ""}`} role="group" aria-label="El campo del club: los 13 puestos, con sus minutos y su dueño" style={{ ["--sx" as string]: `${sx}%`, ["--sy" as string]: `${sy}%` }}>
+            <div className={`st-pitch${picked ? " has-pick" : ""}`} role="group" aria-label="El campo del club: los 13 puestos, con sus minutos y su dueño" style={{ "--sx": `${sx}%`, "--sy": `${sy}%` } as CSSProperties}>
               <svg viewBox="0 0 100 175" aria-hidden="true" className="st-pitch-lines">
                 <rect x="3" y="3" width="94" height="169" rx="2" />
                 <path d="M3 87.5h94M22 3v25h56V3M36 3v9h28V3M22 172v-25h56v25M36 172v-9h28v9M42 3V.8h16V3M42 172v2.2h16V172" />
@@ -167,7 +167,7 @@ function PorPosicion({ games, rows, nameOf }: { games: ClubMatch[]; rows: Player
                     key={code}
                     type="button"
                     className={`st-spot${zero ? " zero" : ""}${on ? " on" : ""}${top?.code === code ? " top" : ""}`}
-                    style={{ left: `${x}%`, top: `${y}%`, ["--d" as string]: `${discSize(l.minutes, max).toFixed(2)}cqw`, ["--share" as string]: share.toFixed(3), animationDelay: `${0.1 + i * 0.045}s` } as CSSProperties}
+                    style={{ left: `${x}%`, top: `${y}%`, "--d": `${discSize(l.minutes, max).toFixed(2)}cqw`, "--share": share.toFixed(3), animationDelay: `${0.1 + i * 0.045}s` } as CSSProperties}
                     aria-pressed={on}
                     aria-label={label}
                     onClick={() => pickSpot(code)}

@@ -1,6 +1,6 @@
 // Charts of the Celeste Estadísticas page: results columns, the pass constellation, the goal clock,
 // the radar, ranking bars and the per-player jornada strip. Plain SVG/HTML, theme tokens only.
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ClubMatch } from "../../lib/clubData";
 import { formatDate } from "../../lib/clubData";
@@ -107,7 +107,7 @@ export function Constellation({ rows, links, nameOf, focus, games }: { rows: Pla
               key={n.id}
               type="button"
               className={`st-star${picked === n.id ? " on" : ""}${picked && picked !== n.id && !map.links.some((l) => (l.from === picked && l.to === n.id) || (l.to === picked && l.from === n.id)) ? " dim" : ""}`}
-              style={{ left: `${n.x}%`, top: `${(n.y / 110) * 100}%`, ["--s" as string]: `${n.r * 4}px`, animationDelay: `${i * 0.05}s` }}
+              style={{ left: `${n.x}%`, top: `${(n.y / 110) * 100}%`, "--s": `${n.r * 4}px`, animationDelay: `${i * 0.05}s` } as CSSProperties}
               aria-pressed={picked === n.id}
               aria-label={`${n.name}: ${p.goals} goles y ${p.assists} asistencias`}
               onClick={() => setPicked(picked === n.id ? null : n.id)}
@@ -326,7 +326,7 @@ export function HeatStrip({ cells, label }: { cells: HeatCell[]; label: string }
   return (
     <span className="st-heat" role="img" aria-label={`${label}: ${cells.filter((c) => c.played).length} de ${cells.length} partidos jugados`}>
       {cells.map((c) => (
-        <i key={c.matchId} className={c.played ? undefined : "no"} style={{ ["--l" as string]: c.level }}>
+        <i key={c.matchId} className={c.played ? undefined : "no"} style={{ "--l": c.level } as CSSProperties}>
           {c.goals > 0 && <b>{c.goals > 1 ? c.goals : ""}</b>}
         </i>
       ))}

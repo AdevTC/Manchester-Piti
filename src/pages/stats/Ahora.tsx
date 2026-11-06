@@ -14,8 +14,9 @@ const SHOWN = 5;
 
 function Row({ r, prov }: { r: SimRow; prov: boolean }) {
   const mark = prov && r.touched;
+  const cls = [r.isUs && "us", mark && "prov"].filter(Boolean).join(" ");
   return (
-    <tr className={[r.isUs && "us", mark && "prov"].filter(Boolean).join(" ") || undefined} aria-current={r.isUs ? "true" : undefined}>
+    <tr className={cls || undefined} aria-current={r.isUs ? "true" : undefined}>
       <td className="p">{r.pos}</td>
       <td className="t">
         {r.team}

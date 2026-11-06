@@ -49,6 +49,9 @@ import "../../styles/partidos-vidrio.css";
 const Rsvp = lazy(() => import("./pa/Member").then((m) => ({ default: m.Rsvp })));
 const PorraLine = lazy(() => import("./pa/Member").then((m) => ({ default: m.PorraLine })));
 const NotifySwitch = lazy(() => import("./pa/Member").then((m) => ({ default: m.NotifySwitch })));
+// (the code loaded on demand, out here: the React Compiler skips a component with an `import()` inside)
+const loadDemo = () => import("./pa/demo");
+const loadIcs = () => import("./pa/ics");
 
 const subscribeNothing = () => () => {};
 const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
@@ -158,7 +161,7 @@ export function PartidosPage() {
   const momento = str(raw.momento);
   const [demo, setDemo] = useState<Demo | null>(null);
   useEffect(() => {
-    if (demoKey) void import("./pa/demo").then((m) => setDemo(m.demoSeason(momento)));
+    if (demoKey) void loadDemo().then((m) => setDemo(m.demoSeason(momento)));
   }, [demoKey, momento]);
   const matches = demo ? demo.matches : club.matches;
   const players = demo ? (demo.players as unknown as typeof club.players) : club.players;
@@ -678,7 +681,7 @@ export function PartidosPage() {
                       ) : null
                     }
                     onCal={() => {
-                      void import("./pa/ics").then(({ downloadIcs }) => {
+                      void loadIcs().then(({ downloadIcs }) => {
                         downloadIcs(jor.sel, seasonName);
                         toast(`Añadido: J${jor.sel.j}, ${lv.pre.day.toLowerCase()} a las ${lv.pre.time}.`);
                       });

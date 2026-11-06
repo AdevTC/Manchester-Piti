@@ -130,6 +130,12 @@ function momentOf(day: MatchdayModel): { fase: Fase; p: ClubMatch | null; n: Clu
  */
 const momentKeyOf = (matches: readonly ClubMatch[], now: number): string => matches.map((m) => `${m.id}:${matchPhase(m, now)}:${stripStateOf(m, now)}`).join("|");
 /** `now` as it was when `key` last changed: any moment with the same key reads the same, so it can stand for them all. */
+/** The match as Inicio tells it: one read per minute while live, once after. (`niceOf` changes exactly when the
+ * squad does.) A hook of its own, so the React Compiler can keep this memo and compile the page around it. */
+function usePartido(pm: ClubMatch | null, niceOf: (id: string) => string, liveMinute: number | null): Partido | null {
+  return useMemo(() => (pm ? partidoOf(pm, niceOf, liveMinute ?? undefined) : null), [pm, liveMinute, niceOf]);
+}
+
 function useHeldNow(now: number, key: string): number {
   const [held, setHeld] = useState({ key, now });
   if (held.key !== key) setHeld({ key, now });
@@ -216,7 +222,10 @@ export function HomePage() {
           const p = playerForSeason(raw, seasonId, seasons);
           return { id: p.id, name: nameFor(p, seasonId), num: p.number != null ? String(p.number) : "", birthDate: p.birthDate };
         })
-        .sort((a, b) => Number(a.num || 999) - Number(b.num || 999) || a.name.localeCompare(b.name, "es")),
+        .sort((a, b) => {
+          const d = Number(a.num || 999) - Number(b.num || 999);
+          return d || a.name.localeCompare(b.name, "es");
+        }),
     [players, seasonId, seasons],
   );
   const byId = useMemo(() => new Map(squad.map((s) => [s.id, s])), [squad]);
@@ -236,7 +245,7 @@ export function HomePage() {
   const duration = pm?.duration && pm.duration > 0 ? Math.round(pm.duration) : 50;
   const liveMinute = live ? Math.max(1, Math.min(duration, fase === "descanso" ? Math.round(duration / 2) : (day.minute ?? 1))) : null;
   // (one read of the match per minute while live; once after)
-  const P: Partido | null = useMemo(() => (pm ? partidoOf(pm, niceOf, liveMinute ?? undefined) : null), [pm, liveMinute, squad]); // eslint-disable-line react-hooks/exhaustive-deps -- niceOf follows squad
+  const P = usePartido(pm, niceOf, liveMinute);
   const jOf = (m: ClubMatch) => jornadaOfMatch(matches, m.id);
   const logos = useMemo(() => rivalLogos(matches), [matches]);
   const fixture = (m: ClubMatch | null): Fixture | null => {
