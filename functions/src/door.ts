@@ -6,7 +6,7 @@ import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestor
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { admin, db, googleUser, idSchema, parse } from "./common.js";
-import { cleanName, doorPingDue, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates, outNotOnHisOwn, removedByCaptain, returningRole } from "./doorLogic.js";
+import { cleanName, doorPingDue, DOOR_SHIRTS_MEMO_MS, FOREVER_MS, holderGone, INVITE_DAYS, INVITE_PROBLEM, inviteCodePattern, inviteState, memoFor, newInviteCode, nicknameBase, nicknameCandidates, outNotOnHisOwn, removedByCaptain, returningRole } from "./doorLogic.js";
 import { forgetMemberDevices, sendTo } from "./push.js";
 import { nameFor } from "./names.js";
 
@@ -237,11 +237,15 @@ export const revokeMember = onCall(async (req) => {
 /** For «¿Quién eres?»: which fichas already have an owner (ids only, never who). Any Google account. */
 // Public on purpose: the door shows who is already inside (shirts with an owner, how many accounts)
 // before signing in. The squad is public; which shirts are claimed and a head count are not secrets.
-export const doorShirts = onCall(async () => {
+async function loadDoorShirts() {
   // "With access" = everyone with a profile who wasn't removed: members from the old team key keep
   // their access and walk back in on their next visit, even if their old session has lapsed.
   const [links, people, removed] = await Promise.all([db.collection("playerLinks").get(), db.collection("users").count().get(), db.collection("users").where("removedAt", "!=", null).select("removedAt", "removedBy").get()]);
   // (a ficha linked to someone a captain removed is free again: B-CLUB-02; one who left keeps his)
   const out = new Set(removed.docs.filter((d) => removedByCaptain({ exists: true, uid: d.id, removedAt: d.get("removedAt"), removedBy: d.get("removedBy") })).map((d) => d.id));
   return { taken: links.docs.filter((d) => !out.has(d.get("uid"))).map((d) => d.id), inside: people.data().count - removed.size };
-});
+}
+// Kept 30 s per instance (doorLogic DOOR_SHIRTS_MEMO_MS) — not on the emulator, where the integration tests count the
+// door right after letting someone in or out.
+const doorShirtsNow = process.env.FUNCTIONS_EMULATOR === "true" ? loadDoorShirts : memoFor(DOOR_SHIRTS_MEMO_MS, loadDoorShirts);
+export const doorShirts = onCall(() => doorShirtsNow());

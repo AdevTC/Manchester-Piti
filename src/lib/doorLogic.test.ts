@@ -1,5 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, DOOR_PING_GAP_MS, doorPingDue, FOREVER_MS, INVITE_PROBLEM, inviteCodePattern, inviteState, newInviteCode, nicknameBase, nicknameCandidates } from "../../functions/src/doorLogic";
+import { cleanName, DOOR_PING_GAP_MS, doorPingDue, DOOR_SHIRTS_MEMO_MS, FOREVER_MS, INVITE_PROBLEM, inviteCodePattern, inviteState, memoFor, newInviteCode, nicknameBase, nicknameCandidates } from "../../functions/src/doorLogic";
+
+describe("doorShirts: memoria de 30 s por instancia", () => {
+  it("dentro de la ventana no vuelve a leer; fuera, sí", async () => {
+    let t = 1_000;
+    let loads = 0;
+    const get = memoFor(DOOR_SHIRTS_MEMO_MS, async () => ++loads, () => t);
+    expect(await get()).toBe(1);
+    t += DOOR_SHIRTS_MEMO_MS - 1;
+    expect(await get()).toBe(1);
+    t += 1;
+    expect(await get()).toBe(2);
+    expect(loads).toBe(2);
+  });
+  it("las llamadas mientras carga comparten una lectura", async () => {
+    let loads = 0;
+    const get = memoFor(30_000, async () => ++loads, () => 0);
+    const [a, b] = await Promise.all([get(), get()]);
+    expect([a, b, loads]).toEqual([1, 1, 1]);
+  });
+  it("un fallo no se guarda: la siguiente llamada vuelve a leer", async () => {
+    let loads = 0;
+    const get = memoFor(
+      30_000,
+      async () => {
+        loads++;
+        if (loads === 1) throw new Error("caída");
+        return loads;
+      },
+      () => 0,
+    );
+    await expect(get()).rejects.toThrow("caída");
+    expect(await get()).toBe(2);
+  });
+  it("un reloj que va hacia atrás no alarga la memoria", async () => {
+    let t = 50_000;
+    let loads = 0;
+    const get = memoFor(30_000, async () => ++loads, () => t);
+    await get();
+    t = 10_000;
+    expect(await get()).toBe(2);
+  });
+});
 
 describe("La puerta: invitaciones", () => {
   it("codes are 10 readable symbols, never 0/O/1/I/L", () => {
