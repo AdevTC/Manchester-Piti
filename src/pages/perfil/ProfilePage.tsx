@@ -24,7 +24,7 @@ import { readTuMaqueta, type TuMaqueta } from "../../components/vidrio/tu/maquet
 import { tuGo } from "../../components/vidrio/tu/kit";
 import { cancelPlayerClaim, leaveVestuario, nicknameTaken, proposePositions, requestPlayerClaim, setNickname, setShirtName } from "./api";
 import { useProfileData } from "./useProfileData";
-import { allowedAj, allowedSec, dirOf, screenAt, screenPath, type Kind, type Screen } from "./tu/model";
+import { allowedAj, allowedSec, dirOf, screenAt, screenPath, tuChecking, type Kind, type Screen } from "./tu/model";
 import { Door } from "./tu/Door";
 import { kindOf } from "./tu/view";
 import { Shell } from "./tu/shell/Shell";
@@ -71,12 +71,12 @@ export function ProfilePage() {
   const pathname = useLocation({ select: (l) => l.pathname });
   const navigate = useNavigate();
   const maq = readTuMaqueta();
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const team = useTeam();
   const { say, node: toast } = useTuToast();
   const member = maq?.quien ? maq.quien !== "fan" : team.member && !!profile;
   // (the session being restored: no door flash before the page knows him)
-  const checking = !maq?.quien && (!team.ready || (team.member && !profile));
+  const checking = !maq?.quien && tuChecking({ teamReady: team.ready, member: team.member, hasProfile: !!profile, profileLoading: loading });
 
   // ── the screen: the address's, kept in state so a move can commit it inside its View Transition
   const urlScreen = screenAt(pathname);
