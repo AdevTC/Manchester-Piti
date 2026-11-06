@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+// @ts-expect-error -- api/ holds plain JS for Vercel (no declaration file), as in apiNow.test
 import { BUNDLE_PATH, GET, withoutQuery } from "../../api/bundle.js";
 import { BUNDLE_URL } from "./bundle";
 
