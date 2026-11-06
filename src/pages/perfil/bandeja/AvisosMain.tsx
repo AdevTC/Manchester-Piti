@@ -281,7 +281,8 @@ function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; 
                   </p>
                 ))}
               {groupNotices(loose, inbox.now).map((g) => {
-                const more = !!exp[`d:${g.key}`];
+                const dayKey = `d:${g.key}`;
+                const more = !!exp[dayKey];
                 const shown = more ? g.items : g.items.slice(0, DAY_MAX);
                 return (
                   <section key={g.key} className="tc-grp" aria-labelledby={`tc-day-${g.key}`}>
@@ -291,7 +292,7 @@ function Bandeja({ inbox, items, d, a, f, say, fly, onFilter }: { inbox: Inbox; 
                     </div>
                     <ul className="tc-nts">{shown.map(row)}</ul>
                     {g.items.length > DAY_MAX && (
-                      <button type="button" className="nx-lnk tc-more" aria-expanded={more} onClick={() => setExp((e) => ({ ...e, [`d:${g.key}`]: !more }))}>
+                      <button type="button" className="nx-lnk tc-more" aria-expanded={more} onClick={() => setExp((e) => ({ ...e, [dayKey]: !more }))}>
                         {more ? "Ver menos" : `Ver ${pl(g.items.length - DAY_MAX, "más", "más")}`}
                       </button>
                     )}

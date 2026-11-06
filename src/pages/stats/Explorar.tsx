@@ -411,7 +411,10 @@ const evoValue = (g: PlayerAnalysis["series"][number], k: EvoKey) => (k === "min
 function Evolution({ rows, games, nameOf }: { rows: PlayerAnalysis[]; games: ClubMatch[]; nameOf: NameOf }) {
   const [metric, setMetric] = useState<EvoKey>("goals");
   const [order, setOrder] = useState<"goals" | "assists" | "ga" | "matchesPlayed" | "minutes">("goals");
-  const candidates = rows.filter((p) => (metric === "minutes" ? p.tracked > 0 : true)).sort((a, b) => (metric === "minutes" ? b.minutes : b[metric]) - (metric === "minutes" ? a.minutes : a[metric]) || nameOf(a).localeCompare(nameOf(b)));
+  const candidates = rows.filter((p) => (metric === "minutes" ? p.tracked > 0 : true)).sort((a, b) => {
+    const d = (metric === "minutes" ? b.minutes : b[metric]) - (metric === "minutes" ? a.minutes : a[metric]);
+    return d || nameOf(a).localeCompare(nameOf(b));
+  });
   const [picked, setPicked] = useState<string[] | null>(null);
   const chosen = (picked ?? candidates.slice(0, 4).map((p) => p.id)).filter((id) => candidates.some((p) => p.id === id)).slice(0, 6);
   const [at, setAt] = useState<number | null>(null);

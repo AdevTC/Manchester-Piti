@@ -1,6 +1,6 @@
 // The tabs of the Celeste Estadísticas page: Resumen, Jugadores, Minutos, Rivales and Comparar
 // (Explorar lives in Explorar.tsx). Every number comes from clubAnalytics / statsView.
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import { formatDate, type ClubMatch } from "../../lib/clubData";
 import { competitionRanks, medalFor, metrics, metricValue, teamAnalysis, type PlayerAnalysis, type PlayerMetric } from "../../lib/clubAnalytics";
@@ -34,6 +34,12 @@ function Head({ kick, title, children, nuevo }: { kick: string; title: string; c
 }
 
 // ---------- Resumen
+/** (out of the JSX: the React Compiler gives up on `[a && "x"].join(" ") || undefined` written inline) */
+function kpiClass(x: { hl?: boolean; wide?: boolean }): string | undefined {
+  const cls = [x.hl && "hl", x.wide && "wide"].filter(Boolean).join(" ");
+  return cls || undefined;
+}
+
 export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; rows: PlayerAnalysis[]; nameOf: NameOf; mvps: Map<string, number> }) {
   const t = teamAnalysis(games);
   const links = useMemo(() => goalLinks(games), [games]);
@@ -60,7 +66,7 @@ export function Resumen({ games, rows, nameOf, mvps }: { games: ClubMatch[]; row
         </h2>
         <dl className="st-kpis">
           {kpis.map((x, i) => (
-            <div key={x.k} className={[x.hl && "hl", x.wide && "wide"].filter(Boolean).join(" ") || undefined} style={{ animationDelay: `${i * 0.04}s` }}>
+            <div key={x.k} className={kpiClass(x)} style={{ animationDelay: `${i * 0.04}s` }}>
               <dt>
                 {x.k} {x.nuevo && <NewBadge feature={x.nuevo} />}
               </dt>
@@ -150,7 +156,10 @@ export function Jugadores({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: Na
   const [metric, setMetric] = useState<PlayerMetric>("goals");
   const [query, setQuery] = useState("");
   const heat = useMemo(() => new Map(minutesHeat(rows).map((h) => [h.id, h.cells.slice(-10)])), [rows]);
-  const sorted = [...rows].sort((a, b) => (metricValue(b, metric) ?? -1) - (metricValue(a, metric) ?? -1) || nameOf(a).localeCompare(nameOf(b)));
+  const sorted = [...rows].sort((a, b) => {
+    const d = (metricValue(b, metric) ?? -1) - (metricValue(a, metric) ?? -1);
+    return d || nameOf(a).localeCompare(nameOf(b));
+  });
   const q = query.toLowerCase().trim();
   const filtered = sorted.filter((p) => [p.firstName, p.lastName, p.shirtName, p.number].join(" ").toLowerCase().includes(q));
   const goalRanks = competitionRanks(rows, (p) => p.goals);
@@ -321,7 +330,10 @@ export function MesaCounts({ rows, nameOf }: { rows: PlayerAnalysis[]; nameOf: N
 // ---------- Minutos
 export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis[]; games: ClubMatch[]; nameOf: NameOf; /** Each match's jornada (derived/jornada). */ jornada: ReadonlyMap<string, number> }) {
   const tracked = games.filter((m) => m.ledger && Object.keys(m.ledger).length).length;
-  const sorted = [...rows].sort((a, b) => (b.tracked ? b.minutes : -1) - (a.tracked ? a.minutes : -1) || nameOf(a).localeCompare(nameOf(b)));
+  const sorted = [...rows].sort((a, b) => {
+    const d = (b.tracked ? b.minutes : -1) - (a.tracked ? a.minutes : -1);
+    return d || nameOf(a).localeCompare(nameOf(b));
+  });
   const heat = minutesHeat(sorted);
   const last = games.slice(-12);
   const cell = (p: PlayerAnalysis, v: number) => (p.tracked ? v : "—");
@@ -382,7 +394,7 @@ export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis
             Mapa de minutos
           </span>
           <div className="st-tablebox">
-            <table className="st-heatmap" aria-label="Mapa de minutos" style={{ ["--n" as string]: last.length }}>
+            <table className="st-heatmap" aria-label="Mapa de minutos" style={{ "--n": last.length } as CSSProperties}>
               <thead>
                 <tr>
                   <th scope="col">
@@ -404,7 +416,7 @@ export function Minutos({ rows, games, nameOf, jornada }: { rows: PlayerAnalysis
                     <tr key={h.id}>
                       <th scope="row">{nameOf(p)}</th>
                       {h.cells.slice(-12).map((c) => (
-                        <td key={c.matchId} className={c.played ? undefined : "no"} style={{ ["--l" as string]: c.level }} title={c.minutes !== null ? fmtMinutes(c.minutes) : c.played ? "Jugó" : "No jugó"}>
+                        <td key={c.matchId} className={c.played ? undefined : "no"} style={{ "--l": c.level } as CSSProperties} title={c.minutes !== null ? fmtMinutes(c.minutes) : c.played ? "Jugó" : "No jugó"}>
                           <span className="hm-sr">{c.minutes !== null ? `${wholeMinutes(c.minutes)} minutos` : c.played ? "jugó" : "no jugó"}</span>
                           {c.goals > 0 && <b aria-hidden="true">{c.goals}</b>}
                         </td>

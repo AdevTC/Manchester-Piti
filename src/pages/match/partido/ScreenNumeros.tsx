@@ -44,6 +44,12 @@ import {
   type Record3,
 } from "./numerosModel";
 
+/** (out of the JSX: the React Compiler gives up on `[a ? "x" : ""].join(" ") || undefined` written inline) */
+function rowClass(r: { us: boolean; prov: boolean }): string | undefined {
+  const cls = [r.us ? "us" : "", r.prov ? "prov" : ""].filter(Boolean).join(" ");
+  return cls || undefined;
+}
+
 export function ScreenNumeros({ c }: { c: PageCtx }) {
   const { match, rival, fase } = c;
   const seasonId = match.seasonId ?? "";
@@ -452,7 +458,7 @@ export function ScreenNumeros({ c }: { c: PageCtx }) {
                             </td>
                           </tr>
                         ) : (
-                          <tr key={r.key} className={[r.us ? "us" : "", r.prov ? "prov" : ""].filter(Boolean).join(" ") || undefined} aria-current={r.us ? "true" : undefined}>
+                          <tr key={r.key} className={rowClass(r)} aria-current={r.us ? "true" : undefined}>
                             <td className="p">{r.pos}</td>
                             <td className="t">
                               <span className="ppn-team">{r.team}</span>

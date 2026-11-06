@@ -43,11 +43,13 @@ const subscribeNothing = () => () => {};
 /** The venue's spot and district, looked up once in the browser (null on the server and until it answers). */
 export function useVenuePlace(venue: string | null): VenuePlace | null {
   const browser = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  // (apart: the React Compiler gives up on a `&&` inside the call whose result meets the `??` below)
+  const enabled = browser && !!venue?.trim();
   return (
     useQuery({
       queryKey: ["venue-place", venue ?? ""],
       queryFn: () => locateVenue(venue ?? ""),
-      enabled: browser && !!venue?.trim(),
+      enabled,
       staleTime: Infinity,
       gcTime: Infinity,
       retry: false,
