@@ -161,3 +161,16 @@ describe("Números · la evolución's axis", () => {
     expect(ND.evo(se, 3, ["a"], "goles")).toMatchObject({ n: 2, firstJ: 1, lastJ: 3 });
   });
 });
+
+describe("Números · individual records and guests", () => {
+  it("a guest's hat-trick leaves the record to the best of the squad (the row stays)", () => {
+    const ND = makeND(squad, { "guest:g1": "Pepe" });
+    const gs = [m(1, { st: "fin", gf: 4, ga: 0, goals: [["guest:g1", "a", 2], ["guest:g1", null, 9], ["guest:g1", null, 20], ["a", "b", 30]] })];
+    const rec = ND.recordsOf(gs).ind;
+    expect(rec.goals).toMatchObject({ id: "a", v: 1 });
+    expect(rec.early).toMatchObject({ id: "a", v: 30 });
+    expect(rec.ga).toMatchObject({ id: "a", v: 2 });
+    const v = numerosView({ ...BASE, upto: 1 }, env({ nd: ND, S: { ...S, matches: [gs[0], S.matches[2]] }, moment: { edge: 1, live: false, closed: false } }), act);
+    expect(v.records.indRec.find((r) => r.t === "Más goles en un partido")).toMatchObject({ has: true, v: "1" });
+  });
+});

@@ -585,13 +585,16 @@ export function makeND(squadList: readonly SquadP[], people: Record<string, stri
       if (!bw || (m.gf ?? 0) - (m.ga ?? 0) > (bw.gf ?? 0) - (bw.ga ?? 0)) bw = m;
     });
     const ind: { goals: IndRec | null; asis: IndRec | null; ga: IndRec | null; early: IndRec | null } = { goals: null, asis: null, ga: null, early: null };
+    // (a player's marks are the squad's, like its rankings and the vitrina's pieces: a guest's goals count for the
+    // team, and the mark goes to the best of the squad)
+    const ours = (id: string | null): id is string => !!id && !!SQUAD[id];
     gs.forEach((m) => {
       const pg: Record<string, number> = {};
       const pa: Record<string, number> = {};
       m.goals.forEach((g) => {
-        pg[g[0]] = (pg[g[0]] || 0) + 1;
-        if (g[1]) pa[g[1]] = (pa[g[1]] || 0) + 1;
-        if (!ind.early || g[2] < ind.early.v) ind.early = { v: g[2], id: g[0], m };
+        if (ours(g[0])) pg[g[0]] = (pg[g[0]] || 0) + 1;
+        if (ours(g[1])) pa[g[1]] = (pa[g[1]] || 0) + 1;
+        if (ours(g[0]) && (!ind.early || g[2] < ind.early.v)) ind.early = { v: g[2], id: g[0], m };
       });
       Object.keys(pg).forEach((id) => {
         if (!ind.goals || pg[id] > ind.goals.v) ind.goals = { v: pg[id], id, m };
