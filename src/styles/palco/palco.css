@@ -79,6 +79,9 @@ html[data-nu-dir="up"]{--nu-ex:10px;--nu-en:-14px}
 .nx-sub{margin-top:10px!important;font-size:16px;color:var(--vd-ink2);line-height:1.5;max-width:68ch;text-wrap:pretty}
 .nx-sec{margin-top:44px;min-width:0}
 .nx-sec--first{margin-top:0}
+/* a place's sections after the first and its side column (off the screen it is neither styled, laid out nor painted until it nears: nor captured whole by a View Transition) */
+.nx-place .nx-sec:not(.nx-sec--first),.nx-place .nx-side{content-visibility:auto;contain-intrinsic-size:auto 400px}
+.nx-place .nx-side{contain-intrinsic-size:auto 1000px}
 .nx-sec__head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px;margin-bottom:16px}
 .nx-h3{font-size:23px;line-height:1.12;font-weight:670;letter-spacing:-.016em;font-variation-settings:'wdth' 98;color:var(--vd-ink-strong)}
 .nx-h3--g{color:var(--vd-g-ink)}
