@@ -150,6 +150,25 @@ describe("a transition asked for in a tap's frame", () => {
   });
 });
 
+describe("waiting for the transitions to be over", () => {
+  it("resolves at once without one, and after the last one otherwise", async () => {
+    const { afterTransitions } = await import("./pageTransition");
+    const { doc, start, started } = fakeDocument();
+    tapsSkipTransitions(doc);
+    await afterTransitions();
+    start();
+    let over = false;
+    void afterTransitions().then(() => (over = true));
+    start();
+    started[0].end();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(over).toBe(false);
+    started[1].end();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(over).toBe(true);
+  });
+});
+
 describe("the page an address belongs to", () => {
   it("keeps a page's screens together and tells pages apart", () => {
     expect(pageKeyOf("/")).toBe("inicio");

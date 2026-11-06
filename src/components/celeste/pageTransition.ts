@@ -125,6 +125,11 @@ export function followHistory(history: HistoryLike, win: Window = window): void 
 let running: ViewTransition | null = null;
 /** Whether a View Transition is on now (from its start to its end). */
 export const transitionRunning = (): boolean => running !== null;
+/** Resolves once no View Transition runs (at once when none does): what draws itself (a 3D shirt, the sky's discs)
+ *  holds still meanwhile, since the arriving page's capture is live and every frame it drew would be captured again. */
+export async function afterTransitions(): Promise<void> {
+  while (running) await running.finished.catch(() => undefined);
+}
 
 interface ChangeInfo {
   fromLocation?: { pathname: string };

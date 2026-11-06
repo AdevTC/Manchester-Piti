@@ -38,3 +38,49 @@ describe("the light field under the «día» theme", () => {
     expect(dark).toContain("vd-sky vd-l-golden");
   });
 });
+
+describe("the discs and a View Transition", () => {
+  it("are drawn once the transition is over, not during it (its arriving page is captured live)", async () => {
+    const { createRoot } = await import("react-dom/client");
+    const { act } = await import("react");
+    const { _resetTapsForTesting, tapsSkipTransitions } = await import("../celeste/pageTransition");
+    const doc = document as unknown as { startViewTransition?: unknown };
+    const had = doc.startViewTransition;
+    let end = () => {};
+    const finished = new Promise<void>((resolve) => (end = resolve));
+    doc.startViewTransition = () => ({ finished, ready: Promise.resolve(), updateCallbackDone: Promise.resolve(), skipTransition: () => {} });
+    const proto = HTMLCanvasElement.prototype as unknown as { getContext: () => null };
+    const getContext = proto.getContext;
+    let asked = 0;
+    proto.getContext = () => {
+      asked++;
+      return null;
+    };
+    (window as { __SHOT?: unknown }).__SHOT = true;
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 400 });
+    const host = document.createElement("div");
+    document.body.append(host);
+    try {
+      tapsSkipTransitions(document);
+      (document as unknown as { startViewTransition: () => unknown }).startViewTransition();
+      const root = createRoot(host);
+      await act(async () => root.render(<VidrioSky light="dorada" floodlit={false} height={900} />));
+      expect(asked).toBe(0);
+      end();
+      await act(async () => {
+        await finished;
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      expect(asked).toBe(1);
+      act(() => root.unmount());
+    } finally {
+      delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      delete (window as { __SHOT?: unknown }).__SHOT;
+      proto.getContext = getContext;
+      doc.startViewTransition = had;
+      _resetTapsForTesting();
+      host.remove();
+    }
+  });
+});

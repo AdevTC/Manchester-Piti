@@ -27,6 +27,7 @@ import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { STILL } from "./scene-constants";
+import { afterTransitions, transitionRunning } from "../celeste/pageTransition";
 import { drawPrints, FONT_NUM, FONT_TXT, KIT_INK, type KitName, type Layouts } from "./prints";
 
 export interface JerseyOptions {
@@ -308,7 +309,7 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
 
   const home = o.view === "front" ? 0 : Math.PI;
   let yaw = o.reveal && !reduceMotion ? home - Math.PI : home;
-  let target = home, vel = 0, dragging = false, lastX = 0, t = 0, raf = 0, last = 0, visible = true, alive = true;
+  let target = home, vel = 0, dragging = false, lastX = 0, t = 0, raf = 0, last = 0, visible = true, alive = true, held = false;
   let tween: { from: number; to: number; start: number; dur: number } | null = null;
   let active = performance.now();
   let repaintTimer = 0;
@@ -372,6 +373,17 @@ export async function mountJersey(canvas: HTMLCanvasElement, initial: JerseyOpti
   }
   function tick(now: number) {
     raf = 0;
+    // (still while a View Transition runs: the arriving page is captured live, each frame drawn would be captured again)
+    if (transitionRunning()) {
+      if (!held) {
+        held = true;
+        void afterTransitions().then(() => {
+          held = false;
+          wake();
+        });
+      }
+      return;
+    }
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     t += dt;
