@@ -38,6 +38,7 @@ import { Ic } from "./pa/Icon";
 import { Jornadas } from "./pa/Jornadas";
 import { Tabla } from "./pa/Tabla";
 import { Balance } from "./pa/Balance";
+import { useWidth } from "./useWidth";
 import type { Demo } from "./pa/demo";
 import "../../styles/vidrio/tokens.css";
 import "../../styles/vidrio/glass.css";
@@ -51,18 +52,6 @@ const NotifySwitch = lazy(() => import("./pa/Member").then((m) => ({ default: m.
 
 const subscribeNothing = () => () => {};
 const useHydrated = (): boolean => useSyncExternalStore(subscribeNothing, () => true, () => false);
-
-/** The page's width (the boards' breakpoints); the server guesses a desktop's 1440. */
-function useWidth(): number {
-  return useSyncExternalStore(
-    (on) => {
-      window.addEventListener("resize", on);
-      return () => window.removeEventListener("resize", on);
-    },
-    () => document.documentElement.clientWidth || window.innerWidth,
-    () => 1440,
-  );
-}
 
 /** «liga» → «liga de fútbol 7»: the club plays fútbol 7, and the boards say so when the league's name doesn't. */
 const f7 = (phrase: string): string => (phrase && !/f[úu]tbol|f-?7|f-?11/i.test(phrase) ? `${phrase} de fútbol 7` : phrase);
