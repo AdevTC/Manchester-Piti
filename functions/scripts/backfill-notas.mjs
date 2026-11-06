@@ -14,7 +14,7 @@ import { dirname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const ENTRIES = ["rating/season", "rating/frozen", "rating/rival", "matchEngine", "migratePositions"];
+const ENTRIES = ["rating/season", "rating/frozen", "rating/rival", "matchEngine", "migratePositions", "analysisPlaceLogic"];
 
 // Sin process.exit(): en Windows cortar el proceso con la salida aún en vuelo dispara un assert de libuv.
 process.exitCode = await main();
@@ -59,6 +59,7 @@ async function main() {
   const { notasDoc, parseStoredNotas, storedNotasOf } = await lib("rating/frozen");
   const { standingsLike } = await lib("rating/rival");
   const { isCompleted, dateMillis } = await lib("matchEngine");
+  const { storedAnalysis, withAnalysis } = await lib("analysisPlaceLogic");
 
   const target = resolveMigrationTarget(process.argv.slice(2), process.env);
   if (!target.ok) {
@@ -74,7 +75,7 @@ async function main() {
   initializeApp({ projectId });
   const db = getFirestore();
   try {
-    return await backfill(db, write, target.expect, { frozenNotas, notasDoc, parseStoredNotas, storedNotasOf, standingsLike, isCompleted, dateMillis, checkExpected, RETRY_CODES, classifyWriteError });
+    return await backfill(db, write, target.expect, { frozenNotas, notasDoc, parseStoredNotas, storedNotasOf, standingsLike, isCompleted, dateMillis, storedAnalysis, withAnalysis, checkExpected, RETRY_CODES, classifyWriteError });
   } finally {
     await db.terminate(); // cierra los canales gRPC: el proceso acaba solo, sin process.exit()
   }
@@ -82,6 +83,8 @@ async function main() {
 
 async function backfill(db, write, expect, m) {
   const snap = await db.collection("matches").where("status", "==", "finished").get();
+  // (each acta with its analysis: its own place, matchAnalysis/{id}, or the old field — functions/src/analysisPlace.ts)
+  const places = new Map((await db.collection("matchAnalysis").get()).docs.map((d) => [d.id, m.storedAnalysis(d.data())]));
   const docs = snap.docs.filter((d) => m.isCompleted(d.data()));
   const bySeason = new Map();
   for (const d of docs) {
@@ -98,7 +101,7 @@ async function backfill(db, write, expect, m) {
     const table = t ? [t] : [];
     // play order; each acta sees the ones before it with the notas they have or are about to get
     const games = list
-      .map((d) => ({ doc: d, match: { ...d.data(), id: d.id } }))
+      .map((d) => ({ doc: d, match: m.withAnalysis({ ...d.data(), id: d.id }, places.get(d.id)) }))
       .sort((a, b) => m.dateMillis(a.match.date) - m.dateMillis(b.match.date) || a.match.id.localeCompare(b.match.id));
     for (const g of games) {
       if (m.storedNotasOf(g.match)) {

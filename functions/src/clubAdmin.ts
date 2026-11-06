@@ -84,9 +84,11 @@ export const deletePlayer = onCall({ timeoutSeconds: 120 }, async (req) => {
     const holder = link.exists ? await tx.get(db.doc(`users/${link.get("uid")}`)) : null;
     if (holder?.exists && !holder.get("removedAt")) throw new HttpsError("failed-precondition", `No se puede borrar: tiene una cuenta vinculada (@${holder.get("nickname") ?? "socio"}). Quítale antes el acceso.`);
     if (player.get("sanction")) throw new HttpsError("failed-precondition", "No se puede borrar: tiene una sanción puesta. Quítasela antes.");
-    const [matches, drafts, boards, movs, claims, absences, availability, predictions] = await Promise.all([
+    const [matches, drafts, analyses, boards, movs, claims, absences, availability, predictions] = await Promise.all([
       tx.get(db.collection("matches")),
       tx.get(db.collection("matchDrafts")),
+      // (a match's analysis lives in its own document: matchAnalysis/{id}, analysisPlace.ts)
+      tx.get(db.collection("matchAnalysis")),
       tx.get(db.collection("lineups")),
       tx.get(db.collection("cajaMovs").where("playerId", "==", playerId)),
       tx.get(db.collection("cajaClaims").where("playerId", "==", playerId)),
@@ -102,7 +104,8 @@ export const deletePlayer = onCall({ timeoutSeconds: 120 }, async (req) => {
       return j ? `la J${j}` : `el partido contra ${d.get("rival") ?? "el rival"}`;
     };
     // (the acta, its lineup and roll call, its analysis: anything in the match or its draft)
-    const match = [...matches.docs, ...drafts.docs].find((d) => mentions(d.data(), playerId));
+    const analysed = analyses.docs.find((d) => mentions(d.data(), playerId));
+    const match = [...matches.docs, ...drafts.docs].find((d) => mentions(d.data(), playerId)) ?? (analysed && [...matches.docs, ...drafts.docs].find((d) => d.id === analysed.id));
     const reason = match
       ? `sale en el acta de ${label(match)}`
       : boards.docs.some((d) => mentions(d.data(), playerId))

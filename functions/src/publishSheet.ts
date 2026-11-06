@@ -5,6 +5,7 @@ import { analysisProblem, narratedAnalysisSchema, type NarrationSource } from '.
 import { prepareNarrationHistory } from './narrated/history.js';
 import { synchronizeCanonicalAnalysis } from './narrated/editing.js';
 import { publicNarrationEvents } from './narrated/privateSources.js';
+import { analysisOf, analysisRef, withStoredAnalyses, writeAnalysis } from './analysisPlace.js';
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
 import { createHash } from "node:crypto";
@@ -109,7 +110,8 @@ export async function publishSheet(input: PublishRequest) {
   const uid = input.uid;
   const sheet = { ...input.sheet } as MatchSheet;
   // Old clients and live publication keep the rich dataset; omission never erases an import.
-  if (!sheet.analysis) { const previous = await db.doc(`matches/${input.id}`).get(); if (previous.get('analysis')) sheet.analysis = synchronizeCanonicalAnalysis(narratedAnalysisSchema.parse(previous.get('analysis')), previous.get('events') ?? [], sheet.events, sheet.durationSeconds ?? sheet.duration * 60); }
+  // (its own place, matchAnalysis/{id}, or the match's old field during the move: analysisPlace.ts)
+  if (!sheet.analysis) { const [place, previous] = await db.getAll(analysisRef(input.id), db.doc(`matches/${input.id}`)); const before = analysisOf(place, previous); if (before) sheet.analysis = synchronizeCanonicalAnalysis(narratedAnalysisSchema.parse(before), previous.get('events') ?? [], sheet.events, sheet.durationSeconds ?? sheet.duration * 60); }
   if (Buffer.byteLength(JSON.stringify(sheet), "utf8") > 650_000) throw new HttpsError("invalid-argument", "El acta es demasiado grande. Reduce las notas de las jugadas.");
   // Members only: a guest («guest:g1») has no ficha, no season and no stats (guests.ts).
   const participants = memberIds([...sheet.starters, ...sheet.bench, ...sheet.notCalled]);
@@ -201,7 +203,8 @@ export async function publishSheet(input: PublishRequest) {
         db.collection("matches").where("seasonId", "==", sheet.seasonId).where("status", "==", "finished").get(),
         db.doc(`standings/${sheet.seasonId}`).get(),
       ]);
-      seasonGames = games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m) && dateMillis(m.date) <= sheet.date);
+      // (each with its analysis, from its own place: the notas read the narration)
+      seasonGames = await withStoredAnalyses(games.docs.filter((d) => d.id !== input.id).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m) && dateMillis(m.date) <= sheet.date));
       const t = standingsLike(sheet.seasonId, standings.data());
       table = t ? [t] : [];
       // (every earlier acta's observations and shots, now: the values keep them per match, so the transaction —
@@ -215,7 +218,7 @@ export async function publishSheet(input: PublishRequest) {
   const ref = db.doc(`matches/${input.id}`);
   // Who can vote the MVP (the turnout's «de 14»), counted outside the transaction.
   const eligible = !input.draft && sheet.status === "finished" ? await activeMemberCount(Date.now()) : 0;
-  const affectedSeasons = await runMatchTransaction(input.id, async (tx, { match: old, draft: oldDraft }) => {
+  const affectedSeasons = await runMatchTransaction(input.id, async (tx, { match: old, draft: oldDraft, analysis: oldPlace }) => {
     const currentSeason = await tx.get(db.doc(`seasons/${sheet.seasonId}`));
     await assertMatchNotDeleted(tx, input.id);
     if (old.exists || oldDraft.exists) await requireActiveMatch(tx, input.id, old.exists ? old : oldDraft);
@@ -226,12 +229,13 @@ export async function publishSheet(input: PublishRequest) {
         "aborted",
         input.staleMessage ?? "Otro administrador ha actualizado este partido. Recarga antes de guardar.",
       );
-    if (sheet.analysis && sheet.analysis.revision !== (old.get('analysis.revision') ?? 0)) throw new HttpsError('aborted', 'El análisis ha cambiado. Recarga el acta antes de guardar.');
+    const oldAnalysis = analysisOf(oldPlace, old);
+    if (sheet.analysis && sheet.analysis.revision !== (oldAnalysis?.revision ?? 0)) throw new HttpsError('aborted', 'El análisis ha cambiado. Recarga el acta antes de guardar.');
     if (input.guard) await input.guard(tx, old);
     const activeClock = old.get("clock");
     if (!input.draft && sheet.status === "finished" && sheet.date > Date.now() && activeClock?.phase !== "ended") throw new HttpsError("invalid-argument", "El partido todavía no ha comenzado.");
     if (!input.draft && activeClock && ["first", "halftime", "second"].includes(activeClock.phase)) throw new HttpsError("failed-precondition", "El partido sigue en marcha. Pita el final antes de publicar o modificar el acta.");
-    const writeNarrationHistory = await prepareNarrationHistory(tx, input.id, uid, sheet.revision ?? 0, input.draft, sheet, input.sources ?? [], old);
+    const writeNarrationHistory = await prepareNarrationHistory(tx, input.id, uid, sheet.revision ?? 0, input.draft, sheet, input.sources ?? [], old, oldAnalysis);
     if (input.draft) {
       writeNarrationHistory();
       tx.set(db.doc(`matchDrafts/${input.id}`), {
@@ -368,13 +372,15 @@ export async function publishSheet(input: PublishRequest) {
       ? { actaPublishedAt: actaPublishedAt(old.exists && old.get("status") === "finished" ? { actaPublishedAt: old.get("actaPublishedAt"), voteClosesAt: old.get("voteClosesAt") } : null, Date.now()) }
       : {};
     const marks = pruneVideoMarks(sheet.videoMarks ?? storedVideoMarks(old.get("videoMarks")), sheet.events);
-    const { videoMarks: _sentMarks, ...publicFields } = publicSheet;
+    // (the analysis goes to its own place, below)
+    const { videoMarks: _sentMarks, analysis: _analysis, ...publicFields } = publicSheet;
     tx.set(ref, {
       ...publicFields,
       events: publicNarrationEvents(sheet.events),
       ...published,
       ...(Object.keys(marks).length ? { videoMarks: marks } : {}),
-      ...(sheet.analysis ? { analysis: { ...sheet.analysis, revision: sheet.analysis.revision + 1 } } : {}),
+      // (matchAnalysis/{id}; the match keeps a copy only while it still has the old field: analysisPlace.ts)
+      ...(sheet.analysis ? writeAnalysis(tx, input.id, { ...sheet.analysis, revision: sheet.analysis.revision + 1 }, old.data()) : {}),
       ...stamps,
       ...stamped,
       ...postponed,
@@ -408,7 +414,7 @@ export async function publishSheet(input: PublishRequest) {
       at: FieldValue.serverTimestamp(),
     });
     return [...new Set([sheet.seasonId, old.get('seasonId')].filter((id): id is string => typeof id === 'string' && !!id))].sort();
-  }, { seasons: [sheet.seasonId] });
+  }, { seasons: [sheet.seasonId], analysis: true });
   // A move removes the old season's contribution as well as adding the new one.
   for (const seasonId of affectedSeasons) await recomputePorra(seasonId);
   return { id: input.id, draft: input.draft, ledger };

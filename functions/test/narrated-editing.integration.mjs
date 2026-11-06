@@ -27,7 +27,13 @@ async function call(name, actor, data) {
   return r.json();
 }
 async function ok(name, actor, data) { const r = await call(name, actor, data); assert.ok(!r.error, JSON.stringify(r)); checks++; return r.result; }
-const snapshot = async id => (await db.doc(`matches/${id}`).get()).data();
+// (the analysis lives in matchAnalysis/{id}: functions/src/analysisPlace.ts; a new match never gets the old field)
+const snapshot = async id => {
+  const [match, place] = await db.getAll(db.doc(`matches/${id}`), db.doc(`matchAnalysis/${id}`));
+  const m = match.data();
+  assert.equal(m?.analysis, undefined);
+  return m && place.exists ? { ...m, analysis: place.get('analysis') } : m;
+};
 const presenceWrite = (id, actor) => fetch('http://127.0.0.1:8080/v1/projects/demo-manchester-piti/databases/(default)/documents:commit', { method: 'POST', headers: { authorization: `Bearer ${actor.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ writes: [{ update: { name: `projects/demo-manchester-piti/databases/(default)/documents/matchPrivate/${id}/presence/${actor.uid}`, fields: { name: { stringValue: 'Anotador local' } } }, updateTransforms: [{ fieldPath: 'at', setToServerValue: 'REQUEST_TIME' }] }] }) });
 const assertMinutes = (m, exit, enter, minutes) => {
   assert.equal(m.ledger[exit].minutes, minutes); assert.equal(m.ledger[enter].minutes, 50 - minutes);
@@ -106,7 +112,8 @@ try {
   assert.equal((await db.doc(`matches/${matchId}`).get()).exists, false);
   assert.equal((await child.get()).exists, false);
   assert.equal((await db.collection(`matchPrivate/${matchId}/analysisHistory`).get()).size, 0);
-  assert.equal((await db.doc(`matchTombstones/${matchId}`).get()).exists, true); checks += 4;
+  assert.equal((await db.doc(`matchTombstones/${matchId}`).get()).exists, true);
+  assert.equal((await db.doc(`matchAnalysis/${matchId}`).get()).exists, false); checks += 5;
   assert.equal((await presenceWrite(matchId, admin)).status, 403);
   assert.equal((await db.doc(`matchPrivate/${matchId}/presence/${admin.uid}`).get()).exists, false); checks += 2;
   const orphan = db.doc(`matches/${matchId}/comments/absent-parent/replies/orphan`);
@@ -124,7 +131,7 @@ try {
     const matchRef = db.doc(`matches/${id}`);
     for (const collection of await matchRef.listCollections()) await db.recursiveDelete(collection);
     if ((await matchRef.get()).exists) await matchRef.delete();
-    for (const collection of ['matchPrivate', 'matchDrafts', 'matchTombstones']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
+    for (const collection of ['matchPrivate', 'matchDrafts', 'matchTombstones', 'matchAnalysis']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
     const audit = await db.collection('matchAudit').where('matchId', '==', id).get(); await Promise.all(audit.docs.map(d => d.ref.delete()));
   }
   const stats = await db.collection('playerSeasonStats').where('seasonId', '==', seasonId).get(); await Promise.all(stats.docs.map(d => d.ref.delete()));

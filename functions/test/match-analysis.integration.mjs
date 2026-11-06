@@ -29,7 +29,8 @@ await db.doc(`seasons/${seasonId}`).set({name:"Análisis · pruebas"});
 await Promise.all(ids.map(id=>db.doc(`players/${id}`).set({firstName:id,seasons:[seasonId]})));
 let sheet={version:2,revision:0,seasonId,rival:"Rival de prueba",competition:"Amistoso",date:Date.now()+3600_000,duration:50,venue:"Pruebas",home:true,status:"scheduled",starters:ids.slice(0,7),bench:[ids[7]],notCalled:[],events:[],report:""};
 const ref=db.doc(`matches/${matchId}`);
-const snap=async()=> (await ref.get()).data();
+// (the analysis lives in matchAnalysis/{id}: functions/src/analysisPlace.ts; a new match never gets the old field)
+const snap=async()=>{const [d,p]=await db.getAll(ref,db.doc(`matchAnalysis/${matchId}`));const m=d.data();assert.equal(m?.analysis,undefined);return p.exists?{...m,analysis:p.get('analysis')}:m;};
 await ok("saveMatchSheet",admin,{id:matchId,sheet});
 await denied("controlMatchClock",outsider,{matchId,action:"start",revision:0},"PERMISSION_DENIED");
 await denied("setMatchScorers",scorer,{matchId,uids:[scorer.uid]},"PERMISSION_DENIED");

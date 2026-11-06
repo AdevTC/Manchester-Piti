@@ -50,7 +50,8 @@ export const deleteMatch = onCall({ timeoutSeconds: 540 }, async req => {
     for (const season of seasonIds) metrics.push(await prepareSeasonMetrics(tx, season, new Map([[id, null]])));
     // Minimal permanent deny marker. No match content, personal data, actor or audit remains here.
     tx.create(tombstoneRef(id), { deletedAt: FieldValue.serverTimestamp() });
-    tx.delete(match.ref); tx.delete(draft.ref); tx.delete(db.doc(`mvpResults/${id}`));
+    // (its analysis is as public as the match: it goes with it — matchAnalysis/{id}, analysisPlace.ts)
+    tx.delete(match.ref); tx.delete(draft.ref); tx.delete(db.doc(`mvpResults/${id}`)); tx.delete(db.doc(`matchAnalysis/${id}`));
     // Keep the admin's game-count sanction; only remove its now-dead fixture reference.
     for (const player of sanctions.docs) tx.update(player.ref, { 'sanction.untilMatchId': FieldValue.delete() });
     for (const m of metrics) m.write();
@@ -106,7 +107,7 @@ export async function cleanupDeletedMatch(id: string): Promise<void> {
   // Its descendants can outlive it; clean those trees without deleting the absent root again.
   for (const collection of await db.doc(`matches/${id}`).listCollections()) await db.recursiveDelete(collection);
   // (r14: the match's quedada, PZ-D03; its guesses live under matchPrivate)
-  for (const collection of ['matchPrivate', 'matchDrafts', 'mvpResults', 'convocatoriaReminders', 'quedadas']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
+  for (const collection of ['matchPrivate', 'matchDrafts', 'mvpResults', 'matchAnalysis', 'convocatoriaReminders', 'quedadas']) await db.recursiveDelete(db.doc(`${collection}/${id}`));
 }
 
 export { archivedMatch };

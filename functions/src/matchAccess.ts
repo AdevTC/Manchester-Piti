@@ -8,14 +8,15 @@ export const archivedMatch = (data: FirebaseFirestore.DocumentData | undefined) 
 export const isStoredSeasonId = (id: unknown): id is string => typeof id === 'string' && id.length > 0 && !id.includes('/') && id !== '.' && id !== '..';
 export const matchSeasonIds = (docs: readonly FirebaseFirestore.DocumentSnapshot[]) => [...new Set(docs.map(d => d.get('seasonId')).filter(isStoredSeasonId))].sort();
 
-type MatchScope = { match: FirebaseFirestore.DocumentSnapshot; draft: FirebaseFirestore.DocumentSnapshot; deleted: FirebaseFirestore.DocumentSnapshot };
+/** `analysis`: its `matchAnalysis/{id}` document, read with them when asked for (the `analysis` option). */
+type MatchScope = { match: FirebaseFirestore.DocumentSnapshot; draft: FirebaseFirestore.DocumentSnapshot; deleted: FirebaseFirestore.DocumentSnapshot; analysis?: FirebaseFirestore.DocumentSnapshot };
 class MatchScopeChanged extends Error {}
 
 /** Lock order for every match mutation: seasons (sorted), then matches, then dependent records.
  * The outside read only discovers which season to lock; the transaction rechecks that scope before
  * using any data. Aggregate operations read the whole season before locking a particular match, so
  * archiving A and deleting B cannot each hold one match while waiting for the other. */
-export async function runMatchTransaction<T>(id: string, work: (tx: FirebaseFirestore.Transaction, scope: MatchScope) => Promise<T>, options: { seasons?: string[]; aggregate?: boolean } = {}): Promise<T> {
+export async function runMatchTransaction<T>(id: string, work: (tx: FirebaseFirestore.Transaction, scope: MatchScope) => Promise<T>, options: { seasons?: string[]; aggregate?: boolean; analysis?: boolean } = {}): Promise<T> {
   const refs = [db.doc(`matches/${id}`), db.doc(`matchDrafts/${id}`)];
   for (let attempt = 0; attempt < 3; attempt++) {
     const hint = await db.getAll(...refs);
@@ -25,9 +26,9 @@ export async function runMatchTransaction<T>(id: string, work: (tx: FirebaseFire
         // Sequential sorted reads make the acquisition order explicit, including cross-season moves.
         for (const season of seasonIds) await tx.get(db.doc(`seasons/${season}`));
         if (options.aggregate) for (const season of seasonIds) await tx.get(db.collection('matches').where('seasonId', '==', season));
-        const [match, draft, deleted] = await tx.getAll(...refs, tombstoneRef(id));
+        const [match, draft, deleted, analysis] = await tx.getAll(...refs, tombstoneRef(id), ...(options.analysis ? [db.doc(`matchAnalysis/${id}`)] : []));
         if (matchSeasonIds([match, draft]).some(season => !seasonIds.includes(season))) throw new MatchScopeChanged();
-        return work(tx, { match, draft, deleted });
+        return work(tx, { match, draft, deleted, ...(analysis ? { analysis } : {}) });
       });
     } catch (error) {
       if (!(error instanceof MatchScopeChanged)) throw error;

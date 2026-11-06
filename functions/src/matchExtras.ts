@@ -15,6 +15,7 @@ import { notasDoc, parseStoredNotas } from "./rating/frozen.js";
 import { standingsLike } from "./rating/rival.js";
 import { frozenNotas } from "./rating/season.js";
 import { shotTally } from "./rating/values.js";
+import { analysisOf, analysisRef, withStoredAnalyses } from "./analysisPlace.js";
 import type { RatingMatch, StandingsLike } from "./rating/types.js";
 import { actaPublishedAt, addGuestPlan, draftFieldFollows, draftFollows, draftGuestFields, DURATION_MAX, DURATION_MIN, mvpWindow, pruneVideoMarks, REPORT_MAX, reportProblem, stillOpen, videoMarksSchema } from "./matchExtrasLogic.js";
 
@@ -104,10 +105,12 @@ export const saveMatchReport = onCall(async (req) => {
 /** The acta's notas rated again from what is stored, as publishSheet rates them (its season up to it, the table;
  *  a correction keeps the rival factor of the notas it had). Kept with the match; the failure goes to notasError. */
 export async function rateStoredActa(matchId: string): Promise<{ players: number; mean: number | null }> {
-  const snap = await db.doc(`matches/${matchId}`).get();
+  const [snap, place] = await db.getAll(db.doc(`matches/${matchId}`), analysisRef(matchId));
   if (!snap.exists) throw new HttpsError("not-found", "Ese partido no existe.");
   if (snap.get("status") !== "finished") throw new HttpsError("failed-precondition", NOT_PUBLISHED);
-  const data = snap.data() as Record<string, unknown>;
+  // (with its analysis, from its own place or the old field: analysisPlace.ts)
+  const analysis = analysisOf(place, snap);
+  const data: Record<string, unknown> = { ...(snap.data() as Record<string, unknown>), ...(analysis ? { analysis } : {}) };
   const seasonId = data.seasonId as string;
   const date = ms(data.date);
   let notas: ReturnType<typeof notasDoc>;
@@ -116,7 +119,7 @@ export async function rateStoredActa(matchId: string): Promise<{ players: number
       db.collection("matches").where("seasonId", "==", seasonId).where("status", "==", "finished").get(),
       db.doc(`standings/${seasonId}`).get(),
     ]);
-    const seasonGames = games.docs.filter((d) => d.id !== matchId).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m) && dateMillis(m.date) <= date);
+    const seasonGames = await withStoredAnalyses(games.docs.filter((d) => d.id !== matchId).map((d) => ({ ...d.data(), id: d.id }) as RatingMatch).filter((m) => isCompleted(m) && dateMillis(m.date) <= date));
     for (const m of seasonGames) shotTally(m);
     const t = standingsLike(seasonId, standings.data());
     const table: StandingsLike[] = t ? [t] : [];

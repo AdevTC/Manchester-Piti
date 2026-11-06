@@ -7,7 +7,10 @@ import { gzipSync } from "node:zlib";
 import { onRequest } from "firebase-functions/v2/https";
 import { db } from "./common.js";
 
-/** Same queries the app listens to (clubData, SeasonContext, live.ts, useStandings), so the cache serves them at once. */
+/** Same queries the app listens to (clubData, SeasonContext, live.ts, useStandings: src/lib/publicData opens each by its
+ *  name here, namedQuery), so the cache serves them at once and the listeners resume from the bundle's read time. The
+ *  matches' analyses are not in it (matchAnalysis/{id}, analysisPlace.ts): once the move's second step has taken them
+ *  out of the match documents, this bundle is ~0.26 MB instead of ~1.9. */
 async function build() {
   const [matches, players, seasons, mvpResults, standings, content] = await Promise.all([
     db.collection("matches").orderBy("date", "desc").get(),
@@ -28,13 +31,23 @@ async function build() {
   return bundle.build();
 }
 
-export const clubBundle = onRequest({ memory: "512MiB", maxInstances: 3 }, async (req, res) => {
+/** The matches' narrated analyses (matchAnalysis/{id}), for the pages that show them (src/lib/matchAnalyses): its
+ *  named query «matchAnalysis» is the one their listener opens. */
+async function buildAnalyses() {
+  const analyses = await db.collection("matchAnalysis").get();
+  return db.bundle("club-analisis").add("matchAnalysis", analyses).build();
+}
+
+type Req = Parameters<Parameters<typeof onRequest>[0]>[0];
+type Res = Parameters<Parameters<typeof onRequest>[0]>[1];
+/** Answers a bundle: compressed for whoever accepts it, never cached here (the CDN keeps it: api/bundle.js). */
+async function answer(req: Req, res: Res, what: string, make: () => Promise<Buffer>) {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.status(405).end();
     return;
   }
   try {
-    const body = await build();
+    const body = await make();
     res.set("Content-Type", "application/octet-stream");
     res.set("Cache-Control", "no-store");
     res.set("CDN-Cache-Control", "no-store");
@@ -49,7 +62,10 @@ export const clubBundle = onRequest({ memory: "512MiB", maxInstances: 3 }, async
     }
     res.send(body);
   } catch (error) {
-    console.error("clubBundle", error);
+    console.error(what, error);
     res.status(500).set("Cache-Control", "no-store").end();
   }
-});
+}
+
+export const clubBundle = onRequest({ memory: "512MiB", maxInstances: 3 }, (req, res) => answer(req, res, "clubBundle", build));
+export const clubAnalysisBundle = onRequest({ memory: "512MiB", maxInstances: 3 }, (req, res) => answer(req, res, "clubAnalysisBundle", buildAnalyses));
