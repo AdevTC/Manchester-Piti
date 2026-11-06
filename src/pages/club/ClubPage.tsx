@@ -34,6 +34,7 @@ import { Historia } from "./cb/Historia";
 import { Equipo, type Venue } from "./cb/Equipo";
 import { Maker } from "./cb/Maker";
 import { Gente } from "./cb/Gente";
+import { withGuestNames } from "../../lib/derived/guests";
 import { clubScreenOf, roomLeft, ROOM_T, ROOMS, SALA_PATH, useClubNav, type Room } from "./cb/nav";
 import {
   BDAY_DAYS,
@@ -45,6 +46,7 @@ import {
   historiaLive,
   letterOf,
   minePieces,
+  nextJornada,
   nextLine,
   piecesOf,
   posText,
@@ -153,7 +155,7 @@ export function ClubPage() {
   const us = table?.rows.findIndex((r) => r.isUs) ?? -1;
   const S = useMemo(() => seasonFrom(season?.name ?? "La temporada", strip.segments, us >= 0 && table ? { pos: us + 1, of: table.rows.length } : null), [season?.name, strip.segments, us, table]);
   const pieces = useMemo(() => piecesOf({ season: S, nameOf, squad: squadIds, trophies }), [S, nameOf, squadIds, trophies]);
-  const nextJ = S.jornadas[S.played] ?? null;
+  const nextJ = nextJornada(S);
 
   // ── the screen, the piece in focus
   const { sala, pieza } = clubScreenOf(location.pathname);
@@ -407,8 +409,10 @@ function niceVenue(v: string): string {
 }
 
 /** La historia's last jornada in a line: a title and what happened (the goals, who played, the MVP). */
-function lastStory(x: import("./cb/model").Jor, S: import("./cb/model").ClubSeason, nameOf: (id: string) => string, mvp: import("../../lib/vestuario").MvpResult | undefined, now: number): { t: string; d: string } {
+function lastStory(x: import("./cb/model").Jor, S: import("./cb/model").ClubSeason, squadName: (id: string) => string, mvp: import("../../lib/vestuario").MvpResult | undefined, now: number): { t: string; d: string } {
   if (x.off) return { t: "Aplazado", d: `La J${x.j} contra ${x.rival} se jugará otro día.` };
+  // (a guest who scored is named as the acta names him, not «Jugador»)
+  const nameOf = withGuestNames(x.match, squadName);
   const gf = x.gf ?? 0;
   const ga = x.ga ?? 0;
   const L = letterOf(x);
@@ -444,7 +448,8 @@ function venuesOf(c: import("../../lib/clubContentDefaults").ClubContent, S: imp
   const list = (c.venues ?? []).filter((v) => v?.name?.trim());
   if (list.length)
     return list.map((v) => ({ name: v.name, tag: homeAt(v.name) || list.indexOf(v) === 0 ? "En casa" : "Fuera", address: v.address ?? "", transit: v.transit ?? "", next: nextText(v.name), maps: venueMapsUrl(v) }));
-  const names = [...new Set(S.jornadas.map((x) => x.venue).filter(Boolean))];
+  // (one field once, however the actas wrote it: «CDM PALOMERAS» and «CDM Palomeras» are the same place)
+  const names = [...new Map(S.jornadas.map((x) => x.venue).filter(Boolean).map((n) => [niceVenue(n).toLocaleLowerCase("es"), n] as const)).values()];
   if (!names.length && c.venue) names.push(venueName(c.venue));
   return names.map((n) => ({ name: niceVenue(n), tag: homeAt(n) ? "En casa" : "Fuera", address: "", transit: "", next: nextText(n), maps: mapsUrl(n) }));
 }

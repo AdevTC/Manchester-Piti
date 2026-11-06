@@ -19,7 +19,8 @@ const squad = vi.hoisted(() => [
   { id: "cap", shirtName: "EL CAPI", firstName: "Juan", lastName: "Capi", seasons: ["t1"], number: 4, birthDate: "2004-10-27" },
   { id: "kev", shirtName: "KEVIN", firstName: "Kevin", lastName: "Jumbo", seasons: ["t1"], number: 11 },
 ]);
-vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: [], players: squad, loading: false, error: null }) }));
+const data = vi.hoisted(() => ({ matches: [] as unknown[] }));
+vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: squad, loading: false, error: null }) }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: [{ id: "t1", name: "Temporada 1", captainPlayerId: "cap" }], selectedSeasonId: "t1", loadingSeasons: false }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: null, profile: null }) }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => ({ member: false, admin: false, playerId: null }) }));
@@ -37,6 +38,7 @@ const { ClubPage } = await import("./ClubPage");
 
 beforeEach(() => {
   nav.pathname = "/club";
+  data.matches = [];
   nav.navigate.mockClear();
 });
 
@@ -74,4 +76,12 @@ it("a piece in the address is the one on the peana", () => {
   nav.pathname = "/club/vitrina/primera-copa";
   render(<ClubPage />);
   expect(screen.getByText("Nº 10 · La primera copa")).toBeInTheDocument();
+});
+
+it("La historia names a guest who scored the last goal as the acta does", () => {
+  const at = (iso: string) => ({ seconds: Date.parse(iso) / 1000, nanoseconds: 0 });
+  data.matches = [{ id: "j1", seasonId: "t1", rival: "Orduña fc", home: true, status: "finished", date: at("2026-10-18T17:00:00Z"), goalsFor: 1, goalsAgainst: 0, guests: [{ id: "g1", name: "Pepe" }], events: [{ id: "e1", type: "goal", minute: 12, period: 1, team: "us", playerId: "guest:g1" }] }];
+  nav.pathname = "/club/historia";
+  render(<ClubPage />);
+  expect(document.body.textContent).toContain("El gol: Pepe (invitado), en el 12′.");
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
 import { seasonStrip } from "../../../lib/derived/vidrio/strip";
-import { birthdaysOf, bdayWhen, defaultPiece, doorLineOf, historiaLive, lensOf, lineOf, nextLine, piecesOf, rsvpLine, seasonFrom, vasLine } from "./model";
+import { birthdaysOf, bdayWhen, defaultPiece, doorLineOf, historiaLive, lensOf, lineOf, nextJornada, nextLine, piecesOf, rsvpLine, seasonFrom, vasLine } from "./model";
 import { clubScreenOf } from "./nav";
 
 // Production's Temporada 1 as the CL- boards draw it («Real»): J1 lost 1–8 at home to Orduña fc, the goal of
@@ -131,5 +131,18 @@ describe("the club's addresses", () => {
     expect(clubScreenOf("/club/equipo/camiseta")).toEqual({ sala: "camiseta", pieza: null });
     expect(clubScreenOf("/club/gente")).toEqual({ sala: "gente", pieza: null });
     expect(clubScreenOf("/vestuario/caja")).toEqual({ sala: "vestuario", pieza: null });
+  });
+});
+
+describe("the next jornada", () => {
+  it("skips one already played and waiting for its acta, and a postponed one", () => {
+    expect(nextJornada(S)?.id).toBe("j2");
+    // (Monday after J2: no acta yet; J3 postponed; J4 ahead)
+    const later = Date.parse("2026-10-26T10:00:00Z");
+    const j3off = { ...j3, status: "postponed" } as unknown as ClubMatch;
+    const j4 = { id: "j4", seasonId: SEASON, rival: "Leganés", home: false, status: "scheduled", date: at("2026-11-15T17:00:00Z") } as unknown as ClubMatch;
+    const S2 = seasonFrom("Temporada 1", seasonStrip([j1, j2, j3off, j4], SEASON, later).segments, null);
+    expect(S2.jornadas.find((x) => x.id === "j2")?.pending).toBe(true);
+    expect(nextJornada(S2)?.id).toBe("j4");
   });
 });

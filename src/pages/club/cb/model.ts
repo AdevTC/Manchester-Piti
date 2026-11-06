@@ -83,6 +83,8 @@ export interface Jor {
   ga: number | null;
   /** Postponed. */
   off: boolean;
+  /** Played and waiting for its acta (its kick-off is behind us). */
+  pending?: boolean;
   venue: string;
 }
 export interface ClubSeason {
@@ -116,6 +118,7 @@ export function seasonFrom(name: string, segments: readonly StripSegment[], tabl
     gf: s.state === "jugado" && s.score ? s.score.gf : null,
     ga: s.state === "jugado" && s.score ? s.score.ga : null,
     off: s.state === "aplazado",
+    pending: s.state === "pendiente",
     venue: s.match.venue ? venueName(s.match.venue) : "",
   }));
   let played = 0;
@@ -124,6 +127,9 @@ export function seasonFrom(name: string, segments: readonly StripSegment[], tabl
   });
   return { name, jornadas, played, pos: table?.pos ?? null, of: table?.of ?? null };
 }
+
+/** The next jornada to play: after the last one told, neither postponed nor already played and waiting for its acta. */
+export const nextJornada = (S: ClubSeason): Jor | null => S.jornadas.slice(S.played).find((x) => !x.off && !x.pending) ?? null;
 
 export const letterOf = (x: Pick<Jor, "gf" | "ga" | "off">): Letter | "Apl." | "" => (x.off ? "Apl." : x.gf === null || x.ga === null ? "" : x.gf > x.ga ? "G" : x.gf < x.ga ? "P" : "E");
 export const scoreOfJ = (x: Pick<Jor, "gf" | "ga">): string => (x.gf === null || x.ga === null ? "" : `${x.gf}–${x.ga}`);
