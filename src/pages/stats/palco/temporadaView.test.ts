@@ -170,11 +170,11 @@ describe("Temporada · the words with «en casa» / «fuera»", () => {
   const view = (p: Partial<NuState>, e: Env = env) => numerosView({ ...BASE, ...p }, e, mkAct());
   it("count that side's partidos, never jornadas", () => {
     const casa = view({ campo: "casa" });
-    expect(casa.lede).toBe("Temporada 1, los 2 partidos en casa. Oficial desde el acta; queda 1 por jugar en casa.");
+    expect(casa.lede).toBe("Temporada 1, después de los 2 partidos en casa. Oficial desde el acta; queda 1 por jugar en casa.");
     expect(casa.tem.title).toBe("3 puntos en casa tras la J3");
     expect(casa.tem.raceCap).toBe("En casa, en cabeza tras la J3: Alcides, 3");
     const fuera = view({ campo: "fuera" });
-    expect(fuera.lede).toBe("Temporada 1, el único partido fuera. Oficial desde el acta; queda 1 por jugar fuera.");
+    expect(fuera.lede).toBe("Temporada 1, después del único partido fuera. Oficial desde el acta; queda 1 por jugar fuera.");
     expect(fuera.tem.title).toBe("1 punto fuera tras la J3");
     expect(fuera.tem.raceCap).toBe("Nadie ha marcado aún fuera de casa: el primero estrena la carrera.");
   });

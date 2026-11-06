@@ -232,7 +232,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
             : st.partidos.length
               ? `${se.S.name}: ${st.partidos.length === 1 ? "solo el partido elegido" : `los ${st.partidos.length} partidos elegidos`}.`
               : sideW
-                ? `${se.S.name}, ${gsDone.length === 1 ? "el único partido" : `los ${gsDone.length} partidos`} ${sideW}. Oficial desde el acta${se.S.real ? pendingT : "."}`
+                ? `${se.S.name}, ${gsDone.length === 1 ? "después del único partido" : `después de los ${gsDone.length} partidos`} ${sideW}. Oficial desde el acta${se.S.real ? pendingT : "."}`
                 : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
   let maxG = 1;
   se.matches.forEach((m) => {
