@@ -543,9 +543,10 @@ export function positions(id: string, ctx: Ctx): { known: boolean; lines: (PosLi
   return { known: pp.lines.length > 0 && pp.estimatedMatches < pp.matches, lines: pp.lines.map((l) => ({ ...l, min: Math.round(l.minutes) })) };
 }
 
-/** His medals over his whole career (a milestone is won once) and the next three to chase. */
+/** His medals over his whole career (a milestone is won once) and the next three to chase. (The MVPs straight from
+ *  the votes: the period's mvpOf only knows the period's games, and his career goes beyond them.) */
 export function medals(id: string, matches: readonly ClubMatch[], ctx: Ctx, seasons: readonly { id: string; name: string }[]): { got: Achievement[]; next: Achievement[] } {
-  const list = achievements(id, [...matches], { mvpResults: ctx.results, mvpOf: ctx.mvpOf, seasons, now: ctx.now });
+  const list = achievements(id, [...matches], { mvpResults: ctx.results, seasons, now: ctx.now });
   return { got: list.filter((a) => a.earned), next: nextToChase(list, 3) };
 }
 

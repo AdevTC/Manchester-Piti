@@ -2,6 +2,7 @@
 // model (model.ts). Pure: the page passes the state of the screen, who looks and the squad; it wires the handlers.
 import type { ClubMatch } from "../../../lib/clubData";
 import { dateMillis } from "../../../lib/clubData";
+import { isPendingDup } from "../../../lib/eventMeta";
 import { TonightWord } from "../../../lib/derived/madrid";
 import { exchangeMinute } from "../../../lib/partidos";
 import { hasAnalysisActions } from "../../../lib/technicalAnalysis";
@@ -148,7 +149,7 @@ export function matchLines(S: Squad, D: DayInput): Map<string, Line_> {
       if (row?.played) {
         const tg: Tag[] = [];
         for (const e of l.events ?? []) {
-          if (e.playerId !== id || e.dupOf) continue;
+          if (e.playerId !== id || isPendingDup(e)) continue;
           const mm = Math.max(1, Math.ceil(e.elapsedSeconds != null ? e.elapsedSeconds / 60 : (e.minute ?? 0)));
           if (e.type === "goal" || e.type === "goal_penalty" || e.type === "goal_freekick") tg.push({ cls: "vd-tag--gol", text: `Gol ${mm}′` });
           if (e.type === "yellow_card") tg.push({ cls: "vd-tag--amarilla", text: `Amarilla ${mm}′` });
