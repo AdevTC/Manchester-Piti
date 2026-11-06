@@ -95,8 +95,9 @@ export interface QueueSnapshot {
 
 export interface QueueOptions {
   key: string;
-  /** Uploads one play (liveEvent add). Resolves when the server took it. */
-  send: (item: QueueItem) => Promise<void>;
+  /** Uploads one play (liveEvent add). Resolves when the server took it; `gone`: it had landed before and was
+   *  taken out since (another scorer's «Es el mismo», a «Borrar»): it leaves the queue, never to be sent again. */
+  send: (item: QueueItem) => Promise<void | { gone?: boolean }>;
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
   now?: () => number;
   /** Cross-tab channel (tests pass null). */
@@ -310,9 +311,11 @@ export class MesaQueue {
       this.lastTryAt = this.o.now();
       this.emit();
       try {
-        await this.o.send(next);
+        const r = await this.o.send(next);
         this.netDown = false;
-        this.patch(next.requestId, { status: "sent", sentAt: this.o.now() });
+        if (r && r.gone) {
+          if (this.items.some((x) => x.requestId === next.requestId)) this.set(this.items.filter((x) => x.requestId !== next.requestId));
+        } else this.patch(next.requestId, { status: "sent", sentAt: this.o.now() });
       } catch (e) {
         if (isRejection(e)) this.patch(next.requestId, { status: "review", reason: messageOf(e) });
         else {

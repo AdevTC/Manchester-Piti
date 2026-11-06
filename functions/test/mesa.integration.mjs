@@ -111,6 +111,19 @@ await denied("liveEvent", david, { action: "delete", matchId, eventId: "live-g-a
 m = await snap();
 assert.equal(m.events.some((e) => e.id === "live-g-b" || e.id === "live-g-a2"), false); checks++;
 assert.deepEqual(liveScore(m.events), { gf: 1, ga: 0 }); checks++;
+// the phone that sent «g-b» never saw it in the record and sends it again (its queue's resend): it landed once and
+// was taken out since, so it does not come back — the answer says `gone` and the phone drops it
+{
+  const again = await ok("liveEvent", pablo, add("g-b", "goal", { playerId: ids[5] }));
+  assert.equal(again.gone, true); checks++;
+  const after = await snap();
+  assert.equal(after.events.some((e) => e.id === "live-g-b"), false); checks++;
+  assert.equal(after.events.length, m.events.length); checks++;
+  // (a new play is not `gone`)
+  assert.equal((await ok("liveEvent", pablo, add(`fresh-${suffix}`, "opponent_foul"))).gone, undefined); checks++;
+  await ok("liveEvent", pablo, { action: "delete", matchId, eventId: `live-fresh-${suffix}` });
+  m = await snap();
+}
 
 // ---- fixes by the other scorer: player, minute, type; a real conflict is refused with its reason
 await ok("liveEvent", pablo, { action: "edit", matchId, eventId: "live-r1", patch: { playerId: ids[3], elapsedSeconds: 125 } });
@@ -198,6 +211,14 @@ await denied("liveEvent", david, add("b-tap", "chance", { playerId: ids[1] }, { 
   { const e = await byId("live-sw1-0"); assert.equal(e.type, "position_swap"); assert.equal(e.playerId, ids[8]); assert.equal(e.inPlayerId, ids[1]); assert.equal(e.elapsedSeconds, first); checks += 4; }
   // with someone who just went off: refused, nothing written
   await denied("liveEvent", pablo, add("sw-bad", "position_swap", { playerId: ids[1], inPlayerId: ids[4] }), "FAILED_PRECONDITION", /cambio de sitio/);
+  assert.equal((await snap()).events.length, before + 3); checks++;
+  // a wave taken out after it landed and sent again from the queue: `gone`, it does not come back
+  await ok("liveEvent", david, { action: "delete", matchId, eventId: "live-sw1-0" });
+  const swAgain = await ok("liveEvent", pablo, { action: "addMany", matchId, requestId: "sw1", items: [{ clockRevision: m.clock.revision, tappedElapsed: first, period: 1, event: { type: "position_swap", minute: 0, playerId: ids[8], inPlayerId: ids[1] } }] });
+  assert.equal(swAgain.gone, true); checks++;
+  assert.equal((await snap()).events.length, before + 2); checks++;
+  // (put back under a new request, as the rest of the match expects it)
+  await ok("liveEvent", pablo, { action: "addMany", matchId, requestId: `sw2-${suffix}`, items: [{ clockRevision: m.clock.revision, tappedElapsed: first, period: 1, event: { type: "position_swap", minute: 0, playerId: ids[8], inPlayerId: ids[1] } }] });
   assert.equal((await snap()).events.length, before + 3); checks++;
 }
 

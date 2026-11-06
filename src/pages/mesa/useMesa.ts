@@ -125,11 +125,11 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
       send: async (item: QueueItem) => {
         if (item.batch) {
           // a wave of changes (and swaps of place): one operation, all or none
-          await addSubs(item.matchId, item.requestId, item.batch.map((b) => ({ type: b.type === "position_swap" ? ("position_swap" as const) : ("substitution" as const), playerId: b.playerId ?? "", inPlayerId: b.inPlayerId ?? "", minute: b.minute, clockRevision: b.clockRevision, tappedElapsed: b.tappedElapsed, period: b.period })));
-          return;
+          const r = await addSubs(item.matchId, item.requestId, item.batch.map((b) => ({ type: b.type === "position_swap" ? ("position_swap" as const) : ("substitution" as const), playerId: b.playerId ?? "", inPlayerId: b.inPlayerId ?? "", minute: b.minute, clockRevision: b.clockRevision, tappedElapsed: b.tappedElapsed, period: b.period })));
+          return { gone: r.data.gone === true };
         }
         const p = item.payload;
-        await mesaEvent({
+        const r = await mesaEvent({
           action: "add",
           matchId: item.matchId,
           requestId: item.requestId,
@@ -138,6 +138,8 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
           period: p.period,
           event: { type: p.type, minute: p.minute, playerId: p.playerId, assistPlayerId: p.assistPlayerId, assistReviewed: p.assistReviewed, inPlayerId: p.inPlayerId },
         });
+        // (it had landed and was taken out since: liveEvent says `gone`, and the queue lets it go)
+        return { gone: r.data.gone === true };
       },
     });
     // The queue owns a BroadcastChannel and timers, so this effect must build it; React then has to hear of it.

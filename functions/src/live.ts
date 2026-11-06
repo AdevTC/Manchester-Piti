@@ -191,6 +191,15 @@ export const liveEvent = onCall(async (req) => {
       const ids = many ? data.items.map((_, i) => `live-${data.requestId}-${i}`) : [data.requestId ? `live-${data.requestId}` : liveId(now)];
       // (the same request again: it already landed, all of it, since a wave is written in one go)
       if ((many || data.requestId) && events.some((e) => ids.includes(e.id))) return many ? { events: events.length, eventIds: ids } : { events: events.length, eventId: ids[0] };
+      // (the same request, landed once and since taken out — another scorer's «Es el mismo», a «Borrar», the acta
+      //  editor: a phone that sent it but never saw it in the record sends it again, and it must not come back.
+      //  Its add left an audit naming its (first) id in the same write, and so does every later fix or deletion: an
+      //  audit of this match naming it means it landed: `gone`, the phone drops it. Two equality filters: Firestore
+      //  merges the single-field indexes, no composite index needed.)
+      if (many || data.requestId) {
+        const landed = await tx.get(db.collection("matchAudit").where("matchId", "==", data.matchId).where("eventId", "==", ids[0]).limit(1));
+        if (!landed.empty) return many ? { events: events.length, eventIds: ids, gone: true } : { events: events.length, eventId: ids[0], gone: true };
+      }
       if (events.length + items.length > 2500) throw new HttpsError("failed-precondition", "El acta ya tiene 2500 eventos. Repásala desde el editor.");
       next = [...events];
       const added: MatchEvent[] = [];
@@ -204,7 +213,8 @@ export const liveEvent = onCall(async (req) => {
       const queued = added.some((e) => e.queued);
       if (many) {
         answer = { eventIds: ids };
-        audit = { type: added.every((e) => e.type === added[0].type) ? added[0].type : "changes", count: added.length, minute: added[0].minute ?? null, eventIds: ids, ...(queued ? { queued: true } : {}) };
+        // (eventId: its first play's, the one a resend of the wave looks for)
+        audit = { type: added.every((e) => e.type === added[0].type) ? added[0].type : "changes", count: added.length, minute: added[0].minute ?? null, eventId: ids[0], eventIds: ids, ...(queued ? { queued: true } : {}) };
       } else {
         const [event] = added;
         answer = { eventId: event.id, ...(event.dupOf ? { dupOf: event.dupOf } : {}) };

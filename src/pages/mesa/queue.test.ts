@@ -287,6 +287,19 @@ describe("la cola de la mesa", () => {
     q.close();
   });
 
+  it("una jugada que el servidor ya tuvo y otro anotador quitó («gone») sale de la cola y no vuelve a subir", async () => {
+    vi.useFakeTimers();
+    const sent: string[] = [];
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => true, send: async (x) => (sent.push(x.requestId), x.requestId === "a" ? { gone: true } : undefined) });
+    q.enqueue(item("a"));
+    q.enqueue(item("b"));
+    await flushed();
+    expect(q.getSnapshot().items.map((x) => [x.requestId, x.status])).toEqual([["b", "sent"]]);
+    await vi.advanceTimersByTimeAsync(RESEND_SENT_MS * 2);
+    expect(sent.filter((x) => x === "a")).toHaveLength(1);
+    q.close();
+  });
+
   it("solo los códigos de rechazo van a revisar; la red se reintenta", () => {
     expect(isRejection(rejected("x"))).toBe(true);
     expect(isRejection({ code: "functions/invalid-argument" })).toBe(true);
