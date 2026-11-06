@@ -13,6 +13,8 @@ vi.mock("firebase/firestore", () => ({
   doc: (_db: unknown, ...parts: string[]) => ({ path: parts.join("/") }),
   query: (q: { path: string }) => q,
   orderBy: () => ({}),
+  // (no data bundle loaded here: no named query, so each listener opens the same query built by the app)
+  namedQuery: async () => null,
   onSnapshot: (ref: { path: string }, ...rest: unknown[]) => {
     const [next, error] = rest.filter((r) => typeof r === "function") as [(snap: unknown) => void, (err: unknown) => void];
     listeners.set(ref.path, next);
@@ -33,6 +35,10 @@ afterEach(() => {
   listeners.clear();
   failures.clear();
 });
+/** The public listeners open their bundle's named query, which the SDK reads asynchronously: let them open. */
+const opened = async () => {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+};
 
 // (the listeners and writes go through lib/fb: Firebase in, with this file's mocks, before the tests)
 beforeAll(() => loadFirebase());
@@ -41,6 +47,7 @@ it("waits for the MVP tallies too, and caches them with the shared mapper", asyn
   const qc = new QueryClient();
   let ready = false;
   const prime = primePublicData(qc, 60_000).then(() => (ready = true));
+  await opened();
   expect([...listeners.keys()].sort()).toEqual(["clubContent/main", "matches", "mvpResults", "players", "seasons", "standings"]);
   listeners.get("matches")!(docs([]));
   listeners.get("players")!(docs([]));
@@ -67,6 +74,7 @@ it("waits for the league tables too (the position paints with the page)", async 
   const qc = new QueryClient();
   let ready = false;
   const prime = primePublicData(qc, 60_000).then(() => (ready = true));
+  await opened();
   for (const k of ["matches", "players", "seasons", "mvpResults"]) listeners.get(k)!(docs([]));
   listeners.get("clubContent/main")!({ exists: () => false });
   await Promise.resolve();
@@ -89,6 +97,7 @@ it("a league-table listener that fails doesn't hold the page: the table reads as
   let ready = false;
   // (a long timeout: only the error can end the wait in time)
   const prime = primePublicData(qc, 60_000).then(() => (ready = true));
+  await opened();
   for (const k of ["matches", "players", "seasons", "mvpResults"]) listeners.get(k)!(docs([]));
   listeners.get("clubContent/main")!({ exists: () => false });
   await Promise.resolve();
