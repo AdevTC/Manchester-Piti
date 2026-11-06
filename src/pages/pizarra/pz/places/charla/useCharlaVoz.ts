@@ -62,6 +62,9 @@ export function useCharlaVoz(o: { boardId: string | null; on: boolean; uid: stri
   const [sounding, setSounding] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const live = useRef<Live | null>(null);
+  // (each recording asked for: cancelling, closing the charla or leaving it while the browser still asks for the
+  // microphone makes that answer stale, so a permission granted afterwards records nothing)
+  const attempt = useRef(0);
   const audio = useRef<{ el: HTMLAudioElement; key: string; id: string } | null>(null);
   const latest = useRef({ clips, byKey, o });
   useEffect(() => {
@@ -94,6 +97,7 @@ export function useCharlaVoz(o: { boardId: string | null; on: boolean; uid: stri
   // nothing sounds or records once the charla closes
   useEffect(() => {
     if (!o.on) {
+      attempt.current++;
       discard();
       const a = audio.current;
       audio.current = null;
@@ -102,6 +106,7 @@ export function useCharlaVoz(o: { boardId: string | null; on: boolean; uid: stri
   }, [o.on]);
   useEffect(
     () => () => {
+      attempt.current++;
       discard();
       const a = audio.current;
       if (a) a.el.pause();
@@ -154,11 +159,13 @@ export function useCharlaVoz(o: { boardId: string | null; on: boolean; uid: stri
     setPhase("asking");
     setRecKey(key);
     setRecWho(who);
+    const mine = ++attempt.current;
     void (async () => {
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (err) {
+        if (attempt.current !== mine) return;
         setPhase("idle");
         setRecKey(null);
         const m = vozErrorTxt(err);
@@ -166,10 +173,12 @@ export function useCharlaVoz(o: { boardId: string | null; on: boolean; uid: stri
         latest.current.o.say(m);
         return;
       }
-      if (!latest.current.o.on) {
+      if (attempt.current !== mine || !latest.current.o.on) {
         stream.getTracks().forEach((t) => t.stop());
-        setPhase("idle");
-        setRecKey(null);
+        if (attempt.current === mine) {
+          setPhase("idle");
+          setRecKey(null);
+        }
         return;
       }
       const mime = pickMime(typeof MediaRecorder.isTypeSupported === "function" ? (t) => MediaRecorder.isTypeSupported(t) : undefined);
@@ -236,6 +245,7 @@ export function useCharlaVoz(o: { boardId: string | null; on: boolean; uid: stri
     if (l && l.mr.state !== "inactive") l.mr.stop();
   };
   const cancel = () => {
+    attempt.current++;
     discard();
     setPhase("idle");
     setRecKey(null);
