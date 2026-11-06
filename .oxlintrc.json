@@ -116,7 +116,11 @@
     "react/use-memo": "error",
     "react/preserve-manual-memoization": "error",
     "react/incompatible-library": "warn",
-    "react/immutability": "error",
+    // oxlint 1.91 rewrote its native react(immutability) and it now flags plain locals of an effect or a handler
+    // (`raf = requestAnimationFrame(…)`, `cancelled = true` in a cleanup, `first = false` in a listener): ~30 false
+    // positives, none a real mutation of props, state or a render value. The React Compiler's own rule from
+    // eslint-plugin-react-hooks (react-hooks-js/immutability, below) keeps the check without them.
+    "react/immutability": "off",
     "react/globals": "error",
     "react/refs": "error",
     "react/set-state-in-effect": "error",
@@ -132,6 +136,7 @@
       }
     ],
     "react-hooks-js/purity": "error",
+    "react-hooks-js/immutability": "error",
     "typescript/no-floating-promises": "error",
     "typescript/await-thenable": "error",
     "typescript/no-misused-promises": [
