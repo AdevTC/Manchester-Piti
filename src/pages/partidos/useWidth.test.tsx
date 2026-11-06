@@ -1,5 +1,4 @@
 import { act, render } from "@testing-library/react";
-import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { _resetWidthForTesting, useWidth } from "./useWidth";
 
@@ -35,11 +34,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-let bump: () => void = () => {};
-function Probe() {
+function Probe({ n = 0 }: { n?: number }) {
   const w = useWidth();
-  const [n, setN] = useState(0);
-  bump = () => setN((x) => x + 1);
   return (
     <p>
       {w}·{n}
@@ -48,10 +44,10 @@ function Probe() {
 }
 
 it("reads the width once, not on every render", () => {
-  const { container } = render(<Probe />);
+  const { container, rerender } = render(<Probe />);
   expect(container.textContent).toBe("390·0");
   const after = reads;
-  for (let i = 0; i < 5; i++) act(() => bump());
+  for (let i = 1; i <= 5; i++) rerender(<Probe n={i} />);
   expect(container.textContent).toBe("390·5");
   expect(reads).toBe(after);
 });
