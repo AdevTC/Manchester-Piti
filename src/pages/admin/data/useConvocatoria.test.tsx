@@ -53,6 +53,21 @@ describe("useConvocatoria · «Mandar la convocatoria»", () => {
     expect(result.current.pending).toBe(false);
   });
 
+  it("a write that fails does not drop the change waiting behind it: the newest lineup still goes, and stays shown", async () => {
+    let fail: (e: unknown) => void = () => undefined;
+    setConv.mockImplementationOnce(() => new Promise((_, ko) => (fail = ko)) as never);
+    const { result } = renderHook(() => useConvocatoria(m8), { wrapper: wrap });
+    act(() => result.current.set({ starters: SEVEN.slice(0, 6), bench: ["h", "g"] }));
+    act(() => result.current.set({ starters: SEVEN.slice(0, 5), bench: ["h", "g", "f"] }));
+    expect(setConv).toHaveBeenCalledTimes(1);
+    await act(async () => fail(new Error("sin red")));
+    await flush();
+    expect(toast.show).toHaveBeenCalledWith(expect.objectContaining({ tone: "error" }));
+    expect(setConv).toHaveBeenCalledTimes(2);
+    expect(setConv.mock.calls[1][0]).toMatchObject({ notify: false, starters: SEVEN.slice(0, 5), bench: ["h", "g", "f"] });
+    expect(result.current.lineup.starters).toEqual(SEVEN.slice(0, 5));
+  });
+
   it("«Deshacer» in the 5 s: nobody is told, the convocatoria stays as it is", async () => {
     const { result } = renderHook(() => useConvocatoria(m8), { wrapper: wrap });
     act(() => result.current.publish({ tag: "J3", sent: () => "mandada" }));
