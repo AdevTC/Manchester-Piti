@@ -819,3 +819,12 @@ export function standingsNotice(seasonId: string, before: StandingsLike | undefi
   const body = i >= 0 ? `Vamos ${i + 1}.º de ${rows.length}${pts !== null ? ` con ${pts} ${pts === 1 ? "punto" : "puntos"}` : ""}${j}.` : `La tabla de la liga${j}, en la web.`;
   return { topic: "tabla", title: before?.rows ? "Nueva clasificación" : "Ya está la clasificación", body, tag: `tabla-${seasonId}`, url: "/partidos/tabla", log: `tabla-${seasonId}-${at}` };
 }
+
+/** How many devices sendTo signs and posts at once: with thousands of subscriptions one Promise.all of all of them
+ *  would open thousands of connections at once (a goal late, or the function out of time or memory). */
+export const PUSH_BATCH = 50;
+/** `run` over `items`, `size` at a time: each batch at once, the next when it ends (`run` handles its own errors). */
+export async function inBatches<T>(items: readonly T[], size: number, run: (item: T) => Promise<void>): Promise<void> {
+  const step = Math.max(1, Math.floor(size));
+  for (let i = 0; i < items.length; i += step) await Promise.all(items.slice(i, i + step).map(run));
+}

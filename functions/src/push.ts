@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import webpush from "web-push";
 import { z } from "zod";
 import { db, googleUser, idSchema, memberAs, parse } from "./common.js";
-import { heldBefore, heldGoalNotice } from "./pushLogic.js";
+import { heldBefore, heldGoalNotice, inBatches, PUSH_BATCH } from "./pushLogic.js";
 import { claimNotice, convocatoriaNotice, devicePayload, DOOR_TOPICS, kickoffNotice, legacyKickoff, lineupNotice, mvpWinnerIds, mvpWinnerNotice, notaPlayers, notasNotice, noticesFor, PERSONAL_TOPICS, positionsNotice, publicTopics, standingsNotice, pushAudience, sevenOf, sieteKey, TOPICS, type ClaimLike, type LineupLike, type MatchLike, type Notice } from "./pushLogic.js";
 import { LATE_TOPICS, legacyTodoGets, presetOf, presetTopics, PUSH_PRESETS, TOPICS_VERSION } from "./pushPresets.js";
 import { deviceGets, isMatchTopic, MATCH_TOPICS, nextMatchTopics, noticeMatchTopic, type MatchInfo } from "./pushMatchTopics.js";
@@ -243,19 +243,18 @@ export async function sendTo(notice: Notice, uid?: string, skip?: ReadonlySet<st
   // Nobody asked for this topic (always the case in tests and the emulators): nothing to sign.
   if (!devices.length) return sent;
   webpush.setVapidDetails(SITE, VAPID_PUBLIC, vapidPrivate.value());
-  await Promise.all(
-    devices.map(async (d) => {
-      const payload = JSON.stringify(devicePayload(notice, { preset: d.get("preset"), vibrate: d.get("vibrate") }));
-      try {
-        await webpush.sendNotification({ endpoint: d.get("endpoint"), keys: d.get("keys") }, payload, { TTL: 6 * 3600, urgency: notice.topic === "goals" ? "high" : "normal" });
-      } catch (e) {
-        // Gone or not found: the phone dropped the subscription; forget it.
-        const status = (e as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) await d.ref.delete();
-        else console.warn("push", notice.topic, status ?? e);
-      }
-    }),
-  );
+  // (in batches of PUSH_BATCH, not all the devices at once)
+  await inBatches(devices, PUSH_BATCH, async (d) => {
+    const payload = JSON.stringify(devicePayload(notice, { preset: d.get("preset"), vibrate: d.get("vibrate") }));
+    try {
+      await webpush.sendNotification({ endpoint: d.get("endpoint"), keys: d.get("keys") }, payload, { TTL: 6 * 3600, urgency: notice.topic === "goals" ? "high" : "normal" });
+    } catch (e) {
+      // Gone or not found: the phone dropped the subscription; forget it.
+      const status = (e as { statusCode?: number }).statusCode;
+      if (status === 404 || status === 410) await d.ref.delete();
+      else console.warn("push", notice.topic, status ?? e);
+    }
+  });
   return sent;
 }
 
