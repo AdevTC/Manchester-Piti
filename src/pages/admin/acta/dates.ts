@@ -36,11 +36,15 @@ export const joinDate = (date: string, time: string) => (date && time ? madridTi
  * the coming Sunday at 11:00 — never in the past.
  */
 export function proposeDate(lastDate: number | undefined, now: number): number {
-  const WEEK = 7 * 24 * 3600_000;
   if (lastDate !== undefined && Number.isFinite(lastDate)) {
-    let t = lastDate + WEEK;
-    while (t <= now) t += WEEK;
-    return t;
+    // (by the calendar, at the same Madrid time: 168 hours after a match on the eve of a clock change is an hour
+    //  off — 25 Oct 11:00 + 7 × 24 h is 1 Nov 10:00)
+    const { date, time } = splitDate(lastDate);
+    const day = (n: number) => new Date(Date.parse(`${date}T12:00:00Z`) + n * 24 * 3600_000).toISOString().slice(0, 10);
+    for (let n = 7; n < 7 * 600; n += 7) {
+      const t = madridTime(`${day(n)}T${time}`);
+      if (Number.isFinite(t) && t > now) return t;
+    }
   }
   const today = dateInput(now).slice(0, 10);
   const wd = new Date(`${today}T12:00:00Z`).getUTCDay();
