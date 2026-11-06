@@ -75,8 +75,13 @@ describe("Tu vitrina (a player, one match played)", () => {
     const dialog = screen.getByRole("dialog", { name: "Temporada 1, hasta ahora" });
     expect(within(dialog).getByRole("group").getAttribute("aria-label")).toMatch(/^Cromo 2 de \d+: Partidos y minutos/);
     expect(within(dialog).getByRole("button", { name: "Descargar todos en una imagen" })).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole("button", { name: /Cromo anterior/ }));
+    const prevBtn = within(dialog).getByRole("button", { name: /Cromo anterior/ });
+    prevBtn.focus();
+    fireEvent.click(prevBtn);
     expect(within(dialog).getByRole("group").getAttribute("aria-label")).toMatch(/^Cromo 1 de/);
+    // (on the first cromo «Cromo anterior» is disabled: the focus moves on to «Siguiente cromo», not to the page)
+    expect((prevBtn as HTMLButtonElement).disabled).toBe(true);
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: /Siguiente cromo/ }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
