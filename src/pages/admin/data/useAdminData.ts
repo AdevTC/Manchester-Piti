@@ -156,7 +156,8 @@ export function useAdminData(seasonPick?: string): AdminData {
   const whistled = useWhistled();
   const mvpResults = useMvpResults();
   const standings = useAllStandings();
-  const club = useClubData();
+  // (with the narrated analysis: the acta edits it, the notas read it — lib/matchAnalyses)
+  const club = useClubData({ analysis: "wait" });
   const seasonsQ = useFirestoreCollection(SEASONS_KEY, seasonQuery, mapSeason);
   const draftsQ = useFirestoreCollection(DRAFTS_KEY, draftsQuery, mapMatch);
   const archivesQ = useFirestoreCollection(ARCHIVED_MATCHES_KEY, archivedQuery, mapArchivedMatch, canReadArchives);

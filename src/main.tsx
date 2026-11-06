@@ -11,6 +11,7 @@ import { createPressAwareScheduler } from './lib/notifyScheduler'
 import { primeFromBundle, takeInlineBundle } from './lib/bundle'
 import { MATCHES_KEY, primePublicData } from './lib/publicData'
 import { seedPublicData } from './lib/publicSeed'
+import { primeAnalyses, primesAnalysesAt, seedAnalyses } from './lib/matchAnalyses'
 import { serverNow, setPaintedAt } from './lib/serverTime'
 import { createAppRouter } from './router'
 import { startAppUpdates } from './lib/appUpdate'
@@ -33,6 +34,12 @@ const inline = takeInlineBundle()
 primeFromBundle(inline?.text, (bytes) => {
   if (queryClient.getQueryData(MATCHES_KEY) === undefined) seedPublicData(queryClient, bytes, serverNow())
 })
+// The matches' narrated analyses, when the server rendered a page with them (api/render.js ANALYSIS_PAGES): into
+// Firestore's local cache too, so their listener resumes from them (lib/matchAnalyses).
+// A page that waits for them gets them from the start, in parallel with the public bundle (the service worker keeps both).
+const inlineAnalyses = takeInlineBundle(document, 'club-analisis')
+if (inlineAnalyses) primeAnalyses(queryClient, inlineAnalyses.text)
+else if (primesAnalysesAt(location.pathname)) primeAnalyses(queryClient)
 
 const router = createAppRouter()
 // (back and forward animate as a change of page does: the history says which way, before the router hears it)
@@ -73,6 +80,7 @@ if (html.hasAttribute('data-ssr') && inline?.at) {
   // the real time come in as ordinary updates. The router renders the tree the server did (no Suspense of
   // its own around the matches), once the page's code is in.
   seedPublicData(queryClient, new TextEncoder().encode(inline.text), inline.at)
+  if (inlineAnalyses) seedAnalyses(queryClient, new TextEncoder().encode(inlineAnalyses.text))
   setPaintedAt(inline.at)
   router.ssr = { manifest: undefined }
   void router.load().then(() => {

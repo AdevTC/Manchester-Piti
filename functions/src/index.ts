@@ -16,7 +16,7 @@ export { markTurnDone } from "./turnos.js";
 export { clubShare } from "./social.js";
 export { setSeasonArchived, deleteSeason, onSeasonDeleted } from "./seasons.js";
 export { clubCalendar } from "./calendar.js";
-export { clubBundle } from "./bundle.js";
+export { clubAnalysisBundle, clubBundle } from "./bundle.js";
 export { clubVitals } from "./vitals.js";
 export { htmlCacheMatches, htmlCachePlayers, htmlCacheSeasons, htmlCacheMvp, htmlCacheStandings, htmlCacheContent } from "./htmlCache.js";
 export { liveEvent } from "./live.js";

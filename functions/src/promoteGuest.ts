@@ -11,6 +11,14 @@ import { dateMillis, type MatchSheet } from "./matchEngine.js";
 import { requireActiveMatch, runMatchTransaction } from "./matchAccess.js";
 import { alreadyPromoted, promoteInMatch } from "./matchExtrasLogic.js";
 import { PUBLICATION_RESOURCES } from "./publicationResources.js";
+import { analysisOf, analysisRef } from "./analysisPlace.js";
+
+/** The published match with its analysis (its own place, or the old field during the move: analysisPlace.ts), so the
+ *  guest is made a member in it too. */
+const published = (match: FirebaseFirestore.DocumentSnapshot, place: FirebaseFirestore.DocumentSnapshot): Record<string, unknown> => {
+  const analysis = analysisOf(place, match);
+  return { ...(match.data() ?? {}), ...(analysis ? { analysis } : {}) };
+};
 
 const input = z.object({
   playerId: idSchema,
@@ -49,21 +57,22 @@ export const promoteGuest = onCall({ ...PUBLICATION_RESOURCES, timeoutSeconds: 5
   // way) finds the matches already done — the guest gone from the list, the ficha in it — and leaves them be.
   const plans: { matchId: string; guestId: string; published: boolean; done: boolean; seasonId: string; rival: string }[] = [];
   for (const g of data.guests) {
-    const [match, draft, priv] = await db.getAll(db.doc(`matches/${g.matchId}`), db.doc(`matchDrafts/${g.matchId}`), db.doc(`matchPrivate/${g.matchId}`));
+    const [match, draft, priv, place] = await db.getAll(db.doc(`matches/${g.matchId}`), db.doc(`matchDrafts/${g.matchId}`), db.doc(`matchPrivate/${g.matchId}`), analysisRef(g.matchId));
     const doc = match.exists ? match : draft;
+    const fields = match.exists ? published(match, place) : (draft.data() ?? {});
     if (!doc.exists) throw new HttpsError("not-found", "Uno de esos partidos ya no existe.");
     const rival = String(doc.get("rival") ?? "el rival");
     const seasonId = String(doc.get("seasonId") ?? "");
-    if (alreadyPromoted(doc.data() ?? {}, g.guestId, data.playerId)) {
+    if (alreadyPromoted(fields, g.guestId, data.playerId)) {
       plans.push({ matchId: g.matchId, guestId: g.guestId, published: match.exists, done: true, seasonId, rival });
       continue;
     }
-    const next = promoteInMatch(doc.data() ?? {}, g.guestId, data.playerId);
+    const next = promoteInMatch(fields, g.guestId, data.playerId);
     if ("problem" in next) throw new HttpsError("not-found", `Ese invitado ya no está en el partido contra ${rival}.`);
     if (match.exists && draft.exists) throw new HttpsError("failed-precondition", `El partido contra ${rival} tiene un borrador sin publicar: publícalo o descártalo antes.`);
     if (match.exists && LIVE.has(match.get("clock.phase"))) throw new HttpsError("failed-precondition", `El partido contra ${rival} se está jugando: dale de alta cuando acabe.`);
     // (the acta it will be published as, checked now: a malformed one stops everything before any write)
-    if (match.exists) sheetOf({ ...(match.data() ?? {}), ...next }, priv.get("meetingNote"));
+    if (match.exists) sheetOf({ ...fields, ...next }, priv.get("meetingNote"));
     plans.push({ matchId: g.matchId, guestId: g.guestId, published: match.exists, done: false, seasonId, rival });
   }
   const seasons = [...new Set(plans.map((p) => p.seasonId).filter(Boolean))];
@@ -84,10 +93,11 @@ export const promoteGuest = onCall({ ...PUBLICATION_RESOURCES, timeoutSeconds: 5
       });
       continue;
     }
-    const [match, priv] = await db.getAll(db.doc(`matches/${p.matchId}`), db.doc(`matchPrivate/${p.matchId}`));
-    const next = promoteInMatch(match.data() ?? {}, p.guestId, data.playerId);
+    const [match, priv, place] = await db.getAll(db.doc(`matches/${p.matchId}`), db.doc(`matchPrivate/${p.matchId}`), analysisRef(p.matchId));
+    const fields = published(match, place);
+    const next = promoteInMatch(fields, p.guestId, data.playerId);
     if ("problem" in next) throw new HttpsError("not-found", `Ese invitado ya no está en el partido contra ${p.rival}.`);
-    const sheet = sheetOf({ ...(match.data() ?? {}), ...next }, priv.get("meetingNote"));
+    const sheet = sheetOf({ ...fields, ...next }, priv.get("meetingNote"));
     // (the lineup, the roll call and the frozen notas take him inside the publication's own transaction; the notas
     // are not rated again: his nota as a guest passes to the ficha as it was)
     await publishSheet({ id: p.matchId, sheet, draft: false, uid, promote: { from: `guest:${p.guestId}`, to: data.playerId } });

@@ -11,6 +11,9 @@
 // the pages on every write), and the function itself when that can't answer (a protected preview deployment).
 const BUNDLE_PATH = "/datos/club.bundle";
 const BUNDLE_URL = "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubBundle";
+// The matches' narrated analyses (api/analisis.js), the same way: only for the pages whose first screen shows them.
+const ANALYSIS_BUNDLE_PATH = "/datos/analisis.bundle";
+const ANALYSIS_BUNDLE_URL = "https://europe-southwest1-futbolmanagement-dc6cb.cloudfunctions.net/clubAnalysisBundle";
 // The addresses rendered here (vite.config.ts SSR_PAGES says the same for `vite preview`): each screen of the
 // public pages. Anything else gets the plain shell and the browser renders it.
 export const PAGES = [
@@ -39,14 +42,14 @@ export function pageUrl(searchParams) {
   const search = query.toString();
   return { path, url: path, href: path + (search ? `?${search}` : "") };
 }
-async function bundle(origin) {
+async function bundle(origin, path = BUNDLE_PATH, fn = BUNDLE_URL) {
   try {
-    const cdn = await fetch(new URL(BUNDLE_PATH, origin), { signal: AbortSignal.timeout(8_000) });
+    const cdn = await fetch(new URL(path, origin), { signal: AbortSignal.timeout(8_000) });
     if (cdn.ok && (cdn.headers.get("content-type") ?? "").includes("octet-stream")) return new Uint8Array(await cdn.arrayBuffer());
   } catch {
     /* the function, below */
   }
-  const response = await fetch(BUNDLE_URL, { cache: "no-store" });
+  const response = await fetch(fn, { cache: "no-store" });
   if (!response.ok) throw new Error(`bundle ${response.status}`);
   return new Uint8Array(await response.arrayBuffer());
 }
@@ -88,10 +91,18 @@ export async function GET(request) {
     const to = server.legacyHref(href);
     if (to) return moved(to);
     if (!isPage(path)) throw new Error(`not a server-rendered page: ${path}`);
-    const [{ template, routes }, bytes] = await Promise.all([import("../dist-ssr/shell.js"), bundle(new URL(request.url).origin)]);
+    const origin = new URL(request.url).origin;
+    const [{ template, routes }, bytes, analyses] = await Promise.all([
+      import("../dist-ssr/shell.js"),
+      bundle(origin),
+      // (the pages whose markup shows the matches' narrated analyses — src/lib/matchAnalyses ANALYSIS_PAGES — are
+      // rendered with them and carry them, so the browser takes the page over with the same data; every other page goes
+      // without them, ~1.6 MB less)
+      server.needsAnalysesAt(path) ? bundle(origin, ANALYSIS_BUNDLE_PATH, ANALYSIS_BUNDLE_URL) : null,
+    ]);
     // (one instant for the whole page: its clocks read it, and the browser takes the page over at it too)
     const now = Date.now();
-    const { markup, until } = await server.renderPainted(url, bytes, now);
+    const { markup, until } = await server.renderPainted(url, bytes, now, analyses ?? undefined);
     const own = routes.find(([re]) => new RegExp(re).test(path))?.[1] ?? [];
     const css = own.filter((f) => f.endsWith(".css"));
     // (and the faces its first screen paints with that the shell doesn't preload: vite.config.ts ROUTE_FONTS)
@@ -102,7 +113,9 @@ export async function GET(request) {
     // The data and the instant the page was painted with go in it too: the browser takes the page over from
     // them (src/main.tsx) and primes its cache with the bundle instead of downloading it again (src/lib/bundle.ts).
     // (and until when its markup can be shown as it is: a copy the CDN kept longer boots from the data instead)
-    const data = `<script type="application/json" id="club-bundle" data-at="${now}" data-until="${until}">${server.inlineBundle(bytes)}</script>`;
+    const data =
+      `<script type="application/json" id="club-bundle" data-at="${now}" data-until="${until}">${server.inlineBundle(bytes)}</script>` +
+      (analyses ? `<script type="application/json" id="club-analisis">${server.inlineBundle(analyses)}</script>` : "");
     // Function replacers: `$` in the markup must not be read as a replacement pattern.
     const body = template
       .replace("<!--ssr-head-->", () => head)

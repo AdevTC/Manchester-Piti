@@ -15,6 +15,7 @@ import { useShirtStills } from "../../../components/jersey3d/useShirtStills";
 import { KitStillContext } from "../../../components/jersey3d/kitStill";
 import { useSeason } from "../../../context/SeasonContext";
 import { useClubData, nextFixture } from "../../../lib/clubData";
+import { needsAnalysesAt } from "../../../lib/matchAnalyses";
 import { useAllStandings } from "../../../lib/useStandings";
 import { currentSeasonId, type MvpResult } from "../../../lib/vestuario";
 import { matchdayOf, type MatchdayModel } from "../../../lib/derived/matchday";
@@ -113,7 +114,12 @@ export function PlantillaPage() {
   const dia = theme === "light";
 
   // ── the club's data and the season
-  const { players, matches, loading, error } = useClubData();
+  // (with the narrated analysis: the ratings' detail and the ficha's game numbers — lib/matchAnalyses. Arriving at a
+  // player's pages or cara a cara, which show them, the page waits for them; arriving at the percha, which doesn't, it
+  // paints as the server did and takes them when they come — and keeps doing so on the way to a player, so the shirt's
+  // flight never turns into a loading state)
+  const [analysisMode] = useState<"wait" | "soft">(() => (needsAnalysesAt(pathname) ? "wait" : "soft"));
+  const { players, matches, loading, error } = useClubData({ analysis: analysisMode });
   const { seasons, selectedSeasonId } = useSeason();
   const results = useMvpResults();
   const standings = useAllStandings();

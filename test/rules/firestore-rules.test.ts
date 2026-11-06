@@ -100,6 +100,7 @@ describe("Publicación y cálculo del backend", () => {
     "clubContent",
     "mvpResults",
     "playerSeasonStats",
+    "matchAnalysis",
   ]) {
     it(coll + " se puede leer sin registro", async () => {
       await seed(coll + "/item", { value: 1 });
@@ -108,6 +109,7 @@ describe("Publicación y cálculo del backend", () => {
   }
   for (const coll of [
     "matches",
+    "matchAnalysis",
     "mvpResults",
     "playerSeasonStats",
     "matchDrafts",
@@ -1961,6 +1963,18 @@ describe("«Últimos 5» en la clasificación", () => {
     const r = (team: string, over: Partial<StandingRow> = {}): StandingRow => ({ team, pj: 8, g: 5, e: 2, p: 1, gf: 20, gc: 9, pts: 17, isUs: false, form: ["G", "E", "P", "G", "G"], ...over });
     const rows = [r("Rayo Norte"), r("Manchester Piti", { isUs: true }), r("Los Rojos", { form: [] })];
     await assertSucceeds(setDoc(doc(db("admin"), "standings", "t1"), { ...standingsFields({ competition: "Liga F7", jornada: 8, rows }, "admin"), updatedAt: serverTimestamp() }));
+  });
+});
+
+describe("matchAnalysis: el análisis narrado, aparte del partido", () => {
+  it("cualquiera lee la colección entera (el listener de las páginas que lo muestran) y nadie la escribe ni la borra", async () => {
+    await seed("matchAnalysis/m1", { analysis: { version: 2, revision: 3, observations: [], coverage: [] } });
+    await assertSucceeds(getDocs(collection(db(), "matchAnalysis")));
+    await assertSucceeds(getDocs(collection(db("member"), "matchAnalysis")));
+    await assertSucceeds(getDoc(doc(db(), "matchAnalysis", "m1")));
+    await assertFails(setDoc(doc(db("admin"), "matchAnalysis", "m1"), { analysis: { version: 2, revision: 4, observations: [], coverage: [] } }));
+    await assertFails(deleteDoc(doc(db("admin"), "matchAnalysis", "m1")));
+    await assertFails(setDoc(doc(db(), "matchAnalysis", "m2"), { analysis: {} }));
   });
 });
 

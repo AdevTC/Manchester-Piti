@@ -33,6 +33,8 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("../../lib/useStandings", () => ({ useStandings: () => ({ standings: league.standings, loading: false }) }));
 vi.mock("../../lib/clubData", async (orig) => ({ ...(await orig<typeof import("../../lib/clubData")>()), useClubData: () => ({ matches: data.matches, players: data.players, loading: data.loading, error: data.error }) }));
+// (the notas read the analyses only when an acta has none frozen: lib/matchAnalyses; here, the matches as they come)
+vi.mock("../../lib/matchAnalyses", () => ({ useAnalysedMatches: <T,>(matches: T[]) => matches }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: seasons.list, selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../../hooks/useClock", () => ({ useClock: () => clock.now }));
 vi.mock("../../hooks/useViewer", () => ({ useViewer: () => ({ member: who.member, admin: who.admin, playerId: who.playerId }) }));

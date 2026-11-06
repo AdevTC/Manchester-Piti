@@ -5,7 +5,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { withFirebase, type Fb } from "./fb";
 import { mapMatch, mapMvp, mapPlayer, mapSeason, MVP_RESULTS_KEY } from "./firestoreMappers";
-import { subscribeShared } from "./useFirestoreCollection";
+import type { Query } from "firebase/firestore";
+import { subscribeShared, type NamedSource } from "./useFirestoreCollection";
 import { DEFAULT_CONTENT, type ClubContent } from "./clubContentDefaults";
 import { parseVenues } from "./derived/venue";
 import { mapStandings, STANDINGS_KEY } from "./standings";
@@ -20,12 +21,16 @@ export { MVP_RESULTS_KEY };
 /** The league tables (`standings/{seasonId}`): public, in the bundle, so the position paints with the page. */
 export { STANDINGS_KEY };
 
-// (built once Firebase is in: lib/fb, useFirestoreCollection QuerySource)
-export const matchQuery = (fb: Fb) => fb.query(fb.collection(fb.db, "matches"), fb.orderBy("date", "desc"));
-export const playerQuery = (fb: Fb) => fb.collection(fb.db, "players");
-export const seasonQuery = (fb: Fb) => fb.query(fb.collection(fb.db, "seasons"), fb.orderBy("name", "asc"));
-export const mvpQuery = (fb: Fb) => fb.collection(fb.db, "mvpResults");
-export const standingsQuery = (fb: Fb) => fb.collection(fb.db, "standings");
+// (built once Firebase is in: lib/fb, useFirestoreCollection QuerySource) Each is the data bundle's query of the same
+// name (functions/src/bundle.ts): the listener opens the bundle's own (namedQuery) once the bundle is in the local
+// cache, so it resumes from the bundle's read time and Firestore reads only what changed since; the query built here
+// (the same one) when the bundle never loaded.
+const named = (name: string, query: (fb: Fb) => Query): NamedSource => ({ named: name, query });
+export const matchQuery = named("matches", (fb) => fb.query(fb.collection(fb.db, "matches"), fb.orderBy("date", "desc")));
+export const playerQuery = named("players", (fb) => fb.collection(fb.db, "players"));
+export const seasonQuery = named("seasons", (fb) => fb.query(fb.collection(fb.db, "seasons"), fb.orderBy("name", "asc")));
+export const mvpQuery = named("mvpResults", (fb) => fb.collection(fb.db, "mvpResults"));
+export const standingsQuery = named("standings", (fb) => fb.collection(fb.db, "standings"));
 
 /** The stored content over the defaults (its grounds read defensively: derived/venue parseVenues). */
 export const withDefaults = (data: Partial<ClubContent> | undefined): ClubContent => ({ ...DEFAULT_CONTENT, ...data, venues: parseVenues(data?.venues) });

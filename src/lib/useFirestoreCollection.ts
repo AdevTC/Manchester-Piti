@@ -4,9 +4,41 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import { afterBundle } from "./bundleGate";
 import { withFirebase, type Fb } from "./fb";
 
-/** A query, or how to build it once Firebase is in (the public pages' queries: lib/publicData). */
-export type QuerySource = Query | ((fb: Fb) => Query);
-const build = (q: QuerySource, fb: Fb): Query => (typeof q === "function" ? q(fb) : q);
+/** A query, or how to build it once Firebase is in (the public pages' queries: lib/publicData), or a data bundle's
+ *  named query (`named`, with the same query to fall back on): a listener of a bundle's own query resumes from the
+ *  bundle's read time, so Firestore sends (and bills) only what changed since. `ready`: what it waits for before opening
+ *  (its bundle into the local cache), besides the public bundle every listener waits for (bundleGate). */
+export type QuerySource = Query | ((fb: Fb) => Query) | NamedSource;
+export interface NamedSource {
+  named: string;
+  query: (fb: Fb) => Query;
+  ready?: () => Promise<unknown> | null;
+}
+const isNamed = (q: QuerySource): q is NamedSource => typeof q === "object" && q !== null && "named" in q && typeof (q as NamedSource).query === "function";
+const build = (q: Exclude<QuerySource, NamedSource>, fb: Fb): Query => (typeof q === "function" ? q(fb) : q);
+
+/**
+ * Opens `listen` on the source's query: a plain one at once; a named one once its bundle is in (`ready`), with the
+ * bundle's query from the local cache (namedQuery), else the same query built here. The returned function stops it
+ * either way: before it opened, it is never opened. Exported for unit testing.
+ */
+export function openSource(fb: Pick<Fb, "namedQuery" | "db">, q: QuerySource, listen: (query: Query) => () => void): () => void {
+  if (!isNamed(q)) return listen(build(q, fb as Fb));
+  let stop: (() => void) | null = null;
+  let cancelled = false;
+  const fallback = () => q.query(fb as Fb);
+  void Promise.resolve(q.ready?.())
+    .catch(() => undefined)
+    .then(() => fb.namedQuery(fb.db, q.named))
+    .then((named) => named ?? fallback(), fallback)
+    .then((query) => {
+      if (!cancelled) stop = listen(query);
+    });
+  return () => {
+    cancelled = true;
+    stop?.();
+  };
+}
 import { LISTENER_RETRY_MS, markListenerStale, metaKeyOf, noteListenerFailure, recordSnapshotMeta, reopenDelay } from "./syncStatus";
 
 export function mapSnapshotDocs<T>(snap: QuerySnapshot, map: (id: string, data: unknown) => T | null): T[] {
@@ -175,8 +207,8 @@ export function subscribeShared<T>(
       // Later snapshots remap only the documents that changed (see incrementalMapper).
       const mapSnap = incrementalMapper(map);
       // (once Firebase is in, after the data bundle: see lib/fb, bundleGate)
-      sub.unsub = withFirebase((fb) => afterBundle(() => fb.onSnapshot(
-        build(q, fb),
+      sub.unsub = withFirebase((fb) => afterBundle(() => openSource(fb, q, (query) => fb.onSnapshot(
+        query,
         { includeMetadataChanges: true },
         (snap) => {
           if (sharedSubs.get(hash) !== sub) return;
@@ -202,7 +234,7 @@ export function subscribeShared<T>(
           // one automatic retry per streak
           if (streak === 1) openIn(LISTENER_RETRY_MS);
         },
-      )));
+      ))));
     };
     sub.reopen = () => {
       const wait = reopenDelay(hash);

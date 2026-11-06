@@ -20,6 +20,10 @@
         "function": { "functionId": "clubBundle", "region": "europe-southwest1" }
       },
       {
+        "source": "/datos/analisis.bundle",
+        "function": { "functionId": "clubAnalysisBundle", "region": "europe-southwest1" }
+      },
+      {
         "source": "/compartir/**",
         "function": { "functionId": "clubShare", "region": "europe-southwest1" }
       },

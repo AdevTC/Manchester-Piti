@@ -8,6 +8,7 @@ export {
   doc,
   limit,
   loadBundle,
+  namedQuery,
   onSnapshot,
   orderBy,
   query,

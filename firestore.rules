@@ -203,6 +203,9 @@ service cloud.firestore {
       allow write: if false;
     }
     match /nicknames/{name} { allow read: if teamMember(); allow write: if false; }
+    // A match's narrated analysis, apart from the match (functions/src/analysisPlace.ts): as public as the match
+    // itself, written only by the backend with it.
+    match /matchAnalysis/{id} { allow read: if true; allow write: if false; }
     match /matchDrafts/{id} { allow read: if admin(); allow write: if false; }
     match /matchAudit/{id} { allow read: if admin(); allow write: if false; }
     match /matchTombstones/{id} { allow read, write: if false; }

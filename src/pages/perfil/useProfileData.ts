@@ -143,7 +143,8 @@ function useSeasonAnswers(uid: string, matchIds: string[]) {
 export function useProfileData(maq: TuMaqueta | null = null): ProfileData {
   const { user, profile, loading: authLoading } = useAuth();
   const { seasons, loadingSeasons } = useSeason();
-  const { matches, players, loading: clubLoading, error: clubError } = useClubData();
+  // (with the narrated analysis: the card's and the season's numbers read it — lib/matchAnalyses)
+  const { matches, players, loading: clubLoading, error: clubError } = useClubData({ analysis: "wait" });
   const mvpResults = useMvpResults();
   const standings = useAllStandings();
   const now = useClock(60_000);

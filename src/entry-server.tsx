@@ -8,6 +8,7 @@ import { createMemoryHistory } from "@tanstack/react-router";
 import { Root } from "./Root";
 import { createAppRouter } from "./router";
 import { seedPublicData } from "./lib/publicSeed";
+import { seedAnalyses } from "./lib/matchAnalyses";
 import { setPaintedAt } from "./lib/serverTime";
 import { MATCHES_KEY } from "./lib/publicData";
 import { paintedUntil } from "./ssr/paintedUntil";
@@ -15,6 +16,7 @@ import { paintedUntil } from "./ssr/paintedUntil";
 // The old addresses the server answers with a permanent redirect (api/render.js), from the router's own table.
 export { legacyHref } from "./lib/legacyUrls";
 export { inlineBundle } from "./lib/inlineBundle";
+export { needsAnalysesAt } from "./lib/matchAnalyses";
 
 // On the server the router answers a URL whose search it normalises (a search default, a route that
 // rewrites its own search) with a redirect instead of a page. No public route does that today (/stats and
@@ -33,16 +35,18 @@ async function loadRouter(url: string) {
 }
 
 /** The markup of `url` (a path, with the search the server forwards: «/partidos?view=tabla») with the bundle's
- *  data at `now` (what the page's clocks read), for the inside of `<div id="root">`. */
-export async function renderPage(url: string, bundle: Uint8Array, now: number = Date.now()): Promise<string> {
-  return (await renderPainted(url, bundle, now)).markup;
+ *  data at `now` (what the page's clocks read), for the inside of `<div id="root">`. `analyses`: the matches' narrated
+ *  analyses' bundle, for a page that shows them (api/render.js ANALYSIS_PAGES; lib/matchAnalyses). */
+export async function renderPage(url: string, bundle: Uint8Array, now: number = Date.now(), analyses?: Uint8Array): Promise<string> {
+  return (await renderPainted(url, bundle, now, analyses)).markup;
 }
 
 /** renderPage, and until when that markup can be shown as it is (ssr/paintedUntil: its clock's texts). */
-export async function renderPainted(url: string, bundle: Uint8Array, now: number = Date.now()): Promise<{ markup: string; until: number }> {
+export async function renderPainted(url: string, bundle: Uint8Array, now: number = Date.now(), analyses?: Uint8Array): Promise<{ markup: string; until: number }> {
   const qc = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
   seedPublicData(qc, bundle, now);
   const until = paintedUntil(qc.getQueryData<readonly { date?: unknown }[]>(MATCHES_KEY) ?? [], now);
+  if (analyses) seedAnalyses(qc, analyses);
   const router = await loadRouter(url);
   // (renderToString is synchronous: no other request's render runs in between)
   setPaintedAt(now);

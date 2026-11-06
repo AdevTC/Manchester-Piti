@@ -44,6 +44,8 @@ it("removes archived and deleted parents from realtime MVPs and linked boards wi
   const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: qc }, children);
   const view = renderHook(() => ({ mvps: useMvpResults(), boards: useSeasonLineupDocs("s") }), { wrapper });
   const match = { seasonId: "s", rival: "Rival", date: 1000, status: "finished", goalsFor: 2, goalsAgainst: 1 };
+  // (the matches' listener opens the data bundle's named query, read asynchronously: wait for it to open)
+  await waitFor(() => expect(listeners.has("matches")).toBe(true));
   emit("mvpResults", [{ id: "m", data: { counts: { a: 2 }, total: 2 } }]);
   emit("lineups", [
     { id: "linked", data: { seasonId: "s", matchId: "m", ownerUid: "me", name: "Del partido" } },

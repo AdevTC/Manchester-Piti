@@ -5,10 +5,12 @@ import { narrationSnapshot } from './privateSources.js';
 import { db } from '../common.js';
 import type { MatchSheet } from '../matchEngine.js';
 import type { NarrationSource } from './schema.js';
+import type { NarratedAnalysis } from './types.js';
 
-/** Reads precede every write in publication; equal retries leave the existing audit untouched. */
-export async function prepareNarrationHistory(tx: FirebaseFirestore.Transaction, id: string, uid: string, revision: number, draft: boolean, sheet: MatchSheet, sources: NarrationSource[], old: FirebaseFirestore.DocumentSnapshot) {
-  const snapshots = [narrationSnapshot(sheet, sources), old.exists ? narrationSnapshot({ events: old.get('events') ?? [], analysis: old.get('analysis') }) : null].filter(s => s !== null);
+/** Reads precede every write in publication; equal retries leave the existing audit untouched. `oldAnalysis`: the
+ *  published one (its own place, matchAnalysis/{id}, or the match's old field: analysisPlace.ts). */
+export async function prepareNarrationHistory(tx: FirebaseFirestore.Transaction, id: string, uid: string, revision: number, draft: boolean, sheet: MatchSheet, sources: NarrationSource[], old: FirebaseFirestore.DocumentSnapshot, oldAnalysis: NarratedAnalysis | undefined) {
+  const snapshots = [narrationSnapshot(sheet, sources), old.exists ? narrationSnapshot({ events: old.get('events') ?? [], analysis: oldAnalysis }) : null].filter(s => s !== null);
   if (snapshots.some(s => Buffer.byteLength(JSON.stringify(s)) > 900000)) throw new HttpsError('invalid-argument', 'El historial del análisis supera el tamaño permitido. Reduce los fragmentos privados.');
   const unique = new Map(snapshots.map(s => [createHash('sha256').update(JSON.stringify(s)).digest('hex'), s]));
   const entries = [...unique.entries()];

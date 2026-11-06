@@ -41,6 +41,8 @@ const emit = (path: string, docs: Row[]) => act(() => {
     docChanges: () => [{}], metadata: { fromCache: false, hasPendingWrites: false },
   });
 });
+/** The matches' listener opens the data bundle's named query, read asynchronously: wait for it before emitting. */
+const matchesOpen = () => waitFor(() => expect(state.listeners.get("matches")?.size ?? 0).toBeGreaterThan(0));
 const clients: QueryClient[] = [];
 function setup() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -82,6 +84,7 @@ it("keeps active draft-only boards for admins while archived published parents o
 it.each(["user", "scorer"])("does not request private draft parents for the %s role", async role => {
   state.role = role;
   const { result } = setup();
+  await matchesOpen();
   emit("lineups", [board("public", "published"), board("draft", "draft-only"), board("season")]);
   emit("matches", rows([["published"]]));
   await waitFor(() => expect(result.current.all.map(b => b.id)).toEqual(["public", "season"]));
@@ -92,6 +95,7 @@ it.each(["user", "scorer"])("does not request private draft parents for the %s r
 it("drops cached draft-only boards immediately when the admin role or session is lost", async () => {
   state.role = "superadmin";
   const { result, rerender } = setup();
+  await matchesOpen();
   emit("lineups", [board("public", "published"), board("draft", "draft-only")]);
   emit("matches", rows([["published"]]));
   emit("matchDrafts", rows([["draft-only"]]));

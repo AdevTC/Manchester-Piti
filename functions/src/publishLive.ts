@@ -13,7 +13,7 @@ import { requireScorer } from "./liveClock.js";
 import { calculateLedger, dateMillis, isPendingDup, type MatchEvent, type MatchSheet } from "./matchEngine.js";
 import { publishSheet, sheetSchema } from "./publishSheet.js";
 import { synchronizeCanonicalAnalysis } from './narrated/editing.js';
-import type { NarratedAnalysis } from './narrated/types.js';
+import { analysisOf, analysisRef } from './analysisPlace.js';
 
 const GOALS = new Set<string>(["goal", "goal_penalty", "goal_freekick"]);
 const input = z.object({
@@ -42,7 +42,7 @@ export const publishLive = onCall(PUBLICATION_RESOURCES, async (req) => {
   const actor = await memberAs(req);
   const data = parse(input, req.data);
   const id = data.matchId;
-  const [snap, priv] = await db.getAll(db.doc(`matches/${id}`), db.doc(`matchPrivate/${id}`));
+  const [snap, priv, place] = await db.getAll(db.doc(`matches/${id}`), db.doc(`matchPrivate/${id}`), analysisRef(id));
   if (!actor.isAdmin && !((priv.get("scorerUids") ?? []) as string[]).includes(actor.uid))
     throw new HttpsError("permission-denied", "Solo administradores y anotadores designados para este partido.");
   if (!snap.exists) throw new HttpsError("not-found", "Ese partido no existe.");
@@ -79,7 +79,8 @@ export const publishLive = onCall(PUBLICATION_RESOURCES, async (req) => {
     date: typeof (m.date as { toMillis?: unknown } | undefined)?.toMillis === "function" ? (m.date as { toMillis: () => number }).toMillis() : dateMillis(m.date),
     duration: m.duration,
     durationSeconds: m.durationSeconds,
-    analysis: synchronizeCanonicalAnalysis(m.analysis as NarratedAnalysis | undefined, m.events ?? [], events, typeof m.durationSeconds === 'number' ? m.durationSeconds : typeof m.duration === 'number' ? m.duration * 60 : 9000),
+    // (its own place, matchAnalysis/{id}, or the match's old field during the move: analysisPlace.ts)
+    analysis: synchronizeCanonicalAnalysis(analysisOf(place, snap), m.events ?? [], events, typeof m.durationSeconds === 'number' ? m.durationSeconds : typeof m.duration === 'number' ? m.duration * 60 : 9000),
     analysisCoverage: m.analysisCoverage,
     analysisNotes: m.analysisNotes,
     venue: m.venue ?? "",

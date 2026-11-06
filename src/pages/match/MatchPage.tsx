@@ -163,7 +163,8 @@ export function MatchPage() {
   const search = location.search as Record<string, unknown>;
   const { id: matchId, screen: urlScreen } = placeOf(location.pathname, search);
   const base = `/partidos/${encodeURIComponent(matchId)}`;
-  const { matches, players, loading, error } = useClubData();
+  // (with the narrated analysis: the moviola's pulse, Números, the siete's notas — lib/matchAnalyses)
+  const { matches, players, loading, error } = useClubData({ analysis: "wait" });
   const logos = useMemo(() => rivalLogos(matches), [matches]);
   const { seasons } = useSeason();
   const clockNow = useMatchClock(matches);
