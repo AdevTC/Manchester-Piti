@@ -517,7 +517,7 @@ export function VestuarioPage() {
                     <Go className="nx-lnk" href={pid ? `/jugadores/${pid}` : "/perfil"}>
                       {pid ? "Mi ficha" : "Mi perfil"}
                     </Go>
-                    <button type="button" className="nx-lnk" onClick={() => void logout()}>
+                    <button type="button" className="nx-lnk" onClick={() => void logout().catch(() => undefined)}>
                       Salir en este dispositivo
                     </button>
                   </nav>

@@ -162,6 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       void reassertPush();
     } catch (error) {
       console.error("Logout failed:", error);
+      // (the caller says why: «Salir» in Cuenta must not report a sign-out that didn't happen)
+      throw error;
     } finally {
       setLoading(false);
     }

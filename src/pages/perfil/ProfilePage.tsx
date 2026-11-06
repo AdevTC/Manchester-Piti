@@ -179,7 +179,9 @@ function Member({ screen, go, maq, say, toast, onRetry }: { screen: Screen; go: 
       // The server dropped this account's notices: this device forgets its topics too (best effort).
       if (savedTopics().length) void setTopics([]).catch(() => undefined);
       leaveDoorNotice("Te has dado de baja del vestuario. Para volver, un capitán tendrá que abrirte otra vez.");
-      await logout();
+      // (the baja is done on the server: a sign-out that fails here is not a failed baja — he is out of the
+      // vestuario anyway, and the door says so)
+      await logout().catch(() => undefined);
     },
   };
 
