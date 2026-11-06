@@ -64,3 +64,9 @@ export function hrefOf(a: Pick<Addr, "screen" | "focus" | "sec" | "a" | "b" | "v
   if (a.q) search.q = a.q;
   return { to: "/plantilla", search };
 }
+
+/** The search box when the address changes from outside (the dock, a link, «atrás»): la percha searches what its
+ *  address says, so without a ?q= it is empty again; the other screens leave the box as it was. */
+export function searchOnArrival(a: Pick<Addr, "screen" | "q">, q: string): string {
+  return a.screen === "home" ? a.q : q;
+}

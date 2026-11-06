@@ -30,7 +30,7 @@ import { useAvailability, useMatchScorers, useMvpResults } from "../../vestuario
 import { votesClosedAt } from "../../../lib/derived/mvpOf";
 import { applyMaqueta, readMaqueta } from "../../home/portada/maqueta";
 import { lastMatch, leaders, nextMatch, periodBase, periodCtx, seasonOfPlayer, toPlayer, winnersOf, type Ctx, type PPlayer } from "./model";
-import { addrOf, hrefOf, type Addr } from "./address";
+import { addrOf, hrefOf, searchOnArrival, type Addr } from "./address";
 import { SECS, SEC_LABEL, albumView, duelView, homeView, ledeView, matchLines, playerView, railView, type AnCat, type DayInput, type Quien, type Screen, type Sec, type Squad, type ViewState, type Who } from "./views";
 import { Hook, Ic, Shirt } from "./bits";
 import "../../../styles/vidrio/tokens.css";
@@ -233,7 +233,14 @@ export function PlantillaPage() {
     }
     lastGo.current = key;
     const dir: Dir = addr.screen === "player" && shown.screen === "player" && addr.focus !== shown.focus ? (S.ids.indexOf(addr.focus ?? "") > S.ids.indexOf(shown.focus ?? "") ? "right" : "left") : addr.screen === shown.screen ? (SECS.indexOf(addr.sec) >= SECS.indexOf(shown.sec) ? "right" : "left") : addr.screen === "home" ? "left" : "right";
-    transition(dir, reduced, () => flushSync(() => setShown(addr)));
+    transition(dir, reduced, () =>
+      flushSync(() => {
+        setShown(addr);
+        // (la percha reached from outside — the dock, a link, «atrás» — searches what its address says: without a
+        // ?q= the box is empty again, not the text left from before)
+        setUi((u) => (searchOnArrival(addr, u.q) === u.q ? u : { ...u, q: searchOnArrival(addr, u.q) }));
+      }),
+    );
     // (only the address drives this)
   }, [addr]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -327,7 +334,8 @@ export function PlantillaPage() {
     }
     go(toAddr({ screen: "player", focus: id, sec: sec ?? "ficha", all: false }), { dir: "right", el });
   };
-  const goHome = () => go(toAddr({ screen: "home", focus: null, all: false }), { dir: "left", home: screen === "player" ? shown.focus : null });
+  // (back to la percha with the search still in the box: it goes in the address too)
+  const goHome = () => go(toAddr({ screen: "home", focus: null, all: false, q: ui.q }), { dir: "left", home: screen === "player" ? shown.focus : null });
   const stepPlayer = (d: 1 | -1) => {
     const n = S.ids.length;
     if (!n || !shown.focus) return;

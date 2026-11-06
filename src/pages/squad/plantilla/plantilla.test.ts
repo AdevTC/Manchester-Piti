@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { PlayerDoc } from "../../../lib/schemas";
-import { addrOf, hrefOf } from "./address";
+import { addrOf, hrefOf, searchOnArrival } from "./address";
 import { adn, age, birthday, heightText, medals, missing, periodCtx, seasonOfPlayer, sign, stats, toPlayer } from "./model";
 import { duelView, homeView, ledeView, matchLines, railView, type DayInput, type Squad, type ViewState, type Who } from "./views";
 
@@ -37,6 +37,13 @@ describe("the addresses", () => {
     const esta = hrefOf({ ...addrOf("/jugadores/abc", { season: "all" }), all: false }, "all");
     expect(esta.search).toEqual({ season: "all", periodo: "temporada" });
     expect(addrOf(esta.to, esta.search).all).toBe(false);
+  });
+  it("la percha reached from outside without ?q= empties the search box; with ?q=, takes it", () => {
+    expect(searchOnArrival(addrOf("/plantilla", {}), "jo")).toBe("");
+    expect(searchOnArrival(addrOf("/plantilla", { q: "pe" }), "jo")).toBe("pe");
+    // (a player's or the album's address has no search: the box is la percha's, left as it was)
+    expect(searchOnArrival(addrOf("/jugadores/abc", {}), "jo")).toBe("jo");
+    expect(searchOnArrival(addrOf("/plantilla/album", {}), "jo")).toBe("jo");
   });
 });
 
