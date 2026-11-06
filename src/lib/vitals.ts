@@ -82,11 +82,28 @@ export function attributionOf(m: AnyMetric): Attr {
   }
 }
 
+/** True when this document started loading in a tab nobody was looking at: the service worker's switch to a new
+ *  deploy reloads a hidden tab (lib/appUpdate), and a hidden tab's load runs throttled (its TTFB waits ~1 s for a
+ *  slot), so its numbers are no one's wait. The first `visibility-state` entry says how it started; without that API,
+ *  whether it is hidden now (this runs right after the first render). */
+export function startedHidden(perf: Pick<Performance, "getEntriesByType"> = performance, doc: Pick<Document, "visibilityState"> = document): boolean {
+  try {
+    const first = perf.getEntriesByType("visibility-state")[0];
+    if (first) return first.name === "hidden";
+  } catch {
+    /* no such entry type */
+  }
+  return doc.visibilityState === "hidden";
+}
+
 /** A metric as one compact record. */
-export function recordOf(m: AnyMetric): VitalRecord {
+export function recordOf(m: AnyMetric, hidden = false): VitalRecord {
   const v = m.name === "CLS" ? Math.round(m.value * 1000) / 1000 : Math.round(m.value);
   const url = (m as { navigationURL?: string }).navigationURL;
-  return { n: m.name, v, r: m.rating, p: pageOf(url ? new URL(url, location.href).pathname : location.pathname), nt: m.navigationType, a: attributionOf(m) };
+  const a = attributionOf(m);
+  // (only TTFB is reported for a load that began hidden: web-vitals leaves out the paints of such a page)
+  if (hidden && m.name === "TTFB") a.bg = true;
+  return { n: m.name, v, r: m.rating, p: pageOf(url ? new URL(url, location.href).pathname : location.pathname), nt: m.navigationType, a };
 }
 
 /** The device as a class (no identifiers). */
@@ -156,7 +173,8 @@ export async function startVitals(): Promise<void> {
   here = pageOf(location.pathname);
   onViewTransition((t, page) => watchFrames(t, page, push));
   const { onCLS, onFCP, onINP, onLCP, onTTFB } = await import("web-vitals/attribution");
-  const report = (m: AnyMetric) => push(recordOf(m));
+  const hidden = startedHidden();
+  const report = (m: AnyMetric) => push(recordOf(m, hidden));
   // (each page of the app reports its own INP, CLS and LCP where the browser tells page changes apart)
   onLCP(report, { reportSoftNavs: true });
   onINP(report, { reportSoftNavs: true });

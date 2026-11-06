@@ -27,8 +27,12 @@ const clean = (v) => (typeof v === "string" ? [...v].filter((c) => { const k = c
 const all = snap.docs.map((d) => clean(d.data()));
 const reports = all.filter((r) => !r.d?.bot && (!touchOnly || r.d?.touch));
 const bots = all.length - all.filter((r) => !r.d?.bot).length;
-const rows = reports.flatMap((r) => (r.m ?? []).map((m) => ({ ...m, d: r.d })));
-console.log(`${reports.length} envíos, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}${bots ? ` (${bots} de robots fuera)` : ""}\n`);
+// (the TTFB of a load that began in a hidden tab — the switch to a new deploy reloads tabs in the background — is no
+// one's wait: lib/vitals marks it `bg` and it stays out)
+const measured = reports.flatMap((r) => (r.m ?? []).map((m) => ({ ...m, d: r.d })));
+const rows = measured.filter((m) => !m.a?.bg);
+const background = measured.length - rows.length;
+console.log(`${reports.length} envíos, ${rows.length} medidas, desde ${since}${touchOnly ? " (solo pantallas táctiles)" : ""}${bots ? ` (${bots} de robots fuera)` : ""}${background ? ` (${background} TTFB de pestañas ocultas fuera)` : ""}\n`);
 
 const p75 = (xs) => {
   if (!xs.length) return null;
