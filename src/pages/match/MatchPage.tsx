@@ -163,15 +163,19 @@ export function MatchPage() {
   const search = location.search as Record<string, unknown>;
   const { id: matchId, screen: urlScreen } = placeOf(location.pathname, search);
   const base = `/partidos/${encodeURIComponent(matchId)}`;
-  // (with the narrated analysis: the moviola's pulse, Números, the siete's notas — lib/matchAnalyses)
-  const { matches, players, loading, error } = useClubData({ analysis: "wait" });
+  // (with the narrated analysis: the moviola's pulse, Números, the siete's notas — lib/matchAnalyses. The match's own
+  // screen arriving painted by the server (api/render.js, which renders it without the analyses) paints as the server
+  // did and takes them when they come, never before React has taken the server's markup over (so its first render is
+  // the server's even when they are already in) — the pulse's ribbon draws in then; every other way in waits for them)
+  const hydrated = useHydrated();
+  const [painted] = useState(() => typeof document === "undefined" || document.documentElement.hasAttribute("data-ssr"));
+  const { matches, players, loading, error } = useClubData({ analysis: painted && urlScreen === "partido" ? (hydrated ? "soft" : undefined) : "wait" });
   const logos = useMemo(() => rivalLogos(matches), [matches]);
   const { seasons } = useSeason();
   const clockNow = useMatchClock(matches);
   const { user, profile } = useAuth();
   const v0 = useViewer();
   const { theme } = useTheme();
-  const hydrated = useHydrated();
   const desktop = useDesktop();
   const reduced = useReducedMotion();
   const mvpResults = useMvpResults();

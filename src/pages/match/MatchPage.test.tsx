@@ -11,7 +11,7 @@ import { longSeasonFixture } from "../../lib/derived/vidrio/fixtures";
 
 const F = longSeasonFixture();
 const clock = vi.hoisted(() => ({ now: 0 }));
-const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[], error: null as Error | null, loading: false }));
+const data = vi.hoisted(() => ({ matches: [] as unknown[], players: [] as unknown[], error: null as Error | null, loading: false, analysis: [] as unknown[] }));
 const route = vi.hoisted(() => ({
   path: "/partidos/j5",
   search: {} as Record<string, unknown>,
@@ -34,7 +34,10 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("../../lib/clubData", async (orig) => ({
   ...(await orig<typeof import("../../lib/clubData")>()),
-  useClubData: () => ({ matches: data.matches, players: data.players, loading: data.loading, error: data.error }),
+  useClubData: (o?: { analysis?: unknown }) => {
+    data.analysis.push(o?.analysis);
+    return { matches: data.matches, players: data.players, loading: data.loading, error: data.error };
+  },
 }));
 vi.mock("../../context/SeasonContext", () => ({ useSeason: () => ({ seasons: seasons.list, selectedSeasonId: "all", loadingSeasons: false }) }));
 vi.mock("../../context/AuthContext", () => ({ useAuth: () => ({ user: who.member ? { uid: "u-jordi" } : null, profile: null, loading: false }) }));
@@ -110,6 +113,7 @@ beforeEach(() => {
   data.players = players;
   data.error = null;
   data.loading = false;
+  data.analysis = [];
   seasons.list = [{ id: F.seasonId, name: "Temporada larga", captainPlayerId: "adrian" }];
   route.path = "/partidos/j5";
   route.search = {};
@@ -247,4 +251,24 @@ it("states: loading, a match that is not in the calendar and the data error", ()
   data.error = new Error("unavailable");
   render(<MatchPage />);
   expect(screen.getByRole("alert")).toBeInTheDocument();
+});
+
+it("the analyses: arriving painted by the server at the match's own screen, it paints as the server did and takes them when they come; every other way in waits for them", () => {
+  document.documentElement.setAttribute("data-ssr", "");
+  try {
+    const r1 = render(<MatchPage />);
+    expect(data.analysis.filter(Boolean).at(-1)).toBe("soft");
+    r1.unmount();
+    data.analysis = [];
+    route.path = "/partidos/j5/numeros";
+    const r2 = render(<MatchPage />);
+    expect(data.analysis.filter(Boolean).at(-1)).toBe("wait");
+    r2.unmount();
+  } finally {
+    document.documentElement.removeAttribute("data-ssr");
+  }
+  data.analysis = [];
+  route.path = "/partidos/j5";
+  render(<MatchPage />);
+  expect(data.analysis.filter(Boolean).at(-1)).toBe("wait");
 });
