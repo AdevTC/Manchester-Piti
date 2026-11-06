@@ -5,10 +5,9 @@
 // the status strip, the unsaved-changes guard, the search's commands (⌘K opens the web's search with them: the
 // frame's SalaSearch) and their registry, the frame's head (title, line and way back), the dock's counters, the
 // keyboard (g + place, `/`, `n`) and how a change of screen travels
-// (law 4, on the web's page transitions). Motion follows the device's reduced-motion setting.
+// (law 4, on the web's page transitions).
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { MotionConfig } from "motion/react";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../hooks/useTheme";
 import { useClock } from "../../../hooks/useClock";
@@ -75,15 +74,13 @@ export function AdminLayout() {
   const viewer: Viewer = { name: nick, role: ROLE[profile?.role ?? ""] ?? (profile?.playerId ? "Jugador" : "Socio") };
   const size = width < 700 ? "is-phone" : width < 1100 ? "is-tablet" : width >= 1800 ? "is-desk is-big" : "is-desk";
   return (
-    <MotionConfig reducedMotion="user">
-      <FrameContext.Provider value={frame}>
-        <div ref={rootRef} className={`vx sc ${frame.desktop ? "d" : "m"} ${size}`}>
-          <LayerProvider appRef={appRef}>
-            <StatusProvider>{captain ? <CaptainSala appRef={appRef} viewer={viewer} desktop={frame.desktop} /> : <DoorSala appRef={appRef} viewer={viewer} desktop={frame.desktop} />}</StatusProvider>
-          </LayerProvider>
-        </div>
-      </FrameContext.Provider>
-    </MotionConfig>
+    <FrameContext.Provider value={frame}>
+      <div ref={rootRef} className={`vx sc ${frame.desktop ? "d" : "m"} ${size}`}>
+        <LayerProvider appRef={appRef}>
+          <StatusProvider>{captain ? <CaptainSala appRef={appRef} viewer={viewer} desktop={frame.desktop} /> : <DoorSala appRef={appRef} viewer={viewer} desktop={frame.desktop} />}</StatusProvider>
+        </LayerProvider>
+      </div>
+    </FrameContext.Provider>
   );
 }
 
