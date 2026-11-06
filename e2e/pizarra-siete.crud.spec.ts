@@ -207,7 +207,7 @@ test("la ficha: tocar dos veces a un jugador abre su ficha; se cierra con Esc y 
   await expect(ficha.getByRole("button", { name: "Mover a…" })).toBeVisible();
   await expect(ficha.getByRole("button", { name: "Quitar del siete" })).toBeVisible();
   await expect(ficha.getByRole("button", { name: "Darle el brazalete" })).toBeVisible();
-  await expect(ficha.getByRole("link", { name: "Ver su página" })).toHaveAttribute("href", /\/jugadores\/preview-player-2$/);
+  await expect(ficha.getByRole("link", { name: "Ver su página" })).toHaveAttribute("href", /\/jugadores\/preview-player-2(\?season=preview-season)?$/);
   // Esc closes it (focus is inside: on its ×)
   await expect(ficha.getByRole("button", { name: "Cerrar" })).toBeFocused();
   await page.keyboard.press("Escape");
