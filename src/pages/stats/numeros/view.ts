@@ -203,7 +203,10 @@ export function numerosView(st: NuState, env: Env, act: Act) {
     return (w.length > 1 ? w[0].charAt(0) + w[1].charAt(0) : (w[0] || n).slice(0, 2)).toUpperCase();
   };
   const info = (k: string) => () => act.open("info", k);
-  const pendingN = se.matches.filter((m) => m.st === "por").length;
+  // «en casa» / «fuera»: the filter cuts the matches, so the copy counts partidos of that side, never jornadas
+  const sideW = st.campo === "casa" ? "en casa" : st.campo === "fuera" ? "fuera" : "";
+  const pendingN = se.matches.filter((m) => m.st === "por" && (!sideW || (st.campo === "casa") === m.home)).length;
+  const pendingT = pendingN ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar${sideW ? ` ${sideW}` : ""}.` : ".";
 
   // ---------- the table (none until the captain publishes it)
   const tbl = table(se, withLive && !all);
@@ -223,10 +226,14 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         : scrubbed
           ? `Estás viendo la temporada tal como estaba tras la J${upto}.`
           : !gsDone.length
-            ? `${se.S.name}. Aún no se ha jugado ninguna jornada: todos a cero${pendingN ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`
+            ? sideW
+              ? `${se.S.name}. Aún no hemos jugado ${sideW}: todos a cero${pendingT}`
+              : `${se.S.name}. Aún no se ha jugado ninguna jornada: todos a cero${pendingT}`
             : st.partidos.length
               ? `${se.S.name}: ${st.partidos.length === 1 ? "solo el partido elegido" : `los ${st.partidos.length} partidos elegidos`}.`
-              : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
+              : sideW
+                ? `${se.S.name}, ${gsDone.length === 1 ? "el único partido" : `los ${gsDone.length} partidos`} ${sideW}. Oficial desde el acta${se.S.real ? pendingT : "."}`
+                : `${se.S.name}, después de ${gsDone.length === 1 ? "la primera jornada" : `${gsDone.length} jornadas`}. Oficial desde el acta${se.S.real ? `; ${pendingN === 1 ? "queda" : "quedan"} ${pendingN} por jugar.` : "."}`;
   let maxG = 1;
   se.matches.forEach((m) => {
     if (m.gf != null) maxG = Math.max(maxG, m.gf, m.ga ?? 0);
@@ -437,6 +444,8 @@ export function numerosView(st: NuState, env: Env, act: Act) {
   const leaders = rk.filter((r) => r.rank === 1 && r.val > 0);
   const raceLabel = { goles: "goles", asist: "asistencias", ga: "goles y asistencias" }[st.raceK];
   const nScorers = rk.filter((r) => r.val > 0).length;
+  // (la carrera with the filter on counts only that side's goals)
+  const raceSideW = st.campo === "casa" ? "en casa" : st.campo === "fuera" ? "fuera de casa" : "";
   const tem = {
     kick: all ? "Todas las temporadas" : `${se.S.name}${se.S.league ? ` · ${se.S.league}` : ""}`,
     title: tableReal
@@ -445,7 +454,7 @@ export function numerosView(st: NuState, env: Env, act: Act) {
         : withLive
           ? `${pos}, si acaba así`
           : `${pos} en la tabla`
-      : `${T.pts}${T.pts === 1 ? " punto" : " puntos"}${all ? ", todas las temporadas" : scrubbed ? ` tras la J${upto}` : nPart ? (nPart === 1 ? " en el partido elegido" : ` en los ${nPart} partidos elegidos`) : !hasTable ? ` tras ${T.pj === 1 ? "la primera jornada" : `${T.pj} jornadas`}` : ` tras la J${upto}`}`,
+      : `${T.pts}${T.pts === 1 ? " punto" : " puntos"}${all ? ", todas las temporadas" : sideW && !nPart ? (scrubbed || hasTable ? ` ${sideW} tras la J${upto}` : T.pj ? ` en ${T.pj === 1 ? "un partido" : `${T.pj} partidos`} ${sideW}` : `: aún no hemos jugado ${sideW}`) : scrubbed ? ` tras la J${upto}` : nPart ? (nPart === 1 ? " en el partido elegido" : ` en los ${nPart} partidos elegidos`) : !hasTable ? ` tras ${T.pj === 1 ? "la primera jornada" : `${T.pj} jornadas`}` : ` tras la J${upto}`}`,
     sub: `${T.g}G ${T.e}E ${T.p}P · ${T.gf}–${T.ga}${st.campo !== "todo" ? (st.campo === "casa" ? " en casa" : " fuera") : ""}${!hasTable ? " · la liga aún no ha publicado la clasificación" : ""}`,
     prov: withLive && tableReal,
     showTable: hasTable && (tableReal || all || st.campo !== "todo" || nPart > 0),
@@ -477,7 +486,9 @@ export function numerosView(st: NuState, env: Env, act: Act) {
       ] as const
     ).map((v) => ({ t: v[1], on: st.raceK === v[0], pick: set({ raceK: v[0] }) })),
     raceI: ["goles", "asist", "ga"].indexOf(st.raceK),
-    raceCap: leaders.length ? `En cabeza tras la J${upto}: ${list(leaders.map((r) => r.name))}, ${leaders[0].val}` : `Nadie ${st.raceK === "asist" ? "ha dado un pase de gol" : "ha marcado"} aún: el primero estrena la carrera.`,
+    raceCap: leaders.length
+      ? `${raceSideW ? `${raceSideW.charAt(0).toUpperCase()}${raceSideW.slice(1)}, en cabeza` : "En cabeza"} tras la J${upto}: ${list(leaders.map((r) => r.name))}, ${leaders[0].val}`
+      : `Nadie ${st.raceK === "asist" ? "ha dado un pase de gol" : "ha marcado"} aún${raceSideW ? ` ${raceSideW}` : ""}: el primero estrena la carrera.`,
     raceSub:
       leadTop && lead[leadTop] > 1
         ? `Más jornadas en cabeza: ${ND.name(leadTop)} (${lead[leadTop]})`
