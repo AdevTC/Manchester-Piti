@@ -219,6 +219,8 @@ export interface MesaAddOpts {
   playerId?: string;
   assistPlayerId?: string;
   inPlayerId?: string;
+  /** A goal whose pass was already answered («Sin pase» included): «Deshacer» of a deletion brings it back so. */
+  assistReviewed?: boolean;
 }
 
 /** One play of a wave: a change (who goes off, who comes on) or a swap of place (the two who trade). */

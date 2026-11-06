@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MesaQueue, isRejection, itemPlays, parseQueue, pendingByPlayer, queueKey, serializeQueue, type QueueItem } from "./queue";
+import { MesaQueue, RESEND_SENT_MS, SESSION_GONE, isRejection, itemPlays, parseQueue, pendingByPlayer, queueKey, removeQueued, serializeQueue, type QueueItem } from "./queue";
 
 const memory = () => {
   const m = new Map<string, string>();
@@ -227,6 +227,76 @@ describe("la cola de la mesa", () => {
     await flushed();
     expect(q.amend("a", { elapsedSeconds: 9 * 60 + 30 })).toBe(true);
     expect(q.getSnapshot().items[0].payload).toMatchObject({ minute: 9, tappedElapsed: 570, playerId: "p1" });
+    q.close();
+  });
+
+  it("deshacer una jugada ya subida que el directo aún no muestra la borra en el servidor y la saca de la cola: no vuelve a subir", async () => {
+    vi.useFakeTimers();
+    const sent: string[] = [];
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => true, send: async (x) => void sent.push(x.requestId) });
+    q.enqueue(item("g", { type: "goal" }));
+    await flushed();
+    const [it] = q.getSnapshot().items;
+    expect(it.status).toBe("sent");
+    const deleted: string[] = [];
+    await removeQueued(q, { item: it, index: 0 }, async () => void deleted.push(it.requestId));
+    expect(deleted).toEqual(["g"]);
+    expect(q.getSnapshot().items).toEqual([]);
+    await vi.advanceTimersByTimeAsync(RESEND_SENT_MS * 2);
+    expect(sent).toEqual(["g"]);
+    q.close();
+  });
+
+  it("deshacer una jugada que sigue en el móvil solo la saca de la cola; si el borrado en el servidor falla, la jugada subida se queda", async () => {
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => false, send: async () => { throw offline(); } });
+    q.enqueue(item("a"));
+    await flushed();
+    const del = vi.fn(async () => undefined);
+    await removeQueued(q, { item: q.getSnapshot().items[0], index: 0 }, del);
+    expect(del).not.toHaveBeenCalled();
+    expect(q.getSnapshot().items).toEqual([]);
+    q.close();
+
+    const q2 = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => true, send: async () => undefined });
+    q2.enqueue(item("b"));
+    await flushed();
+    await expect(removeQueued(q2, { item: q2.getSnapshot().items[0], index: 0 }, async () => { throw offline(); })).rejects.toThrow();
+    expect(q2.getSnapshot().items.map((x) => x.status)).toEqual(["sent"]);
+    q2.close();
+  });
+
+  it("con la sesión caducada la jugada no se reintenta sin fin como «sin señal»: va a «Por revisar» diciéndolo", async () => {
+    vi.useFakeTimers();
+    let tries = 0;
+    const q = new MesaQueue({
+      key: "k",
+      storage: memory(),
+      channel: null,
+      isOnline: () => true,
+      send: async () => {
+        tries++;
+        throw Object.assign(new Error("unauthenticated"), { code: "functions/unauthenticated" });
+      },
+    });
+    q.enqueue(item("a"));
+    await flushed();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(tries).toBe(1);
+    expect(q.getSnapshot().offline).toBe(false);
+    expect(q.getSnapshot().items[0]).toMatchObject({ status: "review", reason: SESSION_GONE });
+    q.close();
+  });
+
+  it("una jugada que el servidor ya tuvo y otro anotador quitó («gone») sale de la cola y no vuelve a subir", async () => {
+    vi.useFakeTimers();
+    const sent: string[] = [];
+    const q = new MesaQueue({ key: "k", storage: memory(), channel: null, isOnline: () => true, send: async (x) => (sent.push(x.requestId), x.requestId === "a" ? { gone: true } : undefined) });
+    q.enqueue(item("a"));
+    q.enqueue(item("b"));
+    await flushed();
+    expect(q.getSnapshot().items.map((x) => [x.requestId, x.status])).toEqual([["b", "sent"]]);
+    await vi.advanceTimersByTimeAsync(RESEND_SENT_MS * 2);
+    expect(sent.filter((x) => x === "a")).toHaveLength(1);
     q.close();
   });
 

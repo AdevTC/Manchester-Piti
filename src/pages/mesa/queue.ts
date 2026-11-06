@@ -70,12 +70,16 @@ export const serializeQueue = (items: readonly QueueItem[]): string => JSON.stri
 
 /** The callable's codes that mean «the server looked at it and said no»: anything else is the network
  *  (or a passing hiccup) and is simply tried again. */
-const REJECTED = new Set(["invalid-argument", "failed-precondition", "permission-denied", "not-found", "out-of-range", "already-exists"]);
+//  `unauthenticated` is one of them: the session is gone (signed out, revoked), and trying again every 5 s under
+//  «sin señal» would never get it up — the play waits in «Por revisar», saying so, to be resent once signed in.
+const REJECTED = new Set(["invalid-argument", "failed-precondition", "permission-denied", "not-found", "out-of-range", "already-exists", "unauthenticated"]);
+const codeOf = (error: unknown): string => (typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "").replace(/^functions\//, "");
 export function isRejection(error: unknown): boolean {
-  const code = typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "";
-  return REJECTED.has(code.replace(/^functions\//, ""));
+  return REJECTED.has(codeOf(error));
 }
+export const SESSION_GONE = "Tu sesión ha caducado: vuelve a entrar y reenvía la jugada. Sigue guardada en este móvil.";
 const messageOf = (error: unknown): string => {
+  if (codeOf(error) === "unauthenticated") return SESSION_GONE;
   const m = typeof error === "object" && error && "message" in error ? String((error as { message: unknown }).message) : "";
   return m && !/^(internal|INTERNAL)$/.test(m) ? m : "El servidor no ha aceptado la jugada.";
 };
@@ -91,8 +95,9 @@ export interface QueueSnapshot {
 
 export interface QueueOptions {
   key: string;
-  /** Uploads one play (liveEvent add). Resolves when the server took it. */
-  send: (item: QueueItem) => Promise<void>;
+  /** Uploads one play (liveEvent add). Resolves when the server took it; `gone`: it had landed before and was
+   *  taken out since (another scorer's «Es el mismo», a «Borrar»): it leaves the queue, never to be sent again. */
+  send: (item: QueueItem) => Promise<void | { gone?: boolean }>;
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
   now?: () => number;
   /** Cross-tab channel (tests pass null). */
@@ -306,9 +311,11 @@ export class MesaQueue {
       this.lastTryAt = this.o.now();
       this.emit();
       try {
-        await this.o.send(next);
+        const r = await this.o.send(next);
         this.netDown = false;
-        this.patch(next.requestId, { status: "sent", sentAt: this.o.now() });
+        if (r && r.gone) {
+          if (this.items.some((x) => x.requestId === next.requestId)) this.set(this.items.filter((x) => x.requestId !== next.requestId));
+        } else this.patch(next.requestId, { status: "sent", sentAt: this.o.now() });
       } catch (e) {
         if (isRejection(e)) this.patch(next.requestId, { status: "review", reason: messageOf(e) });
         else {
@@ -353,6 +360,16 @@ export class MesaQueue {
       /* already closed */
     }
   }
+}
+
+/** «Deshacer» / «Borrar» of play `index` of a queued item. Still on this phone: it just leaves the queue. Already
+ *  up (the server took it) but not yet in the realtime doc: deleted on the server, and then it leaves the queue
+ *  too — kept as «sent», it would still show as a local play and, after RESEND_SENT_MS, go up again under the
+ *  same requestId (the server only knows ids still in the record), bringing the undone goal back. */
+export async function removeQueued(queue: Pick<MesaQueue, "drop"> | null, q: { item: Pick<QueueItem, "requestId" | "status">; index: number }, deleteOnServer: () => Promise<void>): Promise<void> {
+  if (q.item.status !== "sent" && queue?.drop(q.item.requestId, q.index)) return;
+  await deleteOnServer();
+  if (q.item.status === "sent") queue?.drop(q.item.requestId);
 }
 
 /** The plays per player still to go up (the «↓N» badges): who did it and who came in. */

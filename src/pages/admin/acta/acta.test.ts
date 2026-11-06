@@ -119,8 +119,13 @@ describe("club time", () => {
   });
   it("proposes the next match a week after the last one, or next Sunday at 11:00", () => {
     expect(proposeDate(KICKOFF, NOW)).toBe(KICKOFF + 7 * 24 * 3600_000);
-    expect(proposeDate(KICKOFF - 21 * 24 * 3600_000, NOW)).toBe(KICKOFF + 7 * 24 * 3600_000);
+    // (three weeks earlier was still summer time: 11 Oct at 11:00 in Madrid, so the next one is 8 Nov at 11:00)
+    expect(dateInput(proposeDate(KICKOFF - 21 * 24 * 3600_000, NOW))).toBe("2026-11-08T11:00");
     expect(dateInput(proposeDate(undefined, NOW))).toBe("2026-11-08T11:00");
+  });
+  it("a week after a match on the eve of the clock change keeps its Madrid time", () => {
+    expect(dateInput(proposeDate(madridTime("2026-10-25T10:00"), madridTime("2026-10-26T09:00")))).toBe("2026-11-01T10:00");
+    expect(dateInput(proposeDate(madridTime("2026-03-22T10:00"), madridTime("2026-03-23T09:00")))).toBe("2026-03-29T10:00");
   });
 });
 

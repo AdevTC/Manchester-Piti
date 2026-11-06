@@ -5,7 +5,7 @@
 // caja); the table of the jornada (→ el club); the notices that went out (pushSent); the turns; the logros (M-10);
 // the video with a mark per goal (M-43, setVideoMarks) and the photos. Its foot: «Publicada · la web ya lo cuenta»,
 // «Corregir el acta», «Ver en la web» and «Compartir el cartel». It replaces today's publish peak (the vitrina).
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { DocumentData } from "firebase/firestore";
 import { storedNotasOf } from "../../../../../functions/src/rating/frozen";
 import { apiError, markTurnDone, recalcMatchNotas, setMvpVote, setVideoMarks } from "../../../../lib/clubApi";
@@ -74,13 +74,20 @@ function After({ pub }: { pub: ClubMatch }) {
   };
   const rival = pub.rival || "Rival";
   const scorers = fanScorers(sheet, nameOf);
-  const [busy, setBusy] = useState<"close" | "reopen" | "notas" | "marks" | null>(null);
+  const [busy, setBusyState] = useState<"close" | "reopen" | "notas" | "marks" | null>(null);
+  // (one call at a time: the buttons are aria-disabled, which still takes the tap — a double tap sent two calls)
+  const busyRef = useRef<typeof busy>(null);
+  const setBusy = (k: typeof busy) => {
+    busyRef.current = k;
+    setBusyState(k);
+  };
 
   // ── the MVP ──
   const result: MvpResult | undefined = mvpResults.get(match.id);
   const winners = mvpWinners(pub, result, data.now).map(nameOf);
   const mvp = mvpView({ voteClosesAt: pub.voteClosesAt, publishedAt: pub.actaPublishedAt ?? null, total: result?.total ?? 0, eligible: result?.eligible ?? null, winners, now: data.now });
   const moveMvp = async (action: "close" | "reopen") => {
+    if (busyRef.current) return;
     setBusy(action);
     try {
       const r = (await setMvpVote({ matchId: match.id, action })).data;
@@ -96,6 +103,7 @@ function After({ pub }: { pub: ClubMatch }) {
   const notas = notaRows(storedNotasOf(pub), nameOf);
   const notasFailed = !!priv.notasError || !notas.length;
   const recalc = async () => {
+    if (busyRef.current) return;
     setBusy("notas");
     try {
       const r = (await recalcMatchNotas({ matchId: match.id })).data;
@@ -154,6 +162,7 @@ function After({ pub }: { pub: ClubMatch }) {
   const goals = goalRows(sheet).filter((g) => g.kind === "og" || g.scorer);
   const [marks, setMarks] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(pub.videoMarks ?? {}).map(([k, v]) => [k, clock(v)])));
   const saveMarks = async () => {
+    if (busyRef.current) return;
     const out: Record<string, number> = {};
     for (const [k, v] of Object.entries(marks)) {
       if (!v.trim()) continue;

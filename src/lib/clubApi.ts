@@ -139,7 +139,7 @@ export type MesaEventRequest =
   | { action: "edit"; matchId: string; eventId: string; patch: MesaEventPatch }
   | { action: "delete"; matchId: string; eventId: string }
   | { action: "undo"; matchId: string; eventId: string };
-const mesaEventCall = withServerTime(lazyCallable<MesaEventRequest, { events: number; serverNow?: number }>("liveEvent"));
+const mesaEventCall = withServerTime(lazyCallable<MesaEventRequest, { events: number; gone?: boolean; serverNow?: number }>("liveEvent"));
 /** La mesa → liveEvent, with the undefined keys dropped (in the envelope, `event` and `patch`). */
 export const mesaEvent = (data: MesaEventRequest) =>
   mesaEventCall(data.action === "add" ? { ...defined(data), event: defined(data.event) } : data.action === "edit" ? { ...data, patch: defined(data.patch) } : data);

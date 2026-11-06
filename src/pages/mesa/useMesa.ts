@@ -18,11 +18,11 @@ import { useStandings } from "../../lib/useStandings";
 import { lineupSeven, parseMatchLineup, parsePresent } from "../../lib/matchLineup";
 import { useMaqueta } from "./useMaqueta";
 import { addSubs, MAX_WAVE } from "./api";
-import { MesaQueue, itemPlays, pendingByPlayer, queueKey, type QueueItem, type QueuePayload } from "./queue";
+import { MesaQueue, itemPlays, pendingByPlayer, queueKey, removeQueued, type QueueItem, type QueuePayload } from "./queue";
 import {
-  buzzOf, counted, eventText, goalSide, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
+  buzzOf, counted, eventText, liveId, mesaClock, mesaEvents, mesaPlayers, mesaScore, nextPlannedSub,
   boardExtrasOf, NO_EXTRAS, rivalInitialsOf, rivalShortOf, withLocal, type BoardExtras, type LocalPlay, type PlayerInfo,
-  mesaSuggestion, penaltyNow,
+  mesaSuggestion, penaltyNow, assistReviewedOf,
 } from "./model";
 import type { ClockAction, MesaActions, MesaAddOpts, MesaEditPatch, MesaNav, MesaPresence, MesaQueueState, MesaType, MesaView, MesaWaveItem } from "./types";
 
@@ -125,11 +125,11 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
       send: async (item: QueueItem) => {
         if (item.batch) {
           // a wave of changes (and swaps of place): one operation, all or none
-          await addSubs(item.matchId, item.requestId, item.batch.map((b) => ({ type: b.type === "position_swap" ? ("position_swap" as const) : ("substitution" as const), playerId: b.playerId ?? "", inPlayerId: b.inPlayerId ?? "", minute: b.minute, clockRevision: b.clockRevision, tappedElapsed: b.tappedElapsed, period: b.period })));
-          return;
+          const r = await addSubs(item.matchId, item.requestId, item.batch.map((b) => ({ type: b.type === "position_swap" ? ("position_swap" as const) : ("substitution" as const), playerId: b.playerId ?? "", inPlayerId: b.inPlayerId ?? "", minute: b.minute, clockRevision: b.clockRevision, tappedElapsed: b.tappedElapsed, period: b.period })));
+          return { gone: r.data.gone === true };
         }
         const p = item.payload;
-        await mesaEvent({
+        const r = await mesaEvent({
           action: "add",
           matchId: item.matchId,
           requestId: item.requestId,
@@ -138,6 +138,8 @@ function useQueue(uid: string | undefined, matchId: string | undefined): MesaQue
           period: p.period,
           event: { type: p.type, minute: p.minute, playerId: p.playerId, assistPlayerId: p.assistPlayerId, assistReviewed: p.assistReviewed, inPlayerId: p.inPlayerId },
         });
+        // (it had landed and was taken out since: liveEvent says `gone`, and the queue lets it go)
+        return { gone: r.data.gone === true };
       },
     });
     // The queue owns a BroadcastChannel and timers, so this effect must build it; React then has to hear of it.
@@ -266,7 +268,7 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
         ...(opts.playerId ? { playerId: opts.playerId } : {}),
         ...(opts.assistPlayerId ? { assistPlayerId: opts.assistPlayerId } : {}),
         ...(opts.inPlayerId ? { inPlayerId: opts.inPlayerId } : {}),
-        ...(goalSide(type) === "us" && type === "goal" && opts.playerId ? { assistReviewed: !!opts.assistPlayerId } : {}),
+        ...assistReviewedOf(type, opts),
       };
     };
     const textOf = (type: MesaType, opts: MesaAddOpts) =>
@@ -280,12 +282,15 @@ export function useMesa({ matchId, me, nav }: MesaInput): { view: MesaView | nul
     };
     const remove = async (id: string) => {
       const q = await settled(id);
-      if (q && q.item.status !== "sent" && queue?.drop(q.item.requestId, q.index)) return;
-      try {
-        await mesaEvent({ action: "delete", matchId, eventId: id });
-      } catch (e) {
-        fail(e);
-      }
+      const deleteOnServer = async () => {
+        try {
+          await mesaEvent({ action: "delete", matchId, eventId: id });
+        } catch (e) {
+          fail(e);
+        }
+      };
+      if (q) await removeQueued(queue, q, deleteOnServer);
+      else await deleteOnServer();
     };
     const clock = async (action: ClockAction, value?: number) => {
       const m = matchRef.current;

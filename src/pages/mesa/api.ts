@@ -31,7 +31,7 @@ export interface AddManyRequest {
   requestId: string;
   items: { clockRevision?: number; tappedElapsed?: number; period?: 1 | 2; event: { type: WaveType; minute: number; playerId: string; inPlayerId: string } }[];
 }
-const call = withServerTime(httpsCallable<AddManyRequest, { events: number; eventIds?: string[]; serverNow?: number }>(functions, "liveEvent"));
+const call = withServerTime(httpsCallable<AddManyRequest, { events: number; eventIds?: string[]; gone?: boolean; serverNow?: number }>(functions, "liveEvent"));
 
 /** The ids the server gives a wave's changes. */
 export const waveIds = (requestId: string, n: number): string[] => Array.from({ length: n }, (_, i) => `live-${requestId}-${i}`);

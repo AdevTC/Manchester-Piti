@@ -393,7 +393,8 @@ export function useBoard(view: MesaView, vista: string | undefined, sheetCtl?: S
       const e = u.play;
       setStatus({ tag: "Deshecho", msg: "La jugada vuelve a estar apuntada.", tone: "", at: Date.now() });
       if (!isMesaType(e.type)) return;
-      cur.actions.add(e.type as MesaType, { ...(e.playerId ? { playerId: e.playerId } : {}), ...(e.inPlayerId ? { inPlayerId: e.inPlayerId } : {}) }, { elapsed: elapsedAt(e), period: e.period });
+      // (with its pass: a goal brought back keeps who gave it, or its «Sin pase»)
+      cur.actions.add(e.type as MesaType, { ...(e.playerId ? { playerId: e.playerId } : {}), ...(e.assistId ? { assistPlayerId: e.assistId } : {}), ...(e.goal === "us" && e.assistReviewed ? { assistReviewed: true } : {}), ...(e.inPlayerId ? { inPlayerId: e.inPlayerId } : {}) }, { elapsed: elapsedAt(e), period: e.period });
       return;
     }
     if (u.k === "kick")
@@ -403,7 +404,8 @@ export function useBoard(view: MesaView, vista: string | undefined, sheetCtl?: S
       });
     if (u.k === "second")
       return void run("clock", async () => {
-        for (const id of u.ids) await cur.actions.remove(id);
+        // (last change first: dropping a change of a wave still on the phone renumbers the ones after it, live-<requestId>-<i>)
+        for (const id of [...u.ids].reverse()) await cur.actions.remove(id);
         await cur.actions.clock("undo_second");
         setStatus({ tag: "Deshecho", msg: u.ids.length ? `Vuelve el descanso: ${plural(u.ids.length, "cambio quitado", "cambios quitados")}.` : "Vuelve el descanso.", tone: "", at: Date.now() });
       });

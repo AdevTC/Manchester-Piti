@@ -86,10 +86,14 @@ function write(matchId: string, lineup: Lineup, notify: boolean, toast: ToastApi
       q.running = false;
       const more = q.next;
       q.next = null;
-      patch(matchId, { overlay: null });
       if (done) done(null, e);
       else toast.show({ tone: "error", message: `No se ha podido guardar la convocatoria: ${apiError(e)}` });
-      more?.done?.(null, e);
+      // The change that waited behind it is the whole, newest lineup: it still goes (it was dropped, and the
+      // captain's last change with it); with no change behind, the screen goes back to what the server has.
+      if (more) {
+        patch(matchId, { overlay: { lineup: more.lineup, at: null } });
+        write(matchId, more.lineup, more.notify, toast, more.done);
+      } else patch(matchId, { overlay: null });
     },
   );
 }

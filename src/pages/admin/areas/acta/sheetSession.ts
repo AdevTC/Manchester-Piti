@@ -201,12 +201,11 @@ export function useSheetSession(): SheetSession {
       }
       busyRef.current = true;
       store.patch({ busy: draft ? "draft" : "publish" });
+      // (the edits this save sends: whatever is edited while it goes up stays unsaved)
+      const sent = store.get().value;
       try {
         await saveMatchSheet({ id: match.id, sheet: p.sheet, draft, ...(sheet.narrationSources?.length ? { sources: sheet.narrationSources } : {}) });
-        const now = store.get().value;
-        const saved = draft ? now : { ...now, revision: (now.revision ?? 0) + 1, ...(now.analysis ? { analysis: { ...now.analysis, revision: now.analysis.revision + 1 } } : {}) };
-        if (!draft) store.set(() => saved);
-        store.commit(saved, store.get().src, instant());
+        store.saved(sent, !draft, instant());
         return true;
       } catch (e) {
         const why = apiError(e);
