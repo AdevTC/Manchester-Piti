@@ -316,6 +316,9 @@ export function LiveScore() {
   useEffect(() => {
     if (!hasState) pip?.close();
   }, [hasState, pip]);
+  // (and the score forgets it: the in-page window's close does nothing, so it would come back by itself on the next
+  // match day with the tab still open)
+  if (!hasState && pip) setPip(null);
 
   // keep the sheet by the float when the window changes size
   useEffect(() => {

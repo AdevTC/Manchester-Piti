@@ -249,6 +249,25 @@ describe("the sheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cerrar la ventana" }));
     expect(screen.queryByRole("dialog", { name: "Marcador en una ventana aparte" })).toBeNull();
   });
+
+  it("the in-page window forgets itself when the day ends: another match day does not bring it back", async () => {
+    media("min-width: 1100px");
+    state.matches = [at(started, [goal("g1", 3)])];
+    state.now = KICK + 10 * MIN;
+    const { rerender } = render(<LiveScore />);
+    fireEvent.click(drop(/minuto 11/));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "El partido contra MAD SKY" })).getByRole("button", { name: "Sacar el marcador" }));
+    await act(async () => {
+      for (let i = 0; i < 3; i++) await Promise.resolve();
+    });
+    expect(screen.getByRole("dialog", { name: "Marcador en una ventana aparte" })).toBeInTheDocument();
+    // (nothing to show: the tab stays open until the next match day)
+    state.matches = [];
+    rerender(<LiveScore />);
+    state.matches = [at(started, [goal("g1", 3)])];
+    rerender(<LiveScore />);
+    expect(screen.queryByRole("dialog", { name: "Marcador en una ventana aparte" })).toBeNull();
+  });
 });
 
 describe("a member's day", () => {
