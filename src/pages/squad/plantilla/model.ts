@@ -543,6 +543,18 @@ export function positions(id: string, ctx: Ctx): { known: boolean; lines: (PosLi
   return { known: pp.lines.length > 0 && pp.estimatedMatches < pp.matches, lines: pp.lines.map((l) => ({ ...l, min: Math.round(l.minutes) })) };
 }
 
+/**
+ * The season a player's page shows: the one chosen when he played it; else, for a player of another visible season,
+ * the current one if he is in it, or the latest of his (the seasons come oldest first). An unknown player keeps the
+ * chosen one (and gets «Jugador no encontrado»).
+ */
+export function seasonOfPlayer(focus: string | null, chosen: string, current: string | null, players: readonly Pick<PlayerDoc, "id" | "seasons">[], seasons: readonly { id: string }[]): string {
+  const mine = players.find((p) => p.id === focus)?.seasons ?? [];
+  if (!focus || mine.includes(chosen)) return chosen;
+  if (current && mine.includes(current) && seasons.some((s) => s.id === current)) return current;
+  return seasons.filter((s) => mine.includes(s.id)).at(-1)?.id ?? chosen;
+}
+
 /** His medals over his whole career (a milestone is won once) and the next three to chase. (The MVPs straight from
  *  the votes: the period's mvpOf only knows the period's games, and his career goes beyond them.) */
 export function medals(id: string, matches: readonly ClubMatch[], ctx: Ctx, seasons: readonly { id: string; name: string }[]): { got: Achievement[]; next: Achievement[] } {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClubMatch } from "../../../lib/clubData";
 import type { PlayerDoc } from "../../../lib/schemas";
 import { addrOf, hrefOf } from "./address";
-import { adn, age, birthday, heightText, medals, missing, periodCtx, sign, stats, toPlayer } from "./model";
+import { adn, age, birthday, heightText, medals, missing, periodCtx, seasonOfPlayer, sign, stats, toPlayer } from "./model";
 import { duelView, homeView, ledeView, matchLines, railView, type DayInput, type Squad, type ViewState, type Who } from "./views";
 
 describe("the addresses", () => {
@@ -115,4 +115,13 @@ describe("a career beyond the season on screen", () => {
     expect(lines.get("jordi")?.tags).toEqual([{ cls: "vd-tag--gol", text: "Gol 44′" }]);
     expect(lines.get("evans")?.tags).toEqual([]);
   });
+});
+
+describe("the season of a player's page", () => {
+  const seasons = [{ id: "t1" }, { id: "t2" }, { id: "t3" }];
+  const docs = [{ id: "old", seasons: ["t1"] }, { id: "new", seasons: ["t3"] }, { id: "both", seasons: ["t1", "t2"] }];
+  it("keeps the chosen season when he played it", () => expect(seasonOfPlayer("both", "t1", "t3", docs, seasons)).toBe("t1"));
+  it("a signing of the current season opens on it, with an older season chosen", () => expect(seasonOfPlayer("new", "t1", "t3", docs, seasons)).toBe("t3"));
+  it("else his latest visible season", () => expect(seasonOfPlayer("both", "t3", "t3", docs, seasons)).toBe("t2"));
+  it("an unknown player keeps the chosen one", () => expect(seasonOfPlayer("nadie", "t1", "t3", docs, seasons)).toBe("t1"));
 });
