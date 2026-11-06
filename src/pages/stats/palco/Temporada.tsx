@@ -406,7 +406,7 @@ export function Temporada({ v, st, act }: PlaceProps) {
               </p>
             )}
           </section>
-          <section className="nx-sec" aria-labelledby="nx-rach-h">
+          <section className="nx-sec" id="rachas" aria-labelledby="nx-rach-h">
             <div className="nx-sec__head">
               <h3 className="nx-h3" id="nx-rach-h">
                 Rachas del equipo

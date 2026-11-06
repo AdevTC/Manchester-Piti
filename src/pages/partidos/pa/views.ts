@@ -926,7 +926,8 @@ export function balanceView(se: PSeason, st: BalState, ctx: Ctx, usRow: TRow | n
       ];
     }
     fc.door = "Rachas y marcas, en Récords";
-    fc.doorPath = "/estadisticas/records";
+    // (straight to «Rachas del equipo»: on a phone they are at the foot of Temporada)
+    fc.doorPath = "/estadisticas/records#rachas";
   } else if (facet === "porteria") {
     const gaSum = scopeMs.reduce((a, m) => a + (m.score?.ga ?? 0), 0);
     fc.line = scopeMs.length ? `${plural(gaSum, "gol encajado", "goles encajados")} en ${plural(scopeMs.length, "partido")}.` : "Por estrenar.";

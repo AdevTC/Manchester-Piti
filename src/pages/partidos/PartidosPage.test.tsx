@@ -221,6 +221,17 @@ it("Balance: the season's readout; a column read; the facets swap", () => {
   expect(screen.getByText(/Ida y vuelta contra cada uno/)).toBeInTheDocument();
 });
 
+it("Balance's «Rachas y marcas» door opens Temporada at «Rachas del equipo»", () => {
+  route.path = "/partidos/balance";
+  route.routerNavigate.mockClear();
+  render(<PartidosPage />);
+  fireEvent.click(screen.getByRole("tab", { name: /^Rachas/ }));
+  const door = screen.getByRole("link", { name: /Rachas y marcas, en Récords/ });
+  expect(door).toHaveAttribute("href", "/estadisticas/records#rachas");
+  fireEvent.click(door);
+  expect(route.routerNavigate).toHaveBeenCalledWith({ to: "/estadisticas/records", hash: "rachas" });
+});
+
 it("a screen change pushes its address; «Abrir el partido» goes to the match page", () => {
   render(<PartidosPage />);
   fireEvent.click(screen.getByRole("tab", { name: /^Tabla/ }));

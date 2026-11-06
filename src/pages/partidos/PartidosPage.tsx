@@ -445,7 +445,9 @@ export function PartidosPage() {
   const goHref = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
-    void router.navigate({ to: path } as never);
+    // (a door to a place inside a page: the router scrolls to its #id once the page is painted)
+    const [to, hash] = path.split("#");
+    void router.navigate({ to, ...(hash ? { hash } : {}) } as never);
   };
 
   const setSeason = (sid: string) => {
