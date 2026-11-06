@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState, useSyncExternalStore } from "react";
+
+const subscribeNothing = () => () => {};
 import { useFirestoreCollection } from "../lib/useFirestoreCollection";
 import { mapSeason } from "../lib/firestoreMappers";
 import { SEASONS_KEY, seasonQuery } from "../lib/publicData";
@@ -22,6 +24,15 @@ interface SeasonContextValue extends SeasonContextType {
   adoptSeasonId: (id: string) => void;
 }
 
+/** The season this browser last chose ("all": none). */
+function savedSeason(): string {
+  try {
+    return window.localStorage.getItem("selected_season_id") || "all";
+  } catch {
+    return "all";
+  }
+}
+
 const SeasonContext = createContext<SeasonContextValue | undefined>(undefined);
 
 export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,15 +46,15 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
   const loadingSeasons = isPending;
 
-  const [selectedSeasonIdRaw, setSelectedSeasonIdRaw] = useState<string>(() => {
-    // Server render: no saved choice there (the client mounts with its own).
-    if (typeof window === "undefined") return "all";
-    try {
-      return window.localStorage.getItem("selected_season_id") || "all";
-    } catch {
-      return "all";
-    }
-  });
+  // Server render: no saved choice there. Taking over the server's page, the client starts as the server did and
+  // adopts its saved choice right after (read in that first render, a saved older season drew another squad than
+  // the server's markup: a hydration mismatch and the whole page drawn again); without one, it starts with it.
+  // (useSyncExternalStore reads the server's snapshot while hydrating, then the client's: React's own way to render
+  // first as the server did; a page the client paints alone reads the client's from the start)
+  const pastServer = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const [saved] = useState(() => (typeof window === "undefined" ? "all" : savedSeason()));
+  const [chosen, setSelectedSeasonIdRaw] = useState<string | null>(null);
+  const selectedSeasonIdRaw = chosen ?? (pastServer ? saved : "all");
 
   const adoptSeasonId = (id: string) => {
     setSelectedSeasonIdRaw(id);
