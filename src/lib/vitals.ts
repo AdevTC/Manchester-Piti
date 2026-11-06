@@ -42,6 +42,21 @@ const urlPath = (u: string | undefined) => {
 const compact = (a: Record<string, number | string | boolean | undefined>): Attr =>
   Object.fromEntries(Object.entries(a).filter(([, v]) => v !== undefined)) as Attr;
 
+type NotRestored = { reasons?: { reason?: string }[] | null; children?: NotRestored[] | null };
+/** Why a page reached with back/forward was loaded again instead of coming back from the back/forward cache (Chrome's
+ *  notRestoredReasons: this page's and its frames', deduplicated), or nothing when it wasn't such a load. */
+export function notRestored(entry: unknown): string | undefined {
+  const root = (entry as { notRestoredReasons?: NotRestored | null } | undefined)?.notRestoredReasons;
+  if (!root) return undefined;
+  const seen = new Set<string>();
+  const walk = (n: NotRestored) => {
+    for (const r of n.reasons ?? []) if (r?.reason) seen.add(r.reason);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(root);
+  return text([...seen].join(","), 120) || "-";
+}
+
 /** What made a metric what it is, in a few fields. */
 export function attributionOf(m: AnyMetric): Attr {
   switch (m.name) {
@@ -77,7 +92,7 @@ export function attributionOf(m: AnyMetric): Attr {
     }
     case "TTFB": {
       const a = m.attribution;
-      return compact({ wait: ms(a.waitingDuration), cache: ms(a.cacheDuration), dns: ms(a.dnsDuration), conn: ms(a.connectionDuration), req: ms(a.requestDuration) });
+      return compact({ wait: ms(a.waitingDuration), cache: ms(a.cacheDuration), dns: ms(a.dnsDuration), conn: ms(a.connectionDuration), req: ms(a.requestDuration), nr: notRestored(a.navigationEntry) });
     }
   }
 }

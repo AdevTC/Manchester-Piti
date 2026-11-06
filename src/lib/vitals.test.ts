@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { INPMetricWithAttribution, LCPMetricWithAttribution, CLSMetricWithAttribution, TTFBMetricWithAttribution } from "web-vitals/attribution";
 import { parseVitals, MAX_BODY, RATE_PER_MIN, withinRate } from "../../functions/src/vitalsLogic";
-import { attributionOf, deviceOf, pageOf, recordOf, startedHidden } from "./vitals";
+import { attributionOf, deviceOf, notRestored, pageOf, recordOf, startedHidden } from "./vitals";
 
 describe("pages group by their kind, ids folded", () => {
   it.each([
@@ -57,6 +57,22 @@ describe("a metric becomes one small record with its cause", () => {
     const m = { name: "CLS", value: 0.05312, rating: "good", attribution: { largestShiftTarget: "div.nu-screen", largestShiftValue: 0.0531, largestShiftTime: 1234.5 } } as unknown as CLSMetricWithAttribution;
     expect(recordOf(m).v).toBe(0.053);
     expect(attributionOf(m)).toEqual({ el: "div.nu-screen", shift: 0.053, at: 1235 });
+  });
+});
+
+describe("why a back/forward load did not come from the back/forward cache", () => {
+  it("collects the page's and its frames' reasons once each", () => {
+    const entry = { notRestoredReasons: { reasons: [{ reason: "unload-listener" }, { reason: "websocket" }], children: [{ reasons: [{ reason: "websocket" }, { reason: "masked" }], children: [] }] } };
+    expect(notRestored(entry)).toBe("unload-listener,websocket,masked");
+  });
+  it("says nothing for any other load, and «-» when Chrome gives no reason", () => {
+    expect(notRestored({ notRestoredReasons: null })).toBeUndefined();
+    expect(notRestored(undefined)).toBeUndefined();
+    expect(notRestored({ notRestoredReasons: { reasons: [], children: [] } })).toBe("-");
+  });
+  it("travels in the TTFB record", () => {
+    const ttfb = { name: "TTFB", value: 180, rating: "good", navigationType: "back-forward", attribution: { waitingDuration: 5, cacheDuration: 0, dnsDuration: 0, connectionDuration: 0, requestDuration: 175, navigationEntry: { notRestoredReasons: { reasons: [{ reason: "broadcastchannel" }] } } } } as unknown as TTFBMetricWithAttribution;
+    expect(recordOf(ttfb).a).toEqual({ wait: 5, cache: 0, dns: 0, conn: 0, req: 175, nr: "broadcastchannel" });
   });
 });
 
